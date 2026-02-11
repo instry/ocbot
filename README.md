@@ -8,6 +8,10 @@
 
 **ocbot** is an AI-native browser and your personal AI assistant. You can think of it as an open-source version of **Chrome + Gemini**, and an all-in-one version of **OpenClaw**.
 
+## 🛠️ Development
+
+See [docs/developing.md](docs/developing.md) for instructions on how to set up the development environment and build the project.
+
 ## ✨ Key Features
 
 ### 1. AI Browser
