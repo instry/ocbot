@@ -1,4 +1,6 @@
-import { type FormEvent, useCallback, useState } from 'react'
+import { type FormEvent, useCallback, useRef, useState } from 'react'
+import { streamChat } from '@/lib/llm/openai'
+import { getApiKey, getModel } from '@/lib/storage'
 import type { ChatMessage } from '@/lib/types'
 import { ChatEmptyState } from './components/ChatEmptyState'
 import { ChatHeader } from './components/ChatHeader'
@@ -10,10 +12,13 @@ export const App = () => {
   const [input, setInput] = useState('')
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
   const isStreaming = streamingContent !== null
 
   const handleNewConversation = useCallback(() => {
+    abortRef.current?.abort()
+    abortRef.current = null
     setMessages([])
     setStreamingContent(null)
     setInput('')
@@ -26,7 +31,13 @@ export const App = () => {
     handleSend(text)
   }
 
-  const handleSend = (text: string) => {
+  const handleSend = async (text: string) => {
+    const apiKey = await getApiKey()
+    if (!apiKey) {
+      setShowSettings(true)
+      return
+    }
+
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -35,22 +46,56 @@ export const App = () => {
     }
     setMessages((prev) => [...prev, userMsg])
     setInput('')
-    // LLM call will be implemented in Task 4
     setStreamingContent('')
-    setTimeout(() => {
-      const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: 'LLM integration coming in next task!',
-        createdAt: Date.now(),
-      }
-      setMessages((prev) => [...prev, assistantMsg])
-      setStreamingContent(null)
-    }, 500)
+
+    const model = await getModel()
+    const apiMessages = [
+      { role: 'system', content: 'You are ocbot, a helpful AI browser assistant.' },
+      ...[...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
+    ]
+
+    abortRef.current = streamChat(apiKey, model, apiMessages, {
+      onToken: (token) => {
+        setStreamingContent((prev) => (prev ?? '') + token)
+      },
+      onDone: (fullText) => {
+        const assistantMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: fullText,
+          createdAt: Date.now(),
+        }
+        setMessages((prev) => [...prev, assistantMsg])
+        setStreamingContent(null)
+        abortRef.current = null
+      },
+      onError: (error) => {
+        setStreamingContent(null)
+        abortRef.current = null
+        const errorMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: `Error: ${error.message}`,
+          createdAt: Date.now(),
+        }
+        setMessages((prev) => [...prev, errorMsg])
+      },
+    })
   }
 
   const handleStop = () => {
+    abortRef.current?.abort()
+    if (streamingContent) {
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: streamingContent,
+        createdAt: Date.now(),
+      }
+      setMessages((prev) => [...prev, assistantMsg])
+    }
     setStreamingContent(null)
+    abortRef.current = null
   }
 
   const handleSuggestionClick = (prompt: string) => {
