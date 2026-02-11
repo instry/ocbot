@@ -28,4 +28,8 @@
 
 ---
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
+## 许可证
+
+本项目采用 GNU Affero General Public License v3.0 许可证 - 详情请参阅 [LICENSE](LICENSE) 文件。
