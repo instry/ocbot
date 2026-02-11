@@ -1,6 +1,6 @@
 # ocbot - AI Browser & Assist
 
-**🌐 [oc.bot](https://oc.bot)**
+## **[https://oc.bot](https://oc.bot)**
 
 **English** | [中文](./README_zh-CN.md)
 
