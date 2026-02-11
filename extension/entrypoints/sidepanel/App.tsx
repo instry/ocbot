@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useRef, useState } from 'react'
 import { streamChat } from '@/lib/llm/openai'
 import { sendMessage, type PageContent } from '@/lib/messaging'
-import { getApiKey, getModel } from '@/lib/storage'
+import { getApiKey, getModel, saveConversation } from '@/lib/storage'
 import type { ChatMessage } from '@/lib/types'
 import { ChatEmptyState } from './components/ChatEmptyState'
 import { ChatHeader } from './components/ChatHeader'
@@ -17,6 +17,7 @@ export const App = () => {
   const [showSettings, setShowSettings] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const [pageContent, setPageContent] = useState<PageContent | null>(null)
+  const [conversationId, setConversationId] = useState(() => crypto.randomUUID())
 
   const isStreaming = streamingContent !== null
 
@@ -38,6 +39,7 @@ export const App = () => {
     setMessages([])
     setStreamingContent(null)
     setInput('')
+    setConversationId(crypto.randomUUID())
   }, [])
 
   const handleSubmit = (e: FormEvent) => {
@@ -87,7 +89,16 @@ export const App = () => {
           content: fullText,
           createdAt: Date.now(),
         }
-        setMessages((prev) => [...prev, assistantMsg])
+        setMessages((prev) => {
+          const updated = [...prev, assistantMsg]
+          saveConversation({
+            id: conversationId,
+            messages: updated,
+            createdAt: updated[0]?.createdAt ?? Date.now(),
+            updatedAt: Date.now(),
+          })
+          return updated
+        })
         setStreamingContent(null)
         abortRef.current = null
       },
