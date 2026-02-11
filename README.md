@@ -1,4 +1,4 @@
-# ocbot - AI Browser & Assist
+# ocbot - AI Browser & Assistant
 
 ## **[https://oc.bot](https://oc.bot)**
 
