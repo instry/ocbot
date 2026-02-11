@@ -1,0 +1,85 @@
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -324,6 +324,7 @@
+ #include "content/public/browser/internal_webui_config.h"
+ #include "content/public/browser/isolated_web_apps_policy.h"
+ #include "content/public/browser/legacy_tech_cookie_issue_details.h"
++#include "content/public/browser/navigation_entry.h"
+ #include "content/public/browser/navigation_handle.h"
+ #include "content/public/browser/network_service_instance.h"
+ #include "content/public/browser/overlay_window.h"
+--- a/chrome/browser/extensions/BUILD.gn
++++ b/chrome/browser/extensions/BUILD.gn
+@@ -1026,6 +1026,7 @@ source_set("extensions") {
+       "//components/resources",
+       "//components/safe_browsing:buildflags",
+       "//components/safe_browsing/content/browser/web_ui",
++      "//components/safe_browsing/content/common/proto:download_file_types_proto",
+       "//components/safe_browsing/core/common/proto:csd_proto",
+       "//components/search_engines",
+       "//components/services/app_service",
+--- a/chrome/browser/ui/safety_hub/revoked_permissions_service.cc
++++ b/chrome/browser/ui/safety_hub/revoked_permissions_service.cc
+@@ -18,6 +18,7 @@
+ #include "build/build_config.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/engagement/site_engagement_service_factory.h"
++#include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/safety_hub/revoked_permissions_os_notification_display_manager.h"
+ #include "chrome/browser/ui/safety_hub/revoked_permissions_os_notification_display_manager_factory.h"
+ #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
+--- a/chrome/common/BUILD.gn
++++ b/chrome/common/BUILD.gn
+@@ -530,6 +530,7 @@ static_library("url_constants") {
+     "//components/optimization_guide/optimization_guide_internals/webui:url_constants",
+     "//components/password_manager/content/common",
+     "//components/safe_browsing/core/common",
++    "//components/supervised_user/core/common:buildflags",
+     "//device/vr/buildflags",
+   ]
+ 
+--- a/components/component_updater/installer_policies/BUILD.gn
++++ b/components/component_updater/installer_policies/BUILD.gn
+@@ -45,6 +45,7 @@ static_library("installer_policies_no_co
+     "//components/update_client",
+     "//mojo/public/cpp/base:protobuf_support",
+     "//services/network/public/cpp",
++    "//third_party/re2",
+   ]
+ 
+   # Disallow depending on content.
+--- a/components/contextual_tasks/internal/BUILD.gn
++++ b/components/contextual_tasks/internal/BUILD.gn
+@@ -45,6 +45,7 @@ source_set("internal") {
+     "//components/sync/model",
+     "//components/url_formatter",
+     "//net",
++    "//third_party/re2",
+     "//ui/gfx",
+     "//url",
+   ]
+--- a/content/browser/BUILD.gn
++++ b/content/browser/BUILD.gn
+@@ -117,6 +117,7 @@ source_set("browser") {
+     "//components/filename_generation",
+     "//components/history/core/browser:features",
+     "//components/input",
++    "//components/lens:buildflags",
+     "//components/language/core/common",
+     "//components/language_detection/content/common",
+     "//components/link_header_util",
+--- a/services/passage_embeddings/BUILD.gn
++++ b/services/passage_embeddings/BUILD.gn
+@@ -31,11 +31,11 @@ source_set("passage_embeddings") {
+       "//third_party/tflite_support:tflite_support_proto",
+     ]
+     deps += [
+-      "//components/optimization_guide:machine_learning_tflite_buildflags",
+       "//components/optimization_guide/core/inference:op_resolver",
+       "//services/on_device_model:ml_internal_buildflags",
+     ]
+   }
++  deps += [ "//components/optimization_guide:machine_learning_tflite_buildflags" ]
+ 
+   if (enable_ml_internal) {
+     deps += [ "//services/on_device_model/ml" ]
