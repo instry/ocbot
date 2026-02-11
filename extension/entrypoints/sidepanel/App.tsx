@@ -1,11 +1,13 @@
 import { type FormEvent, useCallback, useRef, useState } from 'react'
 import { streamChat } from '@/lib/llm/openai'
+import { sendMessage, type PageContent } from '@/lib/messaging'
 import { getApiKey, getModel } from '@/lib/storage'
 import type { ChatMessage } from '@/lib/types'
 import { ChatEmptyState } from './components/ChatEmptyState'
 import { ChatHeader } from './components/ChatHeader'
 import { ChatInput } from './components/ChatInput'
 import { ChatMessages } from './components/ChatMessages'
+import { PageContext } from './components/PageContext'
 import { SettingsPage } from './components/SettingsPage'
 
 export const App = () => {
@@ -14,8 +16,21 @@ export const App = () => {
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const [pageContent, setPageContent] = useState<PageContent | null>(null)
 
   const isStreaming = streamingContent !== null
+
+  const fetchPageContent = async (): Promise<PageContent | null> => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (!tab?.id || !tab.url?.startsWith('http')) return null
+      const content = await sendMessage('getPageContent', undefined, tab.id)
+      setPageContent(content)
+      return content
+    } catch {
+      return null
+    }
+  }
 
   const handleNewConversation = useCallback(() => {
     abortRef.current?.abort()
@@ -49,9 +64,15 @@ export const App = () => {
     setInput('')
     setStreamingContent('')
 
+    const page = await fetchPageContent()
     const model = await getModel()
+
+    const systemContent = page
+      ? `You are ocbot, a helpful AI browser assistant. The user is currently viewing:\n\nURL: ${page.url}\nTitle: ${page.title}\n\nPage content (truncated):\n${page.text}`
+      : 'You are ocbot, a helpful AI browser assistant.'
+
     const apiMessages = [
-      { role: 'system', content: 'You are ocbot, a helpful AI browser assistant.' },
+      { role: 'system', content: systemContent },
       ...[...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
     ]
 
@@ -113,6 +134,7 @@ export const App = () => {
         onNewConversation={handleNewConversation}
         onOpenSettings={() => setShowSettings(true)}
       />
+      <PageContext page={pageContent} />
       {messages.length === 0 && !isStreaming ? (
         <main className="flex flex-1 flex-col overflow-hidden">
           <ChatEmptyState onSuggestionClick={handleSuggestionClick} />
