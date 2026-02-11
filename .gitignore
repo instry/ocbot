@@ -3,3 +3,6 @@ __pycache__/
 *$py.class
 build/
 .DS_Store
+node_modules/
+.output/
+.wxt/
