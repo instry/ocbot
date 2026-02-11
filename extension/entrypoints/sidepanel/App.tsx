@@ -6,6 +6,7 @@ import { ChatEmptyState } from './components/ChatEmptyState'
 import { ChatHeader } from './components/ChatHeader'
 import { ChatInput } from './components/ChatInput'
 import { ChatMessages } from './components/ChatMessages'
+import { SettingsPage } from './components/SettingsPage'
 
 export const App = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -100,6 +101,10 @@ export const App = () => {
 
   const handleSuggestionClick = (prompt: string) => {
     handleSend(prompt)
+  }
+
+  if (showSettings) {
+    return <SettingsPage onBack={() => setShowSettings(false)} />
   }
 
   return (
