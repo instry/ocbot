@@ -2,8 +2,6 @@
 
 ## **[https://oc.bot](https://oc.bot)**
 
-**English** | [中文](./README_zh-CN.md)
-
 ---
 
 **ocbot** is an AI-native browser and your personal AI assistant. You can think of it as an open-source version of **Chrome + Gemini**, and an all-in-one version of **OpenClaw**.
