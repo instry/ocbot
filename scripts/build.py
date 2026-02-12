@@ -1,10 +1,15 @@
 import subprocess
 import os
+from pathlib import Path
 from common import get_logger, get_source_dir
 
 def build_chromium(args):
     logger = get_logger()
-    src_dir = get_source_dir()
+    
+    if args.src_dir:
+        src_dir = Path(args.src_dir).resolve()
+    else:
+        src_dir = get_source_dir()
     
     if not src_dir.exists():
         logger.error("Source directory not found.")

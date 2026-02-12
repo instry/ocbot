@@ -5,7 +5,12 @@ from common import get_logger, get_source_dir, get_project_root
 
 def apply_patches(args):
     logger = get_logger()
-    src_dir = get_source_dir()
+    
+    if args.src_dir:
+        src_dir = Path(args.src_dir).resolve()
+    else:
+        src_dir = get_source_dir()
+        
     if not src_dir.exists():
         logger.error("Source directory not found. Run download first.")
         return
