@@ -85,8 +85,9 @@ ocbot/
 │   ├── patches/                # Chromium C++ Patches
 │   └── chromium_version.txt    # Chromium Version
 ├── scripts/                    # Build Scripts
-│   └── dev.py                  # Main CLI Tool
-└── ../chromium/                # Chromium Source Directory
+    └── dev.py                  # Main CLI Tool
+
+chromium/                       # Chromium Source Directory
     └── <version>/              # Specific Version
 ```
 
