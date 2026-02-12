@@ -33,8 +33,6 @@ def main():
                                 help='Download method: tarball (quick) or depot (full dev) or sync (re-run gclient sync)')
     parser_download.add_argument('--no-history', action='store_true',
                                 help='Fetch without git history (depot method only, reduces size)')
-    parser_download.add_argument('--without-android', action='store_true',
-                                help='Skip Android dependencies (depot method only)')
 
     # Patch
     parser_patch = subparsers.add_parser('patch', help='Apply patches')

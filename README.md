@@ -59,15 +59,13 @@ export PATH="$PATH:$(pwd)/depot_tools"
 ```bash
 # Download
 ./scripts/dev.py download --method tarball                 # Quick download
-./scripts/dev.py download --method depot --without-android # Skip Android dependencies (smaller download)
 ./scripts/dev.py download --method depot --no-history      # Full download
 
 # Patch
 ./scripts/dev.py patch                                  # Apply all patches
 
 # Build
-./scripts/dev.py build                                  # Build chrome
-./scripts/dev.py build --target content_shell           # Build test version
+./scripts/dev.py build                                  # Build Browser
 
 # Help
 ./scripts/dev.py --help

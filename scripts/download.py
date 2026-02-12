@@ -86,15 +86,27 @@ def download_with_depot_tools(args, src_dir):
     logger.info(f"Running: {' '.join(fetch_cmd)}")
     
     try:
-        result = subprocess.run(fetch_cmd, check=False)
-        if result.returncode != 0:
-            logger.error("fetch command failed")
-            return False
+        # Check if we are already in a gclient checkout
+        if (Path('.gclient').exists()):
+             logger.warning("Already inside a gclient checkout. Skipping fetch.")
+        else:
+            result = subprocess.run(fetch_cmd, check=False)
+            if result.returncode != 0:
+                # If fetch fails, it might be because the directory is not empty or partially initialized
+                # But sometimes fetch returns non-zero even if it did something useful or if we are re-running
+                logger.error("fetch command failed. If you are resuming, this might be expected.")
+                # We continue to sync regardless, as that's how we resume
     except Exception as e:
         logger.error(f"fetch failed: {e}")
         return False
     
     # Now run gclient sync to get dependencies
+    # Even if fetch failed (or was skipped because of existing checkout), 
+    # we should try to sync, but only if .gclient exists or src/ exists
+    if not (src_dir / '.gclient').exists() and not (src_dir / 'src').exists():
+         logger.error("Source directory not found (no .gclient or src/). Please run fetch first or ensure directory is clean.")
+         return False
+
     return sync_with_depot_tools(args, src_dir)
 
 
@@ -103,7 +115,8 @@ def sync_with_depot_tools(args, build_dir):
     logger = get_logger()
     src_dir = build_dir / 'src'
     
-    if not src_dir.exists():
+    # Check if .gclient exists in build_dir
+    if not (build_dir / '.gclient').exists() and not src_dir.exists():
         logger.error("Source directory not found. Please run fetch first.")
         return False
     
@@ -113,9 +126,6 @@ def sync_with_depot_tools(args, build_dir):
     logger.info("This downloads hundreds of third-party libraries (DEPS file)...")
     
     sync_cmd = ['gclient', 'sync']
-    
-    if args.without_android:
-        sync_cmd.extend(['--disable-syntax-validation', '-D', 'checkout_android=False'])
     
     try:
         result = subprocess.run(sync_cmd, check=False)
