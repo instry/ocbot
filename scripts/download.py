@@ -27,6 +27,17 @@ def init_depot_tools():
         logger.info("  export PATH=\"$PATH:/path/to/depot_tools\"")
         return False
     
+    # Check if already initialized
+    try:
+        # Running --version is usually fast if already initialized
+        result = subprocess.run(['gclient', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            logger.info(f"depot_tools is ready ({result.stdout.strip()})")
+            return True
+    except Exception:
+        # Ignore error here and proceed to explicit initialization
+        pass
+
     # Run gclient once to initialize
     logger.info("Initializing depot_tools...")
     try:
