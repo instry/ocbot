@@ -15,13 +15,18 @@ except ImportError as e:
 
 def main():
     parser = argparse.ArgumentParser(description='ocbot development utility')
+    
+    # Parent parser for common arguments
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument('--src-dir', help='Chromium source directory (default: ../chromium/<version>)')
+
     subparsers = parser.add_subparsers(dest='command', help='Command to run')
 
     # Check
-    parser_check = subparsers.add_parser('check', help='Check environment and recommend download method')
+    parser_check = subparsers.add_parser('check', help='Check environment and recommend download method', parents=[parent_parser])
 
     # Download
-    parser_download = subparsers.add_parser('download', help='Download Chromium source')
+    parser_download = subparsers.add_parser('download', help='Download Chromium source', parents=[parent_parser])
     parser_download.add_argument('--version', help='Chromium version to download (tarball method only)')
     parser_download.add_argument('--method', choices=['tarball', 'depot', 'sync'], 
                                 default='tarball',

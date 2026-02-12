@@ -1,6 +1,8 @@
 import shutil
 import subprocess
 import requests
+import os
+from pathlib import Path
 from common import get_logger
 
 def check_disk_space(path="."):
@@ -30,7 +32,21 @@ def check_environment(args):
 
     # 1. Check disk space
     print("1. Checking disk space...")
-    free_gb = check_disk_space()
+    
+    check_path = "."
+    if args.src_dir:
+        # Check the parent directory of src_dir (where download happens)
+        check_path = str(Path(args.src_dir).resolve().parent)
+        if not os.path.exists(check_path):
+            try:
+                Path(check_path).mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                print(f"   Warning: Could not create directory {check_path}: {e}")
+                print(f"   Checking current directory instead.")
+                check_path = "."
+
+    free_gb = check_disk_space(check_path)
+    print(f"   Checking path: {os.path.abspath(check_path)}")
     print(f"   Available space: {free_gb}GB")
     print("")
 
