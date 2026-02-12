@@ -58,8 +58,9 @@ export PATH="$PATH:$(pwd)/depot_tools"
 
 ```bash
 # Download
-./scripts/dev.py download --method tarball              # Quick download
-./scripts/dev.py download --method depot --no-history   # Full download
+./scripts/dev.py download --method tarball                 # Quick download
+./scripts/dev.py download --method depot --without-android # Skip Android dependencies (smaller download)
+./scripts/dev.py download --method depot --no-history      # Full download
 
 # Patch
 ./scripts/dev.py patch                                  # Apply all patches
@@ -93,8 +94,8 @@ chromium/                       # Chromium Source Directory
 
 ---
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-
 ## License
 
 This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
