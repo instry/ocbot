@@ -15,6 +15,11 @@ def apply_patches(args):
         logger.error("Source directory not found. Run download first.")
         return
 
+    # Check if we are in the root of a depot_tools checkout (contains .gclient or src/)
+    if (src_dir / 'src').exists() and (src_dir / 'src').is_dir():
+        logger.info(f"Found 'src' subdirectory. Using {src_dir}/src as patch root.")
+        src_dir = src_dir / 'src'
+
     logger.info("Applying patches...")
     
     patches_dir = get_project_root() / 'resources' / 'patches'
@@ -46,6 +51,25 @@ def apply_patches(args):
             logger.warning(f"Patch file {patch_name} not found. Skipping.")
             continue
         
+        # Check if it's a patch/diff file or a source file to copy
+        is_patch = patch_name.endswith('.patch') or patch_name.endswith('.diff')
+        
+        if not is_patch:
+            # It's a source file, copy it to the destination
+            dest_path = src_dir / patch_name
+            
+            try:
+                # Ensure parent directory exists
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                # Copy file
+                shutil.copy2(patch_file, dest_path)
+                logger.info(f"[{i+1}/{len(patches)}] Copied {patch_name} to {dest_path}")
+            except Exception as e:
+                logger.error(f"Failed to copy {patch_name}: {e}")
+                return
+            continue
+
         # logger.info(f"[{i+1}/{len(patches)}] Applying {patch_name}...")
         
         cmd = ['patch', '-p1', '--forward', '--reject-file=-', '--no-backup-if-mismatch', '-i', str(patch_file), '-d', str(src_dir)]
