@@ -1,33 +1,31 @@
 {
   "name": "ocbot-extension",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
-    "compile": "tsc --noEmit"
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.563.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "tailwind-merge": "^3.4.0",
-    "tw-animate-css": "^1.4.0",
-    "@webext-core/messaging": "^1.4.0"
+    "@webext-core/messaging": "^1.4.0",
+    "lucide-react": "^0.476.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "^0.5.19",
-    "@tailwindcss/vite": "^4.1.18",
-    "@types/chrome": "^0.1.36",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@wxt-dev/module-react": "^1.1.5",
-    "tailwindcss": "^4.1.18",
-    "typescript": "^5.9.3",
-    "wxt": "^0.20.15"
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/chrome": "^0.0.300",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@wxt-dev/module-react": "^1.1.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "wxt": "^0.20.0"
   }
 }
