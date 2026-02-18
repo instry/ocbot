@@ -48,6 +48,7 @@ export PATH="$PATH:$(pwd)/depot_tools"
 ./scripts/dev.py download --method depot --no-history
 ./scripts/dev.py patch
 ./scripts/dev.py build
+./scripts/dev.py run
 ```
 
 > **Tip:** Run `./scripts/dev.py check` for auto-recommendation.
@@ -66,6 +67,9 @@ export PATH="$PATH:$(pwd)/depot_tools"
 
 # Build
 ./scripts/dev.py build                                  # Build Browser
+
+# Run
+./scripts/dev.py run                                    # Run with extension loaded
 
 # Help
 ./scripts/dev.py --help
