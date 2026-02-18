@@ -1,0 +1,11 @@
+// Add ocbot button member to ToolbarView
+
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
+@@ -297,6 +297,7 @@
+   raw_ptr<AvatarToolbarButton> avatar_ = nullptr;
+   raw_ptr<MediaToolbarButtonView> media_button_ = nullptr;
+   raw_ptr<BrowserAppMenuButton> app_menu_button_ = nullptr;
++  raw_ptr<PinnedActionToolbarButton> ocbot_button_ = nullptr;
+   raw_ptr<views::View> new_tab_button_ = nullptr;
+   raw_ptr<PinnedActionToolbarButton> tab_search_button_ = nullptr;

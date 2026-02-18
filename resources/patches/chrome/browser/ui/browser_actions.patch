@@ -1,0 +1,46 @@
+// Register ocbot side panel action as a first-class browser action
+
+--- a/chrome/browser/ui/browser_actions.cc
++++ b/chrome/browser/ui/browser_actions.cc
+@@ -77,6 +77,9 @@
+ #include "chrome/browser/ui/views/page_action/page_action_triggers.h"
+ #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
+ #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
++#include "chrome/browser/ocbot/ocbot_constants.h"
++#include "chrome/browser/ocbot/ocbot_side_panel_manager.h"
++#include "components/vector_icons/ocbot.icon"
+ #include "chrome/browser/ui/views/side_panel/comments/comments_side_panel_coordinator.h"
+ #include "chrome/browser/ui/views/side_panel/history/history_side_panel_coordinator.h"
+ #include "chrome/browser/ui/views/side_panel/history_clusters/history_clusters_side_panel_utils.h"
+@@ -1456,5 +1456,31 @@ void BrowserActions::InitializeBrowserActions(
+   }
+ #endif  // BUILDFLAG(ENABLE_GLIC)
+ 
++  // ocbot: Register ocbot side panel action as a first-class action.
++  // This allows ocbot to appear in the toolbar like a built-in feature
++  // rather than an extension.
++  {
++    actions::ActionItem::InvokeActionCallback toggle_ocbot_callback =
++        base::BindRepeating(
++            [](base::WeakPtr<BrowserWindowInterface> bwi,
++               actions::ActionItem* item,
++               actions::ActionInvocationContext context) {
++              if (!bwi) {
++                return;
++              }
++              ocbot::ToggleSidePanel(bwi.get());
++            },
++            bwi->GetWeakPtr());
++
++    root_action_item_->AddChild(
++        actions::ActionItem::Builder(toggle_ocbot_callback)
++            .SetActionId(kActionSidePanelShowOcbot)
++            .SetText(u"ocbot")
++            .SetTooltipText(u"ocbot AI Assistant")
++            .SetImage(ui::ImageModel::FromVectorIcon(kOcbotIcon, ui::kColorIcon))
++            .SetProperty(actions::kActionItemPinnableKey, true)
++            .Build());
++  }
++
+   AddListeners();
+ }
