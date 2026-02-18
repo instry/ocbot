@@ -3,9 +3,8 @@ import shutil
 from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root
 
-def apply_patches(args):
+def _get_src_dir(args):
     logger = get_logger()
-    
     if args.src_dir:
         src_dir = Path(args.src_dir).resolve()
     else:
@@ -13,21 +12,21 @@ def apply_patches(args):
         
     if not src_dir.exists():
         logger.error("Source directory not found. Run download first.")
-        return
+        return None
 
     # Check if we are in the root of a depot_tools checkout (contains .gclient or src/)
     if (src_dir / 'src').exists() and (src_dir / 'src').is_dir():
         logger.info(f"Found 'src' subdirectory. Using {src_dir}/src as patch root.")
         src_dir = src_dir / 'src'
+    return src_dir
 
-    logger.info("Applying patches...")
-    
+def _get_patches_list(logger):
     patches_dir = get_project_root() / 'resources' / 'patches'
     series_path = patches_dir / 'series'
     
     if not series_path.exists():
         logger.error(f"Series file not found at {series_path}")
-        return
+        return [], patches_dir
 
     # Read series
     patches = []
@@ -37,6 +36,19 @@ def apply_patches(args):
             if not line or line.startswith('#'):
                 continue
             patches.append(line)
+    return patches, patches_dir
+
+def apply_patches(args):
+    logger = get_logger()
+    src_dir = _get_src_dir(args)
+    if not src_dir:
+        return
+
+    logger.info("Applying patches...")
+    
+    patches, patches_dir = _get_patches_list(logger)
+    if not patches:
+        return
 
     logger.info(f"Found {len(patches)} patches to apply.")
     
@@ -88,3 +100,59 @@ def apply_patches(args):
              logger.info(f"[{i+1}/{len(patches)}] {patch_name} (applied)")
             
     logger.info("All patches applied successfully.")
+
+def revert_patches(args):
+    logger = get_logger()
+    src_dir = _get_src_dir(args)
+    if not src_dir:
+        return
+
+    logger.info("Reverting patches...")
+    
+    patches, patches_dir = _get_patches_list(logger)
+    if not patches:
+        return
+
+    # Check if patch command exists
+    if not shutil.which('patch'):
+        logger.error("Command 'patch' not found.")
+        return
+
+    # Revert in reverse order
+    for i, patch_name in enumerate(reversed(patches)):
+        patch_file = patches_dir / patch_name
+        if not patch_file.exists():
+            continue
+        
+        # Check if it's a patch/diff file or a source file to copy
+        is_patch = patch_name.endswith('.patch') or patch_name.endswith('.diff')
+        
+        if not is_patch:
+            # For copied files, we can't easily revert unless we have a backup.
+            # However, for new files (like ocbot_constants.h), we can delete them if they didn't exist before.
+            # But verifying if it was a new file or replaced file is hard without git.
+            # We will just warn for now.
+            logger.warning(f"[{i+1}/{len(patches)}] Skipping revert for copied file {patch_name} (manual revert required if it replaced an existing file)")
+            continue
+
+        cmd = ['patch', '-p1', '-R', '--forward', '--reject-file=-', '--no-backup-if-mismatch', '--ignore-whitespace', '-f', '-i', str(patch_file), '-d', str(src_dir)]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            # Check if it's already reverted (not applied)
+            # "previously applied" usually means it IS applied. 
+            # If we try to reverse and it fails, maybe it wasn't applied?
+            # patch -R output:
+            # if patch is not applied: "Reversed (or previously applied) patch detected!  Assume -R? [n]" -> if we force -R, it might try to apply it?
+            # Actually if we use -R and it fails, it usually says "hunk FAILED".
+            # If it says "Assume -R?", it means it thinks we are trying to apply a patch that looks reversed.
+            
+            # If we run patch -R on a file that is NOT patched (i.e. original), it will fail to find the hunks to reverse.
+            
+            logger.info(f"[{i+1}/{len(patches)}] {patch_name} (failed to revert or not applied)")
+            # We don't stop on failure during revert, we try to revert as much as possible.
+        else:
+             logger.info(f"[{i+1}/{len(patches)}] {patch_name} (reverted)")
+            
+    logger.info("Revert operation completed.")
