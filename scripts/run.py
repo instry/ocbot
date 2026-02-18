@@ -70,6 +70,7 @@ def run_chromium(args):
         cmd.extend(args.args)
 
     logger.info(f"Launching Chromium...")
+    logger.info(f"Command: {' '.join(cmd)}")
     try:
         subprocess.run(cmd)
     except KeyboardInterrupt:
