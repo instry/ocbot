@@ -1,19 +1,20 @@
-// Auto-open ocbot side panel when browser window is initialized
-
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -44,6 +44,7 @@
+@@ -43,6 +43,7 @@
+ #include "chrome/browser/app_mode/app_mode_utils.h"
  #include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
  #include "chrome/browser/browser_process.h"
 +#include "chrome/browser/ocbot/ocbot_side_panel_manager.h"
  #include "chrome/browser/devtools/devtools_ui_controller.h"
  #include "chrome/browser/devtools/devtools_window.h"
  #include "chrome/browser/enterprise/data_protection/data_protection_navigation_observer.h"
-@@ -5067,6 +5068,10 @@ void BrowserView::AddedToWidget() {
+@@ -5065,6 +5066,9 @@
+ #endif
  
    toolbar_->Init();
- 
++
 +  // ocbot: Auto-open side panel on first browser window
 +  ocbot::MaybeAutoOpenSidePanel(this);
-+
+ 
    UpdateTabSearchBubbleHost();
+ 
