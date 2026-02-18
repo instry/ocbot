@@ -72,7 +72,7 @@ def apply_patches(args):
 
         # logger.info(f"[{i+1}/{len(patches)}] Applying {patch_name}...")
         
-        cmd = ['patch', '-p1', '--forward', '--reject-file=-', '--no-backup-if-mismatch', '-i', str(patch_file), '-d', str(src_dir)]
+        cmd = ['patch', '-p1', '--forward', '--reject-file=-', '--no-backup-if-mismatch', '--ignore-whitespace', '-f', '-i', str(patch_file), '-d', str(src_dir)]
         
         result = subprocess.run(cmd, capture_output=True, text=True)
         
