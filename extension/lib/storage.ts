@@ -1,48 +1,60 @@
-import type { ChatMessage } from '@/lib/types'
+import type { Conversation } from './types'
 
 const STORAGE_KEYS = {
-  apiKey: 'ocbot_api_key',
-  model: 'ocbot_model',
+  apiKeys: 'ocbot_api_keys',
+  currentProvider: 'ocbot_current_provider',
+  currentModel: 'ocbot_current_model',
 } as const
 
-export async function getApiKey(): Promise<string | null> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.apiKey)
-  return (result[STORAGE_KEYS.apiKey] as string) ?? null
+// API Keys storage (per provider)
+export async function getApiKey(provider: string): Promise<string | null> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.apiKeys)
+  const keys = result[STORAGE_KEYS.apiKeys] as Record<string, string> || {}
+  return keys[provider] || null
 }
 
-export async function setApiKey(key: string): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEYS.apiKey]: key })
+export async function setApiKey(provider: string, key: string): Promise<void> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.apiKeys)
+  const keys = result[STORAGE_KEYS.apiKeys] as Record<string, string> || {}
+  keys[provider] = key
+  await chrome.storage.local.set({ [STORAGE_KEYS.apiKeys]: keys })
 }
 
-export async function getModel(): Promise<string> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.model)
-  return (result[STORAGE_KEYS.model] as string) ?? 'gpt-4o-mini'
+export async function getAllApiKeys(): Promise<Record<string, string>> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.apiKeys)
+  return result[STORAGE_KEYS.apiKeys] as Record<string, string> || {}
 }
 
-export async function setModel(model: string): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEYS.model]: model })
+// Current provider/model
+export async function getCurrentProvider(): Promise<string> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.currentProvider)
+  return (result[STORAGE_KEYS.currentProvider] as string) || 'openai'
 }
 
-// --- Conversation persistence ---
-
-interface Conversation {
-  id: string
-  messages: ChatMessage[]
-  createdAt: number
-  updatedAt: number
+export async function setCurrentProvider(provider: string): Promise<void> {
+  await chrome.storage.local.set({ [STORAGE_KEYS.currentProvider]: provider })
 }
 
+export async function getCurrentModel(): Promise<string> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.currentModel)
+  return (result[STORAGE_KEYS.currentModel] as string) || 'gpt-4o-mini'
+}
+
+export async function setCurrentModel(model: string): Promise<void> {
+  await chrome.storage.local.set({ [STORAGE_KEYS.currentModel]: model })
+}
+
+// Conversation persistence
 const CONVERSATIONS_KEY = 'ocbot_conversations'
-const CURRENT_CONV_KEY = 'ocbot_current_conversation'
 
 export async function getConversations(): Promise<Conversation[]> {
   const result = await chrome.storage.local.get(CONVERSATIONS_KEY)
-  return (result[CONVERSATIONS_KEY] as Conversation[]) ?? []
+  return (result[CONVERSATIONS_KEY] as Conversation[]) || []
 }
 
 export async function saveConversation(conv: Conversation): Promise<void> {
   const all = await getConversations()
-  const idx = all.findIndex((c) => c.id === conv.id)
+  const idx = all.findIndex(c => c.id === conv.id)
   if (idx >= 0) {
     all[idx] = conv
   } else {
@@ -52,13 +64,8 @@ export async function saveConversation(conv: Conversation): Promise<void> {
   await chrome.storage.local.set({ [CONVERSATIONS_KEY]: all.slice(0, 50) })
 }
 
-export async function getCurrentConversationId(): Promise<string | null> {
-  const result = await chrome.storage.local.get(CURRENT_CONV_KEY)
-  return (result[CURRENT_CONV_KEY] as string) ?? null
+export async function deleteConversation(id: string): Promise<void> {
+  const all = await getConversations()
+  const filtered = all.filter(c => c.id !== id)
+  await chrome.storage.local.set({ [CONVERSATIONS_KEY]: filtered })
 }
-
-export async function setCurrentConversationId(id: string | null): Promise<void> {
-  await chrome.storage.local.set({ [CURRENT_CONV_KEY]: id })
-}
-
-export type { Conversation }

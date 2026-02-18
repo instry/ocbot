@@ -1,16 +1,18 @@
 import { defineExtensionMessaging } from '@webext-core/messaging'
 
-interface PageContent {
+// Page content extracted from content script
+export interface PageContent {
   url: string
   title: string
   text: string
 }
 
-interface MessagingProtocol {
+// Messaging protocol between sidepanel and content script
+interface Protocol {
+  // Get page content from current tab
   getPageContent(): PageContent
 }
 
-export const { sendMessage, onMessage } =
-  defineExtensionMessaging<MessagingProtocol>()
+export const { sendMessage, onMessage } = defineExtensionMessaging<Protocol>()
 
 export type { PageContent }

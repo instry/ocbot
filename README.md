@@ -4,7 +4,7 @@
 
 ---
 
-**ocbot** is an AI browser and AI assistant. You can think of it as an open-source version of **Chrome + Gemini**, and an all-in-one version of **OpenClaw**.
+**ocbot** is an AI browser & assistant. You can think of it as an open-source version of **Chrome + Gemini**, and an all-in-one version of **OpenClaw**.
 
 ---
 
