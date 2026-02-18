@@ -72,17 +72,9 @@ def main():
             src_dir = src_dir / 'src'
 
         # Install icons before build
-        # Source: ocbot/resources/patches/chrome/app/theme/chromium
+        # Source: ocbot/icons
         # Dest: src/chrome/app/theme/chromium
-        icons_src = get_project_root() / 'resources' / 'patches' / 'chrome' / 'app' / 'theme' / 'chromium'
-        icons_dest = src_dir / 'chrome' / 'app' / 'theme' / 'chromium'
-        
-        install_icons(icons_src, icons_dest)
-        
-        build_chromium(args)# Install icons before build
-        # Source: ocbot/resources/patches/chrome/app/theme/chromium
-        # Dest: src/chrome/app/theme/chromium
-        icons_src = get_project_root() / 'resources' / 'patches' / 'chrome' / 'app' / 'theme' / 'chromium'
+        icons_src = get_project_root() / 'icons'
         icons_dest = src_dir / 'chrome' / 'app' / 'theme' / 'chromium'
         
         install_icons(icons_src, icons_dest)
