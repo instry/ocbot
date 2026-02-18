@@ -103,7 +103,7 @@
 +};
 +
 +const gfx::VectorIconRep kOcbotIconReps[] = {
-+    { kOcbotIconPath, std::size(kOcbotIconPath) }
++    { kOcbotIconPath }
 +};
 +
 +const gfx::VectorIcon kOcbotIcon = { kOcbotIconReps, 1, "kOcbotIcon" };
