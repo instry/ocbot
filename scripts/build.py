@@ -15,6 +15,11 @@ def build_chromium(args):
         logger.error("Source directory not found.")
         return
         
+    # Check if we are in the root of a depot_tools checkout (contains .gclient or src/)
+    if (src_dir / 'src').exists() and (src_dir / 'src').is_dir():
+        logger.info(f"Found 'src' subdirectory. Using {src_dir}/src as build root.")
+        src_dir = src_dir / 'src'
+
     logger.info("Starting build process...")
     logger.info("NOTE: This requires 'gn' and 'ninja' to be in PATH and depot_tools configured.")
     

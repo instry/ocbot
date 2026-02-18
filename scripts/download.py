@@ -240,7 +240,8 @@ def download_source(args):
         src_dir = Path(args.src_dir).resolve()
     else:
         # Default: sibling directory with version
-        src_dir = get_source_dir(args.version)
+        version = args.version or get_chromium_version()
+        src_dir = get_source_dir(version)
         
     logger.info(f"Target Source Directory: {src_dir}")
     
