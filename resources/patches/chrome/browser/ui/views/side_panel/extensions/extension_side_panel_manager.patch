@@ -1,0 +1,34 @@
+// Auto-pin ocbot extension when loaded
+
+--- a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc
++++ b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc
+@@ -13,6 +13,7 @@
+ #include "chrome/browser/ui/browser_actions.h"
+ #include "chrome/browser/ui/browser_finder.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
++#include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
+@@ -23,6 +24,7 @@
+ #include "content/public/browser/browser_context.h"
+ #include "content/public/browser/web_contents.h"
++#include "chrome/browser/ocbot/ocbot_constants.h"
+ #include "extensions/common/extension.h"
+ #include "extensions/common/extension_features.h"
+ #include "extensions/common/permissions/api_permission.h"
+@@ -102,6 +104,14 @@ void ExtensionSidePanelManager::MaybeCreateActionItemForExtension(
+   actions::ActionItem* extension_action_item =
+       actions::ActionManager::Get().FindAction(
+           extension_action_id, browser_actions->root_action_item());
++
++  // ocbot: Auto-pin ocbot extension to toolbar
++  if (ocbot::IsOcbotExtension(extension->id())) {
++    PinnedToolbarActionsModel* model = PinnedToolbarActionsModel::Get(profile_);
++    if (model) {
++      model->UpdatePinnedState(extension_action_id, true);
++    }
++  }
+ 
+   // Mark the action item as pinnable if it already exists.
+   if (extension_action_item) {

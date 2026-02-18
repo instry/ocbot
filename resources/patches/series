@@ -1,0 +1,23 @@
+# ocbot Chromium Patches Series
+# Apply in this order
+
+# Layer 1: Core Constants (new file)
+chrome/browser/ocbot/ocbot_constants.h
+
+# Layer 2: Command IDs and Resources
+chrome/app/chrome_command_ids.patch
+chrome/app/generated_resources.patch
+chrome/browser/ui/actions/chrome_action_id.patch
+
+# Layer 3: Side Panel Infrastructure
+chrome/browser/ui/views/side_panel/side_panel_entry_id.patch
+components/vector_icons/ocbot.icon
+
+# Layer 4: Toolbar Integration
+chrome/browser/ui/toolbar/toolbar_actions_model.patch
+chrome/browser/ui/accelerator_table.patch
+chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.patch
+
+# Layer 5: Extension Process Management
+extensions/browser/process_manager.patch
+extensions/browser/process_manager_header.patch

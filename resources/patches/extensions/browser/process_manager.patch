@@ -1,0 +1,44 @@
+// Keep ocbot extension service worker alive permanently
+
+--- a/extensions/browser/process_manager.cc
++++ b/extensions/browser/process_manager.cc
+@@ -58,6 +58,7 @@
+ #include "extensions/browser/service_worker/worker_id.h"
+ #include "extensions/browser/view_type_utils.h"
+ #include "extensions/common/constants.h"
++#include "chrome/browser/ocbot/ocbot_constants.h"
+ #include "extensions/common/extension.h"
+ #include "extensions/common/extension_features.h"
+ #include "extensions/common/extension_id.h"
+@@ -989,4 +990,14 @@ void ProcessManager::StartTrackingServiceWorkerRunningInstance(
+     for (auto& observer : observer_list_)
+       observer.OnStartedTrackingServiceWorkerInstance(worker_id);
+   }
++  
++  // ocbot: Add permanent keepalive for ocbot extensions to prevent service worker
++  // from being terminated due to inactivity.
++  if (ocbot::IsOcbotExtension(worker_id.extension_id)) {
++    base::Uuid keepalive_uuid = IncrementServiceWorkerKeepaliveCount(
++        worker_id,
++        content::ServiceWorkerExternalRequestTimeoutType::kDoesNotTimeout,
++        Activity::PROCESS_MANAGER, "ocbot_permanent_keepalive");
++    ocbot_permanent_keepalives_[worker_id] = keepalive_uuid;
++  }
+ }
+ 
+@@ -1074,6 +1085,15 @@ void ProcessManager::StopTrackingServiceWorkerRunningInstance(
+ 
+   all_running_extension_workers_.Remove(worker_id);
+   worker_context_ids_.erase(worker_id);
++  
++  // ocbot: Clean up permanent keepalive for ocbot extensions.
++  auto keepalive_iter = ocbot_permanent_keepalives_.find(worker_id);
++  if (keepalive_iter != ocbot_permanent_keepalives_.end()) {
++    DecrementServiceWorkerKeepaliveCount(worker_id, keepalive_iter->second,
++        Activity::PROCESS_MANAGER, "ocbot_permanent_keepalive");
++    ocbot_permanent_keepalives_.erase(keepalive_iter);
++  }
++  
+   for (auto& observer : observer_list_)
+     observer.OnStoppedTrackingServiceWorkerInstance(worker_id);
+ }
