@@ -1,0 +1,26 @@
+// Replace Tab Search with ocbot button in the toolbar
+
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -457,13 +457,13 @@ void ToolbarView::Init() {
+   pinned_toolbar_actions_container_ = AddChildView(
+       std::make_unique<PinnedToolbarActionsContainer>(browser_view_, this));
+ 
+-  if (!base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton) &&
+-      features::HasTabSearchToolbarButton()) {
+-    tab_search_button_ =
+-        pinned_toolbar_actions_container()->CreatePermanentButtonFor(
+-            kActionTabSearch);
+-    tab_search_button_->SetProperty(views::kElementIdentifierKey,
+-                                    kTabSearchButtonElementId);
+-  }
++  // ocbot: Add ocbot button in place of Tab Search.
++  // ocbot appears as a first-class browser feature, not an extension.
++  ocbot_button_ =
++      pinned_toolbar_actions_container()->CreatePermanentButtonFor(
++          kActionSidePanelShowOcbot);
++
++  // Tab Search is now disabled by default when ocbot is present.
++  // Users can still access it via keyboard shortcut (Ctrl+Shift+A / Cmd+Shift+A).
+ 
+   if (IsChromeLabsEnabled()) {
