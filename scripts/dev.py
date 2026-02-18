@@ -6,10 +6,11 @@ from pathlib import Path
 try:
     from common import get_logger
     from download import download_source
-    from patch import apply_patches
+    from patch import apply_patches, revert_patches
     from build import build_chromium
     from run import run_chromium
     from check import check_environment
+    from common import get_source_dir, get_project_root
 except ImportError as e:
     print(f"Error importing scripts: {e}")
     sys.exit(1)
@@ -38,6 +39,9 @@ def main():
     # Patch
     parser_patch = subparsers.add_parser('patch', help='Apply patches', parents=[parent_parser])
 
+    # Reset (Revert patches)
+    parser_reset = subparsers.add_parser('reset', help='Revert all patches', parents=[parent_parser])
+
     # Build
     parser_build = subparsers.add_parser('build', help='Build Chromium', parents=[parent_parser])
     parser_build.add_argument('--target', default='chrome', help='Build target')
@@ -55,7 +59,17 @@ def main():
         check_environment(args)
     elif args.command == 'patch':
         apply_patches(args)
+    elif args.command == 'reset':
+        revert_patches(args)
     elif args.command == 'build':
+        if args.src_dir:
+            src_dir = Path(args.src_dir).resolve()
+        else:
+            src_dir = get_source_dir()
+        
+        if (src_dir / 'src').exists() and (src_dir / 'src').is_dir():
+            src_dir = src_dir / 'src'
+
         build_chromium(args)
     elif args.command == 'run':
         run_chromium(args)
