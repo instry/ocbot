@@ -2,7 +2,7 @@
 # Apply in this order
 
 # Layer 0: Branding
-chrome/app/theme/chromium/BRANDING.patch
+# chrome/app/theme/chromium/BRANDING.patch
 chrome/app/chromium_strings.patch
 chrome/app/settings_chromium_strings.patch
 components/components_chromium_strings.patch
@@ -38,3 +38,5 @@ chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.patch
 # Layer 5: Extension Process Management
 extensions/browser/process_manager.patch
 extensions/browser/process_manager_header.patch
+# Layer 6: Security and Branding Fixes
+components/os_crypt/common/keychain_password_mac.patch
