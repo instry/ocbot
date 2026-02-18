@@ -22,6 +22,7 @@ chrome/app/theme/chromium/product_logo_1024.png
 chrome/browser/ocbot/ocbot_constants.h
 chrome/browser/ocbot/ocbot_side_panel_manager.h
 chrome/browser/ocbot/ocbot_side_panel_manager.cc
+chrome/browser/BUILD.gn.patch
 
 # Layer 2: Command IDs and Resources
 chrome/app/chrome_command_ids.patch
