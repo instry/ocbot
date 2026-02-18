@@ -34,10 +34,15 @@ def run_chromium(args):
         return
 
     out_dir = src_dir / 'out' / 'Default'
-    executable = out_dir / 'Chromium.app' / 'Contents' / 'MacOS' / 'Chromium'
+    
+    # Check for Ocbot.app first (branding applied)
+    executable = out_dir / 'Ocbot.app' / 'Contents' / 'MacOS' / 'Ocbot'
+    if not executable.exists():
+        # Fallback to Chromium.app
+        executable = out_dir / 'Chromium.app' / 'Contents' / 'MacOS' / 'Chromium'
     
     if not executable.exists():
-        logger.error(f"Chromium executable not found at {executable}")
+        logger.error(f"Executable not found at {executable} or Ocbot.app")
         logger.info("Please build Chromium first: python3 ocbot/scripts/dev.py build")
         return
 
