@@ -1,0 +1,17 @@
+// Add ocbot command IDs for side panel toggle and provider cycling
+// Command IDs 40400-40409 reserved for ocbot
+
+--- a/chrome/app/chrome_command_ids.h
++++ b/chrome/app/chrome_command_ids.h
+@@ -309,6 +309,11 @@
+ #define IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS 40301
+ #define IDC_REPORT_UNSAFE_SITE 40302
+ 
++// ocbot command IDs (40400-40409)
++#define IDC_TOGGLE_OCBOT_SIDEPANEL  40400
++#define IDC_CYCLE_OCBOT_PROVIDER    40401
++// Reserve 40402-40409 for future ocbot commands
++
+ // Spell-check
+ // Insert any additional suggestions before _LAST; these have to be consecutive.
+ #define IDC_SPELLCHECK_SUGGESTION_0     41000

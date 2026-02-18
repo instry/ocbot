@@ -1,0 +1,23 @@
+// Add ocbot keyboard shortcut: Option+O (macOS) / Alt+O (others)
+
+--- a/chrome/browser/ui/accelerator_table.cc
++++ b/chrome/browser/ui/accelerator_table.cc
+@@ -17,6 +17,7 @@
+ #include "chrome/app/chrome_command_ids.h"
+ #include "chrome/browser/ui/tabs/features.h"
+ #include "chrome/browser/ui/ui_features.h"
++#include "chrome/browser/ocbot/ocbot_constants.h"
+ #include "components/lens/buildflags.h"
+ #include "components/lens/lens_features.h"
+ #include "printing/buildflags/buildflags.h"
+@@ -130,6 +131,11 @@
+     {ui::VKEY_OEM_PLUS, ui::EF_PLATFORM_ACCELERATOR, IDC_ZOOM_PLUS},
+     {ui::VKEY_ADD, ui::EF_PLATFORM_ACCELERATOR, IDC_ZOOM_PLUS},
+ 
++    // ocbot keyboard shortcut: Alt+O (Option+O on macOS)
++#if !BUILDFLAG(IS_CHROMEOS)
++    {ui::VKEY_O, ui::EF_ALT_DOWN, IDC_TOGGLE_OCBOT_SIDEPANEL},
++#endif
++
+     {ui::VKEY_F1, ui::EF_NONE, IDC_HELP_PAGE_VIA_KEYBOARD},
+     {ui::VKEY_F3, ui::EF_NONE, IDC_FIND_NEXT},

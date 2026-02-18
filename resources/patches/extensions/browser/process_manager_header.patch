@@ -1,0 +1,15 @@
+// Add permanent keepalives map for ocbot extensions
+
+--- a/extensions/browser/process_manager.h
++++ b/extensions/browser/process_manager.h
+@@ -422,6 +422,10 @@
+   // A map of the active service worker keepalives.
+   ServiceWorkerKeepaliveDataMap service_worker_keepalives_;
+ 
++  // ocbot: Map to track permanent keepalives for ocbot extensions.
++  // This keeps service workers alive permanently for ocbot extensions.
++  std::map<WorkerId, base::Uuid> ocbot_permanent_keepalives_;
++
+   // Must be last member, see doc on WeakPtrFactory.
+   base::WeakPtrFactory<ProcessManager> weak_ptr_factory_{this};
+ };

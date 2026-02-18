@@ -1,0 +1,13 @@
+// Add ocbot side panel entry ID between kGlic and kExtension
+
+--- a/chrome/browser/ui/views/side_panel/side_panel_entry_id.h
++++ b/chrome/browser/ui/views/side_panel/side_panel_entry_id.h
+@@ -41,6 +41,9 @@
+     "LensOverlayResults")                                                     \
+   V(kMerchantTrust, kActionSidePanelShowMerchantTrust, "MerchantTrust")       \
+   V(kGlic, kActionSidePanelShowGlic, "Glic")                                  \
++  /* ocbot entry */                                                           \
++  V(kOcbot, kActionSidePanelShowOcbot, "Ocbot")                              \
++  /* End ocbot */                                                             \
+   /* Extensions (nothing more should be added below here) */                  \
+   V(kExtension, std::nullopt, "Extension")
