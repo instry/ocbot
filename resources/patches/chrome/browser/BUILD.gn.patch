@@ -1,0 +1,12 @@
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -805,6 +805,9 @@
+     "ntp_tiles/chrome_most_visited_sites_factory.h",
+     "ntp_tiles/chrome_popular_sites_factory.cc",
+     "ntp_tiles/chrome_popular_sites_factory.h",
++    "ocbot/ocbot_constants.h",
++    "ocbot/ocbot_side_panel_manager.cc",
++    "ocbot/ocbot_side_panel_manager.h",
+     "page_content_annotations/multi_source_page_context_fetcher.cc",
+     "page_content_annotations/page_content_annotations_service_factory.cc",
+     "page_content_annotations/page_content_extraction_service_factory.cc",
