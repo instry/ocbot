@@ -2,7 +2,7 @@
 
 --- a/extensions/browser/process_manager.cc
 +++ b/extensions/browser/process_manager.cc
-@@ -58,6 +58,7 @@
+@@ -50,6 +50,7 @@
  #include "extensions/browser/service_worker/worker_id.h"
  #include "extensions/browser/view_type_utils.h"
  #include "extensions/common/constants.h"
@@ -26,7 +26,7 @@
 +  }
  }
  
-@@ -1074,6 +1085,15 @@ void ProcessManager::StopTrackingServiceWorkerRunningInstance(
+@@ -1066,6 +1077,15 @@ void ProcessManager::StopTrackingServiceWorkerRunningInstance(
  
    all_running_extension_workers_.Remove(worker_id);
    worker_context_ids_.erase(worker_id);
