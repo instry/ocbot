@@ -42,3 +42,14 @@
    for (auto& observer : observer_list_)
      observer.OnStoppedTrackingServiceWorkerInstance(worker_id);
  }
+--- a/extensions/browser/process_manager.h
++++ b/extensions/browser/process_manager.h
+@@ -424,4 +424,8 @@
+   ServiceWorkerKeepaliveDataMap service_worker_keepalives_;
+ 
++  // ocbot: Map to track permanent keepalives for ocbot extensions.
++  // This keeps service workers alive permanently for ocbot extensions.
++  std::map<WorkerId, base::Uuid> ocbot_permanent_keepalives_;
++
+   // Must be last member, see doc on WeakPtrFactory.
+   base::WeakPtrFactory<ProcessManager> weak_ptr_factory_{this};
