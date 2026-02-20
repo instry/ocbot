@@ -10,7 +10,10 @@ index 89c4445bf4185382339e4dad5458d9c915634d84..0ad486a740c3429880938bc3ac2e65f4
  #if !BUILDFLAG(IS_ANDROID)
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #endif
-@@ -383,6 +384,11 @@ bool ToolbarActionsModel::IsActionPinned(const ActionId& action_id) const {
+@@ -383,6 +384,14 @@ bool ToolbarActionsModel::IsActionPinned(const ActionId& action_id) const {
++  if (ocbot::IsOcbotExtension(action_id)) {
++    return true;
++  }
  }
  
  bool ToolbarActionsModel::IsActionForcePinned(const ActionId& action_id) const {
