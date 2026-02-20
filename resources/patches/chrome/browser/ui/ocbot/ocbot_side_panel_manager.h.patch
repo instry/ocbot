@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/ui/ocbot/ocbot_side_panel_manager.h b/chrome/browser/ui/ocbot/ocbot_side_panel_manager.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..41ede568c27f408ec99679c639f9747fb9691b93
+--- /dev/null
++++ b/chrome/browser/ui/ocbot/ocbot_side_panel_manager.h
+@@ -0,0 +1,18 @@
++// Copyright 2024 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_OCBOT_OCBOT_SIDE_PANEL_MANAGER_H_
++#define CHROME_BROWSER_UI_OCBOT_OCBOT_SIDE_PANEL_MANAGER_H_
++
++class BrowserWindowInterface;
++
++namespace ocbot {
++
++void ToggleSidePanel(BrowserWindowInterface* browser_window);
++void OpenSidePanel(BrowserWindowInterface* browser_window);
++void MaybeAutoOpenSidePanel(BrowserWindowInterface* browser_window);
++
++}  // namespace ocbot
++
++#endif  // CHROME_BROWSER_UI_OCBOT_OCBOT_SIDE_PANEL_MANAGER_H_
