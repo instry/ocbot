@@ -1,5 +1,5 @@
-// Force pin ocbot extension to toolbar
-
+diff --git a/chrome/browser/ui/toolbar/toolbar_actions_model.cc b/chrome/browser/ui/toolbar/toolbar_actions_model.cc
+index 89c4445bf4..6314c29985 100644
 --- a/chrome/browser/ui/toolbar/toolbar_actions_model.cc
 +++ b/chrome/browser/ui/toolbar/toolbar_actions_model.cc
 @@ -40,6 +40,7 @@
@@ -10,7 +10,8 @@
  #if !BUILDFLAG(IS_ANDROID)
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #endif
-@@ -384,6 +385,11 @@
+@@ -383,6 +384,11 @@ bool ToolbarActionsModel::IsActionPinned(const ActionId& action_id) const {
+ }
  
  bool ToolbarActionsModel::IsActionForcePinned(const ActionId& action_id) const {
 +  // ocbot: Force pin ocbot extensions to toolbar
@@ -21,4 +22,3 @@
    auto* management =
        extensions::ExtensionManagementFactory::GetForBrowserContext(profile_);
    return management->GetForcePinnedList().contains(action_id);
- }

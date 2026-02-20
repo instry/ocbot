@@ -1,3 +1,5 @@
+diff --git a/chrome/app/settings_chromium_strings.grdp b/chrome/app/settings_chromium_strings.grdp
+index 0ff6214701..02c864393d 100644
 --- a/chrome/app/settings_chromium_strings.grdp
 +++ b/chrome/app/settings_chromium_strings.grdp
 @@ -1,10 +1,10 @@
@@ -31,24 +33,21 @@
    <if expr="not is_chromeos">
 -    <message name="IDS_SETTINGS_UPGRADE_UPDATING" desc="Status label: Updating Chromium">
 -      Updating Chromium
--    </message>
--    <message name="IDS_SETTINGS_UPGRADE_UPDATING_PERCENT" desc="Status label: Updating Chromium (90%)">
--      Updating Chromium (<ph name="PROGRESS_PERCENT">$1<ex>90%</ex></ph>)
--    </message>
--    <message name="IDS_SETTINGS_UPGRADE_SUCCESSFUL_RELAUNCH" desc="Status label: Successfully updated Chromium">
--      Nearly up to date! Relaunch Chromium to finish updating.
--    </message>
--    <message name="IDS_SETTINGS_UPGRADE_UP_TO_DATE" desc="Status label: Already up to date (Chromium)">
--      Chromium is up to date
 +    <message name="IDS_SETTINGS_UPGRADE_UPDATING" desc="Status label: Updating OcBot">
 +      Updating OcBot
-+    </message>
+     </message>
+-    <message name="IDS_SETTINGS_UPGRADE_UPDATING_PERCENT" desc="Status label: Updating Chromium (90%)">
+-      Updating Chromium (<ph name="PROGRESS_PERCENT">$1<ex>90%</ex></ph>)
 +    <message name="IDS_SETTINGS_UPGRADE_UPDATING_PERCENT" desc="Status label: Updating OcBot (90%)">
 +      Updating OcBot (<ph name="PROGRESS_PERCENT">$1<ex>90%</ex></ph>)
-+    </message>
+     </message>
+-    <message name="IDS_SETTINGS_UPGRADE_SUCCESSFUL_RELAUNCH" desc="Status label: Successfully updated Chromium">
+-      Nearly up to date! Relaunch Chromium to finish updating.
 +    <message name="IDS_SETTINGS_UPGRADE_SUCCESSFUL_RELAUNCH" desc="Status label: Successfully updated OcBot">
 +      Nearly up to date! Relaunch OcBot to finish updating.
-+    </message>
+     </message>
+-    <message name="IDS_SETTINGS_UPGRADE_UP_TO_DATE" desc="Status label: Already up to date (Chromium)">
+-      Chromium is up to date
 +    <message name="IDS_SETTINGS_UPGRADE_UP_TO_DATE" desc="Status label: Already up to date (OcBot)">
 +      OcBot is up to date
      </message>
@@ -104,11 +103,10 @@
    </message>
    <message name="IDS_SETTINGS_WEAK_PASSWORDS_DESCRIPTION_GENERATION" desc="Information about why weak passwords are a security issue and what syncing user should do to fix the problem. Has a link.">
 -    Weak passwords are easy to guess. Let Chromium <ph name="BEGIN_LINK">&lt;a target='_blank' href='$1'&gt;</ph>create and remember strong passwords for you<ph name="END_LINK">&lt;/a&gt;</ph>.
--  </message>
++    Weak passwords are easy to guess. Let OcBot <ph name="BEGIN_LINK">&lt;a target='_blank' href='$1'&gt;</ph>create and remember strong passwords for you<ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
 -  <message name="IDS_SETTINGS_COMPROMISED_EDIT_DISCLAIMER_DESCRIPTION" desc="A description for the dialog which tells the user to edit password in Chromium if it was changed already.">
 -    If so, please edit your saved password in Chromium so it matches your new password.
-+    Weak passwords are easy to guess. Let OcBot <ph name="BEGIN_LINK">&lt;a target='_blank' href='$1'&gt;</ph>create and remember strong passwords for you<ph name="END_LINK">&lt;/a&gt;</ph>.
-+  </message>
 +  <message name="IDS_SETTINGS_COMPROMISED_EDIT_DISCLAIMER_DESCRIPTION" desc="A description for the dialog which tells the user to edit password in OcBot if it was changed already.">
 +    If so, please edit your saved password in OcBot so it matches your new password.
    </message>
@@ -116,11 +114,10 @@
    <!-- Enhanced autofill Page-->
    <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_CAN_FILL_DIFFICULT_FIELDS" desc="Bullet point that appears beneath the 'When on' title when seeing the Enhanced Autofill description page. This string explains one of the advantages users will get from enabling the feature and serves as a way to incentivize the user to do so.">
 -    Chromium can autofill difficult fields that standard autofill might miss
--  </message>
++    OcBot can autofill difficult fields that standard autofill might miss
+   </message>
 -  <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_USE_TO_FILL"  desc="Bullet 2 of 2 that appears beneath the “When on” title. “Later”: this is a two-step feature. 1) data is saved, 2) it becomes valuable to the user later when they want to fill in a form with similar data. “Chromium can ask”: the user has a choice, every time, whether their data is saved and also whether they want to autofill their saved info into forms.">
 -    Later, Chromium can ask if you want to use saved info to autofill forms for you
-+    OcBot can autofill difficult fields that standard autofill might miss
-+  </message>
 +  <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_USE_TO_FILL"  desc="Bullet 2 of 2 that appears beneath the “When on” title. “Later”: this is a two-step feature. 1) data is saved, 2) it becomes valuable to the user later when they want to fill in a form with similar data. “OcBot can ask”: the user has a choice, every time, whether their data is saved and also whether they want to autofill their saved info into forms.">
 +    Later, OcBot can ask if you want to use saved info to autofill forms for you
    </message>
@@ -129,27 +126,24 @@
    <if expr="not is_chromeos">
      <message name="IDS_SETTINGS_DEFAULT_BROWSER_DEFAULT" desc="The text displayed when Chrome is the default browser">
 -      Chromium is your default browser
--    </message>
++      OcBot is your default browser
+     </message>
 -    <message name="IDS_SETTINGS_DEFAULT_BROWSER_DEFAULT_THANK_YOU" desc="The text displayed when Chromium is the default browser">
 -      Thanks for choosing Chromium as your default browser!
-+      OcBot is your default browser
-+    </message>
 +    <message name="IDS_SETTINGS_DEFAULT_BROWSER_DEFAULT_THANK_YOU" desc="The text displayed when OcBot is the default browser">
 +      Thanks for choosing OcBot as your default browser!
      </message>
      <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT" desc="Default browser checkbox label">
 -      Make Chromium the default browser
--    </message>
++      Make OcBot the default browser
+     </message>
 -    <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_USER_VALUE" desc="The text displayed when Chromium is not the default browser. This string describes the effect (user benefit) of setting a browser as the default.">
 -      You can use Chromium anytime you click links in messages, documents, and other apps
--    </message>
--    <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN" desc="The text of the button to make Chromium the default browser and pin it to the taskbar.">
--      Make Chromium the default browser and pin to the taskbar
-+      Make OcBot the default browser
-+    </message>
 +    <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_USER_VALUE" desc="The text displayed when OcBot is not the default browser. This string describes the effect (user benefit) of setting a browser as the default.">
 +      You can use OcBot anytime you click links in messages, documents, and other apps
-+    </message>
+     </message>
+-    <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN" desc="The text of the button to make Chromium the default browser and pin it to the taskbar.">
+-      Make Chromium the default browser and pin to the taskbar
 +    <message name="IDS_SETTINGS_DEFAULT_BROWSER_MAKE_DEFAULT_AND_PIN" desc="The text of the button to make OcBot the default browser and pin it to the taskbar.">
 +      Make OcBot the default browser and pin to the taskbar
      </message>
@@ -352,18 +346,16 @@
  </if>
 -  <message name="IDS_SETTINGS_PEOPLE_SIGN_IN_PROMPT_SECONDARY_WITH_ACCOUNT" desc="The secondary text displayed to prompt users to enable sync for an account that is alredy present in Chromium.">
 -    Sync and personalize Chromium across your devices
--  </message>
--  <message name="IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT" desc="The secondary text displayed to prompt users to enable sync for an account that is already present in Chromium.">
--    To get your passwords and more on all your devices, sign in to Chromium
--  </message>
--  <message name="IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT_WITH_BOOKMARKS" desc="The secondary text displayed to prompt users to enable sync for an account that is already present in Chromium.">
--    To get your passwords, bookmarks, and more on all your devices, sign in to Chromium
 +  <message name="IDS_SETTINGS_PEOPLE_SIGN_IN_PROMPT_SECONDARY_WITH_ACCOUNT" desc="The secondary text displayed to prompt users to enable sync for an account that is alredy present in OcBot.">
 +    Sync and personalize OcBot across your devices
-+  </message>
+   </message>
+-  <message name="IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT" desc="The secondary text displayed to prompt users to enable sync for an account that is already present in Chromium.">
+-    To get your passwords and more on all your devices, sign in to Chromium
 +  <message name="IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT" desc="The secondary text displayed to prompt users to enable sync for an account that is already present in OcBot.">
 +    To get your passwords and more on all your devices, sign in to OcBot
-+  </message>
+   </message>
+-  <message name="IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT_WITH_BOOKMARKS" desc="The secondary text displayed to prompt users to enable sync for an account that is already present in Chromium.">
+-    To get your passwords, bookmarks, and more on all your devices, sign in to Chromium
 +  <message name="IDS_SETTINGS_PEOPLE_EXPLICIT_SIGN_IN_PROMPT_SECONDARY_WITH_NO_ACCOUNT_WITH_BOOKMARKS" desc="The secondary text displayed to prompt users to enable sync for an account that is already present in OcBot.">
 +    To get your passwords, bookmarks, and more on all your devices, sign in to OcBot
    </message>
@@ -379,18 +371,16 @@
  </if>
 -  <message name="IDS_SETTINGS_SIGNIN_CHROME_SIGNIN_OPTIONS_TITLE" desc="Title of the settings that controls whether a user gets signed in to Chromium when signing in to Google Services.">
 -    Sign in to Chromium when you sign in to other Google services
--  </message>
--  <message name="IDS_SETTINGS_SIGNIN_CHROME_SIGNIN_OPTIONS_DESC" desc="Description of the settings that controls whether a user gets signed in to Chromium when signing in to Google Services.">
--    When signing into Google services like Gmail or Youtube with <ph name="USER_EMAIL">$1<ex>foo@example.com</ex></ph>, you can automatically sign in to Chromium with the same account
--  </message>
--  <message name="IDS_SETTINGS_PEOPLE_SIGNIN_SECTION_SIGNED_OUT_TITLE" desc="The text displayed to prompt users to sign in to Chromium. Shown on top of the account card in the people settings page when the user is signed out.">
--    Make Chromium your own
 +  <message name="IDS_SETTINGS_SIGNIN_CHROME_SIGNIN_OPTIONS_TITLE" desc="Title of the settings that controls whether a user gets signed in to OcBot when signing in to Google Services.">
 +    Sign in to OcBot when you sign in to other Google services
-+  </message>
+   </message>
+-  <message name="IDS_SETTINGS_SIGNIN_CHROME_SIGNIN_OPTIONS_DESC" desc="Description of the settings that controls whether a user gets signed in to Chromium when signing in to Google Services.">
+-    When signing into Google services like Gmail or Youtube with <ph name="USER_EMAIL">$1<ex>foo@example.com</ex></ph>, you can automatically sign in to Chromium with the same account
 +  <message name="IDS_SETTINGS_SIGNIN_CHROME_SIGNIN_OPTIONS_DESC" desc="Description of the settings that controls whether a user gets signed in to OcBot when signing in to Google Services.">
 +    When signing into Google services like Gmail or Youtube with <ph name="USER_EMAIL">$1<ex>foo@example.com</ex></ph>, you can automatically sign in to OcBot with the same account
-+  </message>
+   </message>
+-  <message name="IDS_SETTINGS_PEOPLE_SIGNIN_SECTION_SIGNED_OUT_TITLE" desc="The text displayed to prompt users to sign in to Chromium. Shown on top of the account card in the people settings page when the user is signed out.">
+-    Make Chromium your own
 +  <message name="IDS_SETTINGS_PEOPLE_SIGNIN_SECTION_SIGNED_OUT_TITLE" desc="The text displayed to prompt users to sign in to OcBot. Shown on top of the account card in the people settings page when the user is signed out.">
 +    Make OcBot your own
    </message>
@@ -410,11 +400,10 @@
    </message>
    <message name="IDS_SETTINGS_SEARCH_AGGREGATOR_PREF_DESC" desc="The description of the 'Show suggestions and results from your organization' checkbox, which enables/disables sending omnibox input to the user's organization's search aggregator to get additional suggestions. Note that this setting is controlled by enterprise policy and, while a checkbox is shown, it is always enabled and cannot be disabled.">
 -    When you type in the address bar or search box, Chromium sends what you type to your organization's search, AI, and agent tools to get suggestions.
--  </message>
++    When you type in the address bar or search box, OcBot sends what you type to your organization's search, AI, and agent tools to get suggestions.
+   </message>
 -  <message name="IDS_SETTINGS_SYNC_SIGN_IN_PROMPT_WITH_NO_ACCOUNT" desc="The text displayed to prompt users to sign in to Chromium.">
 -    Sign in to sync and personalize Chromium across your devices
-+    When you type in the address bar or search box, OcBot sends what you type to your organization's search, AI, and agent tools to get suggestions.
-+  </message>
 +  <message name="IDS_SETTINGS_SYNC_SIGN_IN_PROMPT_WITH_NO_ACCOUNT" desc="The text displayed to prompt users to sign in to OcBot.">
 +    Sign in to sync and personalize OcBot across your devices
    </message>
@@ -452,11 +441,10 @@
    </message>
    <message name="IDS_SETTINGS_SIGN_OUT" desc="The text label of the Sign out of Chrome button in the settings page.">
 -    Sign out of Chromium
--  </message>
++    Sign out of OcBot
+   </message>
 -  <message name="IDS_SETTINGS_ACCOUNT_DATA_DASHBOARD" desc="This string is found in the Account settings page in Chromium settings to let a user manage the Chromium data that they've saved in their Google Account. It is important that it is consistent with the destination's title 'Chrome data in your account' (except using 'Chromium' instead of 'Chrome') (TC ID 2983573066282140756).">
 -    Chromium data in your account
-+    Sign out of OcBot
-+  </message>
 +  <message name="IDS_SETTINGS_ACCOUNT_DATA_DASHBOARD" desc="This string is found in the Account settings page in OcBot settings to let a user manage the OcBot data that they've saved in their Google Account. It is important that it is consistent with the destination's title 'Chrome data in your account' (except using 'OcBot' instead of 'Chrome') (TC ID 2983573066282140756).">
 +    OcBot data in your account
    </message>
@@ -531,17 +519,15 @@
    </message>
    <message name="IDS_SETTINGS_SAFETY_HUB_EMPTY_STATE_MODULE_SUBHEADER" desc="The header of the 'Empty State Module' in the Safety Hub page. The 'Empty State Module' is visible if there is no safety recommendation.">
 -    Chromium will let you know if anything needs your review
--  </message>
++    OcBot will let you know if anything needs your review
+   </message>
 -  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of Chromium update module.">
 -    Chromium update
--  </message>
--  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of Chromium update module.">
--    Chromium update
-+    OcBot will let you know if anything needs your review
-+  </message>
 +  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_UPPERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the upper case version (i.e. version that comes first in the sentence) for the name of OcBot update module.">
 +    OcBot update
-+  </message>
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of Chromium update module.">
+-    Chromium update
 +  <message name="IDS_SETTINGS_SAFETY_HUB_VERSION_MODULE_LOWERCASE_NAME" desc="The entry point shown on the screenshot leads to Safety Check settings page (chrome://settings/safetyCheck) when at least on of the SC modules have recommendations. The subheader of the entry point lists the modules with recommendations. This string is the lower case version (i.e. version that comes in the middle of the sentence) for the name of OcBot update module.">
 +    OcBot update
    </message>
