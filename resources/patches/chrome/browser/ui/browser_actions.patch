@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/browser_actions.cc b/chrome/browser/ui/browser_actions.cc
-index ee0ab36f62..5512c21d55 100644
+index ee0ab36f62..3c08973528 100644
 --- a/chrome/browser/ui/browser_actions.cc
 +++ b/chrome/browser/ui/browser_actions.cc
 @@ -77,6 +77,110 @@
@@ -7,7 +7,7 @@ index ee0ab36f62..5512c21d55 100644
  #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
  #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
 +#include "chrome/browser/ocbot/ocbot_constants.h"
-+#include "chrome/browser/ocbot/ocbot_side_panel_manager.h"
++#include "chrome/browser/ui/ocbot/ocbot_side_panel_manager.h"
 +#include "ui/gfx/vector_icon_types.h"
 +
 +namespace {

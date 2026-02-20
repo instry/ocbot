@@ -5,8 +5,8 @@
 // ocbot Side Panel Manager
 // Manages ocbot side panel visibility, auto-open on startup, and toggle behavior.
 
-#ifndef CHROME_BROWSER_OCBOT_OCBOT_SIDE_PANEL_MANAGER_H_
-#define CHROME_BROWSER_OCBOT_OCBOT_SIDE_PANEL_MANAGER_H_
+#ifndef CHROME_BROWSER_UI_OCBOT_OCBOT_SIDE_PANEL_MANAGER_H_
+#define CHROME_BROWSER_UI_OCBOT_OCBOT_SIDE_PANEL_MANAGER_H_
 
 #include "base/functional/callback.h"
 
