@@ -1,8 +1,8 @@
-// Replace Tab Search with ocbot button in the toolbar
-
+diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+index d134fd071b..f961f083af 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -457,13 +457,13 @@ void ToolbarView::Init() {
+@@ -457,14 +457,14 @@ void ToolbarView::Init() {
    pinned_toolbar_actions_container_ = AddChildView(
        std::make_unique<PinnedToolbarActionsContainer>(browser_view_, this));
  
@@ -24,3 +24,4 @@
 +  // Users can still access it via keyboard shortcut (Ctrl+Shift+A / Cmd+Shift+A).
  
    if (IsChromeLabsEnabled()) {
+     UpdateChromeLabsNewBadgePrefs(browser_->profile());

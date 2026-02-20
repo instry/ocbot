@@ -1,9 +1,8 @@
-// Add ocbot command IDs for side panel toggle and provider cycling
-// Command IDs 40400-40409 reserved for ocbot
-
+diff --git a/chrome/app/chrome_command_ids.h b/chrome/app/chrome_command_ids.h
+index 2fe1c5d1ff..e2cc5d414b 100644
 --- a/chrome/app/chrome_command_ids.h
 +++ b/chrome/app/chrome_command_ids.h
-@@ -309,6 +309,11 @@
+@@ -310,6 +310,11 @@
  #define IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS 40301
  #define IDC_REPORT_UNSAFE_SITE 40302
  

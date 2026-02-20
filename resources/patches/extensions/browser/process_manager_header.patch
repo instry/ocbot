@@ -1,8 +1,8 @@
-// Add permanent keepalives map for ocbot extensions
-
+diff --git a/extensions/browser/process_manager.h b/extensions/browser/process_manager.h
+index 1cfc4c7f3b..f690fcbc4e 100644
 --- a/extensions/browser/process_manager.h
 +++ b/extensions/browser/process_manager.h
-@@ -422,6 +422,10 @@
+@@ -423,6 +423,10 @@ class ProcessManager : public KeyedService,
    // A map of the active service worker keepalives.
    ServiceWorkerKeepaliveDataMap service_worker_keepalives_;
  
