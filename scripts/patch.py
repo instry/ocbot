@@ -159,6 +159,15 @@ def update_patches(args):
         return
 
     modified_files = []
+    
+    # Define binary extensions
+    binary_extensions = (
+        '.png', '.jpg', '.jpeg', '.gif', '.ico', '.icns', '.svg', '.car', 
+        '.pdf', '.woff', '.woff2', '.ttf', '.eot', '.zip', '.gz', '.tar', 
+        '.xz', '.bz2', '.7z', '.jar', '.so', '.dll', '.exe', '.dylib', 
+        '.node', '.bin', '.dat', '.db', '.sqlite', '.pak', '.crx', '.rdb'
+    )
+
     # Lines look like " M chrome/browser/ui/browser.cc" or "?? new_file.cc"
     for line in result.stdout.splitlines():
         if not line.strip():
@@ -166,22 +175,26 @@ def update_patches(args):
         
         # Status code is first 2 chars
         status_code = line[:2]
-        file_path = line[3:].strip()
+        file_path_raw = line[3:].strip()
         
         # Handle renames if any (format: R  old -> new) - git status --porcelain v1
-        if ' -> ' in file_path:
-            file_path = file_path.split(' -> ')[1]
+        if ' -> ' in file_path_raw:
+            file_path_raw = file_path_raw.split(' -> ')[1]
             
-        # Check for binary extensions
-        binary_extensions = (
-            '.png', '.jpg', '.jpeg', '.gif', '.ico', '.icns', '.svg', '.car', 
-            '.pdf', '.woff', '.woff2', '.ttf', '.eot', '.zip', '.gz', '.tar', 
-            '.xz', '.bz2', '.7z', '.jar', '.so', '.dll', '.exe', '.dylib', 
-            '.node', '.bin', '.dat', '.db', '.sqlite', '.pak', '.crx', '.rdb'
-        )
-        is_binary = file_path.lower().endswith(binary_extensions)
+        # Check if it's a directory (untracked dir)
+        full_path = src_dir / file_path_raw
         
-        modified_files.append({'path': file_path, 'status': status_code, 'is_binary': is_binary})
+        if full_path.is_dir():
+            # If it's a directory, walk it and add all files inside
+            for p in full_path.rglob('*'):
+                if p.is_file():
+                    rel_path = str(p.relative_to(src_dir))
+                    is_binary = rel_path.lower().endswith(binary_extensions)
+                    # Treat files inside untracked dir as untracked
+                    modified_files.append({'path': rel_path, 'status': '??', 'is_binary': is_binary})
+        else:
+            is_binary = file_path_raw.lower().endswith(binary_extensions)
+            modified_files.append({'path': file_path_raw, 'status': status_code, 'is_binary': is_binary})
 
     if not modified_files:
         logger.info("No modified files found. Nothing to update.")
