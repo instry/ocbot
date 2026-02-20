@@ -1,45 +1,15 @@
-diff --git a/extensions/browser/process_manager.cc b/extensions/browser/process_manager.cc
-index b34a9522e0..35009af8d3 100644
---- a/extensions/browser/process_manager.cc
-+++ b/extensions/browser/process_manager.cc
-@@ -50,6 +50,7 @@
- #include "extensions/browser/service_worker/worker_id.h"
- #include "extensions/browser/view_type_utils.h"
- #include "extensions/common/constants.h"
-+#include "chrome/browser/ocbot/ocbot_constants.h"
- #include "extensions/common/extension.h"
- #include "extensions/common/extension_features.h"
- #include "extensions/common/extension_id.h"
-@@ -989,6 +990,16 @@ void ProcessManager::StartTrackingServiceWorkerRunningInstance(
-     for (auto& observer : observer_list_)
-       observer.OnStartedTrackingServiceWorkerInstance(worker_id);
-   }
-+  
-+  // ocbot: Add permanent keepalive for ocbot extensions to prevent service worker
-+  // from being terminated due to inactivity.
-+  if (ocbot::IsOcbotExtension(worker_id.extension_id)) {
-+    base::Uuid keepalive_uuid = IncrementServiceWorkerKeepaliveCount(
-+        worker_id,
-+        content::ServiceWorkerExternalRequestTimeoutType::kDoesNotTimeout,
-+        Activity::PROCESS_MANAGER, "ocbot_permanent_keepalive");
-+    ocbot_permanent_keepalives_[worker_id] = keepalive_uuid;
-+  }
- }
+diff --git a/extensions/browser/process_manager.h b/extensions/browser/process_manager.h
+index 1cfc4c7f3b..f690fcbc4e 100644
+--- a/extensions/browser/process_manager.h
++++ b/extensions/browser/process_manager.h
+@@ -423,6 +423,10 @@ class ProcessManager : public KeyedService,
+   // A map of the active service worker keepalives.
+   ServiceWorkerKeepaliveDataMap service_worker_keepalives_;
  
- void ProcessManager::RenderProcessExited(
-@@ -1063,6 +1074,15 @@ void ProcessManager::StopTrackingServiceWorkerRunningInstance(
- 
-   all_running_extension_workers_.Remove(worker_id);
-   worker_context_ids_.erase(worker_id);
-+  
-+  // ocbot: Clean up permanent keepalive for ocbot extensions.
-+  auto keepalive_iter = ocbot_permanent_keepalives_.find(worker_id);
-+  if (keepalive_iter != ocbot_permanent_keepalives_.end()) {
-+    DecrementServiceWorkerKeepaliveCount(worker_id, keepalive_iter->second,
-+        Activity::PROCESS_MANAGER, "ocbot_permanent_keepalive");
-+    ocbot_permanent_keepalives_.erase(keepalive_iter);
-+  }
-+  
-   for (auto& observer : observer_list_)
-     observer.OnStoppedTrackingServiceWorkerInstance(worker_id);
- }
++  // ocbot: Map to track permanent keepalives for ocbot extensions.
++  // This keeps service workers alive permanently for ocbot extensions.
++  std::map<WorkerId, base::Uuid> ocbot_permanent_keepalives_;
++
+   // Must be last member, see doc on WeakPtrFactory.
+   base::WeakPtrFactory<ProcessManager> weak_ptr_factory_{this};
+ };
