@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.h b/chrome/browser/ui/views/toolbar/toolbar_view.h
-index ada5351fd3..5c2cef5647 100644
+index ada5351fd33fa1dbf3577a8f86ed031fecbf4e3f..5c2cef56478fa9852d3284840cdd2e05681e1d0a 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.h
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
 @@ -299,6 +299,7 @@ class ToolbarView : public views::AccessiblePaneView,

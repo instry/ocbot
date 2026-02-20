@@ -55,6 +55,12 @@ export PATH="$PATH:$(pwd)/depot_tools"
 
 ---
 
+## 🛠️ Development Workflow
+
+Please refer to [Development Workflow](docs/development.md) for detailed instructions on how to contribute code.
+
+---
+
 ## 🎯 Common Commands
 
 ```bash
@@ -64,6 +70,9 @@ export PATH="$PATH:$(pwd)/depot_tools"
 
 # Patch
 ./scripts/dev.py patch                                  # Apply all patches
+
+# Update Patches
+./scripts/dev.py update_patches                         # Generate patches from source
 
 # Build
 ./scripts/dev.py build                                  # Build Browser

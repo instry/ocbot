@@ -1,0 +1,1 @@
+现在我希望生成精准的patch文件，方法如下：1.使用git status找出chromium src下面修改了哪些文件(过滤图片等静态文件) 。2.使用git diff生成patch代码 3.你在更新patch文件。

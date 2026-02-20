@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 12bc96592b..751ab682e6 100644
+index 12bc96592be0e291f2af8f35ef9b76c0652776a7..751ab682e6abb573a643e5dacb929266a09018bc 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -43,6 +43,7 @@
