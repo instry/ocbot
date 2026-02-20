@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 03fe6b8645..050b45cbc9 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -65,6 +65,8 @@ static_library("ui") {
+     "incognito_allowed_url.h",
+     "managed_ui.cc",
+     "managed_ui.h",
++    "ocbot/ocbot_side_panel_manager.cc",
++    "ocbot/ocbot_side_panel_manager.h",
+     "recently_audible_helper.cc",
+     "recently_audible_helper.h",
+     "screen_capture_notification_ui.h",
