@@ -6,7 +6,7 @@ from pathlib import Path
 try:
     from common import get_logger
     from download import download_source
-    from patch import apply_patches, revert_patches
+    from patch import apply_patches, reset_source
     from build import build_chromium
     from run import run_chromium
     from check import check_environment
@@ -61,7 +61,7 @@ def main():
     elif args.command == 'patch':
         apply_patches(args)
     elif args.command == 'reset':
-        revert_patches(args)
+        reset_source(args)
     elif args.command == 'build':
         if args.src_dir:
             src_dir = Path(args.src_dir).resolve()

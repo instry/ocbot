@@ -52,9 +52,9 @@ def apply_patches(args):
 
     logger.info(f"Found {len(patches)} patches to apply.")
     
-    # Check if patch command exists
-    if not shutil.which('patch'):
-        logger.error("Command 'patch' not found.")
+    # Check if git command exists
+    if not shutil.which('git'):
+        logger.error("Command 'git' not found.")
         return
 
     for i, patch_name in enumerate(patches):
@@ -76,83 +76,56 @@ def apply_patches(args):
                 
                 # Copy file
                 shutil.copy2(patch_file, dest_path)
-                logger.info(f"[{i+1}/{len(patches)}] Copied {patch_name} to {dest_path}")
+                logger.debug(f"[{i+1}/{len(patches)}] Copied {patch_name} to {dest_path}")
             except Exception as e:
                 logger.error(f"Failed to copy {patch_name}: {e}")
                 return
             continue
 
-        # logger.info(f"[{i+1}/{len(patches)}] Applying {patch_name}...")
+        # Use git apply
+        cmd = ['git', 'apply', '--ignore-whitespace', '-p1', str(patch_file)]
         
-        cmd = ['patch', '-p1', '--forward', '--reject-file=-', '--no-backup-if-mismatch', '--ignore-whitespace', '-f', '-i', str(patch_file), '-d', str(src_dir)]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=src_dir, capture_output=True, text=True)
         
         if result.returncode != 0:
             # Check if it's already applied
-            if "previously applied" in result.stdout or "previously applied" in result.stderr:
-                 logger.info(f"[{i+1}/{len(patches)}] {patch_name} (already applied)")
+            # git apply --check --reverse returns 0 if the patch can be reversed (meaning it's applied)
+            cmd_check = ['git', 'apply', '--check', '--reverse', '--ignore-whitespace', '-p1', str(patch_file)]
+            result_check = subprocess.run(cmd_check, cwd=src_dir, capture_output=True, text=True)
+            
+            if result_check.returncode == 0:
+                 logger.debug(f"[{i+1}/{len(patches)}] {patch_name} (already applied)")
             else:
                 logger.error(f"Failed to apply patch {patch_name}:")
                 logger.error(result.stderr or result.stdout)
                 return
         else:
-             logger.info(f"[{i+1}/{len(patches)}] {patch_name} (applied)")
+             logger.debug(f"[{i+1}/{len(patches)}] {patch_name} (applied)")
             
     logger.info("All patches applied successfully.")
 
-def revert_patches(args):
+def reset_source(args):
     logger = get_logger()
     src_dir = _get_src_dir(args)
     if not src_dir:
         return
 
-    logger.info("Reverting patches...")
-    
-    patches, patches_dir = _get_patches_list(logger)
-    if not patches:
-        return
+    logger.info("Resetting source directory...")
 
-    # Check if patch command exists
-    if not shutil.which('patch'):
-        logger.error("Command 'patch' not found.")
-        return
-
-    # Revert in reverse order
-    for i, patch_name in enumerate(reversed(patches)):
-        patch_file = patches_dir / patch_name
-        if not patch_file.exists():
-            continue
-        
-        # Check if it's a patch/diff file or a source file to copy
-        is_patch = patch_name.endswith('.patch') or patch_name.endswith('.diff')
-        
-        if not is_patch:
-            # For copied files, we can't easily revert unless we have a backup.
-            # However, for new files (like ocbot_constants.h), we can delete them if they didn't exist before.
-            # But verifying if it was a new file or replaced file is hard without git.
-            # We will just warn for now.
-            logger.warning(f"[{i+1}/{len(patches)}] Skipping revert for copied file {patch_name} (manual revert required if it replaced an existing file)")
-            continue
-
-        cmd = ['patch', '-p1', '-R', '--forward', '--reject-file=-', '--no-backup-if-mismatch', '--ignore-whitespace', '-f', '-i', str(patch_file), '-d', str(src_dir)]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            # Check if it's already reverted (not applied)
-            # "previously applied" usually means it IS applied. 
-            # If we try to reverse and it fails, maybe it wasn't applied?
-            # patch -R output:
-            # if patch is not applied: "Reversed (or previously applied) patch detected!  Assume -R? [n]" -> if we force -R, it might try to apply it?
-            # Actually if we use -R and it fails, it usually says "hunk FAILED".
-            # If it says "Assume -R?", it means it thinks we are trying to apply a patch that looks reversed.
+    # Check if .git exists
+    if (src_dir / '.git').exists():
+        logger.info("Git repository detected. Using git to reset...")
+        try:
+            # git clean -fd
+            logger.info("Cleaning untracked files (git clean -fd)...")
+            subprocess.run(['git', 'clean', '-fd'], cwd=src_dir, check=True)
             
-            # If we run patch -R on a file that is NOT patched (i.e. original), it will fail to find the hunks to reverse.
+            # git checkout .
+            logger.info("Discarding changes (git checkout .)...")
+            subprocess.run(['git', 'checkout', '.'], cwd=src_dir, check=True)
             
-            logger.info(f"[{i+1}/{len(patches)}] {patch_name} (failed to revert or not applied)")
-            # We don't stop on failure during revert, we try to revert as much as possible.
-        else:
-             logger.info(f"[{i+1}/{len(patches)}] {patch_name} (reverted)")
-            
-    logger.info("Revert operation completed.")
+            logger.info("Source reset complete.")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Git reset failed: {e}")
+    else:
+        logger.error("No .git directory found. Cannot reset source using git.")
