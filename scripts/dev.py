@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import sys
+import subprocess
 from pathlib import Path
 
 try:
@@ -84,6 +85,19 @@ def main():
         
         install_icons(icons_src, icons_dest)
         
+        # Build extension
+        logger.info("Building and packaging extension...")
+        extension_dir = get_project_root() / 'extension'
+        try:
+            subprocess.run(['npm', 'run', 'build'], cwd=extension_dir, check=True)
+            subprocess.run(['npm', 'run', 'zip'], cwd=extension_dir, check=True)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to build extension: {e}")
+            sys.exit(1)
+        except FileNotFoundError:
+             logger.error("npm not found. Please install nodejs and npm.")
+             sys.exit(1)
+
         build_chromium(args)
     elif args.command == 'run':
         run_chromium(args)
