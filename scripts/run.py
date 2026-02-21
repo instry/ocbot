@@ -46,17 +46,10 @@ def run_chromium(args):
         logger.info("Please build Chromium first: python3 ocbot/scripts/dev.py build")
         return
 
-    # Extension path
-    extension_dir = root_dir / 'ocbot' / 'extension' / '.output' / 'chrome-mv3'
-    
     cmd = [str(executable)]
-    
-    if extension_dir.exists():
-        logger.info(f"Loading extension from: {extension_dir}")
-        cmd.append(f'--load-extension={extension_dir}')
-    else:
-        logger.warning(f"Extension build not found at {extension_dir}")
-        logger.info("To build extension: cd ocbot/extension && npm install && npm run build")
+
+    # ocbot is loaded as a component extension (via ComponentLoader),
+    # so no --load-extension flag is needed.
 
     # User data dir
     user_data_dir = root_dir / 'chromium' / 'user_data'
