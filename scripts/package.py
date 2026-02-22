@@ -66,7 +66,7 @@ def package_dmg(args):
 
         # Copy .app and create Applications symlink
         logger.info("Copying app bundle to staging area...")
-        shutil.copytree(app_path, staging / f"{app_name}.app", symlinks=True)
+        shutil.copytree(app_path, staging / f"{app_name}.app", symlinks=False)
         (staging / 'Applications').symlink_to('/Applications')
 
         # Create writable DMG
