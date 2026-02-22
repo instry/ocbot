@@ -12,6 +12,7 @@ try:
     from run import run_chromium
     from check import check_environment
     from icons import install_icons
+    from package import package_dmg
     from common import get_source_dir, get_project_root
 except ImportError as e:
     print(f"Error importing scripts: {e}")
@@ -54,6 +55,10 @@ def main():
     # Run
     parser_run = subparsers.add_parser('run', help='Run Chromium with extension loaded', parents=[parent_parser])
     parser_run.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Chromium')
+
+    # Package
+    parser_package = subparsers.add_parser('package', help='Package Ocbot.app into a .dmg installer', parents=[parent_parser])
+    parser_package.add_argument('--output', help='Output DMG path (default: dist/<AppName>-<Version>.dmg)')
 
     args = parser.parse_args()
     logger = get_logger()
@@ -101,6 +106,8 @@ def main():
         build_chromium(args)
     elif args.command == 'run':
         run_chromium(args)
+    elif args.command == 'package':
+        package_dmg(args)
     else:
         parser.print_help()
 
