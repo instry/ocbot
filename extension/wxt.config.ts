@@ -27,12 +27,20 @@ export default defineConfig({
       'sidePanel',
       'tabs',
       'storage',
-      'activeTab'
+      'activeTab',
+      'scripting'
     ],
     host_permissions: [
+      '<all_urls>',
       'https://api.openai.com/*',
       'https://api.anthropic.com/*',
-      'https://generativelanguage.googleapis.com/*'
+      'https://generativelanguage.googleapis.com/*',
+      'https://api.deepseek.com/*',
+      'https://dashscope.aliyuncs.com/*',
+      'https://api.moonshot.ai/*',
+      'https://api.z.ai/*',
+      'https://api.minimax.io/*',
+      'https://openrouter.ai/*'
     ],
     side_panel: {
       default_path: 'sidepanel.html'
