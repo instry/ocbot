@@ -76,8 +76,6 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     defaultModelId: 'kimi-k2.5',
     models: [
       { id: 'kimi-k2.5', name: 'Kimi K2.5', contextWindow: 262000 },
-      { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking', contextWindow: 128000 },
-      { id: 'moonshot-v1-auto', name: 'Moonshot v1 Auto', contextWindow: 128000 },
     ],
   },
   {
@@ -90,8 +88,6 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     defaultModelId: 'glm-5',
     models: [
       { id: 'glm-5', name: 'GLM-5', contextWindow: 128000 },
-      { id: 'glm-4.7', name: 'GLM-4.7', contextWindow: 128000 },
-      { id: 'glm-4-flash', name: 'GLM-4 Flash', contextWindow: 128000 },
     ],
   },
   {
@@ -104,7 +100,6 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     defaultModelId: 'minimax-m2.5',
     models: [
       { id: 'minimax-m2.5', name: 'MiniMax M2.5', contextWindow: 1000000 },
-      { id: 'minimax-m2.1', name: 'MiniMax M2.1', contextWindow: 1000000 },
     ],
   },
   {
