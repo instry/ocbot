@@ -58,12 +58,14 @@ export interface LlmRequestMessage {
   content?: string
   toolCalls?: ToolCallPart[]
   toolCallId?: string
+  reasoningContent?: string
 }
 
 // --- Unified SSE stream events ---
 
 export type LlmStreamEvent =
   | { type: 'text_delta'; text: string }
+  | { type: 'reasoning_delta'; text: string }
   | { type: 'tool_call_start'; id: string; name: string }
   | { type: 'tool_call_delta'; id: string; arguments: string }
   | { type: 'done' }

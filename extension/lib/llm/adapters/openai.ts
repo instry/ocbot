@@ -8,11 +8,19 @@ function convertMessages(messages: LlmRequestMessage[]) {
         return {
           role: 'assistant' as const,
           content: m.content || null,
+          reasoning_content: m.reasoningContent || null,
           tool_calls: m.toolCalls.map(tc => ({
             id: tc.id,
             type: 'function' as const,
             function: { name: tc.name, arguments: tc.arguments },
           })),
+        }
+      }
+      if (m.role === 'assistant' && m.reasoningContent) {
+        return {
+          role: 'assistant' as const,
+          content: m.content || '',
+          reasoning_content: m.reasoningContent,
         }
       }
       if (m.role === 'tool') {
@@ -98,6 +106,10 @@ export const openaiAdapter: ProviderAdapter = {
 
       if (delta.content) {
         events.push({ type: 'text_delta', text: delta.content })
+      }
+
+      if (delta.reasoning_content) {
+        events.push({ type: 'reasoning_delta', text: delta.reasoning_content })
       }
 
       return events

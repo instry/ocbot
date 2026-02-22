@@ -240,19 +240,17 @@ function ProviderForm({ initial, onSave, onCancel }: {
         />
       </fieldset>
 
-      {/* Base URL (for openai-compatible or override) */}
-      {(providerType === 'openai-compatible' || baseUrl !== template?.defaultBaseUrl) && (
-        <fieldset>
-          <label className="mb-1.5 block text-xs font-medium">Base URL</label>
-          <input
-            type="text"
-            value={baseUrl}
-            onChange={e => setBaseUrl(e.target.value)}
-            placeholder={template?.defaultBaseUrl ?? 'https://...'}
-            className="w-full rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm outline-none focus:border-primary"
+      {/* Base URL */}
+      <fieldset>
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Base URL</label>
+        <input
+          type="text"
+          value={baseUrl}
+          onChange={e => setBaseUrl(e.target.value)}
+          placeholder={template?.defaultBaseUrl ?? 'https://...'}
+          className="w-full rounded-lg border border-border/50 bg-muted/50 px-3 py-2 text-sm outline-none focus:border-primary"
           />
         </fieldset>
-      )}
 
       {/* Model Selection */}
       <fieldset>

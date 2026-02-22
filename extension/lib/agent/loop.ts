@@ -42,6 +42,7 @@ export async function runAgentLoop(
     if (signal?.aborted) return
 
     let textContent = ''
+    let reasoningContent = ''
     const toolCalls: Map<string, { id: string; name: string; arguments: string }> = new Map()
     // Track tool calls by index for OpenAI streaming (where id comes only on first chunk)
     let currentToolCallIndex = 0
@@ -54,6 +55,10 @@ export async function runAgentLoop(
           case 'text_delta':
             textContent += event.text
             callbacks.onTextDelta(event.text)
+            break
+
+          case 'reasoning_delta':
+            reasoningContent += event.text
             break
 
           case 'tool_call_start': {
@@ -103,6 +108,7 @@ export async function runAgentLoop(
       role: 'assistant',
       content: textContent || undefined,
       toolCalls: toolCallArray.length > 0 ? toolCallArray : undefined,
+      reasoningContent: reasoningContent || undefined,
     })
 
     // If no tool calls, we're done — assistant gave a text response

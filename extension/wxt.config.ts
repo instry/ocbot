@@ -38,6 +38,7 @@ export default defineConfig({
       'https://api.deepseek.com/*',
       'https://dashscope.aliyuncs.com/*',
       'https://api.moonshot.ai/*',
+      'https://api.moonshot.cn/*',
       'https://api.z.ai/*',
       'https://api.minimax.io/*',
       'https://openrouter.ai/*'

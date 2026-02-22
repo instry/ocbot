@@ -22,6 +22,8 @@ export async function* streamChat(
   const adapter = getAdapter(provider)
   const { url, headers, body } = adapter.buildRequest(provider, messages, tools)
 
+  const debugInfo = `[url=${url}] [auth=${headers.Authorization ? 'Bearer ...' + provider.apiKey?.slice(-4) : 'MISSING'}] [key_len=${provider.apiKey?.length ?? 0}]`
+
   const response = await fetch(url, {
     method: 'POST',
     headers,
@@ -31,7 +33,7 @@ export async function* streamChat(
 
   if (!response.ok) {
     const text = await response.text().catch(() => '')
-    yield { type: 'error', error: `HTTP ${response.status}: ${text.slice(0, 200)}` }
+    yield { type: 'error', error: `HTTP ${response.status}: ${text.slice(0, 200)}\n${debugInfo}` }
     return
   }
 
