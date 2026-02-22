@@ -69,9 +69,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
   {
     type: 'kimi',
     name: 'Kimi',
-    // Global: https://api.moonshot.ai/v1 (User preferred domain: kimi.com), CN: https://api.moonshot.cn/v1
-    defaultBaseUrl: 'https://api.moonshot.ai/v1',
-    apiKeyUrl: 'https://platform.moonshot.ai/console/api-keys',
+    defaultBaseUrl: 'https://api.moonshot.cn/v1',
+    apiKeyUrl: 'https://platform.moonshot.cn/console/api-keys',
     apiKeyPlaceholder: 'sk-...',
     defaultModelId: 'kimi-k2.5',
     models: [
