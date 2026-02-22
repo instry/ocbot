@@ -143,6 +143,12 @@ def install_icons(icons_src, icons_dest):
             count += 1
         logger.info(f"   [1/7] Copied {count} PNGs to theme/chromium/")
 
+        # Copy toolbar icon (mono version used for IDR_OCBOT_TOOLBAR_ICON resource)
+        toolbar_icon_src = icons_src / "product_logo_22_mono.png"
+        if toolbar_icon_src.exists():
+            shutil.copy2(toolbar_icon_src, icons_dest / "ocbot_toolbar_icon.png")
+            logger.info("   [1/7] Copied ocbot_toolbar_icon.png (toolbar mono icon)")
+
         # Copy SVG if exists
         for svg_name in ["product_logo.svg", "product_logo_animation.svg"]:
             svg_src = icons_src / svg_name
