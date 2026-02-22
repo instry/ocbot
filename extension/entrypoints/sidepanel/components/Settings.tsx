@@ -186,12 +186,12 @@ function ProviderForm({ initial, onSave, onCancel }: {
       {!initial && (
         <fieldset>
           <label className="mb-1.5 block text-xs font-medium">Provider</label>
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             {PROVIDER_TEMPLATES.map(t => (
               <button
                 key={t.type}
                 onClick={() => handleTypeChange(t.type)}
-                className={`rounded-lg border px-3 py-2 text-xs transition-colors ${
+                className={`rounded-lg border px-2 py-1.5 text-[11px] transition-colors ${
                   providerType === t.type
                     ? 'border-primary bg-primary/10 font-medium text-primary'
                     : 'border-border/50 hover:border-border'
