@@ -17,7 +17,7 @@ export function ChatArea({ hasProvider, onOpenSettings }: ChatAreaProps) {
             <div>
               <h2 className="mb-1 text-lg font-semibold">How can I help?</h2>
               <p className="text-xs text-muted-foreground max-w-[200px]">
-                Ask questions about the current page or any topic
+                I can browse the web, find information, and complete tasks for you
               </p>
             </div>
           </>

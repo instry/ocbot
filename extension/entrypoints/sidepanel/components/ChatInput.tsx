@@ -11,7 +11,7 @@ export function ChatInput() {
           className="max-h-32 min-h-[42px] flex-1 resize-none rounded-2xl border border-border/50 bg-muted/50 px-4 py-2.5 pr-11 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus:border-primary"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about this page..."
+          placeholder="Ask me to complete a task..."
           rows={1}
         />
         <button
