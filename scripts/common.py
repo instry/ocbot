@@ -24,7 +24,7 @@ def get_project_root():
     return Path(__file__).resolve().parent.parent
 
 def get_chromium_version():
-    """Read Chromium version from resources/chromium_version.txt"""
+    """Read version from resources/chromium_version.txt"""
     version_file = get_project_root() / 'resources' / 'chromium_version.txt'
     if version_file.exists():
         return version_file.read_text().strip()
@@ -32,7 +32,7 @@ def get_chromium_version():
 
 def get_source_dir(version=None):
     """
-    Returns the Chromium source directory.
+    Returns the source directory.
     Default: sibling directory of ocbot project, structure: ../chromium/<version>
     Example: ../chromium/130.0.6723.69
     """

@@ -11,7 +11,7 @@ def check_disk_space(path="."):
     return free // (2**30)
 
 def check_network():
-    """Check connectivity to Chromium servers"""
+    """Check connectivity to source servers"""
     try:
         requests.get("https://chromium.googlesource.com", timeout=5)
         return True
@@ -25,7 +25,7 @@ def check_depot_tools():
 def check_environment(args):
     """Check environment and recommend download method"""
     print("==========================================")
-    print("  ocbot Chromium Source Download Selection")
+    print("  Ocbot Source Download Selection")
     print("=========================================="
           )
     print("")
@@ -54,9 +54,9 @@ def check_environment(args):
     print("2. Checking network connection...")
     network_ok = check_network()
     if network_ok:
-        print("   Can access Chromium servers ✓")
+        print("   Can access source servers ✓")
     else:
-        print("   Cannot directly access Chromium servers (proxy may be needed) ⚠")
+        print("   Cannot directly access source servers (proxy may be needed) ⚠")
     print("")
 
     # 3. Check depot_tools

@@ -6,7 +6,7 @@ from common import get_logger, get_project_root, get_source_dir
 
 
 def get_chromium_version():
-    """Read Chromium version from resources/chromium_version.txt"""
+    """Read version from resources/chromium_version.txt"""
     from common import get_chromium_version as common_get_version
     return common_get_version()
 
@@ -52,7 +52,7 @@ def init_depot_tools():
 
 
 def download_with_depot_tools(args, src_dir):
-    """Download Chromium source using depot_tools (fetch + gclient sync)"""
+    """Download source using depot_tools (fetch + gclient sync)"""
     logger = get_logger()
     
     if not init_depot_tools():
@@ -60,10 +60,10 @@ def download_with_depot_tools(args, src_dir):
     
     # Check if already fetched
     if src_dir.exists() and (src_dir / '.git').exists():
-        logger.info("Chromium source already fetched. Running gclient sync...")
+        logger.info("Source already fetched. Running gclient sync...")
         return sync_with_depot_tools(args, src_dir)
     
-    logger.info("Downloading Chromium source using depot_tools...")
+    logger.info("Downloading source using depot_tools...")
     logger.info("This will take a while (30GB+ source + dependencies)...")
     
     # Create and enter source directory
@@ -143,15 +143,15 @@ def sync_with_depot_tools(args, build_dir):
 
 
 def download_tarball(args, target_dir):
-    """Download Chromium source as tarball (quick method)"""
+    """Download source as tarball (quick method)"""
     logger = get_logger()
     
     version = args.version or get_chromium_version()
     if not version:
-        logger.error("Could not determine Chromium version. Please specify --version.")
+        logger.error("Could not determine version. Please specify --version.")
         return False
     
-    logger.info(f"Preparing to download Chromium {version} (tarball method)...")
+    logger.info(f"Preparing to download Ocbot {version} (tarball method)...")
     
     base_url = "https://commondatastorage.googleapis.com/chromium-browser-official"
     filename = f"chromium-{version}.tar.xz"

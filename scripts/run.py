@@ -30,20 +30,18 @@ def run_chromium(args):
                     break
     
     if not src_dir:
-        logger.error("Could not find Chromium source directory.")
+        logger.error("Could not find source directory.")
         return
 
-    out_dir = src_dir / 'out' / 'Default'
+    out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
+    out_dir = src_dir / 'out' / out_dir_name
     
-    # Check for Ocbot.app first (branding applied)
+    # Check for Ocbot.app
     executable = out_dir / 'Ocbot.app' / 'Contents' / 'MacOS' / 'Ocbot'
+
     if not executable.exists():
-        # Fallback to Chromium.app
-        executable = out_dir / 'Chromium.app' / 'Contents' / 'MacOS' / 'Chromium'
-    
-    if not executable.exists():
-        logger.error(f"Executable not found at {executable} or Ocbot.app")
-        logger.info("Please build Chromium first: python3 ocbot/scripts/dev.py build")
+        logger.error(f"Ocbot.app not found at {executable.parent.parent}")
+        logger.info("Please build first: python3 ocbot/scripts/dev.py build")
         return
 
     cmd = [str(executable)]
@@ -62,7 +60,7 @@ def run_chromium(args):
     if hasattr(args, 'args') and args.args:
         cmd.extend(args.args)
 
-    logger.info(f"Launching Chromium...")
+    logger.info(f"Launching Ocbot...")
     logger.info(f"Command: {' '.join(cmd)}")
     try:
         subprocess.run(cmd)
