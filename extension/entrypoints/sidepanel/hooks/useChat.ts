@@ -99,12 +99,13 @@ export function useChat(provider: LlmProvider | null) {
             }
           },
           onToolMessage: (toolCallId, name, result) => {
+            const safeResult = (result ?? '').slice(0, 500)
             const toolMsg: ChatMessage = {
               id: `msg_${Date.now()}_tool_${toolCallId}`,
               role: 'tool',
-              content: result.slice(0, 500),
+              content: safeResult,
               createdAt: Date.now(),
-              toolResult: { toolCallId, name, result: result.slice(0, 500) },
+              toolResult: { toolCallId, name, result: safeResult },
             }
             setMessages(prev => [...prev, toolMsg])
           },

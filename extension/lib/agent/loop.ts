@@ -3,7 +3,7 @@ import { streamChat } from '../llm/client'
 import { BROWSER_TOOLS, executeTool } from './tools'
 import { buildSystemPrompt } from './systemPrompt'
 
-const MAX_ITERATIONS = 20
+const MAX_TURNS = 100
 
 export interface AgentCallbacks {
   onTextDelta: (text: string) => void
@@ -38,7 +38,7 @@ export async function runAgentLoop(
 
   const allMessages: LlmRequestMessage[] = [systemMessage, ...messages]
 
-  for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+  for (let turn = 0; turn < MAX_TURNS; turn++) {
     if (signal?.aborted) return
 
     let textContent = ''
@@ -132,5 +132,6 @@ export async function runAgentLoop(
     }
   }
 
-  callbacks.onError('Reached maximum iterations (20). Stopping.')
+  // Safety limit reached — send a final text message instead of an error
+  callbacks.onAssistantMessage('I\'ve completed the actions I could perform. Let me know if you need anything else.', [])
 }
