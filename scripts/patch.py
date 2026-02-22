@@ -147,7 +147,7 @@ def update_patches(args):
 
     patches_dir = get_project_root() / 'resources' / 'patches'
     
-    logger.info("Scanning for modified files in Chromium source...")
+    logger.info("Scanning for modified files in source...")
     
     # 1. Identify modified files
     # git status --porcelain to get machine-readable output

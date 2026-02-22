@@ -13,18 +13,18 @@ from common import get_logger, get_project_root, get_source_dir
 logger = get_logger()
 
 
-def _find_app(src_dir):
-    """Find the built .app bundle in out/Default."""
-    out_dir = src_dir / 'src' / 'out' / 'Default'
+def _find_app(src_dir, is_official=False):
+    """Find the built .app bundle in out/Default or out/Official."""
+    out_dir_name = 'Official' if is_official else 'Default'
+    out_dir = src_dir / 'src' / 'out' / out_dir_name
     if not out_dir.exists():
-        out_dir = src_dir / 'out' / 'Default'
+        out_dir = src_dir / 'out' / out_dir_name
 
-    for name in ('Ocbot.app', 'Chromium.app'):
-        app = out_dir / name
-        if app.exists():
-            return app
+    app = out_dir / 'Ocbot.app'
+    if app.exists():
+        return app
 
-    logger.error(f"No .app bundle found in {out_dir}")
+    logger.error(f"Ocbot.app not found in {out_dir}")
     sys.exit(1)
 
 
@@ -44,7 +44,7 @@ def package_dmg(args):
     else:
         src_dir = get_source_dir()
 
-    app_path = _find_app(src_dir)
+    app_path = _find_app(src_dir, is_official=getattr(args, 'official', False))
     app_name, version = _read_plist(app_path)
     logger.info(f"Packaging {app_name} ({version}) from {app_path}")
 

@@ -23,21 +23,33 @@ def build_chromium(args):
     logger.info("Starting build process...")
     logger.info("NOTE: This requires 'gn' and 'ninja' to be in PATH and depot_tools configured.")
     
-    out_dir = src_dir / 'out' / 'Default'
+    if args.official:
+        out_dir = src_dir / 'out' / 'Official'
+        logger.info(f"Building OFFICIAL release in {out_dir}")
+        flags = [
+            'is_official_build=true',
+            'is_debug=false',
+            'symbol_level=0',
+            'use_service_discovery=false',
+            'use_siso=true',
+            'chrome_pgo_phase=0',  # Skip PGO for simplicity
+        ]
+    else:
+        out_dir = src_dir / 'out' / 'Default'
+        logger.info(f"Building DEV release in {out_dir}")
+        # Basic flags for ungoogled-chromium
+        flags = [
+            'is_debug=false',
+            'symbol_level=0',
+            'use_service_discovery=false',
+            'use_siso=true',
+        ]
     
     # Always ensure gn is available and args.gn is correct
     if subprocess.call(['which', 'gn'], stdout=subprocess.DEVNULL) != 0:
             logger.error("'gn' command not found. Please install depot_tools and add to PATH.")
             return
 
-    # Basic flags for ungoogled-chromium
-    flags = [
-        'is_debug=false',
-        'symbol_level=0',
-        'use_service_discovery=false',
-        'use_siso=true',
-    ]
-    
     # Check if args.gn exists and if use_siso needs to be added
     args_gn_path = out_dir / 'args.gn'
     needs_gen = False
@@ -61,7 +73,7 @@ def build_chromium(args):
         needs_gen = True
     
     if needs_clean:
-            logger.info("Cleaning output directory for siso migration...")
+            logger.info(f"Cleaning output directory {out_dir} for siso migration...")
             subprocess.run(['gn', 'clean', str(out_dir)], cwd=src_dir, check=True)
 
     if needs_gen:

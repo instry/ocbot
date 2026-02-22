@@ -23,7 +23,7 @@ def main():
     
     # Parent parser for common arguments
     parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument('--src-dir', help='Chromium source directory (default: ../chromium/<version>)')
+    parent_parser.add_argument('--src-dir', help='Source directory (default: ../chromium/<version>)')
 
     subparsers = parser.add_subparsers(dest='command', help='Command to run')
 
@@ -31,8 +31,8 @@ def main():
     parser_check = subparsers.add_parser('check', help='Check environment and recommend download method', parents=[parent_parser])
 
     # Download
-    parser_download = subparsers.add_parser('download', help='Download Chromium source', parents=[parent_parser])
-    parser_download.add_argument('--version', help='Chromium version to download (tarball method only)')
+    parser_download = subparsers.add_parser('download', help='Download source code', parents=[parent_parser])
+    parser_download.add_argument('--version', help='Version to download (tarball method only)')
     parser_download.add_argument('--method', choices=['tarball', 'depot', 'sync'], 
                                 default='tarball',
                                 help='Download method: tarball (quick) or depot (full dev) or sync (re-run gclient sync)')
@@ -49,16 +49,19 @@ def main():
     parser_update = subparsers.add_parser('update_patches', help='Update patches from modified source', parents=[parent_parser])
 
     # Build
-    parser_build = subparsers.add_parser('build', help='Build Chromium', parents=[parent_parser])
+    parser_build = subparsers.add_parser('build', help='Build Ocbot', parents=[parent_parser])
     parser_build.add_argument('--target', default='chrome', help='Build target')
+    parser_build.add_argument('--official', action='store_true', help='Build official release (optimized)')
 
     # Run
-    parser_run = subparsers.add_parser('run', help='Run Chromium with extension loaded', parents=[parent_parser])
-    parser_run.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Chromium')
+    parser_run = subparsers.add_parser('run', help='Run Ocbot', parents=[parent_parser])
+    parser_run.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Ocbot')
+    parser_run.add_argument('--official', action='store_true', help='Run official build')
 
     # Package
     parser_package = subparsers.add_parser('package', help='Package Ocbot.app into a .dmg installer', parents=[parent_parser])
     parser_package.add_argument('--output', help='Output DMG path (default: dist/<AppName>-<Version>.dmg)')
+    parser_package.add_argument('--official', action='store_true', help='Package official build')
 
     args = parser.parse_args()
     logger = get_logger()
