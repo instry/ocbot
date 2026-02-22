@@ -1,16 +1,17 @@
 diff --git a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc
-index 30d4b3bc95d1c115595dc258ba60850500c73d91..257e6c5d58b0c36ab0c2e3285b76987c1bd1da25 100644
+index 8d99165c09819764e2e71f56a9e67fc71e72231d..1c20a3c34363b4bb97f1bf467f78148012c3537e 100644
 --- a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc
 +++ b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc
-@@ -6,6 +6,7 @@
+@@ -6,6 +6,8 @@
  
  #include "base/memory/scoped_refptr.h"
  #include "base/strings/utf_string_conversions.h"
++#include "base/task/sequenced_task_runner.h"
 +#include "chrome/browser/ui/ocbot/ocbot_constants.h"
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/ui/actions/chrome_action_id.h"
  #include "chrome/browser/ui/actions/chrome_actions.h"
-@@ -13,6 +14,7 @@
+@@ -13,11 +15,14 @@
  #include "chrome/browser/ui/browser_actions.h"
  #include "chrome/browser/ui/browser_finder.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -18,7 +19,49 @@ index 30d4b3bc95d1c115595dc258ba60850500c73d91..257e6c5d58b0c36ab0c2e3285b76987c
  #include "chrome/browser/ui/ui_features.h"
  #include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
-@@ -85,6 +87,30 @@ void ExtensionSidePanelManager::OnExtensionLoaded(
+ #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
++#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
++#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+ #include "content/public/browser/browser_context.h"
+ #include "content/public/browser/web_contents.h"
+ #include "extensions/common/extension.h"
+@@ -71,6 +76,34 @@ void ExtensionSidePanelManager::RegisterExtensionEntries() {
+   for (const auto& extension : extension_registry->enabled_extensions()) {
+     MaybeCreateExtensionSidePanelCoordinator(extension.get());
+   }
++
++  // ocbot: Auto-open side panel for ocbot extension after entries are registered
++  if (browser_) {
++    for (const auto& extension : extension_registry->enabled_extensions()) {
++      if (ocbot::IsOcbotExtension(extension->id())) {
++        // Auto-pin to toolbar
++        actions::ActionId extension_action_id = GetOrCreateActionIdForExtension(extension.get());
++        PinnedToolbarActionsModel* model = PinnedToolbarActionsModel::Get(profile_);
++        if (model) {
++          model->UpdatePinnedState(extension_action_id, true);
++        }
++        // Auto-open side panel after UI is ready
++        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
++            FROM_HERE,
++            base::BindOnce(
++                [](base::WeakPtr<BrowserWindowInterface> browser, ExtensionId extension_id) {
++                  if (!browser || !browser->GetWindow()) return;
++                  auto* side_panel_ui = browser->GetFeatures().side_panel_ui();
++                  if (!side_panel_ui) return;
++                  SidePanelEntry::Key key(SidePanelEntry::Id::kExtension, extension_id);
++                  side_panel_ui->Show(key);
++                },
++                browser_->GetWeakPtr(), extension->id()),
++            base::Seconds(1));
++        break;
++      }
++    }
++  }
+ }
+ 
+ void ExtensionSidePanelManager::InitializeActions() {
+@@ -85,6 +118,30 @@ void ExtensionSidePanelManager::OnExtensionLoaded(
      const Extension* extension) {
    MaybeCreateActionItemForExtension(extension);
    MaybeCreateExtensionSidePanelCoordinator(extension);

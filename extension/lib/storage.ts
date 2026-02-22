@@ -1,50 +1,55 @@
 import type { Conversation } from './types'
+import type { LlmProvider } from './llm/types'
 
 const STORAGE_KEYS = {
-  apiKeys: 'ocbot_api_keys',
-  currentProvider: 'ocbot_current_provider',
-  currentModel: 'ocbot_current_model',
+  providers: 'ocbot_providers',
+  defaultProviderId: 'ocbot_default_provider_id',
 } as const
 
-// API Keys storage (per provider)
-export async function getApiKey(provider: string): Promise<string | null> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.apiKeys)
-  const keys = result[STORAGE_KEYS.apiKeys] as Record<string, string> || {}
-  return keys[provider] || null
+// --- Provider CRUD ---
+
+export async function getProviders(): Promise<LlmProvider[]> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.providers)
+  return (result[STORAGE_KEYS.providers] as LlmProvider[]) || []
 }
 
-export async function setApiKey(provider: string, key: string): Promise<void> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.apiKeys)
-  const keys = result[STORAGE_KEYS.apiKeys] as Record<string, string> || {}
-  keys[provider] = key
-  await chrome.storage.local.set({ [STORAGE_KEYS.apiKeys]: keys })
+export async function saveProvider(provider: LlmProvider): Promise<void> {
+  const all = await getProviders()
+  const idx = all.findIndex(p => p.id === provider.id)
+  if (idx >= 0) {
+    all[idx] = { ...provider, updatedAt: Date.now() }
+  } else {
+    all.push(provider)
+  }
+  await chrome.storage.local.set({ [STORAGE_KEYS.providers]: all })
 }
 
-export async function getAllApiKeys(): Promise<Record<string, string>> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.apiKeys)
-  return result[STORAGE_KEYS.apiKeys] as Record<string, string> || {}
+export async function deleteProvider(id: string): Promise<void> {
+  const all = await getProviders()
+  const filtered = all.filter(p => p.id !== id)
+  await chrome.storage.local.set({ [STORAGE_KEYS.providers]: filtered })
+
+  // If deleted provider was the default, clear it
+  const defaultId = await getDefaultProviderId()
+  if (defaultId === id) {
+    const newDefault = filtered.length > 0 ? filtered[0].id : null
+    await setDefaultProviderId(newDefault)
+  }
 }
 
-// Current provider/model
-export async function getCurrentProvider(): Promise<string> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.currentProvider)
-  return (result[STORAGE_KEYS.currentProvider] as string) || 'openai'
+// --- Default Provider ---
+
+export async function getDefaultProviderId(): Promise<string | null> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.defaultProviderId)
+  return (result[STORAGE_KEYS.defaultProviderId] as string) || null
 }
 
-export async function setCurrentProvider(provider: string): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEYS.currentProvider]: provider })
+export async function setDefaultProviderId(id: string | null): Promise<void> {
+  await chrome.storage.local.set({ [STORAGE_KEYS.defaultProviderId]: id ?? '' })
 }
 
-export async function getCurrentModel(): Promise<string> {
-  const result = await chrome.storage.local.get(STORAGE_KEYS.currentModel)
-  return (result[STORAGE_KEYS.currentModel] as string) || 'gpt-4o-mini'
-}
+// --- Conversation persistence ---
 
-export async function setCurrentModel(model: string): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEYS.currentModel]: model })
-}
-
-// Conversation persistence
 const CONVERSATIONS_KEY = 'ocbot_conversations'
 
 export async function getConversations(): Promise<Conversation[]> {
