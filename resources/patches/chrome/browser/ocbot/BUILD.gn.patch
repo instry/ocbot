@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/ocbot/BUILD.gn b/chrome/browser/ocbot/BUILD.gn
+new file mode 100644
+index 0000000000000000000000000000000000000000..52a55f1f850cbfbc971df0cf30423f38320c45f0
+--- /dev/null
++++ b/chrome/browser/ocbot/BUILD.gn
+@@ -0,0 +1,22 @@
++# Copyright 2025 The Ocbot Authors
++# SPDX-License-Identifier: MIT
++
++source_set("ocbot") {
++  sources = [
++    "extension_updater.cc",
++    "extension_updater.h",
++  ]
++
++  deps = [
++    "//base",
++    "//chrome/browser/profiles:profile",
++    "//chrome/common",
++    "//content/public/browser",
++    "//extensions/browser",
++    "//extensions/common",
++    "//net",
++    "//services/network/public/cpp",
++    "//services/network/public/mojom",
++    "//third_party/zlib/google:zip",
++  ]
++}

@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import type { ChatMessage } from '@/lib/types'
 import type { LlmProvider, LlmRequestMessage } from '@/lib/llm/types'
 import { runAgentLoop } from '@/lib/agent/loop'
+import { saveConversation, getConversations } from '@/lib/storage'
 
 export interface ToolStatus {
   id: string
@@ -12,11 +13,34 @@ export interface ToolStatus {
 
 export function useChat(provider: LlmProvider | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [conversationId, setConversationId] = useState(() => `conv_${Date.now()}`)
   const [streamingText, setStreamingText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [toolStatuses, setToolStatuses] = useState<ToolStatus[]>([])
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Load most recent conversation on mount
+  useEffect(() => {
+    getConversations().then(convs => {
+      if (convs.length > 0) {
+        const latest = convs[0]
+        setConversationId(latest.id)
+        setMessages(latest.messages)
+      }
+    })
+  }, [])
+
+  // Auto-save conversation when messages change
+  useEffect(() => {
+    if (messages.length === 0) return
+    saveConversation({
+      id: conversationId,
+      messages,
+      createdAt: messages[0].createdAt,
+      updatedAt: Date.now(),
+    })
+  }, [messages, conversationId])
 
   const sendMessage = useCallback(async (text: string) => {
     if (!provider || !text.trim() || isLoading) return
@@ -131,8 +155,9 @@ export function useChat(provider: LlmProvider | null) {
     setStreamingText('')
   }, [])
 
-  const clearChat = useCallback(() => {
+  const newChat = useCallback(() => {
     setMessages([])
+    setConversationId(`conv_${Date.now()}`)
     setStreamingText('')
     setToolStatuses([])
     setError(null)
@@ -146,6 +171,6 @@ export function useChat(provider: LlmProvider | null) {
     error,
     sendMessage,
     stopAgent,
-    clearChat,
+    newChat,
   }
 }

@@ -2,6 +2,8 @@
 import argparse
 import sys
 import subprocess
+import os
+import json
 from pathlib import Path
 
 try:
@@ -13,6 +15,7 @@ try:
     from check import check_environment
     from icons import install_icons
     from package import package_dmg
+    from release import release_extension
     from common import get_source_dir, get_project_root
 except ImportError as e:
     print(f"Error importing scripts: {e}")
@@ -47,6 +50,7 @@ def main():
 
     # Update Patches
     parser_update = subparsers.add_parser('update_patches', help='Update patches from modified source', parents=[parent_parser])
+    parser_update.add_argument('--base', help='Base commit/ref to compare against (default: auto-detect)')
 
     # Build
     parser_build = subparsers.add_parser('build', help='Build Ocbot', parents=[parent_parser])
@@ -65,9 +69,51 @@ def main():
     parser_package.add_argument('--official', action='store_true', help='Package official build')
     parser_package.add_argument('--sign', help="Code signing identity (or set CODESIGN_IDENTITY)")
     parser_package.add_argument('--notarize', help="Notarization profile name (or set NOTARY_PROFILE)")
-    parser_package.add_argument('--extension-src', help="Path to extension build output to bundle in DMG")
+    parser_package.add_argument('--apple-id', help="Apple ID for notarization (or set APPLE_ID)")
+    parser_package.add_argument('--team-id', help="Team ID for notarization (or set TEAM_ID)")
+    parser_package.add_argument('--password-file', help="Path to file containing app-specific password", default="ocbot/.apple.json")
+    parser_package.add_argument('--extension-src', help="Path to extension build output to bundle in DMG (default: ocbot/extension/.output/chrome-mv3)")
+
+    # Release Extension
+    parser_release = subparsers.add_parser('release-extension', help='Release ocbot extension to GitHub', parents=[parent_parser])
 
     args = parser.parse_args()
+
+    # Default extension source path
+    if args.command == 'package' and not args.extension_src:
+        args.extension_src = get_project_root() / 'extension' / '.output' / 'chrome-mv3'
+
+    # Read password from file if applicable
+    if hasattr(args, 'password_file') and args.password_file:
+        pw_file = Path(args.password_file)
+        if not pw_file.is_absolute():
+            # Try relative to CWD
+            if not pw_file.exists():
+                # Try relative to project root (ocbot/ocbot/scripts/../../)
+                pw_file = get_project_root() / args.password_file
+        
+        if pw_file.exists():
+            try:
+                file_content = pw_file.read_text().strip()
+                try:
+                    data = json.loads(file_content)
+                    if 'password' in data:
+                        os.environ['NOTARY_PASSWORD'] = data['password']
+                    if 'apple-id' in data and not args.apple_id:
+                        args.apple_id = data['apple-id']
+                    if 'team-id' in data and not args.team_id:
+                        args.team_id = data['team-id']
+                    if 'sign' in data and not args.sign:
+                        args.sign = data['sign']
+                except json.JSONDecodeError:
+                    # Fallback to plain text
+                    os.environ['NOTARY_PASSWORD'] = file_content
+            except Exception as e:
+                print(f"Error reading password file: {e}")
+        else:
+             # Just log debug if needed, but don't fail yet
+             pass
+
     logger = get_logger()
 
     if args.command == 'download':
@@ -115,6 +161,8 @@ def main():
         run_chromium(args)
     elif args.command == 'package':
         package_dmg(args)
+    elif args.command == 'release-extension':
+        release_extension(args)
     else:
         parser.print_help()
 

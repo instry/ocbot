@@ -79,6 +79,12 @@ def run_chromium(args):
     # Sync latest extension build into the app bundle before launching.
     _sync_extension(logger, root_dir, out_dir)
 
+    # Dev mode: point component_loader to local extension build directly,
+    # so hot-updated / bundled versions are skipped and OTA updater is disabled.
+    extension_dev_path = root_dir / 'ocbot' / 'extension' / '.output' / 'chrome-mv3'
+    if extension_dev_path.exists():
+        cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
+
     # User data dir
     user_data_dir = root_dir / 'chromium' / 'user_data'
     cmd.append(f'--user-data-dir={user_data_dir}')

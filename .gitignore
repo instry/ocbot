@@ -7,3 +7,4 @@ node_modules/
 .output/
 .wxt/
 backup/
+.apple.json
