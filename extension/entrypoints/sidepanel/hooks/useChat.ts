@@ -3,6 +3,7 @@ import type { ChatMessage } from '@/lib/types'
 import type { LlmProvider, LlmRequestMessage } from '@/lib/llm/types'
 import { runAgentLoop } from '@/lib/agent/loop'
 import { ActCache } from '@/lib/agent/cache'
+import { AgentCache } from '@/lib/agent/agentCache'
 import { saveConversation, getConversations } from '@/lib/storage'
 
 export interface ToolStatus {
@@ -13,6 +14,7 @@ export interface ToolStatus {
 }
 
 const actCache = new ActCache()
+const agentCacheInstance = new AgentCache()
 
 export function useChat(provider: LlmProvider | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -142,6 +144,8 @@ export function useChat(provider: LlmProvider | null) {
         },
         abortController.signal,
         actCache,
+        undefined, // variables
+        agentCacheInstance,
       )
     } catch (err: unknown) {
       if (abortController.signal.aborted) return

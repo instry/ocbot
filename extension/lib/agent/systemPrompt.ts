@@ -1,4 +1,6 @@
-export function buildSystemPrompt(pageContext?: { url: string; title: string }): string {
+import type { Variables } from './variables'
+
+export function buildSystemPrompt(pageContext?: { url: string; title: string }, variables?: Variables): string {
   let prompt = `You are ocbot, an AI browser assistant that helps users complete tasks by controlling the browser.
 
 You have access to browser tools to navigate, interact with elements, and extract information from pages. Use these tools to accomplish the user's goals.
@@ -29,7 +31,11 @@ You have access to browser tools to navigate, interact with elements, and extrac
   - observe("list all form fields")
 - navigate: Go to a URL. Always include the protocol or domain.
 - scroll: Scroll up or down to see more content.
-- waitForNavigation: Wait for page load after actions that trigger navigation.`
+- waitForNavigation: Wait for page load after actions that trigger navigation.
+- think: Think through a problem step-by-step before acting. Use this to plan complex tasks, reason about what to do next, or analyze information. No side effects.
+- ariaTree: Get the full accessibility tree of the current page. Shows all interactive elements with roles, names, and values. Use this to understand page structure when observe is too narrow.
+- fillForm: Fill multiple form fields at once. More efficient than calling act repeatedly for each field. Example:
+  - fillForm([{field: "email", value: "%email%"}, {field: "password", value: "%password%"}])`
 
   if (pageContext) {
     prompt += `
@@ -37,6 +43,15 @@ You have access to browser tools to navigate, interact with elements, and extrac
 ## Current Page
 - URL: ${pageContext.url}
 - Title: ${pageContext.title}`
+  }
+
+  if (variables && Object.keys(variables).length > 0) {
+    const varList = Object.keys(variables).map(k => `- %${k}%`).join('\n')
+    prompt += `
+
+## Available Variables
+Use %variableName% in act/fillForm instructions. Values are substituted automatically. Do NOT ask the user for these values.
+${varList}`
   }
 
   return prompt

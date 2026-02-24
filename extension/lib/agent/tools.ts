@@ -1,8 +1,13 @@
 import type { ToolDefinition, LlmProvider } from '../llm/types'
 import type { ActCache } from './cache'
+import type { Variables } from './variables'
 import { act } from './act'
 import { extract } from './extract'
 import { observe } from './observe'
+import { fillForm } from './fillForm'
+import { capturePageSnapshot } from './snapshot'
+import { ensureAttached } from './cdp'
+import { substituteVariables } from './variables'
 
 export const BROWSER_TOOLS: ToolDefinition[] = [
   {
@@ -68,6 +73,47 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
       properties: {
         timeout: { type: 'string', description: 'Maximum wait time in ms (default 5000)' },
       },
+    },
+  },
+  {
+    name: 'think',
+    description: 'Think through a problem step-by-step before acting. No browser side effects.',
+    parameters: {
+      type: 'object',
+      properties: {
+        reasoning: { type: 'string', description: 'Your step-by-step reasoning' },
+      },
+      required: ['reasoning'],
+    },
+  },
+  {
+    name: 'ariaTree',
+    description: 'Get the accessibility tree of the current page. Shows all elements with roles, names, values and node IDs. Use to understand page structure before acting.',
+    parameters: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'fillForm',
+    description: 'Fill multiple form fields at once. More efficient than calling act repeatedly. Use %variableName% for sensitive values if variables are available.',
+    parameters: {
+      type: 'object',
+      properties: {
+        fields: {
+          type: 'array',
+          description: 'List of form fields to fill',
+          items: {
+            type: 'object',
+            properties: {
+              field: { type: 'string', description: 'Description of the field, e.g. "email address", "password"' },
+              value: { type: 'string', description: 'Value to type, e.g. "hello@test.com" or "%email%"' },
+            },
+            required: ['field', 'value'],
+          },
+        },
+      },
+      required: ['fields'],
     },
   },
 ]
@@ -154,12 +200,16 @@ export async function executeTool(
   provider: LlmProvider,
   cache: ActCache,
   signal?: AbortSignal,
+  variables?: Variables,
 ): Promise<string> {
   try {
     const args = JSON.parse(argsJson || '{}')
     switch (name) {
       case 'act': {
-        const result = await act(args.instruction, provider, cache, signal)
+        const instruction = variables
+          ? substituteVariables(args.instruction, variables)
+          : args.instruction
+        const result = await act(instruction, provider, cache, signal)
         const status = result.cacheHit ? '(cache hit)' : result.selfHealed ? '(self-healed)' : '(new)'
         return JSON.stringify({
           success: result.success,
@@ -181,6 +231,36 @@ export async function executeTool(
       case 'navigate': return await toolNavigate(args)
       case 'scroll': return await toolScroll(args)
       case 'waitForNavigation': return await toolWaitForNavigation(args)
+      case 'think': {
+        return JSON.stringify({ acknowledged: true, reasoning: args.reasoning })
+      }
+      case 'ariaTree': {
+        const tabId = await getActiveTabId()
+        await ensureAttached(tabId)
+        const snapshot = await capturePageSnapshot(tabId)
+        // Truncate tree to ~70k chars to stay within context limits
+        const maxLen = 70000
+        const tree = snapshot.tree.length > maxLen
+          ? snapshot.tree.slice(0, maxLen) + '\n... (truncated)'
+          : snapshot.tree
+        return JSON.stringify({
+          url: snapshot.url,
+          title: snapshot.title,
+          elementCount: snapshot.elements.length,
+          tree,
+        })
+      }
+      case 'fillForm': {
+        const result = await fillForm(args.fields || [], provider, cache, signal, variables)
+        return JSON.stringify({
+          success: result.success,
+          fields: result.fields.map(f => ({
+            field: f.field,
+            success: f.success,
+            error: f.error,
+          })),
+        })
+      }
       default: return `Error: Unknown tool "${name}"`
     }
   } catch (err: unknown) {
