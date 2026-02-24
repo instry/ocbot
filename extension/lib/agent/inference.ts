@@ -1,6 +1,7 @@
 import type { LlmProvider, LlmRequestMessage } from '../llm/types'
 import type { PageSnapshot } from './snapshot'
 import type { ActionStep } from './cache'
+import { buildRoleName } from './cache'
 import { streamChat } from '../llm/client'
 
 // --- Types ---
@@ -16,8 +17,8 @@ export interface ExtractedData {
 
 export interface ObservedAction {
   description: string
-  elementIndex: number
-  selector: string
+  nodeId: number
+  roleName: string
   method: string
 }
 
@@ -25,21 +26,17 @@ export interface ObservedAction {
 
 function formatSnapshotForPrompt(snapshot: PageSnapshot): string {
   let text = `URL: ${snapshot.url}\nTitle: ${snapshot.title}\n\n## Interactive Elements\n`
-  for (const el of snapshot.elements) {
-    const attrStr = Object.entries(el.attributes)
-      .filter(([k]) => k !== 'class') // class is noisy
-      .map(([k, v]) => `${k}="${v}"`)
-      .join(' ')
-    const extra = attrStr ? ` ${attrStr}` : ''
-    text += `[${el.index}] <${el.tag}${extra}> "${el.text}" selector="${el.selector}"\n`
-  }
+  text += snapshot.tree
   return text
 }
 
-const ACT_SYSTEM = `You are a browser automation assistant. Given a page snapshot and a user instruction, identify the element(s) to interact with and the action(s) to perform.
+const ACT_SYSTEM = `You are a browser automation assistant. Given a page snapshot (accessibility tree) and a user instruction, identify the element(s) to interact with and the action(s) to perform.
+
+The snapshot shows elements in this format:
+[nodeId] role: "name" value="..." (focused)
 
 Rules:
-- Use the elementIndex from the snapshot to reference elements
+- Use the nodeId (number in brackets) to reference elements
 - Each action has a method: "click", "type", "select", or "press"
 - For "type": args[0] is the text to type
 - For "select": args[0] is the option value
@@ -49,27 +46,30 @@ Rules:
 - Be precise — pick the most specific matching element
 
 Respond with ONLY valid JSON, no markdown fences:
-{"actions":[{"method":"click"|"type"|"select"|"press","elementIndex":0,"args":["..."],"description":"..."}],"description":"overall description"}`
+{"actions":[{"method":"click"|"type"|"select"|"press","nodeId":42,"args":["..."],"description":"..."}],"description":"overall description"}`
 
-const EXTRACT_SYSTEM = `You are a data extraction assistant. Given a page snapshot and an instruction, extract the requested information from the page content.
+const EXTRACT_SYSTEM = `You are a data extraction assistant. Given a page snapshot (accessibility tree) and an instruction, extract the requested information from the page content.
 
 Rules:
 - Extract exactly what was asked for
 - Return structured data when appropriate (arrays, objects)
-- Use the page text and element content to find the information
+- Use the element names and values to find the information
 
 Respond with ONLY valid JSON, no markdown fences:
 {"data": <extracted data>}`
 
-const OBSERVE_SYSTEM = `You are a browser page analyzer. Given a page snapshot and an instruction, identify the available actions the user could take on the page.
+const OBSERVE_SYSTEM = `You are a browser page analyzer. Given a page snapshot (accessibility tree) and an instruction, identify the available actions the user could take on the page.
+
+The snapshot shows elements in this format:
+[nodeId] role: "name" value="..." (focused)
 
 Rules:
 - List actions relevant to the instruction
-- Include the element index, selector, and a human-readable description
+- Include the nodeId and a human-readable description
 - Focus on interactive elements
 
 Respond with ONLY valid JSON, no markdown fences:
-{"actions":[{"description":"...","elementIndex":0,"selector":"...","method":"click"|"type"|"select"|"press"}]}`
+{"actions":[{"description":"...","nodeId":42,"method":"click"|"type"|"select"|"press"}]}`
 
 // --- LLM call helpers ---
 
@@ -117,17 +117,18 @@ export async function inferActions(
 
   const raw = await callLlm(provider, ACT_SYSTEM, userPrompt, signal)
   const parsed = parseJsonResponse<{
-    actions: Array<{ method: string; elementIndex: number; args?: string[]; description: string }>
+    actions: Array<{ method: string; nodeId: number; args?: string[]; description: string }>
     description: string
   }>(raw)
 
-  // Map elementIndex to actual selectors from snapshot
+  // Map nodeId to backendNodeId and build roleName
   const actions: ActionStep[] = parsed.actions.map((a) => {
-    const el = snapshot.elements[a.elementIndex]
-    if (!el) throw new Error(`Element index ${a.elementIndex} not found in snapshot`)
+    const el = snapshot.elements.find((e) => e.backendNodeId === a.nodeId)
+    if (!el) throw new Error(`Node ID ${a.nodeId} not found in snapshot`)
     return {
       method: a.method as ActionStep['method'],
-      selector: el.selector,
+      backendNodeId: el.backendNodeId,
+      roleName: buildRoleName(el.role, el.name),
       args: a.args,
       description: a.description,
     }
@@ -143,7 +144,7 @@ export async function inferExtraction(
   signal?: AbortSignal,
 ): Promise<ExtractedData> {
   const snapshotText = formatSnapshotForPrompt(snapshot)
-  const userPrompt = `## Page Snapshot\n${snapshotText}\n\n## Page Text (truncated)\n${snapshot.text}\n\n## Instruction\n${instruction}`
+  const userPrompt = `## Page Snapshot\n${snapshotText}\n\n## Instruction\n${instruction}`
 
   const raw = await callLlm(provider, EXTRACT_SYSTEM, userPrompt, signal)
   return parseJsonResponse<ExtractedData>(raw)
@@ -159,14 +160,14 @@ export async function inferObservation(
   const userPrompt = `## Page Snapshot\n${snapshotText}\n\n## Instruction\n${instruction}`
 
   const raw = await callLlm(provider, OBSERVE_SYSTEM, userPrompt, signal)
-  const parsed = parseJsonResponse<{ actions: ObservedAction[] }>(raw)
+  const parsed = parseJsonResponse<{ actions: Array<{ description: string; nodeId: number; method: string }> }>(raw)
 
-  // Enrich selectors from snapshot
+  // Enrich with roleName from snapshot
   return parsed.actions.map((a) => {
-    const el = snapshot.elements[a.elementIndex]
+    const el = snapshot.elements.find((e) => e.backendNodeId === a.nodeId)
     return {
       ...a,
-      selector: el?.selector || a.selector,
+      roleName: el ? buildRoleName(el.role, el.name) : '',
     }
   })
 }

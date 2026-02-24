@@ -1,12 +1,15 @@
+import type { PageElement } from './snapshot'
+
 export interface ActionStep {
   method: 'click' | 'type' | 'select' | 'press'
-  selector: string
+  backendNodeId: number
+  roleName: string
   args?: string[]
   description: string
 }
 
 export interface CachedAction {
-  version: 1
+  version: 2
   instruction: string
   url: string
   actions: ActionStep[]
@@ -43,6 +46,52 @@ function buildCacheInput(instruction: string, url: string): string {
     instruction: normalizeInstruction(instruction),
     urlPattern: normalizeUrl(url),
   })
+}
+
+/**
+ * Build a roleName string for an element: "role:name"
+ */
+export function buildRoleName(role: string, name: string): string {
+  return `${role}:${name}`
+}
+
+/**
+ * Find an element in the current snapshot by roleName fuzzy match.
+ * Returns the matching element or null.
+ */
+export function fuzzyMatchByRoleName(
+  roleName: string,
+  elements: PageElement[],
+): PageElement | null {
+  const [role, ...nameParts] = roleName.split(':')
+  const name = nameParts.join(':')
+
+  // Exact match first
+  const exact = elements.find(
+    (el) => el.role === role && el.name === name && el.interactable,
+  )
+  if (exact) return exact
+
+  // Case-insensitive name match with same role
+  const nameLower = name.toLowerCase()
+  const caseInsensitive = elements.find(
+    (el) =>
+      el.role === role &&
+      el.name.toLowerCase() === nameLower &&
+      el.interactable,
+  )
+  if (caseInsensitive) return caseInsensitive
+
+  // Partial name match (name contains or is contained)
+  const partial = elements.find(
+    (el) =>
+      el.role === role &&
+      el.interactable &&
+      (el.name.toLowerCase().includes(nameLower) ||
+        nameLower.includes(el.name.toLowerCase())) &&
+      el.name.length > 0,
+  )
+  return partial || null
 }
 
 export class ActCache {
@@ -85,7 +134,7 @@ export class ActCache {
     }
 
     all[key] = {
-      version: 1,
+      version: 2,
       instruction: normalizeInstruction(instruction),
       url: normalizeUrl(url),
       actions,
