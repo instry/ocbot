@@ -1,0 +1,75 @@
+diff --git a/chrome/browser/ocbot/browser_updater.h b/chrome/browser/ocbot/browser_updater.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000001
+--- /dev/null
++++ b/chrome/browser/ocbot/browser_updater.h
+@@ -0,0 +1,60 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#ifndef CHROME_BROWSER_OCBOT_BROWSER_UPDATER_H_
++#define CHROME_BROWSER_OCBOT_BROWSER_UPDATER_H_
++
++#include <memory>
++#include <optional>
++#include <string>
++
++#include "base/files/file_path.h"
++#include "base/memory/raw_ptr.h"
++#include "base/memory/weak_ptr.h"
++#include "base/timer/timer.h"
++
++class Profile;
++
++namespace network {
++class SimpleURLLoader;
++namespace mojom {
++class URLLoaderFactory;
++}
++}  // namespace network
++
++namespace ocbot {
++
++// Downloads and installs Ocbot browser updates from GitHub Releases.
++//
++// Workflow:
++//   1. After a startup delay, fetches the latest release info from GitHub API.
++//   2. Compares the remote version against the running browser version.
++//   3. If newer, downloads the DMG asset.
++//   4. Mounts DMG, rsyncs the new .app over the current one, unmounts.
++//   5. Chromium's built-in UpgradeDetector picks up the disk version change
++//      and shows the "Relaunch to update" UI.
++//
++// Subsequent checks run every 4 hours while the browser is open.
++class OcbotBrowserUpdater {
++ public:
++  explicit OcbotBrowserUpdater(Profile* profile);
++  ~OcbotBrowserUpdater();
++
++  OcbotBrowserUpdater(const OcbotBrowserUpdater&) = delete;
++  OcbotBrowserUpdater& operator=(const OcbotBrowserUpdater&) = delete;
++
++  // Starts the periodic update check. First check after 60s.
++  void Start();
++
++ private:
++  void CheckForUpdate();
++  void OnReleaseFetched(std::optional<std::string> response_body);
++  void DownloadDmg(const std::string& url, const std::string& version);
++  void OnDmgDownloaded(const std::string& version, base::FilePath tmp);
++  static bool InstallFromDmg(const base::FilePath& dmg,
++                              const base::FilePath& app);
++  void OnInstallComplete(bool success, const std::string& version);
++  std::string GetRunningVersion() const;
++  base::FilePath GetCurrentAppPath() const;
++  network::mojom::URLLoaderFactory* GetURLLoaderFactory();
++
++  raw_ptr<Profile> profile_;
++  base::RepeatingTimer check_timer_;
++  std::unique_ptr<network::SimpleURLLoader> url_loader_;
++  base::WeakPtrFactory<OcbotBrowserUpdater> weak_factory_{this};
++};
++
++}  // namespace ocbot
++
++#endif  // CHROME_BROWSER_OCBOT_BROWSER_UPDATER_H_

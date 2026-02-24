@@ -15,7 +15,7 @@ try:
     from check import check_environment
     from icons import install_icons
     from package import package_dmg
-    from release import release_extension
+    from release import release_extension, release_browser
     from common import get_source_dir, get_project_root
 except ImportError as e:
     print(f"Error importing scripts: {e}")
@@ -76,6 +76,9 @@ def main():
 
     # Release Extension
     parser_release = subparsers.add_parser('release-extension', help='Release ocbot extension to GitHub', parents=[parent_parser])
+
+    # Release Browser
+    parser_release_browser = subparsers.add_parser('release-browser', help='Release ocbot browser DMG to GitHub', parents=[parent_parser])
 
     args = parser.parse_args()
 
@@ -163,6 +166,8 @@ def main():
         package_dmg(args)
     elif args.command == 'release-extension':
         release_extension(args)
+    elif args.command == 'release-browser':
+        release_browser(args)
     else:
         parser.print_help()
 

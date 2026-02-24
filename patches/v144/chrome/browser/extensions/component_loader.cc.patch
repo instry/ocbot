@@ -17,6 +17,7 @@ index fb31ee586bc6746f3ec33c0512cc0900fc4b8939..d8736f9c2fc01be6f4b6a6bff8eb14b4
  #include "chrome/browser/extensions/component_loader_factory.h"
  #include "chrome/browser/extensions/data_deleter.h"
  #include "chrome/browser/extensions/profile_util.h"
++#include "chrome/browser/ocbot/browser_updater.h"
 +#include "chrome/browser/ocbot/extension_updater.h"
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/common/channel_info.h"
@@ -85,6 +86,15 @@ index fb31ee586bc6746f3ec33c0512cc0900fc4b8939..d8736f9c2fc01be6f4b6a6bff8eb14b4
 +          *g_updater =
 +              std::make_unique<ocbot::OcbotExtensionUpdater>(profile_);
 +          (*g_updater)->Start();
++        }
++
++        // Start background browser updater.
++        static base::NoDestructor<std::unique_ptr<ocbot::OcbotBrowserUpdater>>
++            g_browser_updater;
++        if (!*g_browser_updater) {
++          *g_browser_updater =
++              std::make_unique<ocbot::OcbotBrowserUpdater>(profile_);
++          (*g_browser_updater)->Start();
 +        }
 +      }
 +    }
