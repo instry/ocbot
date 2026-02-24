@@ -2,12 +2,14 @@ import type { LlmRequestMessage } from '../llm/types'
 import type { ChannelAdapter, InboundMessage } from './types'
 import { runAgentLoop } from '../agent/loop'
 import type { AgentCallbacks } from '../agent/loop'
+import { ActCache } from '../agent/cache'
 import { getProviders, getDefaultProviderId } from '../storage'
 import { TelegramAdapter } from './telegram'
 
 type ConversationMap = Map<string, LlmRequestMessage[]>
 
 const conversations: ConversationMap = new Map()
+const actCache = new ActCache()
 
 // Execution queue: one agent run at a time
 let runningPromise: Promise<void> = Promise.resolve()
@@ -102,7 +104,7 @@ async function executeAgentRun(adapter: ChannelAdapter, msg: InboundMessage): Pr
   }
 
   try {
-    await runAgentLoop(provider, [...history.slice(0, -1)], callbacks)
+    await runAgentLoop(provider, [...history.slice(0, -1)], callbacks, undefined, actCache)
 
     // Only send the final text response (not intermediate tool-use messages)
     if (responseText.trim()) {

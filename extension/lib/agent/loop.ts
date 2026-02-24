@@ -1,4 +1,5 @@
-import type { LlmProvider, LlmRequestMessage, LlmStreamEvent, ToolCallPart } from '../llm/types'
+import type { LlmProvider, LlmRequestMessage, ToolCallPart } from '../llm/types'
+import type { ActCache } from './cache'
 import { streamChat } from '../llm/client'
 import { BROWSER_TOOLS, executeTool } from './tools'
 import { buildSystemPrompt } from './systemPrompt'
@@ -29,6 +30,7 @@ export async function runAgentLoop(
   messages: LlmRequestMessage[],
   callbacks: AgentCallbacks,
   signal?: AbortSignal,
+  cache?: ActCache,
 ): Promise<void> {
   const pageContext = await getPageContext()
   const systemMessage: LlmRequestMessage = {
@@ -120,7 +122,7 @@ export async function runAgentLoop(
     for (const tc of toolCallArray) {
       if (signal?.aborted) return
 
-      const result = await executeTool(tc.name, tc.arguments)
+      const result = await executeTool(tc.name, tc.arguments, provider, cache!, signal)
       callbacks.onToolCallEnd(tc.id, tc.name, result)
       callbacks.onToolMessage(tc.id, tc.name, result)
 
