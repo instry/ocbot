@@ -1,5 +1,6 @@
 import subprocess
 import os
+import shutil
 from pathlib import Path
 from common import get_logger, get_source_dir
 
@@ -45,6 +46,12 @@ def build_chromium(args):
             'use_siso=true',
         ]
     
+    # Clean output directory if requested
+    if getattr(args, 'clean', False):
+        if out_dir.exists():
+            logger.info(f"Cleaning output directory {out_dir}...")
+            shutil.rmtree(out_dir)
+
     # Always ensure gn is available and args.gn is correct
     if subprocess.call(['which', 'gn'], stdout=subprocess.DEVNULL) != 0:
             logger.error("'gn' command not found. Please install depot_tools and add to PATH.")
