@@ -1,10 +1,12 @@
 import type { Conversation } from './types'
 import type { LlmProvider } from './llm/types'
+import type { ChannelConfig } from './channels/types'
 
 const STORAGE_KEYS = {
   providers: 'ocbot_providers',
   defaultProviderId: 'ocbot_default_provider_id',
   inputHistory: 'ocbot_input_history',
+  channelConfigs: 'ocbot_channel_configs',
 } as const
 
 const MAX_INPUT_HISTORY = 100
@@ -89,4 +91,28 @@ export async function saveUserInputHistory(history: string[]): Promise<void> {
   await chrome.storage.local.set({
     [STORAGE_KEYS.inputHistory]: history.slice(-MAX_INPUT_HISTORY),
   })
+}
+
+// --- Channel Config CRUD ---
+
+export async function getChannelConfigs(): Promise<ChannelConfig[]> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.channelConfigs)
+  return (result[STORAGE_KEYS.channelConfigs] as ChannelConfig[]) || []
+}
+
+export async function saveChannelConfig(config: ChannelConfig): Promise<void> {
+  const all = await getChannelConfigs()
+  const idx = all.findIndex(c => c.id === config.id)
+  if (idx >= 0) {
+    all[idx] = { ...config, updatedAt: Date.now() }
+  } else {
+    all.push(config)
+  }
+  await chrome.storage.local.set({ [STORAGE_KEYS.channelConfigs]: all })
+}
+
+export async function deleteChannelConfig(id: string): Promise<void> {
+  const all = await getChannelConfigs()
+  const filtered = all.filter(c => c.id !== id)
+  await chrome.storage.local.set({ [STORAGE_KEYS.channelConfigs]: filtered })
 }
