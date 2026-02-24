@@ -55,9 +55,13 @@ export PATH="$PATH:$(pwd)/depot_tools"
 
 ---
 
-## 🛠️ Development Workflow
+## 🛠️ Development
 
-Please refer to [Development Workflow](docs/development.md) for detailed instructions on how to contribute code.
+| Doc | Description |
+|-----|-------------|
+| [Development Workflow](docs/development.md) | Patch-based dev workflow, branching strategy |
+| [Plan-Driven Development](docs/plan-driven-dev.md) | How we use plan files for AI-assisted development and Chromium version upgrades |
+| [Plans](plans/) | Feature plan files — the source of truth for each Chromium modification |
 
 ---
 
@@ -91,16 +95,16 @@ Please refer to [Development Workflow](docs/development.md) for detailed instruc
 
 ```
 ocbot/
-├── docs/                       # Documentation (Merged into README)
+├── docs/                       # Documentation
+├── plans/                      # Feature plans (intent + logic for each patch set)
 ├── extension/                  # Chrome Extension (WXT + React)
-├── resources/
-│   ├── patches/                # Chromium C++ Patches
-│   └── chromium_version.txt    # Chromium Version
+├── patches/
+│   └── v144/                   # Chromium patches for current version
 ├── scripts/                    # Build Scripts
-    └── dev.py                  # Main CLI Tool
-
+│   └── dev.py                  # Main CLI Tool
+│
 chromium/                       # Chromium Source Directory
-    └── <version>/              # Specific Version
+└── <version>/src/              # Patched source tree
 ```
 
 ---
