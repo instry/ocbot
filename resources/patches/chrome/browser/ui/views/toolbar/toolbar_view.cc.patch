@@ -1,0 +1,90 @@
+diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+index d134fd071b78d80b7d59d6d064884033e2d57a93..403d19ac9a88cfa517f3320ab7f31a4549a806d7 100644
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -42,6 +42,8 @@
+ #include "chrome/browser/ui/global_error/global_error_service_factory.h"
+ #include "chrome/browser/ui/intent_picker_tab_helper.h"
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/browser/ui/ocbot/ocbot_constants.h"
++#include "chrome/browser/ui/ocbot/ocbot_side_panel_manager.h"
+ #include "chrome/browser/ui/omnibox/omnibox_view.h"
+ #include "chrome/browser/ui/tab_search_feature.h"
+ #include "chrome/browser/ui/tabs/features.h"
+@@ -97,6 +99,7 @@
+ #include "chrome/grit/branded_strings.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "chrome/grit/theme_resources.h"
++#include "chrome/grit/chrome_unscaled_resources.h"
+ #include "components/autofill/core/common/autofill_payments_features.h"
+ #include "components/contextual_tasks/public/features.h"
+ #include "components/prefs/pref_service.h"
+@@ -113,6 +116,7 @@
+ #include "ui/base/interaction/element_identifier.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/base/resource/resource_bundle.h"
+ #include "ui/base/theme_provider.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/base/window_open_disposition.h"
+@@ -457,14 +461,7 @@ void ToolbarView::Init() {
+   pinned_toolbar_actions_container_ = AddChildView(
+       std::make_unique<PinnedToolbarActionsContainer>(browser_view_, this));
+ 
+-  if (!base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton) &&
+-      features::HasTabSearchToolbarButton()) {
+-    tab_search_button_ =
+-        pinned_toolbar_actions_container()->CreatePermanentButtonFor(
+-            kActionTabSearch);
+-    tab_search_button_->SetProperty(views::kElementIdentifierKey,
+-                                    kTabSearchButtonElementId);
+-  }
++  // ocbot: pinned action removed, standalone button added below near avatar.
+ 
+   if (IsChromeLabsEnabled()) {
+     UpdateChromeLabsNewBadgePrefs(browser_->profile());
+@@ -499,6 +496,30 @@ void ToolbarView::Init() {
+     media_button_ = AddChildView(std::move(media_button));
+   }
+ 
++  // ocbot: Add ocbot AI button right next to avatar.
++  auto ocbot_btn = std::make_unique<ToolbarButton>(
++      base::BindRepeating(
++          [](base::WeakPtr<BrowserWindowInterface> bwi,
++             const ui::Event& event) {
++            if (bwi) {
++              ocbot::ToggleSidePanel(bwi.get());
++            }
++          },
++          browser_->GetWeakPtr()));
++  {
++    // Load the 24px product logo and set it on the button.
++    const gfx::ImageSkia* logo =
++        ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
++            IDR_PRODUCT_LOGO_24_SHORTCUTS);
++    if (logo) {
++      ocbot_btn->SetImageModel(views::Button::STATE_NORMAL,
++                               ui::ImageModel::FromImageSkia(*logo));
++    }
++  }
++  ocbot_btn->SetTooltipText(u"ocbot AI Assistant");
++  ocbot_btn->SetAccessibleName(u"ocbot AI Assistant");
++  ocbot_button_ = AddChildView(std::move(ocbot_btn));
++
+   avatar_ = AddChildView(std::make_unique<AvatarToolbarButton>(browser_view_));
+   bool show_avatar_toolbar_button = true;
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -1042,6 +1063,13 @@ void ToolbarView::LayoutCommon() {
+           views::kMarginsKey,
+           gfx::Insets::VH(0, kBrowserAppMenuRefreshCollapsedMargin));
+     }
++
++    // ocbot button uses same margin as avatar.
++    if (ocbot_button_) {
++      ocbot_button_->SetProperty(
++          views::kMarginsKey,
++          gfx::Insets::VH(0, kBrowserAppMenuRefreshCollapsedMargin));
++    }
+   }
+ 
+   layout_manager_->SetInteriorMargin(interior_margin);

@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/extensions/BUILD.gn b/chrome/browser/extensions/BUILD.gn
+index 64e7c1122ba874b8199ecaa80ebbac478006a91c..0a3e86e4a2963c8646ce5d815a140d6a9ed12930 100644
+--- a/chrome/browser/extensions/BUILD.gn
++++ b/chrome/browser/extensions/BUILD.gn
+@@ -512,6 +512,7 @@ source_set("extensions") {
+     "//chrome/browser/download",
+     "//chrome/browser/extensions:cws_item_service_proto",
+     "//chrome/browser/extensions:external_loader",
++    "//chrome/browser/ocbot",
+     "//chrome/browser/extensions/api:api_registration",
+     "//chrome/browser/favicon",
+     "//chrome/browser/gcm",

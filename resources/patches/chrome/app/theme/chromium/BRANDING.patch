@@ -1,0 +1,26 @@
+diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
+index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..357bd36610d3aa209871dd3302581637a3aef894 100644
+--- a/chrome/app/theme/chromium/BRANDING
++++ b/chrome/app/theme/chromium/BRANDING
+@@ -1,10 +1,10 @@
+-COMPANY_FULLNAME=The Chromium Authors
+-COMPANY_SHORTNAME=The Chromium Authors
+-PRODUCT_FULLNAME=Chromium
+-PRODUCT_SHORTNAME=Chromium
+-PRODUCT_INSTALLER_FULLNAME=Chromium Installer
+-PRODUCT_INSTALLER_SHORTNAME=Chromium Installer
+-COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Chromium Authors. All rights reserved.
+-MAC_BUNDLE_ID=org.chromium.Chromium
+-MAC_CREATOR_CODE=Cr24
+-MAC_TEAM_ID=
++COMPANY_FULLNAME=The Ocbot Authors
++COMPANY_SHORTNAME=The Ocbot Authors
++PRODUCT_FULLNAME=Ocbot
++PRODUCT_SHORTNAME=Ocbot
++PRODUCT_INSTALLER_FULLNAME=Ocbot Installer
++PRODUCT_INSTALLER_SHORTNAME=Ocbot Installer
++COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Ocbot Authors. All rights reserved.
++MAC_BUNDLE_ID=oc.bot.app
++MAC_CREATOR_CODE=oc24
++MAC_TEAM_ID=
+\ No newline at end of file

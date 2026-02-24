@@ -4,7 +4,10 @@ import type { LlmProvider } from './llm/types'
 const STORAGE_KEYS = {
   providers: 'ocbot_providers',
   defaultProviderId: 'ocbot_default_provider_id',
+  inputHistory: 'ocbot_input_history',
 } as const
+
+const MAX_INPUT_HISTORY = 100
 
 // --- Provider CRUD ---
 
@@ -73,4 +76,17 @@ export async function deleteConversation(id: string): Promise<void> {
   const all = await getConversations()
   const filtered = all.filter(c => c.id !== id)
   await chrome.storage.local.set({ [CONVERSATIONS_KEY]: filtered })
+}
+
+// --- Input History ---
+
+export async function getUserInputHistory(): Promise<string[]> {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.inputHistory)
+  return (result[STORAGE_KEYS.inputHistory] as string[]) || []
+}
+
+export async function saveUserInputHistory(history: string[]): Promise<void> {
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.inputHistory]: history.slice(-MAX_INPUT_HISTORY),
+  })
 }

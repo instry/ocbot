@@ -1,0 +1,75 @@
+diff --git a/chrome/browser/ocbot/extension_updater.h b/chrome/browser/ocbot/extension_updater.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..975cd28a14c311df2f750383faf5f7b14204e175
+--- /dev/null
++++ b/chrome/browser/ocbot/extension_updater.h
+@@ -0,0 +1,69 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#ifndef CHROME_BROWSER_OCBOT_EXTENSION_UPDATER_H_
++#define CHROME_BROWSER_OCBOT_EXTENSION_UPDATER_H_
++
++#include <memory>
++#include <optional>
++#include <string>
++
++#include "base/files/file_path.h"
++#include "base/memory/raw_ptr.h"
++#include "base/memory/weak_ptr.h"
++#include "base/timer/timer.h"
++
++class Profile;
++
++namespace network {
++class SimpleURLLoader;
++namespace mojom {
++class URLLoaderFactory;
++}
++}  // namespace network
++
++namespace ocbot {
++
++// Downloads and installs ocbot extension updates from GitHub Releases.
++//
++// Workflow:
++//   1. After a startup delay, fetches the latest release info from GitHub API.
++//   2. Compares the remote version against the currently loaded extension.
++//   3. If newer, downloads the zip asset and extracts to <user-data-dir>/ocbot-extension/.
++//   4. The update takes effect on next browser restart.
++//
++// Subsequent checks run every 4 hours while the browser is open.
++class OcbotExtensionUpdater {
++ public:
++  explicit OcbotExtensionUpdater(Profile* profile);
++  ~OcbotExtensionUpdater();
++
++  OcbotExtensionUpdater(const OcbotExtensionUpdater&) = delete;
++  OcbotExtensionUpdater& operator=(const OcbotExtensionUpdater&) = delete;
++
++  // Starts the periodic update check. First check after |initial_delay|.
++  void Start();
++
++ private:
++  void CheckForUpdate();
++  void OnReleaseFetched(std::optional<std::string> response_body);
++  void DownloadZip(const std::string& download_url,
++                   const std::string& remote_version);
++  void OnZipDownloaded(const std::string& remote_version,
++                       base::FilePath temp_path);
++  void ReloadExtension();
++
++  std::string GetCurrentVersion() const;
++  base::FilePath GetUpdateDir() const;
++  network::mojom::URLLoaderFactory* GetURLLoaderFactory();
++
++  raw_ptr<Profile> profile_;
++  base::RepeatingTimer check_timer_;
++  std::unique_ptr<network::SimpleURLLoader> url_loader_;
++
++  base::WeakPtrFactory<OcbotExtensionUpdater> weak_factory_{this};
++};
++
++}  // namespace ocbot
++
++#endif  // CHROME_BROWSER_OCBOT_EXTENSION_UPDATER_H_

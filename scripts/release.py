@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+import os
+import re
+import sys
+import shutil
+import subprocess
+from pathlib import Path
+from common import get_logger, get_project_root
+
+logger = get_logger()
+
+def get_extension_version(extension_dir):
+    config_path = extension_dir / 'wxt.config.ts'
+    if not config_path.exists():
+        logger.error(f"Config file not found: {config_path}")
+        sys.exit(1)
+        
+    content = config_path.read_text()
+    match = re.search(r"version:\s*['\"]([^'\"]+)['\"]", content)
+    if match:
+        return match.group(1)
+    else:
+        logger.error("Could not find version in wxt.config.ts")
+        sys.exit(1)
+
+def run_command(cmd, cwd=None, check=True, capture_output=False):
+    try:
+        result = subprocess.run(
+            cmd, 
+            cwd=cwd, 
+            check=check, 
+            capture_output=capture_output, 
+            text=True
+        )
+        return result
+    except subprocess.CalledProcessError as e:
+        if check:
+            logger.error(f"Command failed: {' '.join(cmd)}")
+            if e.stderr:
+                logger.error(e.stderr)
+            sys.exit(1)
+        raise e
+
+def release_extension(args):
+    """Release ocbot extension to GitHub Releases."""
+    project_root = get_project_root()
+    extension_dir = project_root / 'extension'
+    dist_dir = project_root / 'dist'
+    
+    # Check prerequisites
+    if not shutil.which('gh'):
+        logger.error("GitHub CLI (gh) is not installed. Please install it first.")
+        sys.exit(1)
+        
+    if not shutil.which('npm'):
+        logger.error("npm is not installed.")
+        sys.exit(1)
+
+    # Get version
+    version = get_extension_version(extension_dir)
+    tag = f"ext-v{version}"
+    
+    logger.info(f"Preparing release for extension v{version} (tag: {tag})...")
+    
+    # Build extension
+    logger.info("Building extension...")
+    run_command(['npm', 'run', 'build'], cwd=extension_dir)
+    
+    # Package
+    build_output = extension_dir / '.output' / 'chrome-mv3'
+    if not build_output.exists():
+        logger.error(f"Build output not found at {build_output}")
+        sys.exit(1)
+        
+    dist_dir.mkdir(exist_ok=True)
+    zip_path = dist_dir / 'ocbot-extension.zip'
+    
+    # Remove old zip
+    if zip_path.exists():
+        zip_path.unlink()
+        
+    logger.info(f"Creating zip archive at {zip_path}...")
+    # Use shutil.make_archive or zip command. 
+    # shutil.make_archive creates .zip automatically, so we pass base_name without extension
+    # But to match script behavior (cd build_output && zip -r ... .), we need to be careful with structure.
+    # shutil.make_archive(base_name, format, root_dir)
+    shutil.make_archive(str(dist_dir / 'ocbot-extension'), 'zip', build_output)
+    
+    # Check if release exists
+    logger.info(f"Checking if release {tag} exists...")
+    repo = "instry/ocbot"
+    
+    try:
+        run_command(['gh', 'release', 'view', tag, '--repo', repo], check=True, capture_output=True)
+        exists = True
+    except subprocess.CalledProcessError:
+        exists = False
+        
+    if exists:
+        logger.info(f"Release {tag} already exists. Updating...")
+        run_command([
+            'gh', 'release', 'upload', tag, str(zip_path), 
+            '--clobber', 
+            '--repo', repo
+        ])
+    else:
+        logger.info(f"Creating release {tag}...")
+        run_command([
+            'gh', 'release', 'create', tag, str(zip_path),
+            '--repo', repo,
+            '--title', f"Extension v{version}",
+            '--notes', f"OTA extension update v{version}"
+        ])
+        
+    logger.info(f"Done! Extension v{version} released as {tag}")
+    logger.info("Users will receive the update automatically on next browser restart.")

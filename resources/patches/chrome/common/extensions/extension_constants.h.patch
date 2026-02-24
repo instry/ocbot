@@ -1,0 +1,14 @@
+diff --git a/chrome/common/extensions/extension_constants.h b/chrome/common/extensions/extension_constants.h
+index aabd893d2b1c0433de522dcc06b7efcbf7586e47..10526d6fda11cd8bbecfceac9f9ddfb1c426c401 100644
+--- a/chrome/common/extensions/extension_constants.h
++++ b/chrome/common/extensions/extension_constants.h
+@@ -66,6 +66,9 @@ inline constexpr char kInAppPaymentsSupportAppId[] =
+ inline constexpr char kKeyboardExtensionId[] =
+     "mppnpdlheglhdfmldimlhpnegondlapf";
+ 
++// ocbot AI assistant component extension
++inline constexpr char kOcbotExtensionId[] = "gidimhmdbcpoeljccjcnodepmmjpfnmf";
++
+ // A list of all the first party extension IDs, last entry is null.
+ extern const char* const kBuiltInFirstPartyExtensionIds[];
+ 

@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_entry_id.h b/chrome/browser/ui/views/side_panel/side_panel_entry_id.h
+index 3b9183e62402dd9841f7391ffc0d2ecb040ea292..67e684220d2e84e52f88447ac4cc43fea87230c2 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_entry_id.h
++++ b/chrome/browser/ui/views/side_panel/side_panel_entry_id.h
+@@ -41,6 +41,9 @@
+   V(kMerchantTrust, kActionSidePanelShowMerchantTrust, "MerchantTrust")       \
+   V(kComments, kActionSidePanelShowComments, "Comments")                      \
+   V(kGlic, kActionSidePanelShowGlic, "Glic")                                  \
++  /* ocbot entry */                                                           \
++  V(kOcbot, kActionSidePanelShowOcbot, "Ocbot")                              \
++  /* End ocbot */                                                             \
+   /* Extensions (nothing more should be added below here) */                  \
+   V(kExtension, std::nullopt, "Extension")
+ 

@@ -1,0 +1,416 @@
+diff --git a/chrome/browser/ocbot/extension_updater.cc b/chrome/browser/ocbot/extension_updater.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..4fd74abf64ffd79a45aa61c4192cbe8de50c6ab8
+--- /dev/null
++++ b/chrome/browser/ocbot/extension_updater.cc
+@@ -0,0 +1,410 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#include "chrome/browser/ocbot/extension_updater.h"
++
++#include <optional>
++#include <utility>
++
++#include "base/files/file_enumerator.h"
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/functional/bind.h"
++#include "base/json/json_reader.h"
++#include "base/logging.h"
++#include "base/path_service.h"
++#include "base/task/thread_pool.h"
++#include "base/version.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/common/chrome_paths.h"
++#include "content/public/browser/browser_thread.h"
++#include "content/public/browser/storage_partition.h"
++#include "extensions/browser/extension_registry.h"
++#include "extensions/common/extension.h"
++#include "net/base/load_flags.h"
++#include "net/traffic_annotation/network_traffic_annotation.h"
++#include "services/network/public/cpp/resource_request.h"
++#include "services/network/public/cpp/shared_url_loader_factory.h"
++#include "services/network/public/cpp/simple_url_loader.h"
++#include "services/network/public/mojom/fetch_api.mojom.h"
++#include "services/network/public/mojom/url_loader_factory.mojom.h"
++#include "third_party/zlib/google/zip.h"
++
++namespace ocbot {
++
++namespace {
++
++constexpr char kOcbotExtensionId[] = "gidimhmdbcpoeljccjcnodepmmjpfnmf";
++constexpr char kGitHubReleasesApiUrl[] =
++    "https://api.github.com/repos/instry/ocbot/releases/latest";
++constexpr char kZipAssetName[] = "ocbot-extension.zip";
++constexpr char kUpdateDirName[] = "ocbot-extension";
++
++// First check 30 seconds after startup.
++constexpr base::TimeDelta kInitialDelay = base::Seconds(30);
++// Subsequent checks every 4 hours.
++constexpr base::TimeDelta kCheckInterval = base::Hours(4);
++// Max response size for GitHub API JSON (256 KB).
++constexpr int kMaxApiResponseSize = 256 * 1024;
++// Max zip download size (50 MB).
++constexpr int kMaxZipSize = 50 * 1024 * 1024;
++
++const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
++    net::DefineNetworkTrafficAnnotation("ocbot_extension_updater", R"(
++        semantics {
++          sender: "Ocbot Extension Updater"
++          description:
++            "Checks GitHub Releases for ocbot extension updates and "
++            "downloads new versions when available."
++          trigger:
++            "Periodically after browser startup (every 4 hours)."
++          data: "No user data is sent. Only fetches public release metadata."
++          destination: OTHER
++          internal {
++            contacts {
++              email: "niceboybao@gmail.com"
++            }
++          }
++          user_data {
++            type: NONE
++          }
++          last_reviewed: "2025-01-01"
++        }
++        policy {
++          cookies_allowed: NO
++          setting: "Not configurable."
++          policy_exception_justification:
++            "Essential for keeping the ocbot extension up to date."
++        })");
++
++// Parses GitHub release JSON to extract version and zip download URL.
++// Returns true on success.
++bool ParseReleaseJson(const std::string& json,
++                      std::string* out_version,
++                      std::string* out_download_url) {
++  auto result =
++      base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
++  if (!result) {
++    LOG(WARNING) << "ocbot updater: invalid JSON or root not a dictionary";
++    return false;
++  }
++
++  const base::DictValue& dict = *result;
++
++  // tag_name is like "ext-v0.3.0" or "v0.3.0"
++  const std::string* tag = dict.FindString("tag_name");
++  if (!tag) {
++    return false;
++  }
++
++  // Strip prefix: "ext-v" or "v"
++  std::string version = *tag;
++  if (version.starts_with("ext-v")) {
++    version = version.substr(5);
++  } else if (version.starts_with("v")) {
++    version = version.substr(1);
++  }
++
++  if (!base::Version(version).IsValid()) {
++    LOG(WARNING) << "ocbot updater: invalid version in tag: " << *tag;
++    return false;
++  }
++
++  // Find the zip asset
++  const base::ListValue* assets = dict.FindList("assets");
++  if (!assets) {
++    return false;
++  }
++
++  for (const auto& asset_value : *assets) {
++    const base::DictValue* asset = asset_value.GetIfDict();
++    if (!asset) {
++      continue;
++    }
++    const std::string* name = asset->FindString("name");
++    if (name && *name == kZipAssetName) {
++      const std::string* url = asset->FindString("browser_download_url");
++      if (url) {
++        *out_version = version;
++        *out_download_url = *url;
++        return true;
++      }
++    }
++  }
++
++  LOG(WARNING) << "ocbot updater: no " << kZipAssetName
++               << " asset found in release " << *tag;
++  return false;
++}
++
++// Blocking I/O: unzips and moves into place.
++bool UnzipAndInstall(const base::FilePath& zip_path,
++                     const base::FilePath& dest_dir) {
++  // Extract to a temporary directory first, then swap.
++  base::FilePath staging_dir;
++  if (!base::CreateNewTempDirectory(FILE_PATH_LITERAL("ocbot_update_"),
++                                    &staging_dir)) {
++    LOG(ERROR) << "ocbot updater: failed to create temp dir for extraction";
++    return false;
++  }
++
++  if (!zip::Unzip(zip_path, staging_dir)) {
++    LOG(ERROR) << "ocbot updater: failed to unzip " << zip_path;
++    base::DeletePathRecursively(staging_dir);
++    return false;
++  }
++
++  // The zip might contain a top-level directory (e.g., chrome-mv3/).
++  // If so, use that as the actual source.
++  base::FilePath source_dir = staging_dir;
++  base::FileEnumerator enumerator(staging_dir, /*recursive=*/false,
++                                  base::FileEnumerator::DIRECTORIES);
++  base::FilePath first_dir = enumerator.Next();
++  if (!first_dir.empty() && enumerator.Next().empty()) {
++    // Single subdirectory — check if manifest.json is inside it.
++    if (base::PathExists(
++            first_dir.Append(FILE_PATH_LITERAL("manifest.json")))) {
++      source_dir = first_dir;
++    }
++  }
++
++  // Verify manifest.json exists in source.
++  if (!base::PathExists(
++          source_dir.Append(FILE_PATH_LITERAL("manifest.json")))) {
++    LOG(ERROR) << "ocbot updater: extracted zip has no manifest.json";
++    base::DeletePathRecursively(staging_dir);
++    return false;
++  }
++
++  // Remove old update dir and move new one into place.
++  if (base::PathExists(dest_dir)) {
++    base::DeletePathRecursively(dest_dir);
++  }
++
++  if (!base::Move(source_dir, dest_dir)) {
++    LOG(ERROR) << "ocbot updater: failed to move " << source_dir << " to "
++               << dest_dir;
++    base::DeletePathRecursively(staging_dir);
++    return false;
++  }
++
++  // Clean up staging if source_dir was a subdirectory.
++  if (source_dir != staging_dir) {
++    base::DeletePathRecursively(staging_dir);
++  }
++
++  // Clean up the downloaded zip.
++  base::DeleteFile(zip_path);
++
++  return true;
++}
++
++}  // namespace
++
++OcbotExtensionUpdater::OcbotExtensionUpdater(Profile* profile)
++    : profile_(profile) {}
++
++OcbotExtensionUpdater::~OcbotExtensionUpdater() = default;
++
++void OcbotExtensionUpdater::Start() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Post initial delayed check, then repeat.
++  check_timer_.Start(FROM_HERE, kCheckInterval,
++                     base::BindRepeating(&OcbotExtensionUpdater::CheckForUpdate,
++                                         weak_factory_.GetWeakPtr()));
++  // The timer fires after kCheckInterval. For a faster first check,
++  // post a delayed task.
++  content::GetUIThreadTaskRunner({})->PostDelayedTask(
++      FROM_HERE,
++      base::BindOnce(&OcbotExtensionUpdater::CheckForUpdate,
++                     weak_factory_.GetWeakPtr()),
++      kInitialDelay);
++}
++
++void OcbotExtensionUpdater::CheckForUpdate() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  LOG(INFO) << "ocbot updater: checking for extension updates...";
++
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL(kGitHubReleasesApiUrl);
++  request->method = "GET";
++  request->load_flags = net::LOAD_DISABLE_CACHE;
++  request->headers.SetHeader("Accept", "application/vnd.github.v3+json");
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++  url_loader_ =
++      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
++  url_loader_->SetRetryOptions(
++      1, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++  url_loader_->DownloadToString(
++      GetURLLoaderFactory(),
++      base::BindOnce(&OcbotExtensionUpdater::OnReleaseFetched,
++                     weak_factory_.GetWeakPtr()),
++      kMaxApiResponseSize);
++}
++
++void OcbotExtensionUpdater::OnReleaseFetched(
++    std::optional<std::string> response_body) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (!response_body) {
++    LOG(WARNING) << "ocbot updater: failed to fetch release info (net error: "
++                 << url_loader_->NetError() << ")";
++    url_loader_.reset();
++    return;
++  }
++
++  url_loader_.reset();
++
++  std::string remote_version;
++  std::string download_url;
++  if (!ParseReleaseJson(*response_body, &remote_version, &download_url)) {
++    LOG(WARNING) << "ocbot updater: failed to parse release JSON";
++    return;
++  }
++
++  std::string current_version = GetCurrentVersion();
++  LOG(INFO) << "ocbot updater: current=" << current_version
++            << " remote=" << remote_version;
++
++  if (current_version.empty()) {
++    // Extension not loaded yet — download anyway.
++    DownloadZip(download_url, remote_version);
++    return;
++  }
++
++  base::Version current(current_version);
++  base::Version remote(remote_version);
++  if (!remote.IsValid() || !current.IsValid()) {
++    LOG(WARNING) << "ocbot updater: invalid version comparison";
++    return;
++  }
++
++  if (remote.CompareTo(current) <= 0) {
++    LOG(INFO) << "ocbot updater: already up to date";
++    return;
++  }
++
++  LOG(INFO) << "ocbot updater: new version available, downloading...";
++  DownloadZip(download_url, remote_version);
++}
++
++void OcbotExtensionUpdater::DownloadZip(const std::string& download_url,
++                                        const std::string& remote_version) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL(download_url);
++  request->method = "GET";
++  request->load_flags = net::LOAD_DISABLE_CACHE;
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++  url_loader_ =
++      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
++  url_loader_->SetRetryOptions(
++      2, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++  // Download to a temporary file.
++  url_loader_->DownloadToTempFile(
++      GetURLLoaderFactory(),
++      base::BindOnce(&OcbotExtensionUpdater::OnZipDownloaded,
++                     weak_factory_.GetWeakPtr(), remote_version),
++      kMaxZipSize);
++}
++
++void OcbotExtensionUpdater::OnZipDownloaded(const std::string& remote_version,
++                                            base::FilePath temp_path) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (temp_path.empty()) {
++    LOG(ERROR) << "ocbot updater: zip download failed (net error: "
++               << url_loader_->NetError() << ")";
++    url_loader_.reset();
++    return;
++  }
++
++  url_loader_.reset();
++
++  LOG(INFO) << "ocbot updater: download complete, installing...";
++
++  // Capture values needed on the background thread.
++  base::FilePath dest = GetUpdateDir();
++  if (dest.empty()) {
++    LOG(ERROR) << "ocbot updater: cannot determine update directory";
++    return;
++  }
++
++  // Unzip on a background thread, then reload on UI thread.
++  base::ThreadPool::PostTaskAndReply(
++      FROM_HERE,
++      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
++       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
++      base::BindOnce(
++          [](base::FilePath zip_path, base::FilePath dest_dir,
++             std::string version) {
++            if (UnzipAndInstall(zip_path, dest_dir)) {
++              LOG(INFO) << "ocbot updater: v" << version << " installed to "
++                        << dest_dir;
++            }
++          },
++          temp_path, dest, remote_version),
++      base::BindOnce(&OcbotExtensionUpdater::ReloadExtension,
++                     weak_factory_.GetWeakPtr()));
++}
++
++void OcbotExtensionUpdater::ReloadExtension() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  base::FilePath update_dir = GetUpdateDir();
++  if (update_dir.empty() ||
++      !base::PathExists(
++          update_dir.Append(FILE_PATH_LITERAL("manifest.json")))) {
++    LOG(ERROR) << "ocbot updater: installation failed, update dir missing";
++    return;
++  }
++
++  // The updated extension will be loaded on next browser restart.
++  // Live-reloading component extensions mid-session is risky, so we
++  // just log that the update is ready.
++  LOG(INFO) << "ocbot updater: update installed to " << update_dir
++            << ". It will take effect on next browser restart.";
++}
++
++std::string OcbotExtensionUpdater::GetCurrentVersion() const {
++  if (!profile_) {
++    return std::string();
++  }
++
++  auto* registry = extensions::ExtensionRegistry::Get(profile_);
++  if (!registry) {
++    return std::string();
++  }
++
++  const extensions::Extension* ext =
++      registry->enabled_extensions().GetByID(kOcbotExtensionId);
++  if (!ext) {
++    return std::string();
++  }
++
++  return ext->version().GetString();
++}
++
++base::FilePath OcbotExtensionUpdater::GetUpdateDir() const {
++  base::FilePath user_data_dir;
++  if (!base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
++    return base::FilePath();
++  }
++  return user_data_dir.Append(FILE_PATH_LITERAL(kUpdateDirName));
++}
++
++network::mojom::URLLoaderFactory*
++OcbotExtensionUpdater::GetURLLoaderFactory() {
++  return profile_->GetDefaultStoragePartition()
++      ->GetURLLoaderFactoryForBrowserProcess()
++      .get();
++}
++
++}  // namespace ocbot

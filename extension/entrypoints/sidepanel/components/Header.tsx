@@ -1,4 +1,4 @@
-import { Settings, ChevronDown } from 'lucide-react'
+import { Settings, ChevronDown, SquarePen } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import type { LlmProvider } from '../../../lib/llm/types'
 import { getTemplateByType } from '../../../lib/llm/models'
@@ -8,9 +8,10 @@ interface HeaderProps {
   providers: LlmProvider[]
   onSelectProvider: (id: string) => void
   onOpenSettings: () => void
+  onNewChat: () => void
 }
 
-export function Header({ selectedProvider, providers, onSelectProvider, onOpenSettings }: HeaderProps) {
+export function Header({ selectedProvider, providers, onSelectProvider, onOpenSettings, onNewChat }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -67,13 +68,22 @@ export function Header({ selectedProvider, providers, onSelectProvider, onOpenSe
         )}
       </div>
 
-      <button
-        onClick={onOpenSettings}
-        className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-        title="Settings"
-      >
-        <Settings className="h-4 w-4" />
-      </button>
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={onNewChat}
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+          title="New chat"
+        >
+          <SquarePen className="h-4 w-4" />
+        </button>
+        <button
+          onClick={onOpenSettings}
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+          title="Settings"
+        >
+          <Settings className="h-4 w-4" />
+        </button>
+      </div>
     </header>
   )
 }

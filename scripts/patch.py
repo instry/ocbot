@@ -1,5 +1,6 @@
 import subprocess
 import shutil
+import os
 from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root
 
@@ -136,9 +137,7 @@ def reset_source(args):
 def update_patches(args):
     """
     Generate patches from modified files in src directory.
-    1. Identify modified/new files using git status.
-    2. Clear existing patches in resources/patches (excluding series file).
-    3. Generate new patches using git diff.
+    Supports both uncommitted changes and committed changes relative to a base.
     """
     logger = get_logger()
     src_dir = _get_src_dir(args)
@@ -147,17 +146,35 @@ def update_patches(args):
 
     patches_dir = get_project_root() / 'resources' / 'patches'
     
-    logger.info("Scanning for modified files in source...")
+    # Determine Base Commit
+    base_ref = getattr(args, 'base', None)
     
-    # 1. Identify modified files
-    # git status --porcelain to get machine-readable output
-    cmd = ['git', 'status', '--porcelain']
-    result = subprocess.run(cmd, cwd=src_dir, capture_output=True, text=True)
-    
-    if result.returncode != 0:
-        logger.error(f"Failed to run git status: {result.stderr}")
-        return
+    if not base_ref:
+        # Try to auto-detect base
+        # If it's a shallow clone (tarball mode), usually root commit is the base
+        try:
+            # Check commit count
+            res = subprocess.run(['git', 'rev-list', '--count', 'HEAD'], cwd=src_dir, capture_output=True, text=True)
+            if res.returncode == 0:
+                count = int(res.stdout.strip())
+                if count < 50: # Arbitrary small number implies local/tarball repo
+                    # Get root commit
+                    res = subprocess.run(['git', 'rev-list', '--max-parents=0', 'HEAD'], cwd=src_dir, capture_output=True, text=True)
+                    if res.returncode == 0:
+                        base_ref = res.stdout.strip().split('\n')[-1] # Use the last one if multiple roots (unlikely)
+                        logger.info(f"Auto-detected base commit (root): {base_ref}")
+        except Exception:
+            pass
+            
+    if not base_ref:
+        logger.info("No base commit specified or detected. Using HEAD (uncommitted changes only).")
+        logger.info("To compare against a specific commit (e.g. for committed changes), use --base <commit-ish>")
+        base_ref = 'HEAD'
+    else:
+        logger.info(f"Comparing against base: {base_ref}")
 
+    logger.info("Scanning for modified files...")
+    
     modified_files = []
     
     # Define binary extensions
@@ -168,33 +185,65 @@ def update_patches(args):
         '.node', '.bin', '.dat', '.db', '.sqlite', '.pak', '.crx', '.rdb'
     )
 
-    # Lines look like " M chrome/browser/ui/browser.cc" or "?? new_file.cc"
+    # 1. Get changed files relative to base
+    # We use git diff --name-status base_ref
+    # This covers both committed and uncommitted changes if base_ref != HEAD
+    # If base_ref == HEAD, it only covers nothing? No.
+    # If base_ref is a commit, `git diff base_ref` shows difference between Working Tree and base_ref.
+    
+    cmd = ['git', 'diff', '--name-status', '--no-renames', base_ref]
+    result = subprocess.run(cmd, cwd=src_dir, capture_output=True, text=True)
+    
+    if result.returncode != 0:
+        logger.error(f"Failed to run git diff: {result.stderr}")
+        return
+
+    # Also check untracked files with git status
+    cmd_status = ['git', 'status', '--porcelain']
+    result_status = subprocess.run(cmd_status, cwd=src_dir, capture_output=True, text=True)
+    
+    seen_paths = set()
+
+    # Process diff output
     for line in result.stdout.splitlines():
-        if not line.strip():
-            continue
+        if not line.strip(): continue
+        parts = line.split('\t')
+        status = parts[0][0] # M, A, D, etc.
+        file_path = parts[-1]
         
-        # Status code is first 2 chars
+        if file_path in seen_paths: continue
+        seen_paths.add(file_path)
+        
+        is_binary = file_path.lower().endswith(binary_extensions)
+        modified_files.append({'path': file_path, 'status': status, 'is_binary': is_binary})
+
+    # Process status output (mainly for untracked files ??)
+    # Actually `git diff commit` includes untracked files ONLY if we intent-to-add them.
+    # So we still need git status for purely untracked files.
+    for line in result_status.stdout.splitlines():
+        if not line.strip(): continue
         status_code = line[:2]
-        file_path_raw = line[3:].strip()
-        
-        # Handle renames if any (format: R  old -> new) - git status --porcelain v1
-        if ' -> ' in file_path_raw:
-            file_path_raw = file_path_raw.split(' -> ')[1]
+        file_path = line[3:].strip()
+        if ' -> ' in file_path:
+            file_path = file_path.split(' -> ')[1]
             
-        # Check if it's a directory (untracked dir)
-        full_path = src_dir / file_path_raw
+        if file_path in seen_paths: continue
         
-        if full_path.is_dir():
-            # If it's a directory, walk it and add all files inside
-            for p in full_path.rglob('*'):
-                if p.is_file():
-                    rel_path = str(p.relative_to(src_dir))
-                    is_binary = rel_path.lower().endswith(binary_extensions)
-                    # Treat files inside untracked dir as untracked
-                    modified_files.append({'path': rel_path, 'status': '??', 'is_binary': is_binary})
-        else:
-            is_binary = file_path_raw.lower().endswith(binary_extensions)
-            modified_files.append({'path': file_path_raw, 'status': status_code, 'is_binary': is_binary})
+        # Only care about untracked here
+        if '??' in status_code:
+            full_path = src_dir / file_path
+            if full_path.is_dir():
+                 for p in full_path.rglob('*'):
+                    if p.is_file():
+                        rel_path = str(p.relative_to(src_dir))
+                        if rel_path in seen_paths: continue
+                        seen_paths.add(rel_path)
+                        is_binary = rel_path.lower().endswith(binary_extensions)
+                        modified_files.append({'path': rel_path, 'status': '??', 'is_binary': is_binary})
+            else:
+                seen_paths.add(file_path)
+                is_binary = file_path.lower().endswith(binary_extensions)
+                modified_files.append({'path': file_path, 'status': '??', 'is_binary': is_binary})
 
     if not modified_files:
         logger.info("No modified files found. Nothing to update.")
@@ -216,23 +265,29 @@ def update_patches(args):
     # 3. Generate patches or copy files
     generated_count = 0
     
-    # Identify untracked files
-    untracked_files = [f['path'] for f in modified_files if '??' in f['status']]
-    
-    if untracked_files:
-        logger.info(f"Adding {len(untracked_files)} untracked files to git index (intent-to-add)...")
-        try:
-            subprocess.run(['git', 'add', '-N'] + untracked_files, cwd=src_dir, check=True)
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to add files to git index: {e}")
-            return
+    # Add untracked files to index (intent-to-add) so git diff can see them if needed
+    untracked = [f['path'] for f in modified_files if f['status'] == '??']
+    if untracked:
+         try:
+            subprocess.run(['git', 'add', '-N'] + untracked, cwd=src_dir, check=True)
+         except subprocess.CalledProcessError:
+             pass
 
     for item in modified_files:
         file_path = item['path']
+        status = item['status']
         is_binary = item['is_binary']
+        
+        if status == 'D':
+            # Deleted file. 
+            # If we want to reflect deletion in patch, we can generate a patch that deletes it.
+            # But currently ocbot structure maps file->patch. If file is gone, maybe we just don't generate patch?
+            # Or we generate a patch file that says "deleted file mode..."
+            # Let's try to generate patch for deletion too.
+            pass
 
         # Determine patch path
-        if is_binary:
+        if is_binary and status != 'D':
             dest_path = patches_dir / file_path
             src_file = src_dir / file_path
             
@@ -240,24 +295,27 @@ def update_patches(args):
             dest_path.parent.mkdir(parents=True, exist_ok=True)
             
             try:
-                shutil.copy2(src_file, dest_path)
-                logger.info(f"Copied binary file: {file_path}")
-                generated_count += 1
+                if src_file.exists():
+                    shutil.copy2(src_file, dest_path)
+                    logger.info(f"Copied binary file: {file_path}")
+                    generated_count += 1
+                else:
+                    logger.warning(f"Binary file {file_path} seems deleted or missing.")
             except Exception as e:
                 logger.error(f"Failed to copy binary file {file_path}: {e}")
             continue
 
         # Text file -> Generate patch
+        # We want the patch to reflect change from Base -> Working Tree
+        
         patch_rel_path = f"{file_path}.patch"
         patch_file = patches_dir / patch_rel_path
         
         # Create parent directory
         patch_file.parent.mkdir(parents=True, exist_ok=True)
         
-        # Generate diff against HEAD
-        # Use --binary just in case text files have binary data
-        # Use --full-index
-        cmd_diff = ['git', 'diff', '--binary', '--full-index', 'HEAD', '--', file_path]
+        # Generate diff against BASE
+        cmd_diff = ['git', 'diff', '--binary', '--full-index', base_ref, '--', file_path]
         
         diff_result = subprocess.run(cmd_diff, cwd=src_dir, capture_output=True, text=True)
         
@@ -276,4 +334,3 @@ def update_patches(args):
         logger.info(f"Generated patch: {patch_rel_path}")
 
     logger.info(f"Successfully updated {generated_count} patches/files.")
-

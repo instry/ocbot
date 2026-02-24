@@ -11,7 +11,7 @@ type View = 'chat' | 'settings'
 export function App() {
   const [view, setView] = useState<View>('chat')
   const { providers, selectedProvider, saveProvider, deleteProvider, selectProvider } = useLlmProvider()
-  const { messages, streamingText, isLoading, toolStatuses, error, sendMessage, stopAgent, clearChat } = useChat(selectedProvider)
+  const { messages, streamingText, isLoading, toolStatuses, error, sendMessage, stopAgent, newChat } = useChat(selectedProvider)
 
   return (
     <div className="flex h-screen w-screen flex-col bg-background text-foreground">
@@ -22,6 +22,7 @@ export function App() {
             providers={providers}
             onSelectProvider={selectProvider}
             onOpenSettings={() => setView('settings')}
+            onNewChat={newChat}
           />
           <ChatArea
             hasProvider={!!selectedProvider}
