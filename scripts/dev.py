@@ -62,6 +62,9 @@ def main():
     parser_package = subparsers.add_parser('package', help='Package Ocbot.app into a .dmg installer', parents=[parent_parser])
     parser_package.add_argument('--output', help='Output DMG path (default: dist/<AppName>-<Version>.dmg)')
     parser_package.add_argument('--official', action='store_true', help='Package official build')
+    parser_package.add_argument('--sign', help="Code signing identity (or set CODESIGN_IDENTITY)")
+    parser_package.add_argument('--notarize', help="Notarization profile name (or set NOTARY_PROFILE)")
+    parser_package.add_argument('--extension-src', help="Path to extension build output to bundle in DMG")
 
     args = parser.parse_args()
     logger = get_logger()
