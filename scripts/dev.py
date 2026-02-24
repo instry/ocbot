@@ -52,6 +52,7 @@ def main():
     parser_build = subparsers.add_parser('build', help='Build Ocbot', parents=[parent_parser])
     parser_build.add_argument('--target', default='chrome', help='Build target')
     parser_build.add_argument('--official', action='store_true', help='Build official release (optimized)')
+    parser_build.add_argument('--clean', action='store_true', help='Clean output directory before building')
 
     # Run
     parser_run = subparsers.add_parser('run', help='Run Ocbot', parents=[parent_parser])
