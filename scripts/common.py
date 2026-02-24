@@ -24,11 +24,48 @@ def get_project_root():
     return Path(__file__).resolve().parent.parent
 
 def get_chromium_version():
-    """Read version from resources/chromium_version.txt"""
-    version_file = get_project_root() / 'resources' / 'chromium_version.txt'
+    """
+    Detect version from patches/v*/chromium_version.txt.
+    Expects version directories like v144, v145.
+    If multiple found, returns the latest (lexicographically).
+    """
+    patches_dir = get_project_root() / 'patches'
+    if not patches_dir.exists():
+        return None
+        
+    # Find all v* directories
+    version_dirs = [d for d in patches_dir.iterdir() if d.is_dir() and d.name.startswith('v')]
+    
+    if not version_dirs:
+        return None
+        
+    # Sort by version number (e.g. v144 < v145)
+    # Simple string sort works for v100+
+    version_dirs.sort(key=lambda x: x.name)
+    
+    latest_dir = version_dirs[-1]
+    version_file = latest_dir / 'chromium_version.txt'
+    
     if version_file.exists():
         return version_file.read_text().strip()
+    
     return None
+
+def get_patches_dir(version=None):
+    """
+    Get the directory containing patches for the given version.
+    If version is None, detects the latest version.
+    Returns path like ocbot/patches/v144
+    """
+    if not version:
+        version = get_chromium_version()
+        
+    if not version:
+        return None
+        
+    major_version = version.split('.')[0]
+    patches_dir = get_project_root() / 'patches' / f"v{major_version}"
+    return patches_dir if patches_dir.exists() else None
 
 def get_source_dir(version=None):
     """
