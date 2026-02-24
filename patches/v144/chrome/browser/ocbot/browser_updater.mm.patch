@@ -1,0 +1,418 @@
+diff --git a/chrome/browser/ocbot/browser_updater.mm b/chrome/browser/ocbot/browser_updater.mm
+new file mode 100644
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000002
+--- /dev/null
++++ b/chrome/browser/ocbot/browser_updater.mm
+@@ -0,0 +1,326 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#include "chrome/browser/ocbot/browser_updater.h"
++
++#import <Foundation/Foundation.h>
++
++#include <optional>
++#include <utility>
++
++#include "base/apple/bundle_locations.h"
++#include "base/files/file_enumerator.h"
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/functional/bind.h"
++#include "base/json/json_reader.h"
++#include "base/logging.h"
++#include "base/process/launch.h"
++#include "base/strings/string_util.h"
++#include "base/strings/sys_string_conversions.h"
++#include "base/task/thread_pool.h"
++#include "base/version.h"
++#include "chrome/browser/profiles/profile.h"
++#include "components/version_info/version_info.h"
++#include "content/public/browser/browser_thread.h"
++#include "content/public/browser/storage_partition.h"
++#include "net/base/load_flags.h"
++#include "net/traffic_annotation/network_traffic_annotation.h"
++#include "services/network/public/cpp/resource_request.h"
++#include "services/network/public/cpp/shared_url_loader_factory.h"
++#include "services/network/public/cpp/simple_url_loader.h"
++#include "services/network/public/mojom/fetch_api.mojom.h"
++#include "services/network/public/mojom/url_loader_factory.mojom.h"
++
++namespace ocbot {
++
++namespace {
++
++constexpr char kGitHubReleasesApiUrl[] =
++    "https://api.github.com/repos/instry/ocbot/releases/latest";
++constexpr char kDmgAssetPrefix[] = "Ocbot-";
++constexpr char kDmgAssetSuffix[] = ".dmg";
++
++// First check 60 seconds after startup.
++constexpr base::TimeDelta kInitialDelay = base::Seconds(60);
++// Subsequent checks every 4 hours.
++constexpr base::TimeDelta kCheckInterval = base::Hours(4);
++// Max response size for GitHub API JSON (256 KB).
++constexpr int kMaxApiResponseSize = 256 * 1024;
++// Max DMG download size (500 MB).
++constexpr int kMaxDmgSize = 500 * 1024 * 1024;
++
++const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
++    net::DefineNetworkTrafficAnnotation("ocbot_browser_updater", R"(
++        semantics {
++          sender: "Ocbot Browser Updater"
++          description:
++            "Checks GitHub Releases for Ocbot browser updates and "
++            "downloads new DMG versions when available."
++          trigger:
++            "Periodically after browser startup (every 4 hours)."
++          data: "No user data is sent. Only fetches public release metadata."
++          destination: OTHER
++          internal {
++            contacts {
++              email: "niceboybao@gmail.com"
++            }
++          }
++          user_data {
++            type: NONE
++          }
++          last_reviewed: "2025-01-01"
++        }
++        policy {
++          cookies_allowed: NO
++          setting: "Not configurable."
++          policy_exception_justification:
++            "Essential for keeping the Ocbot browser up to date."
++        })");
++
++// Parses GitHub release JSON to extract version and DMG download URL.
++// Looks for an asset matching "Ocbot-*.dmg".
++bool ParseReleaseJson(const std::string& json,
++                      std::string* out_version,
++                      std::string* out_download_url) {
++  auto result = base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
++  if (!result) {
++    LOG(WARNING) << "ocbot browser updater: invalid JSON";
++    return false;
++  }
++
++  const base::Value::Dict& dict = *result;
++
++  // tag_name is like "v0.2.0"
++  const std::string* tag = dict.FindString("tag_name");
++  if (!tag) {
++    return false;
++  }
++
++  // Strip "v" prefix
++  std::string version = *tag;
++  if (version.starts_with("v")) {
++    version = version.substr(1);
++  }
++
++  if (!base::Version(version).IsValid()) {
++    LOG(WARNING) << "ocbot browser updater: invalid version in tag: " << *tag;
++    return false;
++  }
++
++  // Find the DMG asset (Ocbot-*.dmg)
++  const base::Value::List* assets = dict.FindList("assets");
++  if (!assets) {
++    return false;
++  }
++
++  for (const auto& asset_value : *assets) {
++    const base::Value::Dict* asset = asset_value.GetIfDict();
++    if (!asset) {
++      continue;
++    }
++    const std::string* name = asset->FindString("name");
++    if (name && name->starts_with(kDmgAssetPrefix) &&
++        name->ends_with(kDmgAssetSuffix)) {
++      const std::string* url = asset->FindString("browser_download_url");
++      if (url) {
++        *out_version = version;
++        *out_download_url = *url;
++        return true;
++      }
++    }
++  }
++
++  LOG(WARNING) << "ocbot browser updater: no DMG asset found in release "
++               << *tag;
++  return false;
++}
++
++// Runs on a background thread. Mounts DMG, rsyncs app, unmounts.
++bool InstallFromDmgBlocking(const base::FilePath& dmg_path,
++                            const base::FilePath& app_path) {
++  // Create a temporary mount point.
++  base::FilePath mount_point;
++  if (!base::CreateNewTempDirectory(FILE_PATH_LITERAL("ocbot_dmg_"),
++                                    &mount_point)) {
++    LOG(ERROR) << "ocbot browser updater: failed to create temp mount point";
++    return false;
++  }
++
++  // 1. Mount DMG
++  std::vector<std::string> mount_cmd = {
++      "/usr/bin/hdiutil", "attach",
++      dmg_path.value(),
++      "-mountpoint", mount_point.value(),
++      "-nobrowse", "-readonly", "-noverify", "-noautofsck"};
++
++  std::string mount_output;
++  if (!base::GetAppOutputAndError(base::CommandLine(mount_cmd),
++                                  &mount_output)) {
++    LOG(ERROR) << "ocbot browser updater: hdiutil attach failed: "
++               << mount_output;
++    base::DeletePathRecursively(mount_point);
++    return false;
++  }
++
++  // 2. Find Ocbot.app in mount point
++  base::FilePath mounted_app = mount_point.Append("Ocbot.app");
++  if (!base::PathExists(mounted_app)) {
++    // Try to find any .app in the mount point
++    base::FileEnumerator enumerator(mount_point, /*recursive=*/false,
++                                    base::FileEnumerator::DIRECTORIES);
++    for (base::FilePath path = enumerator.Next(); !path.empty();
++         path = enumerator.Next()) {
++      if (path.Extension() == ".app") {
++        mounted_app = path;
++        break;
++      }
++    }
++    if (!base::PathExists(mounted_app)) {
++      LOG(ERROR) << "ocbot browser updater: no .app found in DMG";
++      base::GetAppOutputAndError(
++          base::CommandLine({"/usr/bin/hdiutil", "detach",
++                             mount_point.value(), "-quiet"}),
++          &mount_output);
++      base::DeletePathRecursively(mount_point);
++      return false;
++    }
++  }
++
++  // 3. rsync the new app over the current one
++  // Trailing slash on source means "contents of directory"
++  std::string source = mounted_app.value() + "/";
++  std::string dest = app_path.value() + "/";
++
++  std::vector<std::string> rsync_cmd = {
++      "/usr/bin/rsync", "-a", "--delete", source, dest};
++
++  std::string rsync_output;
++  bool rsync_ok = base::GetAppOutputAndError(
++      base::CommandLine(rsync_cmd), &rsync_output);
++
++  // 4. Detach DMG (always attempt, even if rsync failed)
++  std::string detach_output;
++  base::GetAppOutputAndError(
++      base::CommandLine({"/usr/bin/hdiutil", "detach",
++                         mount_point.value(), "-quiet"}),
++      &detach_output);
++
++  // 5. Clean up mount point and DMG
++  base::DeletePathRecursively(mount_point);
++  base::DeleteFile(dmg_path);
++
++  if (!rsync_ok) {
++    LOG(WARNING) << "ocbot browser updater: rsync failed (permission denied?): "
++                 << rsync_output;
++    return false;
++  }
++
++  return true;
++}
++
++}  // namespace
++
++OcbotBrowserUpdater::OcbotBrowserUpdater(Profile* profile)
++    : profile_(profile) {}
++
++OcbotBrowserUpdater::~OcbotBrowserUpdater() = default;
++
++void OcbotBrowserUpdater::Start() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Repeat every kCheckInterval.
++  check_timer_.Start(
++      FROM_HERE, kCheckInterval,
++      base::BindRepeating(&OcbotBrowserUpdater::CheckForUpdate,
++                           weak_factory_.GetWeakPtr()));
++
++  // Faster first check after kInitialDelay.
++  content::GetUIThreadTaskRunner({})->PostDelayedTask(
++      FROM_HERE,
++      base::BindOnce(&OcbotBrowserUpdater::CheckForUpdate,
++                     weak_factory_.GetWeakPtr()),
++      kInitialDelay);
++}
++
++void OcbotBrowserUpdater::CheckForUpdate() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Skip if a download/install is already in progress.
++  if (url_loader_) {
++    return;
++  }
++
++  LOG(INFO) << "ocbot browser updater: checking for browser updates...";
++
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL(kGitHubReleasesApiUrl);
++  request->method = "GET";
++  request->load_flags = net::LOAD_DISABLE_CACHE;
++  request->headers.SetHeader("Accept", "application/vnd.github.v3+json");
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++  url_loader_ =
++      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
++  url_loader_->SetRetryOptions(
++      1, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++  url_loader_->DownloadToString(
++      GetURLLoaderFactory(),
++      base::BindOnce(&OcbotBrowserUpdater::OnReleaseFetched,
++                     weak_factory_.GetWeakPtr()),
++      kMaxApiResponseSize);
++}
++
++void OcbotBrowserUpdater::OnReleaseFetched(
++    std::optional<std::string> response_body) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (!response_body) {
++    LOG(WARNING) << "ocbot browser updater: failed to fetch release info "
++                 << "(net error: " << url_loader_->NetError() << ")";
++    url_loader_.reset();
++    return;
++  }
++
++  url_loader_.reset();
++
++  std::string remote_version;
++  std::string download_url;
++  if (!ParseReleaseJson(*response_body, &remote_version, &download_url)) {
++    return;
++  }
++
++  std::string running_version = GetRunningVersion();
++  LOG(INFO) << "ocbot browser updater: running=" << running_version
++            << " remote=" << remote_version;
++
++  base::Version current(running_version);
++  base::Version remote(remote_version);
++  if (!remote.IsValid() || !current.IsValid()) {
++    LOG(WARNING) << "ocbot browser updater: invalid version comparison";
++    return;
++  }
++
++  if (remote.CompareTo(current) <= 0) {
++    LOG(INFO) << "ocbot browser updater: already up to date";
++    return;
++  }
++
++  LOG(INFO) << "ocbot browser updater: new version " << remote_version
++            << " available, downloading DMG...";
++  DownloadDmg(download_url, remote_version);
++}
++
++void OcbotBrowserUpdater::DownloadDmg(const std::string& url,
++                                       const std::string& version) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL(url);
++  request->method = "GET";
++  request->load_flags = net::LOAD_DISABLE_CACHE;
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++  url_loader_ =
++      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
++  url_loader_->SetRetryOptions(
++      2, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++  url_loader_->DownloadToTempFile(
++      GetURLLoaderFactory(),
++      base::BindOnce(&OcbotBrowserUpdater::OnDmgDownloaded,
++                     weak_factory_.GetWeakPtr(), version),
++      kMaxDmgSize);
++}
++
++void OcbotBrowserUpdater::OnDmgDownloaded(const std::string& version,
++                                           base::FilePath tmp) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (tmp.empty()) {
++    LOG(ERROR) << "ocbot browser updater: DMG download failed (net error: "
++               << url_loader_->NetError() << ")";
++    url_loader_.reset();
++    return;
++  }
++
++  url_loader_.reset();
++
++  LOG(INFO) << "ocbot browser updater: DMG download complete, installing v"
++            << version << "...";
++
++  base::FilePath app_path = GetCurrentAppPath();
++  if (app_path.empty()) {
++    LOG(ERROR) << "ocbot browser updater: cannot determine app path";
++    return;
++  }
++
++  // Install on a background thread, then report on UI thread.
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE,
++      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
++       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
++      base::BindOnce(&InstallFromDmgBlocking, tmp, app_path),
++      base::BindOnce(&OcbotBrowserUpdater::OnInstallComplete,
++                     weak_factory_.GetWeakPtr(), version));
++}
++
++void OcbotBrowserUpdater::OnInstallComplete(bool success,
++                                             const std::string& version) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (success) {
++    LOG(INFO) << "ocbot browser updater: v" << version
++              << " installed successfully. UpgradeDetector will prompt "
++              << "the user to relaunch.";
++  } else {
++    LOG(WARNING) << "ocbot browser updater: installation of v" << version
++                 << " failed.";
++  }
++}
++
++std::string OcbotBrowserUpdater::GetRunningVersion() const {
++  @autoreleasepool {
++    NSString* ver = [base::apple::MainBundle()
++        objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
++    if (ver) {
++      return base::SysNSStringToUTF8(ver);
++    }
++  }
++  // Fallback to compiled-in version.
++  return version_info::GetVersionNumber();
++}
++
++base::FilePath OcbotBrowserUpdater::GetCurrentAppPath() const {
++  @autoreleasepool {
++    NSString* path = [base::apple::MainBundle() bundlePath];
++    if (path) {
++      return base::FilePath(base::SysNSStringToUTF8(path));
++    }
++  }
++  return base::FilePath();
++}
++
++network::mojom::URLLoaderFactory*
++OcbotBrowserUpdater::GetURLLoaderFactory() {
++  return profile_->GetDefaultStoragePartition()
++      ->GetURLLoaderFactoryForBrowserProcess()
++      .get();
++}
++
++}  // namespace ocbot

@@ -68,6 +68,7 @@ def build_chromium(args):
             'use_service_discovery=false',
             'use_siso=true',
             'chrome_pgo_phase=0',  # Skip PGO for simplicity
+            'enable_update_notifications=true',
         ]
     else:
         out_dir = src_dir / 'out' / 'Default'
@@ -78,6 +79,7 @@ def build_chromium(args):
             'symbol_level=0',
             'use_service_discovery=false',
             'use_siso=true',
+            'enable_update_notifications=true',
         ]
     
     # Clean output directory if requested

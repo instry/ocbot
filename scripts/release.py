@@ -99,3 +99,53 @@ def release_extension(args):
         
     logger.info(f"Done! Ocbot v{version} released as {tag}")
     logger.info("Users will receive the update automatically on next browser restart.")
+
+
+def release_browser(args):
+    """Upload built DMG to GitHub Releases."""
+    project_root = get_project_root()
+    dist_dir = project_root / 'dist'
+
+    # Check prerequisites
+    if not shutil.which('gh'):
+        logger.error("GitHub CLI (gh) is not installed. Please install it first.")
+        sys.exit(1)
+
+    # Get version
+    version = get_product_version()
+    tag = f"v{version}"
+    dmg = dist_dir / f"Ocbot-{version}.dmg"
+
+    if not dmg.exists():
+        logger.error(f"DMG not found: {dmg}. Run 'dev.py package' first.")
+        sys.exit(1)
+
+    logger.info(f"Preparing browser release for Ocbot v{version} (tag: {tag})...")
+
+    repo = "instry/ocbot"
+
+    # Check if release exists
+    try:
+        run_command(['gh', 'release', 'view', tag, '--repo', repo], check=True, capture_output=True)
+        exists = True
+    except subprocess.CalledProcessError:
+        exists = False
+
+    if exists:
+        logger.info(f"Release {tag} already exists. Uploading DMG...")
+        run_command([
+            'gh', 'release', 'upload', tag, str(dmg),
+            '--clobber',
+            '--repo', repo
+        ])
+    else:
+        logger.info(f"Creating release {tag} with DMG...")
+        run_command([
+            'gh', 'release', 'create', tag, str(dmg),
+            '--repo', repo,
+            '--title', f"Ocbot v{version}",
+            '--notes', f"Ocbot v{version}"
+        ])
+
+    logger.info(f"Done! Ocbot v{version} browser DMG released as {tag}")
+    logger.info("Running instances will auto-update in the background.")
