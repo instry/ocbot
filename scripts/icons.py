@@ -83,7 +83,7 @@ def install_icons(icons_src, icons_dest):
     """
     Copy ocbot icons from icons_src to icons_dest, replacing all default branding.
 
-    icons_src: ocbot/resources/patches/chrome/app/theme/chromium/
+    icons_src: ocbot/icons/
     icons_dest: chromium-src/chrome/app/theme/chromium/
 
     On macOS, this replaces:

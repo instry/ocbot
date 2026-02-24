@@ -8,3 +8,5 @@ node_modules/
 .wxt/
 backup/
 .apple.json
+plans/
+
