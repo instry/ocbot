@@ -1,9 +1,38 @@
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from common import get_logger
+
+
+def _sync_extension(logger, root_dir, out_dir):
+    """Copy latest extension build into the app bundle's Framework Resources."""
+    extension_src = root_dir / 'ocbot' / 'extension' / '.output' / 'chrome-mv3'
+    if not extension_src.exists():
+        logger.warning(f"Extension build output not found: {extension_src}")
+        return
+
+    app_dir = out_dir / 'Ocbot.app'
+    frameworks_dir = app_dir / 'Contents' / 'Frameworks'
+    if not frameworks_dir.exists():
+        return
+
+    framework = None
+    for item in frameworks_dir.iterdir():
+        if item.name.endswith('.framework'):
+            framework = item
+            break
+
+    if not framework:
+        return
+
+    dest = framework / 'Resources' / 'ocbot'
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(extension_src, dest)
+    logger.info(f"Extension synced to {dest}")
 
 def run_chromium(args):
     logger = get_logger()
@@ -46,8 +75,9 @@ def run_chromium(args):
 
     cmd = [str(executable)]
 
-    # ocbot is loaded as a component extension (via ComponentLoader),
-    # so no --load-extension flag is needed.
+    # ocbot is loaded as a component extension from the Framework Resources dir.
+    # Sync latest extension build into the app bundle before launching.
+    _sync_extension(logger, root_dir, out_dir)
 
     # User data dir
     user_data_dir = root_dir / 'chromium' / 'user_data'
