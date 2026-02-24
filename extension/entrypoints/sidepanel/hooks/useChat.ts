@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import type { ChatMessage } from '@/lib/types'
 import type { LlmProvider, LlmRequestMessage } from '@/lib/llm/types'
 import { runAgentLoop } from '@/lib/agent/loop'
+import { ActCache } from '@/lib/agent/cache'
 import { saveConversation, getConversations } from '@/lib/storage'
 
 export interface ToolStatus {
@@ -10,6 +11,8 @@ export interface ToolStatus {
   status: 'running' | 'done'
   result?: string
 }
+
+const actCache = new ActCache()
 
 export function useChat(provider: LlmProvider | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -138,6 +141,7 @@ export function useChat(provider: LlmProvider | null) {
           },
         },
         abortController.signal,
+        actCache,
       )
     } catch (err: unknown) {
       if (abortController.signal.aborted) return

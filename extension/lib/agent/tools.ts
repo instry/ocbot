@@ -1,6 +1,43 @@
-import type { ToolDefinition } from '../llm/types'
+import type { ToolDefinition, LlmProvider } from '../llm/types'
+import type { ActCache } from './cache'
+import { act } from './act'
+import { extract } from './extract'
+import { observe } from './observe'
 
 export const BROWSER_TOOLS: ToolDefinition[] = [
+  {
+    name: 'act',
+    description: 'Perform a browser action described in natural language. The system will automatically find the right element and interact with it. Examples: "click the Sign In button", "type hello@email.com in the email field", "select English from the language dropdown".',
+    parameters: {
+      type: 'object',
+      properties: {
+        instruction: { type: 'string', description: 'Natural language description of the action to perform' },
+      },
+      required: ['instruction'],
+    },
+  },
+  {
+    name: 'extract',
+    description: 'Extract structured information from the current page. Examples: "get all article titles", "extract the price and product name", "list all links in the navigation".',
+    parameters: {
+      type: 'object',
+      properties: {
+        instruction: { type: 'string', description: 'What information to extract from the page' },
+      },
+      required: ['instruction'],
+    },
+  },
+  {
+    name: 'observe',
+    description: 'Explore what actions are available on the current page. Returns a list of possible interactions. Use this to understand a page before acting. Examples: "what can I click on?", "find login-related elements", "list form fields".',
+    parameters: {
+      type: 'object',
+      properties: {
+        instruction: { type: 'string', description: 'What kind of actions or elements to look for' },
+      },
+      required: ['instruction'],
+    },
+  },
   {
     name: 'navigate',
     description: 'Navigate the current tab to a URL',
@@ -10,30 +47,6 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
         url: { type: 'string', description: 'The URL to navigate to' },
       },
       required: ['url'],
-    },
-  },
-  {
-    name: 'click',
-    description: 'Click an element on the page by CSS selector',
-    parameters: {
-      type: 'object',
-      properties: {
-        selector: { type: 'string', description: 'CSS selector of the element to click' },
-      },
-      required: ['selector'],
-    },
-  },
-  {
-    name: 'type',
-    description: 'Type text into an input element',
-    parameters: {
-      type: 'object',
-      properties: {
-        selector: { type: 'string', description: 'CSS selector of the input element' },
-        text: { type: 'string', description: 'The text to type' },
-        pressEnter: { type: 'string', description: 'Whether to press Enter after typing (true/false)', enum: ['true', 'false'] },
-      },
-      required: ['selector', 'text'],
     },
   },
   {
@@ -48,26 +61,6 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     },
   },
   {
-    name: 'getText',
-    description: 'Get the current page URL, title, and visible text content',
-    parameters: {
-      type: 'object',
-      properties: {},
-    },
-  },
-  {
-    name: 'getElements',
-    description: 'Query elements on the page and get their tag, text, and attributes',
-    parameters: {
-      type: 'object',
-      properties: {
-        selector: { type: 'string', description: 'CSS selector to query elements' },
-        limit: { type: 'string', description: 'Maximum number of elements to return (default 10)' },
-      },
-      required: ['selector'],
-    },
-  },
-  {
     name: 'waitForNavigation',
     description: 'Wait for the page to finish loading',
     parameters: {
@@ -79,20 +72,12 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
   },
 ]
 
+// --- Deterministic tool implementations (no LLM needed) ---
+
 async function getActiveTabId(): Promise<number> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (!tab?.id) throw new Error('No active tab found')
   return tab.id
-}
-
-async function executeInTab<T>(tabId: number, func: (...args: unknown[]) => T, args?: unknown[]): Promise<T> {
-  const results = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: func as () => T,
-    args: args || [],
-  })
-  if (results[0]?.result !== undefined) return results[0].result as T
-  throw new Error('Script execution returned no result')
 }
 
 async function toolNavigate(args: { url: string }): Promise<string> {
@@ -102,7 +87,6 @@ async function toolNavigate(args: { url: string }): Promise<string> {
     url = 'https://' + url
   }
   await chrome.tabs.update(tabId, { url })
-  // Wait for load
   await new Promise<void>((resolve) => {
     const listener = (id: number, info: chrome.tabs.TabChangeInfo) => {
       if (id === tabId && info.status === 'complete') {
@@ -120,77 +104,19 @@ async function toolNavigate(args: { url: string }): Promise<string> {
   return JSON.stringify({ url: tab.url, title: tab.title })
 }
 
-async function toolClick(args: { selector: string }): Promise<string> {
-  const tabId = await getActiveTabId()
-  return await executeInTab(tabId, (sel: string) => {
-    const el = document.querySelector(sel) as HTMLElement | null
-    if (!el) return `Error: No element found for selector "${sel}"`
-    el.click()
-    return `Clicked element: ${sel}`
-  }, [args.selector]) as string
-}
-
-async function toolType(args: { selector: string; text: string; pressEnter?: string }): Promise<string> {
-  const tabId = await getActiveTabId()
-  return await executeInTab(tabId, (sel: string, text: string, pressEnter: string) => {
-    const el = document.querySelector(sel) as HTMLInputElement | HTMLTextAreaElement | null
-    if (!el) return `Error: No element found for selector "${sel}"`
-    el.focus()
-    el.value = text
-    el.dispatchEvent(new Event('input', { bubbles: true }))
-    el.dispatchEvent(new Event('change', { bubbles: true }))
-    if (pressEnter === 'true') {
-      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }))
-      // Also try form submit
-      const form = el.closest('form')
-      if (form) form.requestSubmit()
-    }
-    return `Typed "${text}" into ${sel}${pressEnter === 'true' ? ' and pressed Enter' : ''}`
-  }, [args.selector, args.text, args.pressEnter || 'false']) as string
-}
-
 async function toolScroll(args: { direction: string }): Promise<string> {
   const tabId = await getActiveTabId()
-  return await executeInTab(tabId, (dir: string) => {
-    const amount = dir === 'up' ? -500 : 500
-    window.scrollBy({ top: amount, behavior: 'smooth' })
-    return `Scrolled ${dir} by 500px. Current scroll position: ${window.scrollY}px`
-  }, [args.direction]) as string
-}
-
-async function toolGetText(): Promise<string> {
-  const tabId = await getActiveTabId()
-  return await executeInTab(tabId, () => {
-    const text = document.body?.innerText?.slice(0, 5000) || ''
-    return JSON.stringify({
-      url: window.location.href,
-      title: document.title,
-      text,
-    })
-  }) as string
-}
-
-async function toolGetElements(args: { selector: string; limit?: string }): Promise<string> {
-  const tabId = await getActiveTabId()
-  return await executeInTab(tabId, (sel: string, lim: string) => {
-    const limit = parseInt(lim) || 10
-    const elements = Array.from(document.querySelectorAll(sel)).slice(0, limit)
-    const results = elements.map((el, i) => {
-      const attrs: Record<string, string> = {}
-      for (const attr of el.attributes) {
-        if (['id', 'class', 'href', 'src', 'type', 'name', 'value', 'placeholder', 'aria-label', 'role'].includes(attr.name)) {
-          attrs[attr.name] = attr.value
-        }
-      }
-      return {
-        index: i,
-        tag: el.tagName.toLowerCase(),
-        text: (el as HTMLElement).innerText?.slice(0, 100) || '',
-        attrs,
-      }
-    })
-    return JSON.stringify(results)
-  }, [args.selector, args.limit || '10']) as string
+  const results = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: (dir: string) => {
+      const amount = dir === 'up' ? -500 : 500
+      window.scrollBy({ top: amount, behavior: 'smooth' })
+      return `Scrolled ${dir} by 500px. Current scroll position: ${window.scrollY}px`
+    },
+    args: [args.direction],
+  })
+  if (results[0]?.result !== undefined) return results[0].result as string
+  throw new Error('Script execution returned no result')
 }
 
 async function toolWaitForNavigation(args: { timeout?: string }): Promise<string> {
@@ -220,16 +146,40 @@ async function toolWaitForNavigation(args: { timeout?: string }): Promise<string
   return JSON.stringify({ status: 'loaded', url: updated.url, title: updated.title })
 }
 
-export async function executeTool(name: string, argsJson: string): Promise<string> {
+// --- Main dispatcher ---
+
+export async function executeTool(
+  name: string,
+  argsJson: string,
+  provider: LlmProvider,
+  cache: ActCache,
+  signal?: AbortSignal,
+): Promise<string> {
   try {
     const args = JSON.parse(argsJson || '{}')
     switch (name) {
+      case 'act': {
+        const result = await act(args.instruction, provider, cache, signal)
+        const status = result.cacheHit ? '(cache hit)' : result.selfHealed ? '(self-healed)' : '(new)'
+        return JSON.stringify({
+          success: result.success,
+          description: result.description,
+          actions: result.actions.map(a => a.description),
+          status,
+        })
+      }
+      case 'extract': {
+        const result = await extract(args.instruction, provider, signal)
+        if (!result.success) return `Error extracting: ${result.error}`
+        return JSON.stringify(result.data)
+      }
+      case 'observe': {
+        const result = await observe(args.instruction, provider, signal)
+        if (!result.success) return `Error observing: ${result.error}`
+        return JSON.stringify(result.actions)
+      }
       case 'navigate': return await toolNavigate(args)
-      case 'click': return await toolClick(args)
-      case 'type': return await toolType(args)
       case 'scroll': return await toolScroll(args)
-      case 'getText': return await toolGetText()
-      case 'getElements': return await toolGetElements(args)
       case 'waitForNavigation': return await toolWaitForNavigation(args)
       default: return `Error: Unknown tool "${name}"`
     }
