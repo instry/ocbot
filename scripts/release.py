@@ -1,27 +1,12 @@
 #!/usr/bin/env python3
 import os
-import re
 import sys
 import shutil
 import subprocess
 from pathlib import Path
-from common import get_logger, get_project_root
+from common import get_logger, get_project_root, get_product_version
 
 logger = get_logger()
-
-def get_extension_version(extension_dir):
-    config_path = extension_dir / 'wxt.config.ts'
-    if not config_path.exists():
-        logger.error(f"Config file not found: {config_path}")
-        sys.exit(1)
-        
-    content = config_path.read_text()
-    match = re.search(r"version:\s*['\"]([^'\"]+)['\"]", content)
-    if match:
-        return match.group(1)
-    else:
-        logger.error("Could not find version in wxt.config.ts")
-        sys.exit(1)
 
 def run_command(cmd, cwd=None, check=True, capture_output=False):
     try:
@@ -57,10 +42,10 @@ def release_extension(args):
         sys.exit(1)
 
     # Get version
-    version = get_extension_version(extension_dir)
-    tag = f"ext-v{version}"
-    
-    logger.info(f"Preparing release for extension v{version} (tag: {tag})...")
+    version = get_product_version()
+    tag = f"v{version}"
+
+    logger.info(f"Preparing release for Ocbot v{version} (tag: {tag})...")
     
     # Build extension
     logger.info("Building extension...")
@@ -108,9 +93,9 @@ def release_extension(args):
         run_command([
             'gh', 'release', 'create', tag, str(zip_path),
             '--repo', repo,
-            '--title', f"Extension v{version}",
-            '--notes', f"OTA extension update v{version}"
+            '--title', f"Ocbot v{version}",
+            '--notes', f"Ocbot v{version}"
         ])
         
-    logger.info(f"Done! Extension v{version} released as {tag}")
+    logger.info(f"Done! Ocbot v{version} released as {tag}")
     logger.info("Users will receive the update automatically on next browser restart.")

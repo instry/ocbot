@@ -10,7 +10,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from common import get_logger, get_project_root, get_source_dir
+from common import get_logger, get_project_root, get_source_dir, get_product_version
 
 logger = get_logger()
 
@@ -218,8 +218,9 @@ def package_dmg(args):
         src_dir = get_source_dir()
 
     app_path = _find_app(src_dir, is_official=getattr(args, 'official', False))
-    app_name, version = _read_plist(app_path)
-    logger.info(f"Packaging {app_name} ({version}) from {app_path}")
+    app_name, _plist_version = _read_plist(app_path)
+    product_version = get_product_version()
+    logger.info(f"Packaging {app_name} ({product_version}) from {app_path}")
 
     project_root = get_project_root()
     dist_dir = project_root / 'dist'
@@ -228,9 +229,9 @@ def package_dmg(args):
     if getattr(args, 'output', None):
         final_dmg = Path(args.output).resolve()
     else:
-        final_dmg = dist_dir / f"{app_name}-{version}.dmg"
+        final_dmg = dist_dir / f"{app_name}-{product_version}.dmg"
 
-    vol_name = f"{app_name} {version}"
+    vol_name = f"{app_name} {product_version}"
     icon_file = project_root / 'icons' / 'app.icns'
 
     # Code Signing

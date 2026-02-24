@@ -67,6 +67,31 @@ def get_patches_dir(version=None):
     patches_dir = get_project_root() / 'patches' / f"v{major_version}"
     return patches_dir if patches_dir.exists() else None
 
+def get_product_version():
+    """Read product version from VERSION file."""
+    version_file = get_project_root() / 'VERSION'
+    return version_file.read_text().strip()
+
+def get_version_map():
+    """Read version mapping table."""
+    import json
+    map_file = get_project_root() / 'version_map.json'
+    with open(map_file) as f:
+        return json.load(f)
+
+def sync_extension_version():
+    """Sync VERSION into extension/wxt.config.ts."""
+    import re
+    version = get_product_version()
+    config_path = get_project_root() / 'extension' / 'wxt.config.ts'
+    content = config_path.read_text()
+    updated = re.sub(
+        r"(version:\s*['\"])[^'\"]+(['\"])",
+        rf"\g<1>{version}\2",
+        content
+    )
+    config_path.write_text(updated)
+
 def get_source_dir(version=None):
     """
     Returns the source directory.

@@ -2,7 +2,7 @@ import subprocess
 import os
 import shutil
 from pathlib import Path
-from common import get_logger, get_source_dir, get_project_root
+from common import get_logger, get_source_dir, get_project_root, sync_extension_version
 
 
 def _install_extension(logger, out_dir):
@@ -122,6 +122,9 @@ def build_chromium(args):
     
     logger.info(f"Building {args.target}...")
     subprocess.run(['autoninja', '-C', str(out_dir), args.target], cwd=src_dir)
+
+    # Sync extension version before installing
+    sync_extension_version()
 
     # Copy extension into app bundle so component_loader can find it
     _install_extension(logger, out_dir)
