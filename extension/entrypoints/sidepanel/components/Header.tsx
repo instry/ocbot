@@ -1,6 +1,7 @@
 import { Settings, ChevronDown, SquarePen } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import type { LlmProvider } from '../../../lib/llm/types'
+import type { ChannelStatus } from '../../../lib/channels/types'
 import { getTemplateByType } from '../../../lib/llm/models'
 
 interface HeaderProps {
@@ -9,9 +10,10 @@ interface HeaderProps {
   onSelectProvider: (id: string) => void
   onOpenSettings: () => void
   onNewChat: () => void
+  channelStatuses: Record<string, ChannelStatus>
 }
 
-export function Header({ selectedProvider, providers, onSelectProvider, onOpenSettings, onNewChat }: HeaderProps) {
+export function Header({ selectedProvider, providers, onSelectProvider, onOpenSettings, onNewChat, channelStatuses }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -30,6 +32,20 @@ export function Header({ selectedProvider, providers, onSelectProvider, onOpenSe
     const model = template?.models.find(m => m.id === provider.modelId)
     return model?.name ?? provider.modelId
   }
+
+  // Compute aggregate channel status
+  const statusValues = Object.values(channelStatuses)
+  const aggregateChannelStatus: ChannelStatus | null =
+    statusValues.length === 0 ? null
+    : statusValues.includes('error') ? 'error'
+    : statusValues.includes('connecting') ? 'connecting'
+    : statusValues.includes('connected') ? 'connected'
+    : null
+
+  const statusDotColor = aggregateChannelStatus === 'connected' ? 'bg-green-500'
+    : aggregateChannelStatus === 'connecting' ? 'bg-yellow-500'
+    : aggregateChannelStatus === 'error' ? 'bg-red-500'
+    : null
 
   return (
     <header className="flex items-center justify-between border-b border-border/40 px-3 py-2">
@@ -78,10 +94,13 @@ export function Header({ selectedProvider, providers, onSelectProvider, onOpenSe
         </button>
         <button
           onClick={onOpenSettings}
-          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+          className="relative rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
           title="Settings"
         >
           <Settings className="h-4 w-4" />
+          {statusDotColor && (
+            <span className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ${statusDotColor}`} />
+          )}
         </button>
       </div>
     </header>

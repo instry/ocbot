@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { ArrowLeft, Plus, Trash2, ExternalLink } from 'lucide-react'
 import type { LlmProvider, ProviderType } from '../../../lib/llm/types'
+import type { ChannelStatus } from '../../../lib/channels/types'
 import { PROVIDER_TEMPLATES, getTemplateByType } from '../../../lib/llm/models'
+import { ChannelSettings } from './ChannelSettings'
 
 interface SettingsProps {
   providers: LlmProvider[]
@@ -10,13 +12,22 @@ interface SettingsProps {
   onDeleteProvider: (id: string) => Promise<void>
   onSelectProvider: (id: string) => Promise<void>
   onBack: () => void
+  channelStatuses: Record<string, ChannelStatus>
+  onRefreshChannelStatuses: () => void
 }
 
 type SettingsView = 'list' | 'add' | 'edit'
+type SettingsTab = 'providers' | 'channels'
 
-export function Settings({ providers, selectedProvider, onSaveProvider, onDeleteProvider, onSelectProvider, onBack }: SettingsProps) {
+export function Settings({ providers, selectedProvider, onSaveProvider, onDeleteProvider, onSelectProvider, onBack, channelStatuses, onRefreshChannelStatuses }: SettingsProps) {
   const [view, setView] = useState<SettingsView>('list')
   const [editingProvider, setEditingProvider] = useState<LlmProvider | null>(null)
+  const [tab, setTab] = useState<SettingsTab>('providers')
+
+  const headerTitle = tab === 'channels' ? 'Remote Channels'
+    : view === 'list' ? 'LLM Providers'
+    : view === 'add' ? 'Add Provider'
+    : 'Edit Provider'
 
   return (
     <div className="flex h-full flex-col">
@@ -24,34 +35,63 @@ export function Settings({ providers, selectedProvider, onSaveProvider, onDelete
         <button onClick={view === 'list' ? onBack : () => setView('list')} className="rounded-lg p-1 text-muted-foreground hover:bg-muted/80 hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
         </button>
-        <h2 className="text-sm font-semibold">
-          {view === 'list' ? 'LLM Providers' : view === 'add' ? 'Add Provider' : 'Edit Provider'}
-        </h2>
+        <h2 className="text-sm font-semibold">{headerTitle}</h2>
       </div>
 
+      {/* Tabs - only show in list view */}
+      {view === 'list' && (
+        <div className="flex border-b border-border/40">
+          <button
+            onClick={() => setTab('providers')}
+            className={`flex-1 py-2 text-xs font-medium transition-colors ${
+              tab === 'providers' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            LLM Providers
+          </button>
+          <button
+            onClick={() => setTab('channels')}
+            className={`flex-1 py-2 text-xs font-medium transition-colors ${
+              tab === 'channels' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Remote Channels
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-3">
-        {view === 'list' && (
-          <ProviderList
-            providers={providers}
-            selectedProvider={selectedProvider}
-            onAdd={() => setView('add')}
-            onEdit={(p) => { setEditingProvider(p); setView('edit') }}
-            onDelete={onDeleteProvider}
-            onSelect={onSelectProvider}
+        {tab === 'channels' && view === 'list' ? (
+          <ChannelSettings
+            channelStatuses={channelStatuses}
+            onRefreshStatuses={onRefreshChannelStatuses}
           />
-        )}
-        {view === 'add' && (
-          <ProviderForm
-            onSave={async (p) => { await onSaveProvider(p); setView('list') }}
-            onCancel={() => setView('list')}
-          />
-        )}
-        {view === 'edit' && editingProvider && (
-          <ProviderForm
-            initial={editingProvider}
-            onSave={async (p) => { await onSaveProvider(p); setView('list') }}
-            onCancel={() => setView('list')}
-          />
+        ) : (
+          <>
+            {view === 'list' && (
+              <ProviderList
+                providers={providers}
+                selectedProvider={selectedProvider}
+                onAdd={() => setView('add')}
+                onEdit={(p) => { setEditingProvider(p); setView('edit') }}
+                onDelete={onDeleteProvider}
+                onSelect={onSelectProvider}
+              />
+            )}
+            {view === 'add' && (
+              <ProviderForm
+                onSave={async (p) => { await onSaveProvider(p); setView('list') }}
+                onCancel={() => setView('list')}
+              />
+            )}
+            {view === 'edit' && editingProvider && (
+              <ProviderForm
+                initial={editingProvider}
+                onSave={async (p) => { await onSaveProvider(p); setView('list') }}
+                onCancel={() => setView('list')}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
