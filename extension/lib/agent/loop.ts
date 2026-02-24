@@ -1,8 +1,17 @@
 import type { LlmProvider, LlmRequestMessage, ToolCallPart } from '../llm/types'
 import type { ActCache } from './cache'
+import type { Variables } from './variables'
 import { streamChat } from '../llm/client'
 import { BROWSER_TOOLS, executeTool } from './tools'
 import { buildSystemPrompt } from './systemPrompt'
+import { variableKeysForCache } from './variables'
+import {
+  AgentCache,
+  type AgentReplayStep,
+  toolCallToReplayStep,
+  replayAgentSteps,
+  getConfigSignature,
+} from './agentCache'
 
 const MAX_TURNS = 100
 
@@ -31,14 +40,60 @@ export async function runAgentLoop(
   callbacks: AgentCallbacks,
   signal?: AbortSignal,
   cache?: ActCache,
+  variables?: Variables,
+  agentCache?: AgentCache,
 ): Promise<void> {
   const pageContext = await getPageContext()
   const systemMessage: LlmRequestMessage = {
     role: 'system',
-    content: buildSystemPrompt(pageContext),
+    content: buildSystemPrompt(pageContext, variables),
   }
 
+  // Extract the user instruction (last user message) for agent cache key
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')
+  const userInstruction = lastUserMsg?.content || ''
+  const startUrl = pageContext?.url || ''
+  const varKeys = variables ? variableKeysForCache(variables) : []
+  const configSig = getConfigSignature(provider)
+
+  // --- Agent cache replay ---
+  if (agentCache && userInstruction) {
+    const cached = await agentCache.lookup(userInstruction, startUrl, varKeys, configSig)
+    if (cached && cached.steps.length > 0) {
+      console.log('[ocbot] AgentCache hit, replaying', cached.steps.length, 'steps')
+
+      const executeForReplay = (name: string, argsJson: string) =>
+        executeTool(name, argsJson, provider, cache!, signal, variables)
+
+      const replayResult = await replayAgentSteps(
+        cached.steps,
+        executeForReplay,
+        {
+          onStepStart: (i, step) => {
+            callbacks.onToolCallStart(`replay_${i}`, step.type)
+          },
+          onStepEnd: (i, step, result) => {
+            callbacks.onToolCallEnd(`replay_${i}`, step.type, result)
+          },
+          onSkip: () => { /* no-op for skipped steps */ },
+        },
+        signal,
+      )
+
+      if (replayResult.success) {
+        callbacks.onTextDelta('Task completed successfully (from cache).')
+        callbacks.onAssistantMessage('Task completed successfully (from cache).', [])
+        return
+      }
+
+      // Replay failed — fall through to normal LLM loop
+      console.log('[ocbot] AgentCache replay failed at step', replayResult.failedIndex, ', falling back to LLM')
+    }
+  }
+
+  // --- Normal LLM loop ---
   const allMessages: LlmRequestMessage[] = [systemMessage, ...messages]
+  const recordedSteps: AgentReplayStep[] = []
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     if (signal?.aborted) return
@@ -115,6 +170,10 @@ export async function runAgentLoop(
 
     // If no tool calls, we're done — assistant gave a text response
     if (toolCallArray.length === 0) {
+      // Store recorded steps in agent cache
+      if (agentCache && userInstruction && recordedSteps.length > 0) {
+        await agentCache.store(userInstruction, startUrl, varKeys, configSig, recordedSteps)
+      }
       return
     }
 
@@ -122,7 +181,7 @@ export async function runAgentLoop(
     for (const tc of toolCallArray) {
       if (signal?.aborted) return
 
-      const result = await executeTool(tc.name, tc.arguments, provider, cache!, signal)
+      const result = await executeTool(tc.name, tc.arguments, provider, cache!, signal, variables)
       callbacks.onToolCallEnd(tc.id, tc.name, result)
       callbacks.onToolMessage(tc.id, tc.name, result)
 
@@ -131,9 +190,19 @@ export async function runAgentLoop(
         content: result,
         toolCallId: tc.id,
       })
+
+      // Record step for agent cache
+      try {
+        const args = JSON.parse(tc.arguments || '{}')
+        const step = toolCallToReplayStep(tc.name, args, result)
+        if (step) recordedSteps.push(step)
+      } catch { /* skip recording on parse error */ }
     }
   }
 
-  // Safety limit reached — send a final text message instead of an error
+  // Safety limit reached — store what we have and send final message
+  if (agentCache && userInstruction && recordedSteps.length > 0) {
+    await agentCache.store(userInstruction, startUrl, varKeys, configSig, recordedSteps)
+  }
   callbacks.onAssistantMessage('I\'ve completed the actions I could perform. Let me know if you need anything else.', [])
 }

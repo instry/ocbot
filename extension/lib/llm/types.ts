@@ -33,6 +33,11 @@ export interface ToolParameter {
   type: string
   description?: string
   enum?: string[]
+  items?: {
+    type: string
+    properties?: Record<string, ToolParameter>
+    required?: string[]
+  }
 }
 
 export interface ToolDefinition {
