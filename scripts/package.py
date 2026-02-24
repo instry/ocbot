@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Package Ocbot.app into a .dmg installer."""
 
+import argparse
+import os
 import plistlib
 import shutil
 import subprocess
@@ -24,6 +26,11 @@ def _find_app(src_dir, is_official=False):
     if app.exists():
         return app
 
+    # Try searching in the source dir itself if the structure is flat
+    app = src_dir / 'out' / out_dir_name / 'Ocbot.app'
+    if app.exists():
+        return app
+
     logger.error(f"Ocbot.app not found in {out_dir}")
     sys.exit(1)
 
@@ -34,7 +41,44 @@ def _read_plist(app_path):
     with open(plist_path, 'rb') as f:
         info = plistlib.load(f)
     version = info.get('CFBundleShortVersionString', 'unknown')
-    return 'Ocbot', version
+    name = info.get('CFBundleName', 'Ocbot')
+    return name, version
+
+
+def sign_app(app_path, identity):
+    """Sign the application bundle."""
+    logger.info(f"Signing {app_path} with identity '{identity}'...")
+    try:
+        subprocess.run([
+            'codesign', '--deep', '--force', '--verbose',
+            '--options', 'runtime',
+            '--sign', identity,
+            str(app_path)
+        ], check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Signing failed: {e}")
+        sys.exit(1)
+
+
+def notarize_dmg(dmg_path, notary_profile):
+    """Notarize the DMG using xcrun notarytool."""
+    logger.info(f"Notarizing {dmg_path} with profile '{notary_profile}'...")
+    try:
+        subprocess.run([
+            'xcrun', 'notarytool', 'submit',
+            str(dmg_path),
+            '--keychain-profile', notary_profile,
+            '--wait'
+        ], check=True)
+        
+        logger.info("Stapling ticket to DMG...")
+        subprocess.run([
+            'xcrun', 'stapler', 'staple', str(dmg_path)
+        ], check=True)
+        
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Notarization failed: {e}")
+        sys.exit(1)
 
 
 def package_dmg(args):
@@ -55,18 +99,40 @@ def package_dmg(args):
     if getattr(args, 'output', None):
         final_dmg = Path(args.output).resolve()
     else:
-        final_dmg = dist_dir / f"{app_name}.dmg"
+        final_dmg = dist_dir / f"{app_name}-{version}.dmg"
 
-    vol_name = app_name
+    vol_name = f"{app_name} {version}"
     icon_file = project_root / 'icons' / 'app.icns'
+
+    # Code Signing
+    sign_identity = getattr(args, 'sign', None) or os.environ.get('CODESIGN_IDENTITY')
 
     with tempfile.TemporaryDirectory() as tmpdir:
         staging = Path(tmpdir) / 'staging'
         staging.mkdir()
 
         # Copy .app and create Applications symlink
+        dest_app = staging / f"{app_name}.app"
         logger.info("Copying app bundle to staging area...")
-        shutil.copytree(app_path, staging / f"{app_name}.app", symlinks=False)
+        if dest_app.exists():
+            shutil.rmtree(dest_app)
+        shutil.copytree(app_path, dest_app, symlinks=True)
+
+        # Copy extension if provided
+        ext_src = getattr(args, 'extension_src', None)
+        if ext_src:
+            ext_src = Path(ext_src)
+            if ext_src.exists():
+                logger.info(f"Copying extension from {ext_src} to DMG...")
+                # Copy to a folder named "Ocbot Extension" in the DMG root
+                shutil.copytree(ext_src, staging / 'Ocbot Extension')
+            else:
+                logger.warning(f"Extension source {ext_src} not found.")
+
+        # Sign the app in staging
+        if sign_identity:
+            sign_app(dest_app, sign_identity)
+
         (staging / 'Applications').symlink_to('/Applications')
 
         # Create writable DMG
@@ -114,9 +180,16 @@ def package_dmg(args):
             '-o', str(final_dmg),
         ], check=True)
 
+    # Notarization
+    notary_profile = getattr(args, 'notarize', None) or os.environ.get('NOTARY_PROFILE')
+    if notary_profile:
+        notarize_dmg(final_dmg, notary_profile)
+
     # Verify
     logger.info("Verifying DMG...")
     subprocess.run(['hdiutil', 'verify', str(final_dmg)], check=True)
 
     size_mb = final_dmg.stat().st_size / (1024 * 1024)
     logger.info(f"Done: {final_dmg} ({size_mb:.1f} MB)")
+
+
