@@ -2,7 +2,41 @@ import subprocess
 import os
 import shutil
 from pathlib import Path
-from common import get_logger, get_source_dir
+from common import get_logger, get_source_dir, get_project_root
+
+
+def _install_extension(logger, out_dir):
+    """Copy built extension into the app bundle's Framework Resources directory."""
+    extension_src = get_project_root() / 'extension' / '.output' / 'chrome-mv3'
+    if not extension_src.exists():
+        logger.warning(f"Extension build output not found: {extension_src}")
+        return
+
+    # Find the Framework Resources directory inside the app bundle
+    app_dir = out_dir / 'Ocbot.app'
+    if not app_dir.exists():
+        logger.warning(f"App bundle not found: {app_dir}")
+        return
+
+    frameworks_dir = app_dir / 'Contents' / 'Frameworks'
+    framework = None
+    if frameworks_dir.exists():
+        for item in frameworks_dir.iterdir():
+            if item.name.endswith('.framework'):
+                framework = item
+                break
+
+    if not framework:
+        logger.warning("Framework bundle not found in app bundle")
+        return
+
+    dest = framework / 'Resources' / 'ocbot'
+
+    # Remove old copy and replace
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(extension_src, dest)
+    logger.info(f"Extension installed to {dest}")
 
 def build_chromium(args):
     logger = get_logger()
@@ -88,3 +122,6 @@ def build_chromium(args):
     
     logger.info(f"Building {args.target}...")
     subprocess.run(['autoninja', '-C', str(out_dir), args.target], cwd=src_dir)
+
+    # Copy extension into app bundle so component_loader can find it
+    _install_extension(logger, out_dir)
