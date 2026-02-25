@@ -2,10 +2,6 @@
 
 Ocbot follows a **Plan-Driven Development** workflow. 
 
-The core philosophy is: **Plan first, Code second, Patch last.**
-
-We do **not** ask AI to write `.patch` files directly. Instead, AI reads the Plan, modifies the Chromium source code directly, and then we use tooling to generate the patches.
-
 ## Workflow
 
 ```
