@@ -1,14 +1,32 @@
-# ocbot - AI Browser & Assistant
+# ocbot - Web4 Browser
 
 ## **[https://oc.bot](https://oc.bot)**
 
 ---
 
-**ocbot** is an AI browser & assistant. You can think of it as an open-source version of **Chrome + Gemini**, and an all-in-one version of **OpenClaw**.
+**ocbot** is the browser built for **Web 4.0** — an open-source, AI-native browser where intelligent agents are first-class citizens. Think of it as **Chrome + Gemini**, open-sourced and reimagined for the agentic internet.
 
 ---
 
-## ✨ Key Features
+## What is Web4?
+
+Web 4.0 is the next paradigm of the internet, defined by three pillars:
+
+### Agentic — AI as a First-Class Citizen
+
+The internet's audience is shifting from humans to **AI Agents**. UI is no longer the core — **structured data (APIs & Markdown)** becomes the new infrastructure. Social interaction evolves into millisecond-level matching between agents for hyper-efficient communication; e-commerce transforms into agent-driven, automated intelligence.
+
+### Decentralized — Compute Equity & Sovereignty Reclaimed
+
+Breaking the monopoly of big tech and influencers over the internet. Web 4.0 is the era of equity — information flow returns from "spoon-fed" feeds to **autonomous retrieval**. Media is power, and decentralization returns that power to the individual.
+
+### Crypto-Native — The Settlement Protocol for Machines
+
+Crypto is the economic lifeblood of the AI era. As digital-native entities, AI Agents conduct high-frequency, micro-value transactions that can only settle on crypto networks. Web 4.0 will witness the deep fusion of the AI economy with crypto protocols, building a new financial system.
+
+---
+
+## Key Features
 
 ### 1. AI Browser
 *   **Open Source Chrome + Gemini**: AI capabilities are deeply integrated into the browser kernel, not just as a plugin.
@@ -28,13 +46,13 @@ Achieve web automation with natural language—no coding required:
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Option 1: Quick View (Tarball)
 *For code preview only (Fast, ~20 mins).*
 ```bash
-./scripts/dev.py download --method tarball
-./scripts/dev.py patch
+python scripts/dev.py download --method tarball
+python scripts/dev.py patch
 ```
 
 ### Option 2: Full Development (Depot Tools)
@@ -45,17 +63,17 @@ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 export PATH="$PATH:$(pwd)/depot_tools"
 
 # 2. Download & Build
-./scripts/dev.py download --method depot --no-history
-./scripts/dev.py patch
-./scripts/dev.py build
-./scripts/dev.py run
+python scripts/dev.py download --method depot --no-history
+python scripts/dev.py patch
+python scripts/dev.py build
+python scripts/dev.py run
 ```
 
-> **Tip:** Run `./scripts/dev.py check` for auto-recommendation.
+> **Tip:** Run `python scripts/dev.py check` for auto-recommendation.
 
 ---
 
-## 🛠️ Development
+## Development
 
 | Doc | Description |
 |-----|-------------|
@@ -65,33 +83,33 @@ export PATH="$PATH:$(pwd)/depot_tools"
 
 ---
 
-## 🎯 Common Commands
+## Common Commands
 
 ```bash
 # Download
-./scripts/dev.py download --method tarball                 # Quick download
-./scripts/dev.py download --method depot --no-history      # Full download
+python scripts/dev.py download --method tarball                 # Quick download
+python scripts/dev.py download --method depot --no-history      # Full download
 
 # Patch
-./scripts/dev.py patch                                  # Apply all patches
+python scripts/dev.py patch                                  # Apply all patches
 
 # Update Patches
-./scripts/dev.py update_patches                         # Generate patches from source
+python scripts/dev.py update_patches                         # Generate patches from source
 
 # Build
-./scripts/dev.py build                                  # Build Browser
+python scripts/dev.py build                                  # Build Browser
 
 # Run
-./scripts/dev.py run                                    # Run with extension loaded
+python scripts/dev.py run                                    # Run with extension loaded
 
 # Help
-./scripts/dev.py --help
-./scripts/dev.py download --help
+python scripts/dev.py --help
+python scripts/dev.py download --help
 ```
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ocbot/

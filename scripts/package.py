@@ -49,16 +49,23 @@ def _read_plist(app_path):
 
 
 def sign_app(app_path, identity, entitlements=None):
-    """Sign the application bundle."""
-    logger.info(f"Signing {app_path} with identity '{identity}'...")
-    
-    # NOTE: For official notarization, we MUST use a 'Developer ID Application' certificate.
-    if "Apple Distribution" in identity:
-        logger.warning("WARNING: You are signing with an 'Apple Distribution' certificate.")
-        logger.warning("Notarization will likely FAIL.")
+    """Sign the application bundle for notarization.
 
-    # Helper to sign a single file
-    def sign_file(path, with_entitlements=False):
+    Signing order (inside-out):
+      1. dylibs in Libraries/
+      2. Standalone helper executables (app_mode_loader, crashpad, etc.)
+      3. Helper .app bundles (inner exe first, then the bundle)
+      4. The main framework bundle
+      5. The top-level .app bundle
+    Every binary gets --options runtime --timestamp so notarization passes.
+    """
+    logger.info(f"Signing {app_path} with identity '{identity}'...")
+
+    if "Apple Distribution" in identity:
+        logger.warning("WARNING: 'Apple Distribution' certificates cannot be notarized.")
+        logger.warning("Use a 'Developer ID Application' certificate instead.")
+
+    def _codesign(path, with_entitlements=False):
         cmd = [
             'codesign', '--force', '--verbose',
             '--options', 'runtime',
@@ -68,113 +75,63 @@ def sign_app(app_path, identity, entitlements=None):
         if with_entitlements and entitlements:
             cmd.extend(['--entitlements', str(entitlements)])
         cmd.append(str(path))
+        logger.info(f"  Signing {path.name}")
         subprocess.run(cmd, check=True)
 
     try:
-        # 1. Sign all dylibs and frameworks first (deepest first)
-        # We need to find:
-        # - Frameworks/*.framework/Versions/A/Libraries/*.dylib
-        # - Frameworks/*.framework/Versions/A/Frameworks/*.framework
-        # - Frameworks/*.framework/Versions/A/Helpers/*.app/Contents/MacOS/*
-        # - Frameworks/*.framework
-        
-        # A simple way is to walk and sign everything that looks binary, 
-        # but order matters (inside out).
-        
-        # Strategy:
-        # 1. Frameworks/Ocbot Framework.framework/Versions/Current/Libraries/*.dylib
-        # 2. Frameworks/Ocbot Framework.framework/Versions/Current/Helpers/* (executables)
-        # 3. Frameworks/Ocbot Framework.framework (the framework itself)
-        # 4. Main App Executable (implicitly by signing the app bundle?) 
-        #    Actually signing the app bundle with --deep *should* work if everything is standard,
-        #    but Chromium is weird.
-        
-        # Let's try explicit path signing for what we know exists in Chromium layout.
-        
         contents = app_path / 'Contents'
         frameworks_dir = contents / 'Frameworks'
-        
+
         # Find the main framework (e.g. Ocbot Framework.framework)
         main_framework = None
         for item in frameworks_dir.iterdir():
             if item.name.endswith('.framework'):
                 main_framework = item
                 break
-        
-        if main_framework:
-            # We assume the layout: Framework.framework/Versions/A/...
-            # But we can work with the 'Versions/Current' symlink or just explore.
-            # Let's just use `find` to sign all .dylib and executables inside Frameworks
-            
-            # Sign Libraries (*.dylib)
-            for lib in main_framework.glob('**/*.dylib'):
-                sign_file(lib)
 
-            # Sign Helpers
-            # Helpers include both .app bundles and standalone executables.
-            # We need to sign standalone executables first, then .app bundles.
+        if main_framework:
+            # 1. Sign all dylibs (Libraries/*.dylib)
+            logger.info("Signing dylibs...")
+            for lib in main_framework.glob('**/*.dylib'):
+                _codesign(lib)
+
+            # 2. Sign standalone helper executables (not inside .app bundles)
+            logger.info("Signing standalone helper executables...")
             for helper_dir in main_framework.glob('**/Helpers'):
                 if not helper_dir.is_dir():
                     continue
-                for item in helper_dir.iterdir():
+                for item in sorted(helper_dir.iterdir()):
                     if item.name.startswith('.'):
                         continue
                     if item.is_file() and os.access(item, os.X_OK):
-                        # Standalone executable (e.g. app_mode_loader,
-                        # chrome_crashpad_handler, web_app_shortcut_copier)
-                        sign_file(item, with_entitlements=True)
+                        _codesign(item, with_entitlements=True)
 
+            # 3. Sign helper .app bundles (exe inside first, then the bundle)
+            logger.info("Signing helper app bundles...")
             for helper_app in main_framework.glob('**/Helpers/*.app'):
-                # Sign the executable inside the helper
-                # We can also sign the helper app bundle itself
-                # Let's just sign the whole helper app bundle with --deep
-                # But to be safe, sign the executable first? 
-                # codesign --deep on the .app helper should be enough for the helper.
-                # But let's be explicit.
-                
-                # Sign executable inside helper
                 macos_dir = helper_app / 'Contents' / 'MacOS'
                 if macos_dir.exists():
                     for exe in macos_dir.iterdir():
                         if exe.is_file():
-                            sign_file(exe, with_entitlements=True) # Helpers need entitlements too?
-                
-                # Sign the helper app bundle
-                sign_file(helper_app, with_entitlements=True)
+                            _codesign(exe, with_entitlements=True)
+                _codesign(helper_app, with_entitlements=True)
 
-            # Sign the Framework itself
-            # We should sign the actual dylib inside the framework
-            # e.g. Ocbot Framework.framework/Versions/A/Ocbot Framework
-            framework_name = main_framework.stem # "Ocbot Framework"
-            framework_bin = main_framework / 'Versions' / 'Current' / framework_name
-            if not framework_bin.exists():
-                 # Try finding it without 'Current' link if it's broken in staging?
-                 # usually Current -> A
-                 pass
-            
-            # Just sign the top level framework folder? No, codesign wants the binary or bundle.
-            # For a framework, we sign the versioned folder or the binary?
-            # Usually signing the framework bundle is enough.
-            sign_file(main_framework)
+            # 4. Sign the framework bundle itself
+            logger.info("Signing framework bundle...")
+            _codesign(main_framework)
 
-        # Finally, sign the main application bundle
-        # We use --deep here to catch anything we missed, but since we signed the heavy stuff
-        # explicitly, it should be fine.
-        # WAIT: If we use --deep on the main app, it might overwrite signatures or complain.
-        # But we force it.
-        
-        cmd = [
-            'codesign', '--force', '--verbose',
-            '--options', 'runtime',
-            '--timestamp',
-            '--sign', identity,
-        ]
-        if entitlements:
-            cmd.extend(['--entitlements', str(entitlements)])
-        cmd.append(str(app_path))
-        
-        subprocess.run(cmd, check=True)
-        
+        # 5. Sign the top-level app bundle
+        logger.info("Signing app bundle...")
+        _codesign(app_path, with_entitlements=True)
+
+        # Verify the signature
+        logger.info("Verifying signature...")
+        subprocess.run([
+            'codesign', '--verify', '--deep', '--strict', '--verbose=2',
+            str(app_path),
+        ], check=True)
+        logger.info("Signature verification passed.")
+
     except subprocess.CalledProcessError as e:
         logger.error(f"Signing failed: {e}")
         sys.exit(1)
