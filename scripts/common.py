@@ -25,47 +25,26 @@ def get_project_root():
 
 def get_chromium_version():
     """
-    Detect version from patches/v*/chromium_version.txt.
-    Expects version directories like v144, v145.
-    If multiple found, returns the latest (lexicographically).
+    Look up the full Chromium version from version_map.json using the
+    major version extracted from the product VERSION file (e.g. 144.1.0 -> 144).
     """
-    patches_dir = get_project_root() / 'patches'
-    if not patches_dir.exists():
-        return None
-        
-    # Find all v* directories
-    version_dirs = [d for d in patches_dir.iterdir() if d.is_dir() and d.name.startswith('v')]
-    
-    if not version_dirs:
-        return None
-        
-    # Sort by version number (e.g. v144 < v145)
-    # Simple string sort works for v100+
-    version_dirs.sort(key=lambda x: x.name)
-    
-    latest_dir = version_dirs[-1]
-    version_file = latest_dir / 'chromium_version.txt'
-    
-    if version_file.exists():
-        return version_file.read_text().strip()
-    
+    product_version = get_product_version()
+    major = product_version.split('.')[0]
+    version_map = get_version_map()
+    entry = version_map.get(major)
+    if entry:
+        return entry['chromium']
     return None
 
-def get_patches_dir(version=None):
+def get_patches_dir():
     """
-    Get the directory containing patches for the given version.
-    If version is None, detects the latest version.
-    Returns path like ocbot/patches/v144
+    Get the directory containing patches based on the product version.
+    Extracts major version from VERSION file and returns ocbot/patches/vXXX.
+    Returns the path even if the directory does not yet exist.
     """
-    if not version:
-        version = get_chromium_version()
-        
-    if not version:
-        return None
-        
-    major_version = version.split('.')[0]
-    patches_dir = get_project_root() / 'patches' / f"v{major_version}"
-    return patches_dir if patches_dir.exists() else None
+    product_version = get_product_version()
+    major = product_version.split('.')[0]
+    return get_project_root() / 'patches' / f"v{major}"
 
 def get_product_version():
     """Read product version from VERSION file."""

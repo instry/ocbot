@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/browser_updater.mm b/chrome/browser/ocbot/browser_updater.mm
 new file mode 100644
-index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000002
+index 0000000000000000000000000000000000000000..8870babe901bd94eef724bcf6321fd05c85eeea1
 --- /dev/null
 +++ b/chrome/browser/ocbot/browser_updater.mm
-@@ -0,0 +1,326 @@
+@@ -0,0 +1,413 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -95,7 +95,7 @@ index 0000000000000000000000000000000000000000..00000000000000000000000000000000
 +    return false;
 +  }
 +
-+  const base::Value::Dict& dict = *result;
++  const base::DictValue& dict = *result;
 +
 +  // tag_name is like "v0.2.0"
 +  const std::string* tag = dict.FindString("tag_name");
@@ -115,13 +115,13 @@ index 0000000000000000000000000000000000000000..00000000000000000000000000000000
 +  }
 +
 +  // Find the DMG asset (Ocbot-*.dmg)
-+  const base::Value::List* assets = dict.FindList("assets");
++  const base::ListValue* assets = dict.FindList("assets");
 +  if (!assets) {
 +    return false;
 +  }
 +
 +  for (const auto& asset_value : *assets) {
-+    const base::Value::Dict* asset = asset_value.GetIfDict();
++    const base::DictValue* asset = asset_value.GetIfDict();
 +    if (!asset) {
 +      continue;
 +    }
@@ -363,17 +363,18 @@ index 0000000000000000000000000000000000000000..00000000000000000000000000000000
 +  }
 +
 +  // Install on a background thread, then report on UI thread.
++  std::string ver = version;
 +  base::ThreadPool::PostTaskAndReplyWithResult(
 +      FROM_HERE,
 +      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
 +       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
 +      base::BindOnce(&InstallFromDmgBlocking, tmp, app_path),
 +      base::BindOnce(&OcbotBrowserUpdater::OnInstallComplete,
-+                     weak_factory_.GetWeakPtr(), version));
++                     weak_factory_.GetWeakPtr(), std::move(ver)));
 +}
 +
-+void OcbotBrowserUpdater::OnInstallComplete(bool success,
-+                                             const std::string& version) {
++void OcbotBrowserUpdater::OnInstallComplete(const std::string& version,
++                                             bool success) {
 +  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 +
 +  if (success) {
@@ -395,7 +396,7 @@ index 0000000000000000000000000000000000000000..00000000000000000000000000000000
 +    }
 +  }
 +  // Fallback to compiled-in version.
-+  return version_info::GetVersionNumber();
++  return std::string(version_info::GetVersionNumber());
 +}
 +
 +base::FilePath OcbotBrowserUpdater::GetCurrentAppPath() const {

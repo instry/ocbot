@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/extensions/api/debugger/debugger_api.cc b/chrome/browser/extensions/api/debugger/debugger_api.cc
-index 1234567890ab..abcdef123456 100644
+index f9e38b0c252dc634b093879e22a85ecf9e088410..8999cbec29c310b49db1ba78ec2f0093b463a538 100644
 --- a/chrome/browser/extensions/api/debugger/debugger_api.cc
 +++ b/chrome/browser/extensions/api/debugger/debugger_api.cc
-@@ -31,6 +31,7 @@
+@@ -36,6 +36,7 @@
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/profiles/profile_observer.h"
  #include "chrome/common/chrome_switches.h"
@@ -10,13 +10,13 @@ index 1234567890ab..abcdef123456 100644
  #include "chrome/common/pref_names.h"
  #include "components/guest_view/buildflags/buildflags.h"
  #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
-@@ -483,7 +484,8 @@
+@@ -482,7 +483,8 @@ bool ExtensionDevToolsClientHost::Attach() {
    const bool suppress_infobar =
        base::CommandLine::ForCurrentProcess()->HasSwitch(
            ::switches::kSilentDebuggerExtensionAPI) ||
 -      Manifest::IsPolicyLocation(extension_->location());
 +      Manifest::IsPolicyLocation(extension_->location()) ||
 +      extension_->id() == extension_misc::kOcbotExtensionId;
-
+ 
    if (!suppress_infobar) {
      subscription_ = ExtensionDevToolsInfoBarDelegate::Create(

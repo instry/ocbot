@@ -1,16 +1,16 @@
 diff --git a/chrome/browser/ocbot/BUILD.gn b/chrome/browser/ocbot/BUILD.gn
 new file mode 100644
-index 0000000000000000000000000000000000000000..52a55f1f850cbfbc971df0cf30423f38320c45f1
+index 0000000000000000000000000000000000000000..b2ae79c1e0c045da6e1c5a2390f1e029033da88c
 --- /dev/null
 +++ b/chrome/browser/ocbot/BUILD.gn
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,25 @@
 +# Copyright 2025 The Ocbot Authors
 +# SPDX-License-Identifier: MIT
 +
 +source_set("ocbot") {
 +  sources = [
-+    "browser_updater.mm",
 +    "browser_updater.h",
++    "browser_updater.mm",
 +    "extension_updater.cc",
 +    "extension_updater.h",
 +  ]

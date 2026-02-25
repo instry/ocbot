@@ -147,13 +147,9 @@ def update_patches(args):
 
     from common import get_patches_dir
     patches_dir = get_patches_dir()
-    if not patches_dir:
-        # If no patches dir exists yet (first run), try to create one based on current chromium version
-        # This is tricky because we don't know the version if we don't have the file.
-        # But usually update_patches is run after download, so maybe we can check src/chrome/VERSION?
-        # For now, just error out if not found, user should create vXXX dir manually or use `download` first.
-        logger.error("Could not determine patches directory. Please create ocbot/patches/vXXX/chromium_version.txt first.")
-        return
+    if not patches_dir.exists():
+        logger.info(f"Creating patches directory: {patches_dir}")
+        patches_dir.mkdir(parents=True, exist_ok=True)
     
     # Determine Base Commit
     base_ref = getattr(args, 'base', None)
