@@ -47,28 +47,14 @@ Crypto is the economic lifeblood of the AI era. As digital-native entities, AI A
 
 ## Quick Start
 
-### Option 1: Quick View (Tarball)
+For full development setup and workflow, please see **[Plan-Driven Development](docs/plan-driven-dev.md)**.
+
+### Quick View (Tarball)
 *For code preview only (Fast, ~20 mins).*
 ```bash
 python scripts/dev.py download --method tarball
 python scripts/dev.py patch
 ```
-
-### Option 2: Full Development (Depot Tools)
-*For building and contributing (Slow, ~2 hours).*
-```bash
-# 1. Setup Depot Tools
-git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-export PATH="$PATH:$(pwd)/depot_tools"
-
-# 2. Download & Build
-python scripts/dev.py download --method depot --no-history
-python scripts/dev.py patch
-python scripts/dev.py build
-python scripts/dev.py run
-```
-
-> **Tip:** Run `python scripts/dev.py check` for auto-recommendation.
 
 ---
 
@@ -76,53 +62,8 @@ python scripts/dev.py run
 
 | Doc | Description |
 |-----|-------------|
-| [Development Workflow](docs/development.md) | Patch-based dev workflow, branching strategy |
-| [Plan-Driven Development](docs/plan-driven-dev.md) | How we use plan files for AI-assisted development and Chromium version upgrades |
+| [Plan-Driven Development](docs/plan-driven-dev.md) | **The Main Guide**: Workflow, Setup, Commands, and Architecture |
 | [Plans](plans/) | Feature plan files — the source of truth for each Chromium modification |
-
----
-
-## Common Commands
-
-```bash
-# Download
-python scripts/dev.py download --method tarball                 # Quick download
-python scripts/dev.py download --method depot --no-history      # Full download
-
-# Patch
-python scripts/dev.py patch                                  # Apply all patches
-
-# Update Patches
-python scripts/dev.py update_patches                         # Generate patches from source
-
-# Build
-python scripts/dev.py build                                  # Build Browser
-
-# Run
-python scripts/dev.py run                                    # Run with extension loaded
-
-# Help
-python scripts/dev.py --help
-python scripts/dev.py download --help
-```
-
----
-
-## Project Structure
-
-```
-ocbot/
-├── docs/                       # Documentation
-├── plans/                      # Feature plans (intent + logic for each patch set)
-├── extension/                  # Chrome Extension (WXT + React)
-├── patches/
-│   └── v144/                   # Chromium patches for current version
-├── scripts/                    # Build Scripts
-│   └── dev.py                  # Main CLI Tool
-│
-chromium/                       # Chromium Source Directory
-└── <version>/src/              # Patched source tree
-```
 
 ---
 

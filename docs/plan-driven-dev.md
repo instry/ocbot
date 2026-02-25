@@ -2,7 +2,32 @@
 
 Ocbot follows a **Plan-Driven Development** workflow. 
 
+The core philosophy is: **Plan first, Code second, Patch last.**
+
 We do **not** ask AI to write `.patch` files directly. Instead, AI reads the Plan, modifies the Chromium source code directly, and then we use tooling to generate the patches.
+
+## Prerequisites
+
+- macOS / Linux (Windows untested)
+- Python 3
+- Node.js + npm (for extension build)
+- [Depot Tools](https://chromium.googlesource.com/chromium/tools/depot_tools.git) (for full build)
+
+## Getting Started
+
+```bash
+# 1. Check your environment
+./scripts/dev.py check
+
+# 2. Download Chromium source
+./scripts/dev.py download                          # Quick tarball (code review only)
+./scripts/dev.py download --method depot --no-history  # Full source (for building)
+
+# 3. Apply existing patches to get the current ocbot state
+./scripts/dev.py patch
+```
+
+After `patch`, the Chromium source tree at `chromium/<version>/src/` contains all ocbot modifications and is ready for development.
 
 ## Workflow
 
@@ -10,10 +35,11 @@ We do **not** ask AI to write `.patch` files directly. Instead, AI reads the Pla
 1. Requirement      →  Propose a new feature or change.
 2. Plan             →  Create/Update `ocbot/plans/NN-feature-name.md`.
 3. Implement        →  AI modifies `chromium/<version>/src/` directly.
-4. Build & Verify   →  User runs `dev.py build` and tests the feature.
-5. Local Commit     →  (Optional) Commit changes to Chromium's local git for history.
-6. Generate Patches →  Run `python3 ocbot/scripts/dev.py update_patches`.
-7. Commit Ocbot     →  Commit `patches/` and `plans/` to ocbot repo.
+4. Build & Verify   →  Run `dev.py build`. AI fixes build errors until success.
+5. Reflect & Update →  **After build succeeds**, AI updates Plan to match actual implementation.
+6. Local Commit     →  (Optional) Commit changes to Chromium's local git for history.
+7. Generate Patches →  Run `python3 ocbot/scripts/dev.py update_patches`.
+8. Commit Ocbot     →  Commit `patches/` and `plans/` to ocbot repo.
 ```
 
 ## Why Plan-Driven?
@@ -26,9 +52,68 @@ We do **not** ask AI to write `.patch` files directly. Instead, AI reads the Pla
 
 -   **Input**: The user's requirement + The Plan file (`ocbot/plans/X.md`).
 -   **Action**: Directly edit files in `src/`.
--   **Output**: Modified source code (NOT patch files).
+-   **Validation**: **MUST** run build (`dev.py build`) and fix any compilation errors.
+-   **Reflection**: **Only after build succeeds**, check if the `ocbot/plans/X.md` needs to be updated to reflect the actual implementation.
+-   **Output**: Modified source code (NOT patch files) AND updated Plan file.
 
 *Note: Patch files are purely a storage mechanism, generated automatically by `dev.py update_patches`.*
+
+## Commands Reference
+
+```bash
+# Download
+python scripts/dev.py download --method tarball                 # Quick download
+python scripts/dev.py download --method depot --no-history      # Full download
+
+# Patch
+python scripts/dev.py patch                                  # Apply all patches
+
+# Update Patches
+python scripts/dev.py update_patches                         # Generate patches from source
+
+# Build
+python scripts/dev.py build                                  # Build Browser
+
+# Run
+python scripts/dev.py run                                    # Run with extension loaded
+
+# Package
+python scripts/dev.py package                                # Package into DMG
+
+# Help
+python scripts/dev.py --help
+```
+
+| Command | Description |
+|---------|-------------|
+| `check` | Check environment, recommend download method |
+| `download` | Download Chromium source (`--method tarball\|depot\|sync`) |
+| `patch` | Apply all patches to source (sync state) |
+| `reset` | Revert all patches (clean source) |
+| `update_patches` | Generate patches from modified source |
+| `build` | Build Ocbot (`--official`, `--clean`, `--target`) |
+| `run` | Run Ocbot (`--official`) |
+| `package` | Package into DMG (`--sign`, `--notarize`) |
+
+## Branching Strategy
+
+### `main`
+Stable development branch. `ocbot/patches/` always reflects a buildable state.
+
+### `feat/xxx`
+Feature branches.
+1.  `git checkout -b feat/my-feature`
+2.  Follow the [Workflow](#workflow).
+
+### `upgrade/chromium-xxx`
+Chromium version upgrade:
+1.  Download new Chromium source.
+2.  `./scripts/dev.py patch` (many will fail).
+3.  **AI Re-implementation**: Feed failed patches' plans to AI: "Re-implement this on new Chromium".
+4.  AI modifies source directly.
+5.  Build -> Test -> Fix.
+6.  `./scripts/dev.py update_patches` (generates new clean patches for the new version).
+7.  Update Plans with new API pitfalls.
 
 ## Plan File Conventions
 
@@ -71,15 +156,20 @@ void DoSomething() {
 - Build dependency issues.
 ```
 
-## Directory Structure
+## Project Structure
 
 ```
 ocbot/
-├── plans/                  ← The Source of Truth for Logic
+├── docs/                       # Documentation
+├── plans/                      # Feature plans (The Source of Truth for Logic)
 │   ├── 00-branding.md
 │   └── ...
-├── patches/                ← The Storage Mechanism (Generated)
-│   └── v144/
-└── scripts/
-    └── dev.py              ← The Tooling
+├── extension/                  # Chrome Extension (WXT + React)
+├── patches/                    # The Storage Mechanism (Generated)
+│   └── v144/                   # Chromium patches for current version
+├── scripts/                    # Build Scripts
+│   └── dev.py                  # Main CLI Tool
+│
+chromium/                       # Chromium Source Directory
+└── <version>/src/              # Patched source tree
 ```
