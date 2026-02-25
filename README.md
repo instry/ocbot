@@ -4,7 +4,7 @@
 
 ---
 
-**ocbot** is the browser built for **Web 4.0** — an open-source, AI-native browser where intelligent agents are first-class citizens. Think of it as **Chrome + Gemini**, open-sourced and reimagined for the agentic internet.
+**ocbot** is the browser built for **Web 4.0** — an open-source, AI-native browser where intelligent agents are first-class citizens. 
 
 ---
 
