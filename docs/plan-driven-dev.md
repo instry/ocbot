@@ -6,29 +6,6 @@ The core philosophy is: **Plan first, Code second, Patch last.**
 
 We do **not** ask AI to write `.patch` files directly. Instead, AI reads the Plan, modifies the Chromium source code directly, and then we use tooling to generate the patches.
 
-## Prerequisites
-
-- macOS / Linux (Windows untested)
-- Python 3
-- Node.js + npm (for extension build)
-- [Depot Tools](https://chromium.googlesource.com/chromium/tools/depot_tools.git) (for full build)
-
-## Getting Started
-
-```bash
-# 1. Check your environment
-./scripts/dev.py check
-
-# 2. Download Chromium source
-./scripts/dev.py download                          # Quick tarball (code review only)
-./scripts/dev.py download --method depot --no-history  # Full source (for building)
-
-# 3. Apply existing patches to get the current ocbot state
-./scripts/dev.py patch
-```
-
-After `patch`, the Chromium source tree at `chromium/<version>/src/` contains all ocbot modifications and is ready for development.
-
 ## Workflow
 
 ```
@@ -57,6 +34,70 @@ After `patch`, the Chromium source tree at `chromium/<version>/src/` contains al
 -   **Output**: Modified source code (NOT patch files) AND updated Plan file.
 
 *Note: Patch files are purely a storage mechanism, generated automatically by `dev.py update_patches`.*
+
+## Plan File Conventions
+
+### Naming
+
+`NN-feature-name.md` — number indicates implementation order.
+
+### Template
+
+```markdown
+# Plan: [Feature Name]
+
+## Goal
+
+One or two sentences describing the feature goal.
+
+## Implementation Details
+
+### 1. [Change Title]
+
+**Target:** `path/to/file.cc`
+
+**Logic:**
+Describe what needs to be changed.
+
+```cpp
+// Key code snippet
+void DoSomething() {
+  // ...
+}
+```
+
+## Key Decisions
+
+- Why approach A over B?
+
+## Known Pitfalls
+
+- API version differences.
+- Build dependency issues.
+```
+
+## Prerequisites
+
+- macOS / Linux (Windows untested)
+- Python 3
+- Node.js + npm (for extension build)
+- [Depot Tools](https://chromium.googlesource.com/chromium/tools/depot_tools.git) (for full build)
+
+## Getting Started
+
+```bash
+# 1. Check your environment
+./scripts/dev.py check
+
+# 2. Download Chromium source
+./scripts/dev.py download                          # Quick tarball (code review only)
+./scripts/dev.py download --method depot --no-history  # Full source (for building)
+
+# 3. Apply existing patches to get the current ocbot state
+./scripts/dev.py patch
+```
+
+After `patch`, the Chromium source tree at `chromium/<version>/src/` contains all ocbot modifications and is ready for development.
 
 ## Commands Reference
 
@@ -114,47 +155,6 @@ Chromium version upgrade:
 5.  Build -> Test -> Fix.
 6.  `./scripts/dev.py update_patches` (generates new clean patches for the new version).
 7.  Update Plans with new API pitfalls.
-
-## Plan File Conventions
-
-### Naming
-
-`NN-feature-name.md` — number indicates implementation order.
-
-### Template
-
-```markdown
-# Plan: [Feature Name]
-
-## Goal
-
-One or two sentences describing the feature goal.
-
-## Implementation Details
-
-### 1. [Change Title]
-
-**Target:** `path/to/file.cc`
-
-**Logic:**
-Describe what needs to be changed.
-
-```cpp
-// Key code snippet
-void DoSomething() {
-  // ...
-}
-```
-
-## Key Decisions
-
-- Why approach A over B?
-
-## Known Pitfalls
-
-- API version differences.
-- Build dependency issues.
-```
 
 ## Project Structure
 
