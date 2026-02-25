@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ocbot — The Web4 Browser</title>
+  <meta name="description" content="An open-source, AI-native browser where intelligent agents are first-class citizens.">
+  <link rel="icon" href="octopus.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-deep: #0a0a10;
+      --bg-card: #0e0d16;
+      --bg-card-hover: #13111e;
+      --border-dim: rgba(190, 80, 240, 0.08);
+      --border-glow: rgba(190, 80, 240, 0.25);
+      --purple: #be50f0;
+      --purple-light: #d580ff;
+      --purple-dim: rgba(190, 80, 240, 0.15);
+      --purple-glow: rgba(190, 80, 240, 0.4);
+      --violet: #9040d0;
+      --magenta: #e060c0;
+      --magenta-dim: rgba(224, 96, 192, 0.15);
+      --green: #50e898;
+      --green-dim: rgba(80, 232, 152, 0.15);
+      --text-primary: #eae8f2;
+      --text-secondary: #9088a8;
+      --text-dim: #5a5570;
+      --font-display: 'Orbitron', sans-serif;
+      --font-body: 'Chakra Petch', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-weight: 400;
+      line-height: 1.7;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Noise + Scanline Overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+      );
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+    }
+
+    /* ── Grid Background (Hero) ── */
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .grid-bg canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Typography ── */
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+    }
+
+    /* ── Utility ── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .section-heading {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+
+    .section-heading h2 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      color: var(--text-primary);
+      display: inline-block;
+      position: relative;
+      padding-bottom: 16px;
+    }
+
+    .section-heading h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      height: 2px;
+      background: var(--purple);
+      box-shadow: 0 0 12px var(--purple-glow), 0 0 30px var(--purple-dim);
+      border-radius: 1px;
+    }
+
+    /* ── Reveal Animation ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ════════════════════════════════════════════
+       HERO
+    ════════════════════════════════════════════ */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 100px 24px 80px;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 820px;
+    }
+
+    /* ── Octopus Mascot ── */
+    .hero-mascot {
+      width: 160px;
+      height: 160px;
+      margin: 0 auto 28px;
+      animation: mascotFloat 4s ease-in-out infinite;
+      filter: drop-shadow(0 0 30px rgba(190, 80, 240, 0.3))
+              drop-shadow(0 0 60px rgba(190, 80, 240, 0.15));
+      transition: filter 0.4s ease, transform 0.4s ease;
+    }
+
+    .hero-mascot:hover {
+      filter: drop-shadow(0 0 40px rgba(190, 80, 240, 0.5))
+              drop-shadow(0 0 80px rgba(190, 80, 240, 0.25));
+      transform: scale(1.05);
+    }
+
+    .hero-mascot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    @keyframes mascotFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .hero-mascot:hover {
+      animation-play-state: paused;
+      transform: scale(1.05) translateY(-6px);
+    }
+
+    .hero-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--purple-light);
+      border: 1px solid var(--border-glow);
+      padding: 6px 18px;
+      border-radius: 100px;
+      margin-bottom: 32px;
+      background: var(--purple-dim);
+    }
+
+    .hero h1 {
+      font-size: clamp(3.2rem, 10vw, 6.5rem);
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--purple-light) 0%, var(--purple) 40%, var(--magenta) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 40px var(--purple-dim));
+      animation: heroGlow 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes heroGlow {
+      0% { filter: drop-shadow(0 0 30px var(--purple-dim)); }
+      100% { filter: drop-shadow(0 0 60px var(--purple-glow)); }
+    }
+
+    .hero-tagline {
+      font-family: var(--font-display);
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+    }
+
+    .hero-tagline .web4 {
+      color: var(--purple-light);
+      text-shadow: 0 0 20px var(--purple-glow);
+    }
+
+    .hero-description {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--text-secondary);
+      max-width: 620px;
+      margin: 0 auto 20px;
+      line-height: 1.8;
+    }
+
+    .hero-typed {
+      font-family: var(--font-mono);
+      font-size: clamp(0.8rem, 1.5vw, 0.95rem);
+      color: var(--green);
+      min-height: 1.8em;
+      margin-bottom: 44px;
+    }
+
+    .hero-typed .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background: var(--green);
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 14px 36px;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--purple), var(--violet));
+      color: #fff;
+      box-shadow: 0 0 20px var(--purple-dim), 0 0 40px rgba(190, 80, 240, 0.08);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 30px var(--purple-glow), 0 0 60px var(--purple-dim);
+      transform: translateY(-2px);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--purple-light);
+      border: 1px solid var(--border-glow);
+      box-shadow: 0 0 10px rgba(190, 80, 240, 0.05);
+    }
+
+    .btn-outline:hover {
+      background: var(--purple-dim);
+      border-color: var(--purple);
+      box-shadow: 0 0 20px var(--purple-dim);
+      transform: translateY(-2px);
+    }
+
+    /* ════════════════════════════════════════════
+       WHAT IS WEB4 — PILLARS
+    ════════════════════════════════════════════ */
+    .pillars {
+      padding: 120px 0;
+      position: relative;
+    }
+
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .pillar-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 12px;
+      padding: 40px 32px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .pillar-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--purple), transparent);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .pillar-card:hover {
+      border-color: var(--border-glow);
+      background: var(--bg-card-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 40px rgba(190, 80, 240, 0.06);
+    }
+
+    .pillar-card:hover::before {
+      opacity: 1;
+    }
+
+    .pillar-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      font-size: 24px;
+      background: var(--purple-dim);
+      border: 1px solid rgba(190, 80, 240, 0.12);
+      color: var(--purple-light);
+    }
+
+    .pillar-card:nth-child(2) .pillar-icon {
+      background: var(--green-dim);
+      border-color: rgba(80, 232, 152, 0.12);
+      color: var(--green);
+    }
+
+    .pillar-card:nth-child(3) .pillar-icon {
+      background: var(--magenta-dim);
+      border-color: rgba(224, 96, 192, 0.15);
+      color: var(--magenta);
+    }
+
+    .pillar-card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 6px;
+      letter-spacing: 0.06em;
+    }
+
+    .pillar-card .pillar-subtitle {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .pillar-card p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* ════════════════════════════════════════════
+       KEY FEATURES
+    ════════════════════════════════════════════ */
+    .features {
+      padding: 120px 0;
+      position: relative;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .feature-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 12px;
+      padding: 40px 32px;
+      transition: all 0.4s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-block::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--purple), transparent);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .feature-block:hover {
+      border-color: var(--border-glow);
+      background: var(--bg-card-hover);
+      box-shadow: 0 8px 40px rgba(190, 80, 240, 0.06);
+    }
+
+    .feature-block:hover::after {
+      opacity: 1;
+    }
+
+    .feature-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--purple-light);
+      margin-bottom: 12px;
+      display: inline-block;
+      padding: 3px 10px;
+      border: 1px solid var(--border-glow);
+      border-radius: 4px;
+      background: var(--purple-dim);
+    }
+
+    .feature-block:nth-child(2) .feature-label {
+      color: var(--green);
+      border-color: rgba(80, 232, 152, 0.25);
+      background: var(--green-dim);
+    }
+
+    .feature-block:nth-child(3) .feature-label {
+      color: var(--magenta);
+      border-color: rgba(224, 96, 192, 0.25);
+      background: var(--magenta-dim);
+    }
+
+    .feature-block h3 {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      letter-spacing: 0.04em;
+    }
+
+    .feature-list {
+      list-style: none;
+    }
+
+    .feature-list li {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      padding: 8px 0;
+      padding-left: 20px;
+      position: relative;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .feature-list li:last-child {
+      border-bottom: none;
+    }
+
+    .feature-list li::before {
+      content: '>';
+      position: absolute;
+      left: 0;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--purple-light);
+      font-weight: 700;
+    }
+
+    .feature-block:nth-child(2) .feature-list li::before {
+      color: var(--green);
+    }
+
+    .feature-block:nth-child(3) .feature-list li::before {
+      color: var(--magenta);
+    }
+
+    /* ════════════════════════════════════════════
+       GET STARTED
+    ════════════════════════════════════════════ */
+    .get-started {
+      padding: 120px 0;
+      text-align: center;
+    }
+
+    .terminal {
+      max-width: 680px;
+      margin: 0 auto 48px;
+      background: #08080e;
+      border: 1px solid var(--border-dim);
+      border-radius: 12px;
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--border-dim);
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-dim);
+    }
+
+    .terminal-dot:nth-child(1) { background: #ff5f57; }
+    .terminal-dot:nth-child(2) { background: #febc2e; }
+    .terminal-dot:nth-child(3) { background: #28c840; }
+
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-left: 8px;
+      letter-spacing: 0.05em;
+    }
+
+    .terminal-body {
+      padding: 24px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 2;
+    }
+
+    .terminal-body .prompt {
+      color: var(--purple-light);
+      user-select: none;
+    }
+
+    .terminal-body .cmd {
+      color: var(--text-primary);
+    }
+
+    .terminal-body .comment {
+      color: var(--text-dim);
+    }
+
+    .get-started-links {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ════════════════════════════════════════════
+       FOOTER
+    ════════════════════════════════════════════ */
+    footer {
+      border-top: 1px solid var(--border-dim);
+      padding: 48px 24px;
+      text-align: center;
+    }
+
+    .footer-mascot {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 20px;
+      opacity: 0.6;
+      transition: opacity 0.3s ease;
+    }
+
+    .footer-mascot:hover {
+      opacity: 1;
+    }
+
+    .footer-mascot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .footer-links a {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      transition: color 0.3s ease;
+    }
+
+    .footer-links a:hover {
+      color: var(--purple-light);
+    }
+
+    .footer-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 4px 14px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+
+    .footer-copy {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* ════════════════════════════════════════════
+       RESPONSIVE
+    ════════════════════════════════════════════ */
+    @media (max-width: 960px) {
+      .pillars-grid,
+      .features-grid {
+        grid-template-columns: 1fr;
+        max-width: 520px;
+        margin: 0 auto;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero { padding: 80px 16px 60px; }
+      .hero-mascot { width: 120px; height: 120px; }
+      .hero-ctas { flex-direction: column; align-items: center; }
+      .btn { width: 100%; max-width: 280px; justify-content: center; }
+      .terminal-body { padding: 16px; font-size: 0.75rem; }
+      .section-heading { margin-bottom: 48px; }
+      .pillars, .features, .get-started { padding: 80px 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero">
+    <div class="grid-bg">
+      <canvas id="gridCanvas"></canvas>
+    </div>
+    <div class="hero-content">
+      <div class="hero-mascot">
+        <img src="octopus.png" alt="ocbot mascot — cute octopus">
+      </div>
+      <div class="hero-badge">Open Source &middot; AI-Native &middot; Web4</div>
+      <h1>ocbot</h1>
+      <div class="hero-tagline">The <span class="web4">Web4</span> Browser</div>
+      <p class="hero-description">
+        An open-source, AI-native browser where intelligent agents are first-class citizens.
+      </p>
+      <div class="hero-typed">
+        <span id="typed-text"></span><span class="cursor"></span>
+      </div>
+      <div class="hero-ctas">
+        <!-- Download button — uncomment when release is available
+        <a href="#" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </a>
+        -->
+        <a href="https://github.com/instry/ocbot" class="btn btn-outline" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ WHAT IS WEB4 ═══ -->
+  <section class="pillars">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>What is Web4?</h2>
+      </div>
+      <div class="pillars-grid">
+
+        <div class="pillar-card reveal">
+          <div class="pillar-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 6a4 4 0 0 1 8 0"/><circle cx="12" cy="14" r="3"/><path d="M12 17v4"/><path d="M7 20h10"/><path d="M5 10c-1.5 1-2 3-2 5"/><path d="M19 10c1.5 1 2 3 2 5"/></svg>
+          </div>
+          <h3>Agentic</h3>
+          <div class="pillar-subtitle">AI as First-Class Citizen</div>
+          <p>AI agents aren't add-ons &mdash; they're core to the browsing experience. The browser is built from the ground up for autonomous, intelligent operation.</p>
+        </div>
+
+        <div class="pillar-card reveal">
+          <div class="pillar-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="12" cy="12" r="2"/><line x1="7.8" y1="7.8" x2="10.2" y2="10.2"/><line x1="13.8" y1="10.2" x2="16.2" y2="7.8"/><line x1="7.8" y1="16.2" x2="10.2" y2="13.8"/><line x1="13.8" y1="13.8" x2="16.2" y2="16.2"/></svg>
+          </div>
+          <h3>Decentralized</h3>
+          <div class="pillar-subtitle">Compute Equity & Sovereignty</div>
+          <p>Your data stays yours. Decentralized architecture ensures compute equity, privacy by default, and sovereignty over your digital footprint.</p>
+        </div>
+
+        <div class="pillar-card reveal">
+          <div class="pillar-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3h-8l-2 4h12z"/><circle cx="8" cy="15" r="1.5"/><circle cx="16" cy="15" r="1.5"/><path d="M8 15h8"/></svg>
+          </div>
+          <h3>Crypto-Native</h3>
+          <div class="pillar-subtitle">Settlement Protocol for Machines</div>
+          <p>Built-in wallet and crypto settlement layer enables machine-to-machine transactions, powering an autonomous agent economy.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ KEY FEATURES ═══ -->
+  <section class="features">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>Key Features</h2>
+      </div>
+      <div class="features-grid">
+
+        <div class="feature-block reveal">
+          <div class="feature-label">Agentic Browser</div>
+          <h3>Intelligence Built In</h3>
+          <ul class="feature-list">
+            <li>AI-Native Kernel &mdash; reasoning engine at the core, not bolted on</li>
+            <li>Autonomous Task Execution &mdash; agents browse, fill, click, extract on your behalf</li>
+            <li>Self-Healing Workflows &mdash; agents adapt when pages change or errors occur</li>
+          </ul>
+        </div>
+
+        <div class="feature-block reveal">
+          <div class="feature-label">Decentralized & Private</div>
+          <h3>Your Data, Your Rules</h3>
+          <ul class="feature-list">
+            <li>Freedom of Choice &mdash; pick your AI provider, model, and data policy</li>
+            <li>Always-On &mdash; local-first architecture works without cloud dependency</li>
+            <li>Chrome Lossless &mdash; full compatibility with existing extensions & sites</li>
+          </ul>
+        </div>
+
+        <div class="feature-block reveal">
+          <div class="feature-label">Crypto-Ready</div>
+          <h3>The Agent Economy</h3>
+          <ul class="feature-list">
+            <li>Agent Economy &mdash; agents can pay, earn, and settle autonomously</li>
+            <li>Wallet-Native &mdash; built-in wallet for seamless crypto interactions</li>
+            <li>Open & Extensible &mdash; plugin system for community-built capabilities</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ GET STARTED ═══ -->
+  <section class="get-started">
+    <div class="container">
+      <div class="section-heading reveal">
+        <h2>Get Started</h2>
+      </div>
+
+      <div class="terminal reveal">
+        <div class="terminal-bar">
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <span class="terminal-title">terminal</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="comment"># Clone the repository</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">git clone https://github.com/instry/ocbot.git</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">cd ocbot</span></div>
+          <div>&nbsp;</div>
+          <div><span class="comment"># Install and run</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">npm install</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">npm start</span></div>
+        </div>
+      </div>
+
+      <div class="get-started-links reveal">
+        <a href="https://github.com/instry/ocbot" class="btn btn-primary" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer>
+    <div class="container">
+      <div class="footer-mascot">
+        <img src="octopus.png" alt="ocbot">
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/instry/ocbot" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/instry/ocbot#readme" target="_blank" rel="noopener">Docs</a>
+        <a href="https://github.com/instry/ocbot/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+      </div>
+      <div class="footer-badge">AGPL-3.0</div>
+      <p class="footer-copy">&copy; 2025 ocbot contributors. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    /* ── Animated Grid Background ── */
+    (function() {
+      const canvas = document.getElementById('gridCanvas');
+      const ctx = canvas.getContext('2d');
+      let w, h, cols, rows;
+      const CELL = 48;
+      let time = 0;
+
+      function resize() {
+        w = canvas.width = canvas.offsetWidth * devicePixelRatio;
+        h = canvas.height = canvas.offsetHeight * devicePixelRatio;
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+        cols = Math.ceil(canvas.offsetWidth / CELL) + 1;
+        rows = Math.ceil(canvas.offsetHeight / CELL) + 1;
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        time += 0.003;
+
+        for (let i = 0; i <= cols; i++) {
+          const x = i * CELL;
+          const pulse = Math.sin(time + i * 0.15) * 0.3 + 0.7;
+          ctx.strokeStyle = `rgba(190, 80, 240, ${0.035 * pulse})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, canvas.offsetHeight);
+          ctx.stroke();
+        }
+
+        for (let j = 0; j <= rows; j++) {
+          const y = j * CELL;
+          const pulse = Math.sin(time + j * 0.15) * 0.3 + 0.7;
+          ctx.strokeStyle = `rgba(190, 80, 240, ${0.035 * pulse})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.offsetWidth, y);
+          ctx.stroke();
+        }
+
+        /* Intersection glow dots */
+        for (let i = 0; i <= cols; i++) {
+          for (let j = 0; j <= rows; j++) {
+            const dist = Math.sin(time * 1.5 + i * 0.3 + j * 0.3);
+            if (dist > 0.7) {
+              const alpha = (dist - 0.7) / 0.3 * 0.3;
+              ctx.fillStyle = `rgba(190, 80, 240, ${alpha})`;
+              ctx.beginPath();
+              ctx.arc(i * CELL, j * CELL, 1.5, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+
+        requestAnimationFrame(draw);
+      }
+
+      resize();
+      window.addEventListener('resize', () => {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        resize();
+      });
+      draw();
+    })();
+
+    /* ── Typing Effect ── */
+    (function() {
+      const lines = [
+        'browsing autonomously...',
+        'agents as first-class citizens.',
+        'decentralized by design.',
+        'the future is Web4.',
+        'self-healing workflows engaged.',
+        'crypto-native settlement layer active.'
+      ];
+      const el = document.getElementById('typed-text');
+      let lineIdx = 0, charIdx = 0, deleting = false, pause = 0;
+
+      function tick() {
+        if (pause > 0) {
+          pause--;
+          requestAnimationFrame(tick);
+          return;
+        }
+
+        const line = lines[lineIdx];
+
+        if (!deleting) {
+          charIdx++;
+          el.textContent = line.slice(0, charIdx);
+          if (charIdx === line.length) {
+            deleting = true;
+            pause = 120;
+          } else {
+            pause = 2;
+          }
+        } else {
+          charIdx--;
+          el.textContent = line.slice(0, charIdx);
+          if (charIdx === 0) {
+            deleting = false;
+            lineIdx = (lineIdx + 1) % lines.length;
+            pause = 20;
+          } else {
+            pause = 1;
+          }
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      tick();
+    })();
+
+    /* ── Scroll Reveal ── */
+    (function() {
+      const reveals = document.querySelectorAll('.reveal');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry, i) => {
+          if (entry.isIntersecting) {
+            const siblings = entry.target.parentElement.querySelectorAll('.reveal');
+            const idx = Array.from(siblings).indexOf(entry.target);
+            entry.target.style.transitionDelay = `${idx * 0.12}s`;
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+      reveals.forEach(el => observer.observe(el));
+    })();
+  </script>
+
+</body>
+</html>
