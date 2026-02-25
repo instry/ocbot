@@ -70,7 +70,6 @@ def build_chromium(args):
             'is_official_build=true',
             'is_debug=false',
             'symbol_level=0',
-            'use_service_discovery=false',
             'use_siso=true',
             'chrome_pgo_phase=0',  # Skip PGO for simplicity
             'enable_update_notifications=true',
@@ -82,7 +81,6 @@ def build_chromium(args):
         flags = [
             'is_debug=false',
             'symbol_level=0',
-            'use_service_discovery=false',
             'use_siso=true',
             'enable_update_notifications=true',
         ]
