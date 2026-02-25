@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Package Ocbot.app into a .dmg installer."""
+"""Package Ocbot into platform-specific installers (.dmg on macOS, .exe/.zip on Windows)."""
 
 import argparse
 import os
-import plistlib
 import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 from common import get_logger, get_project_root, get_source_dir, get_product_version
+
+if sys.platform == 'darwin':
+    import plistlib
 
 logger = get_logger()
 
@@ -343,5 +346,74 @@ def package_dmg(args):
 
     size_mb = final_dmg.stat().st_size / (1024 * 1024)
     logger.info(f"Done: {final_dmg} ({size_mb:.1f} MB)")
+
+
+def package_windows(args):
+    """Package Ocbot for Windows: copy mini_installer.exe and create portable zip."""
+    if getattr(args, 'src_dir', None):
+        src_dir = Path(args.src_dir).resolve()
+    else:
+        src_dir = get_source_dir()
+
+    # Resolve src subdirectory
+    if (src_dir / 'src').exists() and (src_dir / 'src').is_dir():
+        src_dir = src_dir / 'src'
+
+    out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
+    out_dir = src_dir / 'out' / out_dir_name
+
+    product_version = get_product_version()
+    project_root = get_project_root()
+    dist_dir = project_root / 'dist'
+    dist_dir.mkdir(exist_ok=True)
+
+    # --- 1. Copy mini_installer.exe ---
+    mini_installer = out_dir / 'mini_installer.exe'
+    if mini_installer.exists():
+        dest_installer = dist_dir / f"Ocbot-{product_version}-win-x64.exe"
+        shutil.copy2(mini_installer, dest_installer)
+        size_mb = dest_installer.stat().st_size / (1024 * 1024)
+        logger.info(f"Installer: {dest_installer} ({size_mb:.1f} MB)")
+    else:
+        logger.warning(f"mini_installer.exe not found at {mini_installer}, skipping installer.")
+
+    # --- 2. Create portable zip ---
+    # Collect essential runtime files from the build output
+    portable_patterns = [
+        '*.exe', '*.dll', '*.pak', '*.bin', '*.dat',
+    ]
+    portable_dirs = [
+        'locales',
+        'MEIPresto',
+        'ocbot_extension',
+    ]
+
+    portable_zip_path = dist_dir / f"Ocbot-{product_version}-win-x64-portable.zip"
+    logger.info(f"Creating portable zip: {portable_zip_path}")
+
+    with zipfile.ZipFile(portable_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Add files matching patterns
+        for pattern in portable_patterns:
+            for f in out_dir.glob(pattern):
+                if f.is_file():
+                    zf.write(f, f.name)
+
+        # Add subdirectories
+        for dirname in portable_dirs:
+            dir_path = out_dir / dirname
+            if dir_path.exists() and dir_path.is_dir():
+                for f in dir_path.rglob('*'):
+                    if f.is_file():
+                        zf.write(f, str(f.relative_to(out_dir)))
+
+        # Add icudtl.dat and v8 snapshot if present (sometimes at top level)
+        for extra in ['icudtl.dat', 'v8_context_snapshot.bin', 'snapshot_blob.bin']:
+            extra_path = out_dir / extra
+            if extra_path.exists():
+                zf.write(extra_path, extra)
+
+    size_mb = portable_zip_path.stat().st_size / (1024 * 1024)
+    logger.info(f"Portable zip: {portable_zip_path} ({size_mb:.1f} MB)")
+
 
 

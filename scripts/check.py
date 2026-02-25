@@ -83,10 +83,10 @@ def check_environment(args):
         print(f"  ✓ Sufficient disk space ({free_gb}GB > 100GB)")
         print("")
         print("Run command:")
-        print("  ./scripts/dev.py download --method depot --no-history")
+        print("  python ocbot/scripts/dev.py download --method depot --no-history")
         print("")
         print("Or if you have proxy:")
-        print("  ./scripts/dev.py download --method depot")
+        print("  python ocbot/scripts/dev.py download --method depot")
 
     elif free_gb > 60:
         print("🎯 Recommendation: Tarball (Quick Start)")
@@ -99,7 +99,7 @@ def check_environment(args):
             print("  ⚠ Network might be restricted")
         print("")
         print("Run command:")
-        print("  ./scripts/dev.py download --method tarball")
+        print("  python ocbot/scripts/dev.py download --method tarball")
         print("")
         print("Note: Tarball method lacks some third-party dependencies, suitable for quick experience.")
         print("      If you need full development environment, please install depot_tools first and use depot method.")
@@ -111,7 +111,7 @@ def check_environment(args):
         print("Suggested at least: 60GB (tarball) or 100GB (depot)")
         print("")
         print("Please clean up disk and try again, or use --no-history to reduce download size:")
-        print("  ./scripts/dev.py download --method depot --no-history")
+        print("  python ocbot/scripts/dev.py download --method depot --no-history")
 
     print("")
     print("==========================================")
@@ -123,5 +123,5 @@ def check_environment(args):
     print("  cat docs/download_methods.md")
     print("")
     print("Get help:")
-    print("  ./scripts/dev.py download --help")
+    print("  python ocbot/scripts/dev.py download --help")
     print("")

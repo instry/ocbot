@@ -14,7 +14,7 @@ try:
     from run import run_chromium
     from check import check_environment
     from icons import install_icons
-    from package import package_dmg
+    from package import package_dmg, package_windows
     from release import release_extension, release_browser
     from common import get_source_dir, get_project_root
 except ImportError as e:
@@ -163,7 +163,10 @@ def main():
     elif args.command == 'run':
         run_chromium(args)
     elif args.command == 'package':
-        package_dmg(args)
+        if sys.platform == 'win32':
+            package_windows(args)
+        else:
+            package_dmg(args)
     elif args.command == 'release-extension':
         release_extension(args)
     elif args.command == 'release-browser':

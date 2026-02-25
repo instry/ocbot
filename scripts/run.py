@@ -8,27 +8,33 @@ from common import get_logger
 
 
 def _sync_extension(logger, root_dir, out_dir):
-    """Copy latest extension build into the app bundle's Framework Resources."""
+    """Copy latest extension build into the app bundle or build output directory."""
     extension_src = root_dir / 'ocbot' / 'extension' / '.output' / 'chrome-mv3'
     if not extension_src.exists():
         logger.warning(f"Extension build output not found: {extension_src}")
         return
 
-    app_dir = out_dir / 'Ocbot.app'
-    frameworks_dir = app_dir / 'Contents' / 'Frameworks'
-    if not frameworks_dir.exists():
-        return
+    if sys.platform == 'win32':
+        # Windows: extension goes alongside the exe
+        dest = out_dir / 'ocbot_extension'
+    else:
+        # macOS: extension goes into Framework Resources
+        app_dir = out_dir / 'Ocbot.app'
+        frameworks_dir = app_dir / 'Contents' / 'Frameworks'
+        if not frameworks_dir.exists():
+            return
 
-    framework = None
-    for item in frameworks_dir.iterdir():
-        if item.name.endswith('.framework'):
-            framework = item
-            break
+        framework = None
+        for item in frameworks_dir.iterdir():
+            if item.name.endswith('.framework'):
+                framework = item
+                break
 
-    if not framework:
-        return
+        if not framework:
+            return
 
-    dest = framework / 'Resources' / 'ocbot'
+        dest = framework / 'Resources' / 'ocbot'
+
     if dest.exists():
         shutil.rmtree(dest)
     shutil.copytree(extension_src, dest)
@@ -36,13 +42,13 @@ def _sync_extension(logger, root_dir, out_dir):
 
 def run_chromium(args):
     logger = get_logger()
-    
+
     # Detect source directory logic (duplicated from common/build but simplified)
     # We need to find src.
     # args.src_dir might be passed, or auto-detect.
     # common.py doesn't seem to have get_source_dir exposed easily or I can't see it.
     # I'll rely on relative paths for now or args.
-    
+
     root_dir = Path(__file__).parent.parent.parent.resolve()
     # Try to find src
     src_dir = None
@@ -57,20 +63,26 @@ def run_chromium(args):
                 if item.is_dir() and (item / 'src').exists():
                     src_dir = item / 'src'
                     break
-    
+
     if not src_dir:
         logger.error("Could not find source directory.")
         return
 
     out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
     out_dir = src_dir / 'out' / out_dir_name
-    
-    # Check for Ocbot.app
-    executable = out_dir / 'Ocbot.app' / 'Contents' / 'MacOS' / 'Ocbot'
+
+    # Platform-specific executable path
+    if sys.platform == 'win32':
+        executable = out_dir / 'ocbot.exe'
+    else:
+        executable = out_dir / 'Ocbot.app' / 'Contents' / 'MacOS' / 'Ocbot'
 
     if not executable.exists():
-        logger.error(f"Ocbot.app not found at {executable.parent.parent}")
-        logger.info("Please build first: python3 ocbot/scripts/dev.py build")
+        if sys.platform == 'win32':
+            logger.error(f"ocbot.exe not found at {executable}")
+        else:
+            logger.error(f"Ocbot.app not found at {executable.parent.parent}")
+        logger.info("Please build first: python ocbot/scripts/dev.py build")
         return
 
     cmd = [str(executable)]
@@ -88,10 +100,11 @@ def run_chromium(args):
     # User data dir
     user_data_dir = root_dir / 'chromium' / 'user_data'
     cmd.append(f'--user-data-dir={user_data_dir}')
-    
-    # Fix cross-device link error
-    cmd.append('--disable-features=MacAppCodeSignClone,MacAppCodeSignCloneRenameAsBundle')
-    
+
+    # macOS-only: fix cross-device link error
+    if sys.platform == 'darwin':
+        cmd.append('--disable-features=MacAppCodeSignClone,MacAppCodeSignCloneRenameAsBundle')
+
     # Pass through extra args
     if hasattr(args, 'args') and args.args:
         cmd.extend(args.args)
