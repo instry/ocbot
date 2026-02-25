@@ -71,7 +71,7 @@ def main():
     parser_package.add_argument('--notarize', help="Notarization profile name (or set NOTARY_PROFILE)")
     parser_package.add_argument('--apple-id', help="Apple ID for notarization (or set APPLE_ID)")
     parser_package.add_argument('--team-id', help="Team ID for notarization (or set TEAM_ID)")
-    parser_package.add_argument('--password-file', help="Path to file containing app-specific password", default="ocbot/.apple.json")
+    parser_package.add_argument('--password-file', help="Path to file containing app-specific password", default=".apple.json")
     parser_package.add_argument('--extension-src', help="Path to extension build output to bundle in DMG (default: ocbot/extension/.output/chrome-mv3)")
 
     # Release Extension
