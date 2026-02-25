@@ -20,7 +20,7 @@ The internet's audience is shifting from humans to **AI Agents**. UI is no longe
 
 Breaking the monopoly of big tech and influencers over the internet. Web 4.0 is the era of equity — information flow returns from "spoon-fed" feeds to **autonomous retrieval**. Media is power, and decentralization returns that power to the individual.
 
-### Crypto-Native — The Settlement Protocol for Machines
+### Crypto-Native — The Settlement Protocol for All
 
 Crypto is the economic lifeblood of the AI era. As digital-native entities, AI Agents conduct high-frequency, micro-value transactions that can only settle on crypto networks. Web 4.0 will witness the deep fusion of the AI economy with crypto protocols, building a new financial system.
 
@@ -32,13 +32,13 @@ Crypto is the economic lifeblood of the AI era. As digital-native entities, AI A
 *   **AI-Native Kernel**: AI capabilities are deeply integrated into the browser kernel — not a plugin, but a core primitive. Your browser understands, reasons, and acts.
 *   **Autonomous Task Execution**: Describe what you need in natural language — "Download all invoices", "Monitor flight prices" — and the agent handles the rest, end to end.
 *   **Self-Healing Workflows**: Web UI changed? The agent uses visual understanding to automatically repair execution paths. Learn once, reuse forever.
+*   **Chrome Lossless Experience**: Retains the full Chrome experience. Import your bookmarks, history, and passwords — continue browsing without interruption.
 
 ### 2. Decentralized & Private
 *   **Freedom of Choice**: Freely switch between LLMs. Supports mainstream cloud models and fully **local LLMs** — your data never leaves your machine.
 *   **Always-On, Everywhere**: ocbot runs on your desktop and can be commanded remotely via mobile browsers or IM apps. Your personal agent, always reachable.
-*   **Chrome Lossless Experience**: Retains the full Chrome experience. Import your bookmarks, history, and passwords — continue browsing without interruption.
 
-### 3. Crypto-Ready
+### 3. Crypto-Support
 *   **Agent Economy Infrastructure**: Built to support agent-to-agent micro-transactions and on-chain settlement — the financial layer for autonomous agents.
 *   **Wallet-Native**: Integrated crypto wallet for seamless interaction with dApps, DeFi protocols, and agent payment networks.
 *   **Open & Extensible**: Fully open-source (AGPL v3). Build your own agents, plugins, and workflows on top of ocbot.
