@@ -528,79 +528,6 @@
     }
 
     /* ════════════════════════════════════════════
-       GET STARTED
-    ════════════════════════════════════════════ */
-    .get-started {
-      padding: 120px 0;
-      text-align: center;
-    }
-
-    .terminal {
-      max-width: 680px;
-      margin: 0 auto 48px;
-      background: #08080e;
-      border: 1px solid var(--border-dim);
-      border-radius: 12px;
-      overflow: hidden;
-      text-align: left;
-    }
-
-    .terminal-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 14px 18px;
-      background: rgba(255, 255, 255, 0.02);
-      border-bottom: 1px solid var(--border-dim);
-    }
-
-    .terminal-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--text-dim);
-    }
-
-    .terminal-dot:nth-child(1) { background: #ff5f57; }
-    .terminal-dot:nth-child(2) { background: #febc2e; }
-    .terminal-dot:nth-child(3) { background: #28c840; }
-
-    .terminal-title {
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      color: var(--text-dim);
-      margin-left: 8px;
-      letter-spacing: 0.05em;
-    }
-
-    .terminal-body {
-      padding: 24px;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      line-height: 2;
-    }
-
-    .terminal-body .prompt {
-      color: var(--purple-light);
-      user-select: none;
-    }
-
-    .terminal-body .cmd {
-      color: var(--text-primary);
-    }
-
-    .terminal-body .comment {
-      color: var(--text-dim);
-    }
-
-    .get-started-links {
-      display: flex;
-      gap: 16px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    /* ════════════════════════════════════════════
        FOOTER
     ════════════════════════════════════════════ */
     footer {
@@ -684,7 +611,7 @@
       .btn { width: 100%; max-width: 280px; justify-content: center; }
       .terminal-body { padding: 16px; font-size: 0.75rem; }
       .section-heading { margin-bottom: 48px; }
-      .pillars, .features, .get-started { padding: 80px 0; }
+      .pillars, .features { padding: 80px 0; }
     }
   </style>
 </head>
@@ -804,39 +731,6 @@
     </div>
   </section>
 
-  <!-- ═══ GET STARTED ═══ -->
-  <section class="get-started">
-    <div class="container">
-      <div class="section-heading reveal">
-        <h2>Get Started</h2>
-      </div>
-
-      <div class="terminal reveal">
-        <div class="terminal-bar">
-          <div class="terminal-dot"></div>
-          <div class="terminal-dot"></div>
-          <div class="terminal-dot"></div>
-          <span class="terminal-title">terminal</span>
-        </div>
-        <div class="terminal-body">
-          <div><span class="comment"># Clone the repository</span></div>
-          <div><span class="prompt">$ </span><span class="cmd">git clone https://github.com/instry/ocbot.git</span></div>
-          <div><span class="prompt">$ </span><span class="cmd">cd ocbot</span></div>
-          <div>&nbsp;</div>
-          <div><span class="comment"># Install and run</span></div>
-          <div><span class="prompt">$ </span><span class="cmd">npm install</span></div>
-          <div><span class="prompt">$ </span><span class="cmd">npm start</span></div>
-        </div>
-      </div>
-
-      <div class="get-started-links reveal">
-        <a href="https://github.com/instry/ocbot" class="btn btn-primary" target="_blank" rel="noopener">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-          View on GitHub
-        </a>
-      </div>
-    </div>
-  </section>
 
   <!-- ═══ FOOTER ═══ -->
   <footer>
