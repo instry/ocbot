@@ -1,36 +1,41 @@
 import subprocess
 import os
 import shutil
+import sys
 from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root, sync_extension_version
 
 
 def _install_extension(logger, out_dir):
-    """Copy built extension into the app bundle's Framework Resources directory."""
+    """Copy built extension into the app bundle or build output directory."""
     extension_src = get_project_root() / 'extension' / '.output' / 'chrome-mv3'
     if not extension_src.exists():
         logger.warning(f"Extension build output not found: {extension_src}")
         return
 
-    # Find the Framework Resources directory inside the app bundle
-    app_dir = out_dir / 'Ocbot.app'
-    if not app_dir.exists():
-        logger.warning(f"App bundle not found: {app_dir}")
-        return
+    if sys.platform == 'win32':
+        # Windows: extension goes alongside the exe in out/Default/ocbot_extension/
+        dest = out_dir / 'ocbot_extension'
+    else:
+        # macOS: extension goes into Framework Resources inside the app bundle
+        app_dir = out_dir / 'Ocbot.app'
+        if not app_dir.exists():
+            logger.warning(f"App bundle not found: {app_dir}")
+            return
 
-    frameworks_dir = app_dir / 'Contents' / 'Frameworks'
-    framework = None
-    if frameworks_dir.exists():
-        for item in frameworks_dir.iterdir():
-            if item.name.endswith('.framework'):
-                framework = item
-                break
+        frameworks_dir = app_dir / 'Contents' / 'Frameworks'
+        framework = None
+        if frameworks_dir.exists():
+            for item in frameworks_dir.iterdir():
+                if item.name.endswith('.framework'):
+                    framework = item
+                    break
 
-    if not framework:
-        logger.warning("Framework bundle not found in app bundle")
-        return
+        if not framework:
+            logger.warning("Framework bundle not found in app bundle")
+            return
 
-    dest = framework / 'Resources' / 'ocbot'
+        dest = framework / 'Resources' / 'ocbot'
 
     # Remove old copy and replace
     if dest.exists():
@@ -89,7 +94,7 @@ def build_chromium(args):
             shutil.rmtree(out_dir)
 
     # Always ensure gn is available and args.gn is correct
-    if subprocess.call(['which', 'gn'], stdout=subprocess.DEVNULL) != 0:
+    if shutil.which('gn') is None:
             logger.error("'gn' command not found. Please install depot_tools and add to PATH.")
             return
 
