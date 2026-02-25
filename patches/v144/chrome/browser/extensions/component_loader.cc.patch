@@ -1,8 +1,14 @@
 diff --git a/chrome/browser/extensions/component_loader.cc b/chrome/browser/extensions/component_loader.cc
-index fb31ee586bc6746f3ec33c0512cc0900fc4b8939..46f20b0cf8075c45767949d9552cfdd6f4bd73c9 100644
+index fb31ee586bc6746f3ec33c0512cc0900fc4b8939..48b3eebf8690e620311d42b6139b3a456e4f4def 100644
 --- a/chrome/browser/extensions/component_loader.cc
 +++ b/chrome/browser/extensions/component_loader.cc
-@@ -16,8 +16,10 @@
+@@ -11,13 +11,16 @@
+ #include "base/command_line.h"
+ #include "base/feature_list.h"
+ #include "base/files/file_util.h"
++#include "base/threading/thread_restrictions.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback.h"
  #include "base/functional/callback_helpers.h"
  #include "base/json/json_reader.h"
  #include "base/metrics/histogram_macros.h"
@@ -13,7 +19,7 @@ index fb31ee586bc6746f3ec33c0512cc0900fc4b8939..46f20b0cf8075c45767949d9552cfdd6
  #include "base/trace_event/trace_event.h"
  #include "base/values.h"
  #include "build/branding_buildflags.h"
-@@ -27,6 +29,8 @@
+@@ -27,6 +30,8 @@
  #include "chrome/browser/extensions/component_loader_factory.h"
  #include "chrome/browser/extensions/data_deleter.h"
  #include "chrome/browser/extensions/profile_util.h"
@@ -22,7 +28,7 @@ index fb31ee586bc6746f3ec33c0512cc0900fc4b8939..46f20b0cf8075c45767949d9552cfdd6
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/common/channel_info.h"
  #include "chrome/common/chrome_paths.h"
-@@ -513,6 +517,78 @@ void ComponentLoader::AddDefaultComponentExtensions(
+@@ -513,6 +518,93 @@ void ComponentLoader::AddDefaultComponentExtensions(
      Add(pdf_extension_util::GetManifest(),
          base::FilePath(FILE_PATH_LITERAL("pdf")));
  #endif  // BUILDFLAG(ENABLE_PDF)
@@ -32,6 +38,10 @@ index fb31ee586bc6746f3ec33c0512cc0900fc4b8939..46f20b0cf8075c45767949d9552cfdd6
 +    //   2) <user-data-dir>/ocbot-extension/  (OTA hot-update)
 +    //   3) Resources/ocbot/  (bundled fallback)
 +    {
++      // Allow blocking I/O for extension path resolution and manifest loading.
++      // This runs once during startup and the paths are local/fast.
++      base::ScopedAllowBlocking allow_blocking;
++
 +      base::FilePath ocbot_path;
 +      bool found = false;
 +      bool is_dev = false;
@@ -76,7 +86,18 @@ index fb31ee586bc6746f3ec33c0512cc0900fc4b8939..46f20b0cf8075c45767949d9552cfdd6
 +      }
 +
 +      if (base::PathExists(ocbot_path)) {
-+        AddOrReplace(ocbot_path);
++        // Use Add() directly instead of AddOrReplace() to avoid
++        // MakeAbsoluteFilePath() which triggers a DCHECK for blocking
++        // I/O on the UI thread (fatal in official builds).
++        std::string error;
++        std::optional<base::DictValue> manifest(
++            file_util::LoadManifest(ocbot_path, &error));
++        if (manifest) {
++          Add(std::move(*manifest), ocbot_path, /*skip_allowlist=*/true);
++        } else {
++          LOG(ERROR) << "ocbot: failed to load manifest from "
++                     << ocbot_path << ": " << error;
++        }
 +      }
 +
 +      // Start background extension updater (skip in dev mode).

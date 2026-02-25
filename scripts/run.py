@@ -4,7 +4,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from common import get_logger
+from common import get_logger, get_source_dir, get_project_root
 
 
 def _sync_extension(logger, root_dir, out_dir):
@@ -43,30 +43,15 @@ def _sync_extension(logger, root_dir, out_dir):
 def run_chromium(args):
     logger = get_logger()
 
-    # Detect source directory logic (duplicated from common/build but simplified)
-    # We need to find src.
-    # args.src_dir might be passed, or auto-detect.
-    # common.py doesn't seem to have get_source_dir exposed easily or I can't see it.
-    # I'll rely on relative paths for now or args.
-
-    root_dir = Path(__file__).parent.parent.parent.resolve()
-    # Try to find src
-    src_dir = None
-    if args.src_dir:
-        src_dir = Path(args.src_dir)
-    else:
-        # Look for chromium/VERSION/src
-        chromium_dir = root_dir / 'chromium'
-        if chromium_dir.exists():
-            # Find version dir
-            for item in chromium_dir.iterdir():
-                if item.is_dir() and (item / 'src').exists():
-                    src_dir = item / 'src'
-                    break
+    root_dir = get_project_root()
+    src_dir = Path(args.src_dir) if args.src_dir else get_source_dir()
 
     if not src_dir:
         logger.error("Could not find source directory.")
         return
+
+    if (src_dir / 'src').exists() and (src_dir / 'src').is_dir():
+        src_dir = src_dir / 'src'
 
     out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
     out_dir = src_dir / 'out' / out_dir_name
@@ -96,14 +81,6 @@ def run_chromium(args):
     extension_dev_path = root_dir / 'ocbot' / 'extension' / '.output' / 'chrome-mv3'
     if extension_dev_path.exists():
         cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
-
-    # User data dir
-    user_data_dir = root_dir / 'chromium' / 'user_data'
-    cmd.append(f'--user-data-dir={user_data_dir}')
-
-    # macOS-only: fix cross-device link error
-    if sys.platform == 'darwin':
-        cmd.append('--disable-features=MacAppCodeSignClone,MacAppCodeSignCloneRenameAsBundle')
 
     # Pass through extra args
     if hasattr(args, 'args') and args.args:
