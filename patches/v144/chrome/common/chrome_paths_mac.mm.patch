@@ -1,0 +1,13 @@
+diff --git a/chrome/common/chrome_paths_mac.mm b/chrome/common/chrome_paths_mac.mm
+index 6829c9cb92c228dd19d44c9f739bf4595720cc2d..8f76d34a35983c6b4025f508c8ba0553043a4a0d 100644
+--- a/chrome/common/chrome_paths_mac.mm
++++ b/chrome/common/chrome_paths_mac.mm
+@@ -37,7 +37,7 @@
+ #elif BUILDFLAG(GOOGLE_CHROME_BRANDING)
+       product_dir_name = "Google/Chrome";
+ #else
+-      product_dir_name = "Chromium";
++      product_dir_name = "Ocbot";
+ #endif
+     }
+ 

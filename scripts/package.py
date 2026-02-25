@@ -226,15 +226,15 @@ def package_dmg(args):
         shutil.copytree(app_path, dest_app, symlinks=True)
 
         # Copy extension if provided
-        ext_src = getattr(args, 'extension_src', None)
-        if ext_src:
-            ext_src = Path(ext_src)
-            if ext_src.exists():
-                logger.info(f"Copying extension from {ext_src} to DMG...")
-                # Copy to a folder named "Ocbot Extension" in the DMG root
-                shutil.copytree(ext_src, staging / 'Ocbot Extension')
-            else:
-                logger.warning(f"Extension source {ext_src} not found.")
+        # ext_src = getattr(args, 'extension_src', None)
+        # if ext_src:
+        #     ext_src = Path(ext_src)
+        #     if ext_src.exists():
+        #         logger.info(f"Copying extension from {ext_src} to DMG...")
+        #         # Copy to a folder named "Ocbot Extension" in the DMG root
+        #         shutil.copytree(ext_src, staging / 'Ocbot Extension')
+        #     else:
+        #         logger.warning(f"Extension source {ext_src} not found.")
 
         # Sign the app in staging
         if sign_identity:
@@ -269,6 +269,10 @@ def package_dmg(args):
                 shutil.copy2(icon_file, mount_point / '.VolumeIcon.icns')
                 subprocess.run([
                     'SetFile', '-c', 'icnC', str(mount_point / '.VolumeIcon.icns'),
+                ], check=False)
+                # Make the icon file invisible
+                subprocess.run([
+                    'SetFile', '-a', 'V', str(mount_point / '.VolumeIcon.icns'),
                 ], check=False)
                 subprocess.run([
                     'SetFile', '-a', 'C', str(mount_point),

@@ -1,0 +1,17 @@
+diff --git a/chrome/browser/mac/code_sign_clone_manager.mm b/chrome/browser/mac/code_sign_clone_manager.mm
+index 97abe9476b394e8b4f70aa0e2157ac0e12df5350..8074acb517de372a8e9c35c0bc05f3a00f33ccf0 100644
+--- a/chrome/browser/mac/code_sign_clone_manager.mm
++++ b/chrome/browser/mac/code_sign_clone_manager.mm
+@@ -510,10 +510,10 @@ void RecordCloneExists(MacCloneExists exists) {
+ 
+ namespace code_sign_clone_manager {
+ 
+-BASE_FEATURE(kMacAppCodeSignClone, base::FEATURE_ENABLED_BY_DEFAULT);
++BASE_FEATURE(kMacAppCodeSignClone, base::FEATURE_DISABLED_BY_DEFAULT);
+ 
+ BASE_FEATURE(kMacAppCodeSignCloneRenameAsBundle,
+-             base::FEATURE_ENABLED_BY_DEFAULT);
++             base::FEATURE_DISABLED_BY_DEFAULT);
+ 
+ CodeSignCloneManager::CodeSignCloneManager(
+     const base::FilePath& src_path,
