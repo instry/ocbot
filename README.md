@@ -28,21 +28,20 @@ Crypto is the economic lifeblood of the AI era. As digital-native entities, AI A
 
 ## Key Features
 
-### 1. AI Browser
-*   **Open Source Chrome + Gemini**: AI capabilities are deeply integrated into the browser kernel, not just as a plugin.
-*   **Freedom of Choice**: Freely switch between Large Language Models (LLMs). Supports mainstream cloud models as well as fully **local LLMs**, ensuring data privacy and control.
-*   **Chrome Lossless Experience**: Retains the full Chrome experience. Easily import your Chrome data (bookmarks, history, passwords) and continue browsing without interruption.
+### 1. Agentic Browser
+*   **AI-Native Kernel**: AI capabilities are deeply integrated into the browser kernel — not a plugin, but a core primitive. Your browser understands, reasons, and acts.
+*   **Autonomous Task Execution**: Describe what you need in natural language — "Download all invoices", "Monitor flight prices" — and the agent handles the rest, end to end.
+*   **Self-Healing Workflows**: Web UI changed? The agent uses visual understanding to automatically repair execution paths. Learn once, reuse forever.
 
-### 2. AI Assistant
-*   **OpenClaw-like Experience**: ocbot runs not only on your desktop but can also be interacted with remotely via mobile browsers or third-party IM apps.
-*   **Always On**: Command your home browser to handle complex tasks remotely, wherever you are.
-*   **Mobile Version**: Access ocbot on iOS/Android with a native Chrome-like experience. Sync your tabs and history seamlessly across devices.
+### 2. Decentralized & Private
+*   **Freedom of Choice**: Freely switch between LLMs. Supports mainstream cloud models and fully **local LLMs** — your data never leaves your machine.
+*   **Always-On, Everywhere**: ocbot runs on your desktop and can be commanded remotely via mobile browsers or IM apps. Your personal agent, always reachable.
+*   **Chrome Lossless Experience**: Retains the full Chrome experience. Import your bookmarks, history, and passwords — continue browsing without interruption.
 
-### 3. RPA Killer
-Achieve web automation with natural language—no coding required:
-*   **Natural Language Control**: Simply tell the browser "Download all invoices" or "Monitor flight prices".
-*   **Learn Once, Reuse Often**: After learning an operation flow once, AI converts it into an efficient execution path, **significantly saving Token costs** for future runs.
-*   **Self-Healing**: Web UI changed? The AI uses visual understanding to automatically repair operation paths, ensuring continuous stable operation.
+### 3. Crypto-Ready
+*   **Agent Economy Infrastructure**: Built to support agent-to-agent micro-transactions and on-chain settlement — the financial layer for autonomous agents.
+*   **Wallet-Native**: Integrated crypto wallet for seamless interaction with dApps, DeFi protocols, and agent payment networks.
+*   **Open & Extensible**: Fully open-source (AGPL v3). Build your own agents, plugins, and workflows on top of ocbot.
 
 ---
 
