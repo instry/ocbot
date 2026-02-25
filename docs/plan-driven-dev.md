@@ -1,42 +1,40 @@
 # Plan-Driven Development
 
-Ocbot is built on Chromium. When upgrading Chromium versions, code locations, API signatures, and file structures change frequently. `.patch` files break when line numbers shift, but the **intent and logic** of features remain stable.
+Ocbot follows a **Plan-Driven Development** workflow. 
 
-Plan files capture the intent, change points, key code, and known pitfalls of each feature, enabling AI to re-implement features on any Chromium version.
+We do **not** ask AI to write `.patch` files directly. Instead, AI reads the Plan, modifies the Chromium source code directly, and then we use tooling to generate the patches.
 
 ## Workflow
 
 ```
-1. Write Plan      →  ocbot/plans/NN-feature-name.md
-2. Implement Code  →  Modify chromium src/
-3. Build & Verify  →  python3 ocbot/scripts/dev.py build
-4. Generate Patches →  python3 ocbot/scripts/dev.py update_patches
-5. Commit          →  Plan + patches together
+1. Requirement      →  Propose a new feature or change.
+2. Plan             →  Create/Update `ocbot/plans/NN-feature-name.md`.
+3. Implement        →  AI modifies `chromium/<version>/src/` directly.
+4. Build & Verify   →  User runs `dev.py build` and tests the feature.
+5. Local Commit     →  (Optional) Commit changes to Chromium's local git for history.
+6. Generate Patches →  Run `python3 ocbot/scripts/dev.py update_patches`.
+7. Commit Ocbot     →  Commit `patches/` and `plans/` to ocbot repo.
 ```
 
-### Version Upgrade
+## Why Plan-Driven?
 
-```
-1. Download new Chromium source
-2. Try apply_patches, note which patches fail
-3. Feed the failed patches' corresponding plans to AI:
-   "Re-implement this feature on the new Chromium version based on this plan"
-4. AI references the plan's intent and known pitfalls to find new injection points and APIs
-5. After implementation, update the plan's "Known Pitfalls" with new API differences
-6. Re-run update_patches
-```
+1.  **Context Retention**: Chromium is huge. Plans capture the "Why" and "Where" of a feature, which is lost in raw patch files.
+2.  **AI Compatibility**: AI is better at "modifying this C++ file to add a button" than "writing a diff patch with correct context lines".
+3.  **Upgrade Resilience**: When Chromium upgrades, patches break. Plans allow AI to re-implement the *logic* on the new version, even if file paths or APIs changed completely.
+
+## The Role of AI
+
+-   **Input**: The user's requirement + The Plan file (`ocbot/plans/X.md`).
+-   **Action**: Directly edit files in `src/`.
+-   **Output**: Modified source code (NOT patch files).
+
+*Note: Patch files are purely a storage mechanism, generated automatically by `dev.py update_patches`.*
 
 ## Plan File Conventions
 
 ### Naming
 
-`NN-feature-name.md` — number indicates implementation order (order matters when there are dependencies).
-
-Current plan list:
-- `00-branding.md` — Brand replacement (names, icons, strings)
-- `01-toolbar-and-sidepanel.md` — Toolbar button & Side Panel UI
-- `02-component-extension.md` — Component Extension loading
-- `03-ota-updater.md` — Extension OTA hot update
+`NN-feature-name.md` — number indicates implementation order.
 
 ### Template
 
@@ -45,75 +43,43 @@ Current plan list:
 
 ## Goal
 
-One or two sentences describing the feature goal from the user's perspective.
+One or two sentences describing the feature goal.
 
-## Changes
+## Implementation Details
 
 ### 1. [Change Title]
 
-**File:** `path/to/file.cc`
-(or **New file:** `path/to/new_file.cc`)
+**Target:** `path/to/file.cc`
 
-Describe the change intent, with key code snippets:
+**Logic:**
+Describe what needs to be changed.
 
-​```cpp
-// Key code — no need for complete files, just show the logic
+```cpp
+// Key code snippet
 void DoSomething() {
   // ...
 }
-​```
-
-### 2. [Next Change]
-...
+```
 
 ## Key Decisions
 
-- Why approach A was chosen over approach B
-- Architectural trade-offs
+- Why approach A over B?
 
 ## Known Pitfalls
 
-- API version differences (e.g., `base::Value::Dict` vs `base::DictValue`)
-- Build dependency ordering
-- Runtime edge cases to watch for
+- API version differences.
+- Build dependency issues.
 ```
-
-### Principles for Writing Plans
-
-1. **Intent first**: Clearly state "what" before "how"
-2. **Include key code**: No need for complete files, but core logic code snippets are essential — AI needs to know the specific API call patterns
-3. **Record file paths**: Each change point must specify the file path — this is the key clue for AI to locate modification sites
-4. **Record pitfalls**: "Known Pitfalls" is the most valuable section — record version-specific API differences, build issues, and runtime issues
-5. **Keep updated**: If the plan turns out to be wrong during implementation, update the plan immediately
 
 ## Directory Structure
 
 ```
 ocbot/
-├── plans/
-│   ├── plan_driven_dev.md          ← This file
+├── plans/                  ← The Source of Truth for Logic
 │   ├── 00-branding.md
-│   ├── 01-toolbar-and-sidepanel.md
-│   ├── 02-component-extension.md
-│   └── 03-ota-updater.md
-├── patches/
-│   └── v144/                       ← Patches for current version
-│       ├── chrome/...
-│       └── components/...
+│   └── ...
+├── patches/                ← The Storage Mechanism (Generated)
+│   └── v144/
 └── scripts/
-    └── dev.py                      ← Dev tool entry point
-        ├── build                   ← Compile
-        ├── run                     ← Run (auto-passes --ocbot-extension-dir)
-        ├── apply_patches           ← Apply patches to source
-        ├── update_patches          ← Generate patches from source
-        └── package                 ← Package DMG
+    └── dev.py              ← The Tooling
 ```
-
-## AI Instructions
-
-When you (the AI) are asked to develop Ocbot features:
-
-1. **Check plans first**: Look in `ocbot/plans/` for relevant plans
-2. **Follow the plan**: The plan is the authoritative source of intent — code must conform to the plan's design
-3. **Update the plan**: If the plan needs adjustment during implementation (API changed, approach infeasible), update the plan immediately
-4. **Record pitfalls**: Write build errors, API incompatibilities, etc. into "Known Pitfalls"
