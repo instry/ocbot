@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/browser_updater.h b/chrome/browser/ocbot/browser_updater.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000001
+index 0000000000000000000000000000000000000000..405abe631d865ec8f86ea4addc5d9005d2be7aee
 --- /dev/null
 +++ b/chrome/browser/ocbot/browser_updater.h
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,69 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -59,7 +59,7 @@ index 0000000000000000000000000000000000000000..00000000000000000000000000000000
 +  void OnDmgDownloaded(const std::string& version, base::FilePath tmp);
 +  static bool InstallFromDmg(const base::FilePath& dmg,
 +                              const base::FilePath& app);
-+  void OnInstallComplete(bool success, const std::string& version);
++  void OnInstallComplete(const std::string& version, bool success);
 +  std::string GetRunningVersion() const;
 +  base::FilePath GetCurrentAppPath() const;
 +  network::mojom::URLLoaderFactory* GetURLLoaderFactory();

@@ -66,7 +66,7 @@ class OcbotBrowserUpdater {
   void DownloadDmg(const std::string& url, const std::string& version);
   void OnDmgDownloaded(const std::string& version, base::FilePath tmp);
   static bool InstallFromDmg(const base::FilePath& dmg, const base::FilePath& app);
-  void OnInstallComplete(bool success, const std::string& version);
+  void OnInstallComplete(const std::string& version, bool success);
   std::string GetRunningVersion() const;   // reads CFBundleShortVersionString
   base::FilePath GetCurrentAppPath() const;
 };
@@ -139,3 +139,11 @@ After rsync replaces .app, Chromium's built-in mechanism takes over:
 - **GitHub API rate limiting**: Unauthenticated 60 req/hour, our 4h interval is safe
 - **Shared release tag**: Both extension and browser use `/releases/latest`. If latest is extension-only (no DMG), browser updater logs warning and skips — harmless but noisy
 - **Single `url_loader_`**: API check and DMG download share one loader; concurrency guard prevents timer from interrupting a download
+
+## API Compatibility Notes (Chromium v144)
+
+These issues were discovered during compilation and may recur when porting to newer Chromium versions:
+
+- **`base::Value` types**: v144 uses `base::DictValue` / `base::ListValue`, not `base::Value::Dict` / `base::Value::List` (the newer API). JSON parsing uses `base::JSONReader::ReadDict()` returning `std::optional<base::DictValue>`.
+- **`version_info::GetVersionNumber()`**: Returns `std::string_view`, not `std::string`. Must explicitly convert: `std::string(version_info::GetVersionNumber())`.
+- **`BindOnce` parameter order for `PostTaskAndReplyWithResult`**: Pre-bound parameters in the reply callback must match the function signature left-to-right. `OnInstallComplete(const std::string& version, bool success)` — `version` is pre-bound, `success` comes from the task result. Reversing the parameter order causes a compile-time type mismatch.

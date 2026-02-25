@@ -14,15 +14,15 @@ Line-by-line replacement:
 
 | Field | Original | New |
 |-------|----------|-----|
-| COMPANY_FULLNAME | The Chromium Authors | The Ocbot Authors |
-| COMPANY_SHORTNAME | The Chromium Authors | The Ocbot Authors |
-| PRODUCT_FULLNAME | Chromium | Ocbot |
-| PRODUCT_SHORTNAME | Chromium | Ocbot |
-| PRODUCT_INSTALLER_FULLNAME | Chromium Installer | Ocbot Installer |
-| PRODUCT_INSTALLER_SHORTNAME | Chromium Installer | Ocbot Installer |
-| COPYRIGHT | Copyright ... The Chromium Authors | Copyright ... The Ocbot Authors |
+| COMPANY_FULLNAME | The Chromium Authors | MALA TECH LLC |
+| COMPANY_SHORTNAME | The Chromium Authors | MALA TECH |
+| PRODUCT_FULLNAME | Chromium | OcBot |
+| PRODUCT_SHORTNAME | Chromium | OcBot |
+| PRODUCT_INSTALLER_FULLNAME | Chromium Installer | OcBot Installer |
+| PRODUCT_INSTALLER_SHORTNAME | Chromium Installer | OcBot Installer |
+| COPYRIGHT | Copyright ... The Chromium Authors | Copyright ... MALA TECH LLC |
 | MAC_BUNDLE_ID | org.chromium.Chromium | oc.bot.app |
-| MAC_CREATOR_CODE | Cr24 | oc24 |
+| MAC_CREATOR_CODE | Cr24 | Oc01 |
 
 ### 2. UI String Replacement
 
@@ -69,7 +69,23 @@ All Chromium default icons replaced with Ocbot branded icons (direct file overwr
 - `components/resources/default_100_percent/chromium/product_logo*.png`, `favicon_product.png`
 - `components/resources/default_200_percent/chromium/product_logo*.png`, `favicon_product.png`
 
-### 4. macOS Keychain Branding
+### 4. User Data Directory Isolation
+
+Production builds must use OcBot-specific user data directories instead of the default "Chromium" paths, to avoid conflicts with any installed Chromium browser.
+
+**macOS:** `chrome/app/app-Info.plist`
+- Added `CrProductDirName` key with value `OcBot`
+- This overrides the fallback in `chrome_paths_mac.mm` so the default user data directory becomes `~/Library/Application Support/OcBot/`
+
+**Linux:** `chrome/common/chrome_paths_linux.cc`
+- In the `#else` (non-Google Chrome) branch, changed `data_dir_basename` from `"chromium"` to `"ocbot"`
+- Default user data directory becomes `~/.config/ocbot/`
+
+**Windows:** `chrome/install_static/chromium_install_modes.h`
+- Changed `kProductPathName` from `L"Chromium"` to `L"OcBot"`
+- Default user data directory becomes `%LOCALAPPDATA%\OcBot\User Data`
+
+### 5. macOS Keychain Branding
 
 **File:** `components/os_crypt/common/keychain_password_mac.mm`
 
@@ -95,5 +111,6 @@ const char kDefaultAccountName[] = "Ocbot";
 - BRANDING file format is `KEY=VALUE`, one per line, no quotes
 - `@LASTCHANGE_YEAR@` is a build-time macro — leave it untouched
 - Changing Keychain name means passwords stored by old versions won't auto-migrate (users need to re-authorize)
+- Changing user data directory path means existing profiles under `~/Library/Application Support/Chromium/` won't auto-migrate
 - `desc` attributes in `.grd` and `.grdp` files should also be updated for consistency (though they don't affect runtime)
 - `chromium_strings.grd` is very large (hundreds of strings) — highest conflict probability when upgrading Chromium versions
