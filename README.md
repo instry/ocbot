@@ -45,19 +45,6 @@ Crypto is the economic lifeblood of the AI era. As digital-native entities, AI A
 
 ---
 
-## Quick Start
-
-For full development setup and workflow, please see **[Plan-Driven Development](docs/plan-driven-dev.md)**.
-
-### Quick View (Tarball)
-*For code preview only (Fast, ~20 mins).*
-```bash
-python scripts/dev.py download --method tarball
-python scripts/dev.py patch
-```
-
----
-
 ## Development
 
 | Doc | Description |
