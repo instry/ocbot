@@ -122,6 +122,13 @@ def sign_app(app_path, identity, entitlements=None):
 
         # 5. Sign the top-level app bundle
         logger.info("Signing app bundle...")
+        
+        # Explicitly sign the main executable first to ensure Hardened Runtime is applied
+        main_executable = app_path / 'Contents' / 'MacOS' / app_path.stem
+        if main_executable.exists():
+             logger.info(f"Signing main executable: {main_executable.name}")
+             _codesign(main_executable, with_entitlements=True)
+             
         _codesign(app_path, with_entitlements=True)
 
         # Verify the signature
