@@ -16,30 +16,30 @@ Line-by-line replacement:
 |-------|----------|-----|
 | COMPANY_FULLNAME | The Chromium Authors | MALA TECH LLC |
 | COMPANY_SHORTNAME | The Chromium Authors | MALA TECH |
-| PRODUCT_FULLNAME | Chromium | OcBot |
-| PRODUCT_SHORTNAME | Chromium | OcBot |
-| PRODUCT_INSTALLER_FULLNAME | Chromium Installer | OcBot Installer |
-| PRODUCT_INSTALLER_SHORTNAME | Chromium Installer | OcBot Installer |
+| PRODUCT_FULLNAME | Chromium | Ocbot |
+| PRODUCT_SHORTNAME | Chromium | Ocbot |
+| PRODUCT_INSTALLER_FULLNAME | Chromium Installer | Ocbot Installer |
+| PRODUCT_INSTALLER_SHORTNAME | Chromium Installer | Ocbot Installer |
 | COPYRIGHT | Copyright ... The Chromium Authors | Copyright ... MALA TECH LLC |
 | MAC_BUNDLE_ID | org.chromium.Chromium | oc.bot.app |
 | MAC_CREATOR_CODE | Cr24 | Oc01 |
 
 ### 2. UI String Replacement
 
-In the following files, replace all "Chromium" with "OcBot" (note: UI uses "OcBot" capitalization):
+In the following files, replace all "Chromium" with "Ocbot":
 
 **File:** `chrome/app/chromium_strings.grd`
-- Product name (`IDS_PRODUCT_NAME`, `IDS_SHORT_PRODUCT_NAME`) → "OcBot"
+- Product name (`IDS_PRODUCT_NAME`, `IDS_SHORT_PRODUCT_NAME`) → "Ocbot"
 - Product description, welcome text, first-run dialog, taskbar hints — all replaced
 - Hundreds of replacements covering enterprise policies, download prompts, crash reports, incognito mode, etc.
 
 **File:** `chrome/app/settings_chromium_strings.grdp`
 - Settings page strings: about page, update status, password check, default browser, privacy settings, security settings, etc.
-- All "Chromium" → "OcBot"
+- All "Chromium" → "Ocbot"
 
 **File:** `components/components_chromium_strings.grd`
 - Component-level strings: error pages, flags UI, crash reporting, version info, etc.
-- All "Chromium" → "OcBot"
+- All "Chromium" → "Ocbot"
 
 ### 3. Icon Asset Replacement
 
@@ -71,19 +71,22 @@ All Chromium default icons replaced with Ocbot branded icons (direct file overwr
 
 ### 4. User Data Directory Isolation
 
-Production builds must use OcBot-specific user data directories instead of the default "Chromium" paths, to avoid conflicts with any installed Chromium browser.
+Production builds must use Ocbot-specific user data directories instead of the default "Chromium" paths, to avoid conflicts with any installed Chromium browser.
 
 **macOS:** `chrome/app/app-Info.plist`
-- Added `CrProductDirName` key with value `OcBot`
-- This overrides the fallback in `chrome_paths_mac.mm` so the default user data directory becomes `~/Library/Application Support/OcBot/`
+- Added `CrProductDirName` key with value `Ocbot`
+- This overrides the fallback in `chrome_paths_mac.mm` so the default user data directory becomes `~/Library/Application Support/Ocbot/`
+
+**macOS fallback:** `chrome/common/chrome_paths_mac.mm`
+- In the `#else` (non-Google Chrome) branch, changed `product_dir_name` from `"Chromium"` to `"Ocbot"`
 
 **Linux:** `chrome/common/chrome_paths_linux.cc`
 - In the `#else` (non-Google Chrome) branch, changed `data_dir_basename` from `"chromium"` to `"ocbot"`
 - Default user data directory becomes `~/.config/ocbot/`
 
 **Windows:** `chrome/install_static/chromium_install_modes.h`
-- Changed `kProductPathName` from `L"Chromium"` to `L"OcBot"`
-- Default user data directory becomes `%LOCALAPPDATA%\OcBot\User Data`
+- Changed `kProductPathName` from `L"Chromium"` to `L"Ocbot"`
+- Default user data directory becomes `%LOCALAPPDATA%\Ocbot\User Data`
 
 ### 5. macOS Keychain Branding
 
@@ -103,7 +106,7 @@ const char kDefaultAccountName[] = "Ocbot";
 
 - Only modify files under `chromium/` directory, never touch `google_chrome/` (that's for Google Chrome)
 - macOS Bundle ID set to `oc.bot.app` to avoid conflicts with Chromium/Chrome
-- UI strings use "OcBot" (capital O and B), while BRANDING file uses "Ocbot"
+- Brand name uniformly uses "Ocbot" everywhere (UI, paths, keychain)
 - Icon files are direct overwrites (not patches) — the patch system automatically copies binary files
 
 ## Known Pitfalls
