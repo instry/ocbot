@@ -1,4 +1,4 @@
-# ocbot - Web4 Browser
+# ocbot - AI Browser for Web4.0
 
 ## **[https://oc.bot](https://oc.bot)**
 
