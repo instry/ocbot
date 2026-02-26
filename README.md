@@ -4,7 +4,7 @@
 
 ---
 
-**ocbot** is the browser built for **Web 4.0** — an open-source, AI-native browser where intelligent agents are first-class citizens. 
+**ocbot** is the browser built for **Web 4.0** — an open-source, AI-native browser and **Browser Plugin Terminator**, where intelligent agents are first-class citizens. 
 
 ---
 
@@ -32,6 +32,7 @@ Crypto is the economic lifeblood of the AI era. As digital-native entities, AI A
 *   **AI-Native Kernel**: AI capabilities are deeply integrated into the browser kernel — not a plugin, but a core primitive. Your browser understands, reasons, and acts.
 *   **Autonomous Task Execution**: Describe what you need in natural language — "Download all invoices", "Monitor flight prices" — and the agent handles the rest, end to end.
 *   **Self-Healing Workflows**: Web UI changed? The agent uses visual understanding to automatically repair execution paths. Learn once, reuse forever.
+*   **Browser Plugin Terminator**: Native AI capabilities replace the need for fragmented extensions. One cohesive system instead of dozens of plugins.
 *   **Chrome Lossless Experience**: Retains the full Chrome experience. Import your bookmarks, history, and passwords — continue browsing without interruption.
 
 ### 2. Decentralized & Private
