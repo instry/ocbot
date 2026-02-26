@@ -21,7 +21,7 @@ Line-by-line replacement:
 | PRODUCT_INSTALLER_FULLNAME | Chromium Installer | Ocbot Installer |
 | PRODUCT_INSTALLER_SHORTNAME | Chromium Installer | Ocbot Installer |
 | COPYRIGHT | Copyright ... The Chromium Authors | Copyright ... MALA TECH LLC |
-| MAC_BUNDLE_ID | org.chromium.Chromium | oc.bot.app |
+| MAC_BUNDLE_ID | org.chromium.Chromium | bot.oc.app |
 | MAC_CREATOR_CODE | Cr24 | Oc01 |
 
 ### 2. UI String Replacement
@@ -105,7 +105,7 @@ const char kDefaultAccountName[] = "Ocbot";
 ## Key Decisions
 
 - Only modify files under `chromium/` directory, never touch `google_chrome/` (that's for Google Chrome)
-- macOS Bundle ID set to `oc.bot.app` to avoid conflicts with Chromium/Chrome
+- macOS Bundle ID set to `bot.oc.app` to avoid conflicts with Chromium/Chrome
 - Brand name uniformly uses "Ocbot" everywhere (UI, paths, keychain)
 - Icon files are direct overwrites (not patches) — the patch system automatically copies binary files
 

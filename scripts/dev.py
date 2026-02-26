@@ -87,7 +87,17 @@ def main():
         args.extension_src = get_project_root() / 'extension' / '.output' / 'chrome-mv3'
 
     # Read password from file if applicable
+    # Only read if --official is set or if the user explicitly provided a password file
+    should_read_password_file = False
     if hasattr(args, 'password_file') and args.password_file:
+        if args.password_file != ".apple.json":
+             # User explicitly provided a file
+             should_read_password_file = True
+        elif getattr(args, 'official', False):
+             # Default file, but only read if --official
+             should_read_password_file = True
+    
+    if should_read_password_file:
         pw_file = Path(args.password_file)
         if not pw_file.is_absolute():
             # Try relative to CWD
