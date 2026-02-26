@@ -1,5 +1,5 @@
 diff --git a/chrome/app/app-Info.plist b/chrome/app/app-Info.plist
-index e813de1e4e3649b509a9bf9246d6a9e29c72cd1d..b084e13917fe0b7b2f009eb9cd485cfec309ad86 100644
+index e813de1e4e3649b509a9bf9246d6a9e29c72cd1d..1cc43fcaf8c8fc887a2db7273c5baee7714ff972 100644
 --- a/chrome/app/app-Info.plist
 +++ b/chrome/app/app-Info.plist
 @@ -159,6 +159,8 @@
@@ -7,7 +7,7 @@ index e813de1e4e3649b509a9bf9246d6a9e29c72cd1d..b084e13917fe0b7b2f009eb9cd485cfe
  	<key>CFBundlePackageType</key>
  	<string>APPL</string>
 +	<key>CrProductDirName</key>
-+	<string>OcBot</string>
++	<string>Ocbot</string>
  	<key>CFBundleSignature</key>
  	<string>${CHROMIUM_CREATOR}</string>
  	<key>NSAppleScriptEnabled</key>
