@@ -1,0 +1,31 @@
+diff --git a/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc b/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
+index dc68f422ce8af76e4304167385989bb01f7cb2f5..cbb449858ff3206938b691da649646b40aeaa808 100644
+--- a/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
++++ b/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
+@@ -38,6 +38,9 @@
+ #include "third_party/blink/renderer/platform/audio/vector_math.h"
+ #include "third_party/blink/renderer/platform/wtf/math_extras.h"
+ 
++#include <cstdlib>
++#include "oc_fingerprint/fingerprint_manager.h"
++
+ namespace blink {
+ 
+ namespace {
+@@ -120,6 +123,16 @@ void RealtimeAnalyser::GetFloatFrequencyData(DOMFloat32Array* destination_array,
+       const double db_mag = audio_utilities::LinearToDecibels(linear_value);
+       UNSAFE_TODO(destination[i]) = static_cast<float>(db_mag);
+     }
++
++    // Inject noise for fingerprint spoofing
++    auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++    if (fp && fp->GetConfig().audio_noise_factor) {
++      float noise_factor = *fp->GetConfig().audio_noise_factor;
++      for (unsigned i = 0; i < len; ++i) {
++        float noise = ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * noise_factor;
++        UNSAFE_TODO(destination[i]) += noise;
++      }
++    }
+   }
+ }
+ 

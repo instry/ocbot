@@ -1,0 +1,54 @@
+diff --git a/net/socket/ssl_client_socket_impl.cc b/net/socket/ssl_client_socket_impl.cc
+index 8ac44772109a82d1830ed9c2eeb1e75d64b27f9c..aa90e16a8a597745c7281d4297591ff4d9165dda 100644
+--- a/net/socket/ssl_client_socket_impl.cc
++++ b/net/socket/ssl_client_socket_impl.cc
+@@ -62,6 +62,7 @@
+ #include "net/ssl/ssl_key_logger.h"
+ #include "net/ssl/ssl_private_key.h"
+ #include "net/traffic_annotation/network_traffic_annotation.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ #include "third_party/boringssl/src/include/openssl/bio.h"
+ #include "third_party/boringssl/src/include/openssl/bytestring.h"
+ #include "third_party/boringssl/src/include/openssl/err.h"
+@@ -677,8 +678,15 @@ int SSLClientSocketImpl::Init() {
+     return ERR_UNEXPECTED;
+   }
+ 
+-  const std::vector<uint16_t> supported_groups =
++  std::vector<uint16_t> supported_groups =
+       context_->config().GetSupportedGroups();
++
++  // oc_fingerprint
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp && fp->GetConfig().tls.has_value() && fp->GetConfig().tls->supported_groups.has_value()) {
++     supported_groups = fp->GetConfig().tls->supported_groups.value();
++  }
++
+   if (!SSL_set1_group_ids(ssl_.get(), supported_groups.data(),
+                           supported_groups.size())) {
+     return ERR_UNEXPECTED;
+@@ -762,6 +770,11 @@ int SSLClientSocketImpl::Init() {
+     }
+   }
+ 
++  // oc_fingerprint
++  if (fp && fp->GetConfig().tls.has_value() && fp->GetConfig().tls->cipher_suite_string.has_value()) {
++    command = fp->GetConfig().tls->cipher_suite_string.value();
++  }
++
+   if (!SSL_set_strict_cipher_list(ssl_.get(), command.c_str())) {
+     LOG(ERROR) << "SSL_set_cipher_list('" << command << "') failed";
+     return ERR_UNEXPECTED;
+@@ -843,7 +856,11 @@ int SSLClientSocketImpl::Init() {
+     }
+   }
+ 
+-  SSL_set_permute_extensions(ssl_.get(), 1);
++  bool permute_extensions = true;
++  if (fp && fp->GetConfig().tls.has_value() && fp->GetConfig().tls->permute_extensions.has_value()) {
++    permute_extensions = fp->GetConfig().tls->permute_extensions.value();
++  }
++  SSL_set_permute_extensions(ssl_.get(), permute_extensions);
+ 
+   // Configure BoringSSL to send Trust Anchor IDs, if provided.
+   if (ssl_config_.trust_anchor_ids.has_value()) {

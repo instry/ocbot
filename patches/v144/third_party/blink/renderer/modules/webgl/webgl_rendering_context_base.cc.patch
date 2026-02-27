@@ -1,0 +1,134 @@
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+index c02c0d6387ffa9403ce4b90740f55a1b12ef1565..b818d46fc83d9bb4ada0532c7827c373728c82d5 100644
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+@@ -25,6 +25,7 @@
+ 
+ #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h"
+ 
++#include <cmath>
+ #include <memory>
+ #include <utility>
+ 
+@@ -109,6 +110,7 @@
+ #include "third_party/blink/renderer/modules/webgl/webgl_context_attribute_helpers.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_context_event.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_debug_renderer_info.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_depth_texture.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_draw_buffers.h"
+@@ -3771,6 +3773,21 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
+                                                     GLenum pname) {
+   if (isContextLost())
+     return ScriptValue::CreateNull(script_state->GetIsolate());
++
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp) {
++    if (pname == WebGLDebugRendererInfo::kUnmaskedVendorWebgl &&
++        fp->GetConfig().webgl_vendor) {
++      return WebGLAny(script_state,
++                      String::FromUTF8(*fp->GetConfig().webgl_vendor));
++    }
++    if (pname == WebGLDebugRendererInfo::kUnmaskedRendererWebgl &&
++        fp->GetConfig().webgl_renderer) {
++      return WebGLAny(script_state,
++                      String::FromUTF8(*fp->GetConfig().webgl_renderer));
++    }
++  }
++
+   const int kIntZero = 0;
+   switch (pname) {
+     case GL_ACTIVE_TEXTURE:
+@@ -5133,6 +5150,91 @@ void WebGLRenderingContextBase::ReadPixelsHelper(GLint x,
+     }
+     ContextGL()->ReadPixels(x, y, width, height, format, type, data);
+   }
++
++  if (auto* fingerprint_manager =
++          oc_fingerprint::FingerprintManager::GetInstance()) {
++    const auto& config = fingerprint_manager->GetConfig();
++    if (config.webgl_noise_factor.has_value()) {
++      double noise_factor = config.webgl_noise_factor.value();
++      if (std::isfinite(noise_factor) && noise_factor > 0 && data && width > 0 &&
++          height > 0) {
++        if (noise_factor > 255.0) {
++          noise_factor = 255.0;
++        }
++        int delta = static_cast<int>(noise_factor);
++        if (delta > 0) {
++          unsigned components_per_pixel = 0;
++          unsigned bytes_per_component = 0;
++          if (WebGLImageConversion::ComputeFormatAndTypeParameters(
++                  format, type, &components_per_pixel,
++                  &bytes_per_component) &&
++              bytes_per_component == 1 && components_per_pixel >= 3) {
++            const WebGLImageConversion::PixelStoreParams params =
++                GetPackPixelStoreParams();
++            int row_length = params.row_length > 0 ? params.row_length : width;
++            base::CheckedNumeric<size_t> bytes_per_row = row_length;
++            bytes_per_row *=
++                static_cast<size_t>(components_per_pixel * bytes_per_component);
++            if (bytes_per_row.IsValid()) {
++              size_t row_bytes = bytes_per_row.ValueOrDie();
++              size_t alignment = static_cast<size_t>(params.alignment);
++              size_t padding = 0;
++              if (alignment != 0) {
++                size_t residual = row_bytes % alignment;
++                if (residual) {
++                  padding = alignment - residual;
++                }
++              }
++              size_t padded_row_bytes = row_bytes + padding;
++              base::CheckedNumeric<size_t> total_bytes = padded_row_bytes;
++              if (height > 1) {
++                total_bytes *= static_cast<size_t>(height - 1);
++                total_bytes +=
++                    static_cast<size_t>(width) * components_per_pixel *
++                    bytes_per_component;
++              } else {
++                total_bytes =
++                    static_cast<size_t>(width) * components_per_pixel *
++                    bytes_per_component;
++              }
++              if (total_bytes.IsValid() &&
++                  total_bytes.ValueOrDie() <=
++                      static_cast<size_t>(buffer_size.ValueOrDie())) {
++                size_t buffer_bytes =
++                    static_cast<size_t>(buffer_size.ValueOrDie());
++                auto bytes = UNSAFE_BUFFERS(
++                    base::span<uint8_t>(data, buffer_bytes));
++                for (int row = 0; row < height; ++row) {
++                  size_t row_offset =
++                      static_cast<size_t>(row) * padded_row_bytes;
++                  for (int col = 0; col < width; ++col) {
++                    size_t pixel_offset =
++                        static_cast<size_t>(col) * components_per_pixel;
++                    size_t pixel_base = row_offset + pixel_offset;
++                    int64_t hash =
++                        (static_cast<int64_t>(x + col) * 49297) +
++                        (static_cast<int64_t>(y + row) * 9301) + 49297;
++                    int noise =
++                        static_cast<int>(hash % (delta * 2 + 1)) - delta;
++                    for (int k = 0; k < 3; ++k) {
++                      size_t index = pixel_base + static_cast<size_t>(k);
++                      int value = static_cast<int>(bytes[index]) + noise;
++                      if (value < 0) {
++                        value = 0;
++                      } else if (value > 255) {
++                        value = 255;
++                      }
++                      bytes[index] = static_cast<uint8_t>(value);
++                    }
++                  }
++                }
++              }
++            }
++          }
++        }
++      }
++    }
++  }
+ }
+ 
+ void WebGLRenderingContextBase::RenderbufferStorageImpl(

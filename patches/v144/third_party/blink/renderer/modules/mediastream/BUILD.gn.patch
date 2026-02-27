@@ -1,0 +1,12 @@
+diff --git a/third_party/blink/renderer/modules/mediastream/BUILD.gn b/third_party/blink/renderer/modules/mediastream/BUILD.gn
+index 62ef4afc408779997a785395336bd8d6f9e5641c..9765bcc04f7b088341a25d7cfedc239f39534b3c 100644
+--- a/third_party/blink/renderer/modules/mediastream/BUILD.gn
++++ b/third_party/blink/renderer/modules/mediastream/BUILD.gn
+@@ -136,6 +136,7 @@ blink_modules_sources("mediastream") {
+     "//third_party/blink/renderer/modules/imagecapture",
+     "//third_party/blink/renderer/modules/screen_details",
+     "//third_party/libyuv",
++    "//oc_fingerprint",
+   ]
+   allow_circular_includes_from =
+       [ "//third_party/blink/renderer/modules/imagecapture:imagecapture" ]

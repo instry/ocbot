@@ -1,0 +1,29 @@
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+index 43d91211e346f1fb1b415adcb674a391da25f3be..45a5b3d6c0ffde7ca79fcfbbbf1f44d22624b86c 100644
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -3836,6 +3836,24 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+   };
+   renderer_cmd->CopySwitchesFrom(browser_cmd, kSwitchNames);
+ 
++  if (browser_cmd.HasSwitch("oc-config-json")) {
++    std::string config_value =
++        browser_cmd.GetSwitchValueASCII("oc-config-json");
++    base::FilePath path = base::FilePath::FromUTF8Unsafe(config_value);
++    {
++      base::ScopedAllowBlocking allow_blocking;
++      if (base::PathExists(path)) {
++        std::string file_content;
++        if (base::ReadFileToString(path, &file_content)) {
++          config_value = std::move(file_content);
++        } else {
++          LOG(ERROR) << "ZC: Failed to read config file from " << path.value();
++        }
++      }
++    }
++    renderer_cmd->AppendSwitchASCII("oc-config-json", config_value);
++  }
++
+   // |switches::kGaiaConfig| can be set via browser command-line arguments,
+   // usually by developers working on signin code. The switch, however, cannot
+   // be passed as is, because the renderer cannot read the file anyway. In those

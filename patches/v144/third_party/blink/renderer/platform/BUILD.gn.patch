@@ -1,0 +1,20 @@
+diff --git a/third_party/blink/renderer/platform/BUILD.gn b/third_party/blink/renderer/platform/BUILD.gn
+index 878869ec15e97201f8aa557e30590a3c170a468c..14f073dbf9732a811169e1f378089baa73f1417d 100644
+--- a/third_party/blink/renderer/platform/BUILD.gn
++++ b/third_party/blink/renderer/platform/BUILD.gn
+@@ -176,6 +176,7 @@ group("make_platform_generated") {
+     "//third_party/blink/public/common:buildflags",
+     "//third_party/blink/renderer/platform/heap:blink_heap_buildflags",
+     "//third_party/blink/renderer/platform/network:make_generated",
++    "//oc_fingerprint",
+   ]
+ }
+ 
+@@ -1859,6 +1860,7 @@ component("platform") {
+     "//ui/gfx/mojom",
+     "//ui/gl:buildflags",
+     "//ui/native_theme",
++    "//oc_fingerprint",
+   ]
+ 
+   if (has_zstd_compression) {

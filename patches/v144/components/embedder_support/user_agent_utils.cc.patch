@@ -1,0 +1,109 @@
+diff --git a/components/embedder_support/user_agent_utils.cc b/components/embedder_support/user_agent_utils.cc
+index 557eadb18229e4adb2f0092593877254e2f1fe7c..c38a2db57e0c9b726d2caadbff3063d2d149fbee 100644
+--- a/components/embedder_support/user_agent_utils.cc
++++ b/components/embedder_support/user_agent_utils.cc
+@@ -32,6 +32,7 @@
+ #include "components/prefs/pref_service.h"
+ #include "components/version_info/version_info.h"
+ #include "net/http/http_util.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
+ 
+@@ -439,11 +440,18 @@ std::string BuildOSCpuInfo(
+ }  // namespace
+ 
+ std::string GetProductAndVersion() {
+-  return base::FeatureList::IsEnabled(
+-             blink::features::kReduceUserAgentMinorVersion)
+-             ? version_info::GetProductNameAndVersionForReducedUserAgent()
+-             : std::string(
+-                   version_info::GetProductNameAndVersionForUserAgent());
++  std::string product_and_version =
++      base::FeatureList::IsEnabled(
++          blink::features::kReduceUserAgentMinorVersion)
++          ? version_info::GetProductNameAndVersionForReducedUserAgent()
++          : std::string(version_info::GetProductNameAndVersionForUserAgent());
++
++  // Force the return value to start with "Chrome/" instead of the actual product name (OcBot).
++  size_t slash_pos = product_and_version.find('/');
++  if (slash_pos != std::string::npos) {
++    return "Chrome" + product_and_version.substr(slash_pos);
++  }
++  return product_and_version;
+ }
+ 
+ std::optional<std::string> GetUserAgentFromCommandLine() {
+@@ -495,9 +503,11 @@ blink::UserAgentBrandList GenerateBrandVersionList(
+   blink::UserAgentBrandVersion greasey_bv =
+       GetGreasedUserAgentBrandVersion(seed, output_version_type);
+   blink::UserAgentBrandVersion chromium_bv = {"Chromium", version};
++  blink::UserAgentBrandVersion google_chrome_bv = {"Google Chrome", version};
+ 
+   blink::UserAgentBrandList brand_version_list = {std::move(greasey_bv),
+-                                                  std::move(chromium_bv)};
++                                                  std::move(chromium_bv),
++                                                  std::move(google_chrome_bv)};
+   if (brand) {
+     brand_version_list.emplace_back(brand.value(), version);
+   }
+@@ -644,6 +654,27 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
+   metadata.mobile = GetMobileBitForUAMetadata();
+   metadata.platform = GetPlatformForUAMetadata();
+ 
++  auto* fingerprint_manager = oc_fingerprint::FingerprintManager::GetInstance();
++  const auto& config = fingerprint_manager->GetConfig();
++
++  if (config.mobile.has_value()) {
++    metadata.mobile = *config.mobile;
++  }
++  if (config.platform.has_value()) {
++    metadata.platform = *config.platform;
++  }
++  if (config.full_version_list.has_value()) {
++    metadata.brand_version_list.clear();
++    for (const auto& bv : *config.full_version_list) {
++      std::string major_version = bv.version;
++      size_t dot_pos = major_version.find('.');
++      if (dot_pos != std::string::npos) {
++        major_version = major_version.substr(0, dot_pos);
++      }
++      metadata.brand_version_list.push_back({bv.brand, major_version});
++    }
++  }
++
+   // For users providing a valid user-agent override via the command line:
+   // If kUACHOverrideBlank is enabled, set user-agent metadata with the
+   // default blank values, otherwise return the default UserAgentMetadata values
+@@ -671,6 +702,31 @@ blink::UserAgentMetadata GetUserAgentMetadata(bool only_low_entropy_ch) {
+   metadata.bitness = GetCpuBitness();
+   metadata.wow64 = IsWoW64();
+   metadata.platform_version = GetPlatformVersion();
++
++  if (config.full_version_list.has_value()) {
++    metadata.brand_full_version_list.clear();
++    for (const auto& bv : *config.full_version_list) {
++      metadata.brand_full_version_list.push_back({bv.brand, bv.version});
++    }
++  }
++  if (config.ua_full_version.has_value()) {
++    metadata.full_version = *config.ua_full_version;
++  }
++  if (config.architecture.has_value()) {
++    metadata.architecture = *config.architecture;
++  }
++  if (config.model.has_value()) {
++    metadata.model = *config.model;
++  }
++  if (config.bitness.has_value()) {
++    metadata.bitness = *config.bitness;
++  }
++  if (config.wow64.has_value()) {
++    metadata.wow64 = *config.wow64;
++  }
++  if (config.platform_version.has_value()) {
++    metadata.platform_version = *config.platform_version;
++  }
+   return metadata;
+ }
+ 

@@ -1,0 +1,27 @@
+diff --git a/services/network/network_context.cc b/services/network/network_context.cc
+index 7e784ecaa70358f861764077882c9421ad793f38..cb2c8562c5c802186378ea9989cc96974a663687 100644
+--- a/services/network/network_context.cc
++++ b/services/network/network_context.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "services/network/network_context.h"
+ 
++#include "net/third_party/quiche/src/quiche/http2/core/spdy_protocol.h"
++
+ #include <algorithm>
+ #include <memory>
+ #include <optional>
+@@ -2966,6 +2968,13 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
+ #endif  // BUILDFLAG(ENABLE_REPORTING)
+ 
+   net::HttpNetworkSessionParams session_params;
++  // oc_fingerprint START
++  if (params_->http2_settings) {
++    for (const auto& [id, value] : *params_->http2_settings) {
++      session_params.http2_settings[static_cast<spdy::SpdySettingsId>(id)] = value;
++    }
++  }
++  // oc_fingerprint END
+   bool is_quic_force_disabled = false;
+   if (network_service_ && network_service_->quic_disabled()) {
+     is_quic_force_disabled = true;

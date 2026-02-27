@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 03fe6b86452b35c12fabdb7859fc0334c4af7caf..9c5407ec9583aa17c63e1a3e9f1fdc0e9d02f09a 100644
+index 03fe6b86452b35c12fabdb7859fc0334c4af7caf..adf538dce4e417cdeb327a836b2d46bb0c218cd3 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -1085,6 +1085,10 @@ static_library("ui") {
+@@ -1085,6 +1085,12 @@ static_library("ui") {
        "focus_tab_after_navigation_helper.h",
        "intent_picker_tab_helper.cc",
        "intent_picker_tab_helper.h",
@@ -10,6 +10,8 @@ index 03fe6b86452b35c12fabdb7859fc0334c4af7caf..9c5407ec9583aa17c63e1a3e9f1fdc0e
 +      "ocbot/ocbot_constants.h",
 +      "ocbot/ocbot_side_panel_manager.cc",
 +      "ocbot/ocbot_side_panel_manager.h",
++      "ocbot/ocbot_url_handler.cc",
++      "ocbot/ocbot_url_handler.h",
        "read_anything/read_anything_prefs.cc",
        "read_anything/read_anything_prefs.h",
        "sad_tab.cc",

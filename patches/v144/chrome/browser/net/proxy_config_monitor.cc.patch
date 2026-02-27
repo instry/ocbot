@@ -1,0 +1,72 @@
+diff --git a/chrome/browser/net/proxy_config_monitor.cc b/chrome/browser/net/proxy_config_monitor.cc
+index 50e7a07af841ff55cd24c0a79eef5dcc68807933..0f130eb6af2589b671e02b2ebd8b8a9ca669233b 100644
+--- a/chrome/browser/net/proxy_config_monitor.cc
++++ b/chrome/browser/net/proxy_config_monitor.cc
+@@ -7,6 +7,7 @@
+ #include <utility>
+ 
+ #include "base/strings/utf_string_conversions.h"
++#include "base/strings/string_number_conversions.h"
+ #include "build/build_config.h"
+ #include "build/chromeos_buildflags.h"
+ #include "chrome/browser/browser_process.h"
+@@ -15,7 +16,9 @@
+ #include "components/proxy_config/pref_proxy_config_tracker_impl.h"
+ #include "content/public/browser/browser_thread.h"
+ #include "mojo/public/cpp/bindings/pending_remote.h"
++#include "net/traffic_annotation/network_traffic_annotation.h"
+ #include "services/network/public/mojom/network_context.mojom.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include "chrome/browser/ash/profiles/profile_helper.h"
+@@ -101,6 +104,49 @@ void ProxyConfigMonitor::AddToNetworkContextParams(
+       proxy_config_service_->GetLatestProxyConfig(&proxy_config);
+   if (availability != net::ProxyConfigService::CONFIG_PENDING)
+     network_context_params->initial_proxy_config = proxy_config;
++
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp && fp->GetConfig().proxy.has_value()) {
++    const auto& config = fp->GetConfig().proxy.value();
++    bool is_enabled = config.enabled.value_or(true);
++
++    if (is_enabled && config.type != "system") {
++      net::ProxyConfig fp_proxy_config;
++      if (config.type == "direct") {
++        fp_proxy_config.proxy_rules().ParseFromString("DIRECT");
++      } else if (config.host && config.port) {
++        std::string rule_str;
++        if (config.type == "http") {
++          rule_str = "http=" + *config.host + ":" + base::NumberToString(*config.port);
++        } else if (config.type == "socks4") {
++          rule_str = "socks4=" + *config.host + ":" + base::NumberToString(*config.port);
++        } else if (config.type == "socks5") {
++          rule_str = "socks5=" + *config.host + ":" + base::NumberToString(*config.port);
++        } else {
++          rule_str = *config.host + ":" + base::NumberToString(*config.port);
++        }
++        fp_proxy_config.proxy_rules().ParseFromString(rule_str);
++      }
++
++      constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
++          net::DefineNetworkTrafficAnnotation("oc_fingerprint_proxy", R"(
++            semantics {
++              sender: "ZC Fingerprint Proxy"
++              description: "Proxy configuration from ZC Fingerprint."
++              trigger: "User configures proxy in ZC Fingerprint."
++              data: "None."
++              destination: OTHER
++            }
++            policy {
++              cookies_allowed: NO
++              setting: "This feature cannot be disabled by settings."
++              policy_exception_justification: "Essential for fingerprinting."
++            })");
++
++      network_context_params->initial_proxy_config =
++          net::ProxyConfigWithAnnotation(fp_proxy_config, kTrafficAnnotation);
++    }
++  }
+ }
+ 
+ void ProxyConfigMonitor::FlushForTesting() {

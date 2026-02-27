@@ -1,0 +1,16 @@
+diff --git a/chrome/common/url_constants.h b/chrome/common/url_constants.h
+index 377fe880e356f07816293571af8c10251a94123e..db3460c448e84e81048ea13efb746b902a1605aa 100644
+--- a/chrome/common/url_constants.h
++++ b/chrome/common/url_constants.h
+@@ -149,6 +149,11 @@ inline constexpr char kChromeOsHelpViaWebUIURL[] =
+ // widgets instead of using HTML.
+ inline constexpr char kChromeNativeScheme[] = "chrome-native";
+ 
++// ocbot: Custom oc:// scheme for internal pages
++inline constexpr char kOcScheme[] = "oc";
++inline constexpr char kOcHomeHost[] = "home";
++inline constexpr char kOcHomeURL[] = "oc://home/";
++
+ // The URL of safe section in Chrome page (https://www.google.com/chrome).
+ inline constexpr char16_t kChromeSafePageURL[] =
+     u"https://www.google.com/chrome/#safe";

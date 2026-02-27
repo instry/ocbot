@@ -1,0 +1,43 @@
+diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.cc b/third_party/blink/renderer/core/timezone/timezone_controller.cc
+index 48eb8d2fbdcf5917401ccf803ac8f4d3df917507..85adf6dd9edc179639a356f4acaee6f92a4ebe89 100644
+--- a/third_party/blink/renderer/core/timezone/timezone_controller.cc
++++ b/third_party/blink/renderer/core/timezone/timezone_controller.cc
+@@ -27,6 +27,7 @@
+ #include "third_party/blink/renderer/platform/wtf/wtf.h"
+ #include "third_party/icu/source/i18n/unicode/timezone.h"
+ #include "v8/include/v8.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ 
+ namespace blink {
+ 
+@@ -109,6 +110,14 @@ void TimeZoneController::Init() {
+   Platform::Current()->GetBrowserInterfaceBroker()->GetInterface(
+       monitor.BindNewPipeAndPassReceiver());
+   monitor->AddClient(instance().receiver_.BindNewPipeAndPassRemote());
++
++  const auto& config =
++      oc_fingerprint::FingerprintManager::GetInstance()->GetConfig();
++  if (config.timezone_enabled.value_or(false)) {
++    if (config.timezone_id) {
++      SetIcuTimeZoneAndNotifyV8(String::FromUTF8(*config.timezone_id));
++    }
++  }
+ }
+ 
+ // static
+@@ -249,6 +258,15 @@ void TimeZoneController::OnTimeZoneChange(const String& timezone_id) {
+   // override is removed.
+   instance().host_timezone_id_ = timezone_id;
+ 
++  const auto& config =
++      oc_fingerprint::FingerprintManager::GetInstance()->GetConfig();
++  if (config.timezone_enabled.value_or(false)) {
++    if (config.timezone_id) {
++      SetIcuTimeZoneAndNotifyV8(String::FromUTF8(*config.timezone_id));
++      return;
++    }
++  }
++
+   if (!HasTimeZoneOverride())
+     SetIcuTimeZoneAndNotifyV8(timezone_id);
+ }

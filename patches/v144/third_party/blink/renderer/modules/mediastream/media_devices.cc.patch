@@ -1,0 +1,96 @@
+diff --git a/third_party/blink/renderer/modules/mediastream/media_devices.cc b/third_party/blink/renderer/modules/mediastream/media_devices.cc
+index 86a41c16dc22daa156d22dbc86e09471c4471323..9c10a7611890cccc2943abcfb5d3f129cee2e33a 100644
+--- a/third_party/blink/renderer/modules/mediastream/media_devices.cc
++++ b/third_party/blink/renderer/modules/mediastream/media_devices.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/modules/mediastream/media_devices.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ 
+ #include <algorithm>
+ #include <utility>
+@@ -1288,18 +1289,67 @@ void MediaDevices::DevicesEnumerated(
+     return;
+   }
+ 
++  Vector<Vector<WebMediaDeviceInfo>> spoofed_enumeration;
++  Vector<mojom::blink::VideoInputDeviceCapabilitiesPtr> spoofed_video_caps;
++  Vector<mojom::blink::AudioInputDeviceCapabilitiesPtr> spoofed_audio_caps;
++  const Vector<Vector<WebMediaDeviceInfo>>* actual_enumeration = &enumeration;
++
++  if (auto* fingerprint_manager = oc_fingerprint::FingerprintManager::GetInstance()) {
++    const auto& config = fingerprint_manager->GetConfig();
++    if (config.media_devices_enabled.value_or(false)) {
++      spoofed_enumeration.resize(static_cast<wtf_size_t>(
++          mojom::blink::MediaDeviceType::kNumMediaDeviceTypes));
++
++      auto add_devices = [&](const std::vector<oc_fingerprint::FingerprintConfig::MediaDevice>& devices,
++                             mojom::blink::MediaDeviceType type) {
++        for (const auto& device : devices) {
++          spoofed_enumeration[static_cast<wtf_size_t>(type)].push_back(
++              WebMediaDeviceInfo(device.device_id, device.label, device.group_id));
++        }
++      };
++
++      if (config.video_inputs) {
++        add_devices(*config.video_inputs, mojom::blink::MediaDeviceType::kMediaVideoInput);
++        for (size_t i = 0; i < config.video_inputs->size(); ++i) {
++          auto caps = mojom::blink::VideoInputDeviceCapabilities::New();
++          caps->device_id = String::FromUTF8(config.video_inputs->at(i).device_id);
++          caps->formats = Vector<media::VideoCaptureFormat>();
++          caps->facing_mode = mojom::blink::FacingMode::kNone;
++          spoofed_video_caps.push_back(std::move(caps));
++        }
++      }
++
++      if (config.audio_inputs) {
++        add_devices(*config.audio_inputs, mojom::blink::MediaDeviceType::kMediaAudioInput);
++        for (size_t i = 0; i < config.audio_inputs->size(); ++i) {
++          auto caps = mojom::blink::AudioInputDeviceCapabilities::New();
++          caps->device_id = String::FromUTF8(config.audio_inputs->at(i).device_id);
++          spoofed_audio_caps.push_back(std::move(caps));
++        }
++      }
++
++      if (config.audio_outputs) {
++        add_devices(*config.audio_outputs, mojom::blink::MediaDeviceType::kMediaAudioOutput);
++      }
++
++      actual_enumeration = &spoofed_enumeration;
++      video_input_capabilities = std::move(spoofed_video_caps);
++      audio_input_capabilities = std::move(spoofed_audio_caps);
++    }
++  }
++
+   DCHECK_EQ(static_cast<wtf_size_t>(
+                 mojom::blink::MediaDeviceType::kNumMediaDeviceTypes),
+-            enumeration.size());
++            (*actual_enumeration).size());
+ 
+   if (!video_input_capabilities.empty()) {
+-    DCHECK_EQ(enumeration[static_cast<wtf_size_t>(
++    DCHECK_EQ((*actual_enumeration)[static_cast<wtf_size_t>(
+                               mojom::blink::MediaDeviceType::kMediaVideoInput)]
+                   .size(),
+               video_input_capabilities.size());
+   }
+   if (!audio_input_capabilities.empty()) {
+-    DCHECK_EQ(enumeration[static_cast<wtf_size_t>(
++    DCHECK_EQ((*actual_enumeration)[static_cast<wtf_size_t>(
+                               mojom::blink::MediaDeviceType::kMediaAudioInput)]
+                   .size(),
+               audio_input_capabilities.size());
+@@ -1311,10 +1361,10 @@ void MediaDevices::DevicesEnumerated(
+        i < static_cast<wtf_size_t>(
+                mojom::blink::MediaDeviceType::kNumMediaDeviceTypes);
+        ++i) {
+-    for (wtf_size_t j = 0; j < enumeration[i].size(); ++j) {
++    for (wtf_size_t j = 0; j < (*actual_enumeration)[i].size(); ++j) {
+       mojom::blink::MediaDeviceType device_type =
+           static_cast<mojom::blink::MediaDeviceType>(i);
+-      WebMediaDeviceInfo device_info = enumeration[i][j];
++      WebMediaDeviceInfo device_info = (*actual_enumeration)[i][j];
+       String device_label = String::FromUTF8(device_info.label);
+       if (device_type == mojom::blink::MediaDeviceType::kMediaAudioInput ||
+           device_type == mojom::blink::MediaDeviceType::kMediaVideoInput) {

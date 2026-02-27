@@ -1,0 +1,26 @@
+diff --git a/chrome/browser/ui/ocbot/ocbot_url_handler.h b/chrome/browser/ui/ocbot/ocbot_url_handler.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..5d722b8b5a584a708f1815b9e5b08edc715376a2
+--- /dev/null
++++ b/chrome/browser/ui/ocbot/ocbot_url_handler.h
+@@ -0,0 +1,20 @@
++#ifndef CHROME_BROWSER_UI_OCBOT_OCBOT_URL_HANDLER_H_
++#define CHROME_BROWSER_UI_OCBOT_OCBOT_URL_HANDLER_H_
++
++namespace content {
++class BrowserContext;
++}
++
++class GURL;
++
++namespace ocbot {
++
++// Rewrites oc://<path> to chrome-extension://<ocbot-id>/home.html#/<path>
++bool HandleOcURL(GURL* url, content::BrowserContext* browser_context);
++
++// Reverse handler: rewrites extension URL back to oc:// for omnibox display
++bool HandleOcURLReverse(GURL* url, content::BrowserContext* browser_context);
++
++}  // namespace ocbot
++
++#endif  // CHROME_BROWSER_UI_OCBOT_OCBOT_URL_HANDLER_H_

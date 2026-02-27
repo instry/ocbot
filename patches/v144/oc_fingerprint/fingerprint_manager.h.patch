@@ -1,0 +1,208 @@
+diff --git a/oc_fingerprint/fingerprint_manager.h b/oc_fingerprint/fingerprint_manager.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc0aa9a2aedc98ef9c16ae8bbdf7371b12e60757
+--- /dev/null
++++ b/oc_fingerprint/fingerprint_manager.h
+@@ -0,0 +1,202 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef OC_FINGERPRINT_FINGERPRINT_MANAGER_H_
++#define OC_FINGERPRINT_FINGERPRINT_MANAGER_H_
++
++#include <cstdint>
++#include <map>
++#include <optional>
++#include <string>
++#include <vector>
++
++#include "base/no_destructor.h"
++
++#if defined(COMPONENT_BUILD)
++#if defined(WIN32)
++#if defined(OC_FINGERPRINT_IMPLEMENTATION)
++#define OC_FINGERPRINT_EXPORT __declspec(dllexport)
++#else
++#define OC_FINGERPRINT_EXPORT __declspec(dllimport)
++#endif
++#else
++#if defined(OC_FINGERPRINT_IMPLEMENTATION)
++#define OC_FINGERPRINT_EXPORT __attribute__((visibility("default")))
++#else
++#define OC_FINGERPRINT_EXPORT
++#endif
++#endif
++#else
++#define OC_FINGERPRINT_EXPORT
++#endif
++
++namespace oc_fingerprint {
++
++struct OC_FINGERPRINT_EXPORT BrandVersion {
++  std::string brand;
++  std::string version;
++};
++
++struct OC_FINGERPRINT_EXPORT FingerprintConfig {
++  FingerprintConfig();
++  FingerprintConfig(const FingerprintConfig& other);
++  ~FingerprintConfig();
++
++  std::optional<std::string> platform;
++  std::optional<uint16_t> hardware_concurrency;
++  std::optional<float> device_memory;
++  std::optional<std::string> user_agent;
++  std::optional<std::string> ua_full_version;
++  std::optional<std::string> architecture;
++  std::optional<std::string> model;
++  std::optional<bool> mobile;
++  std::optional<std::string> bitness;
++  std::optional<bool> wow64;
++  std::optional<std::string> platform_version;
++  std::optional<std::vector<BrandVersion>> full_version_list;
++  std::optional<std::vector<std::string>> languages;
++  std::optional<bool> languages_enabled;
++  std::optional<std::string> webrtc_policy;
++  std::optional<std::string> webrtc_local_ip;
++
++  // WebRTC configuration
++  enum class WebRTCSpoofingMode {
++    kReal,
++    kDisabled,
++    kProxy,
++  };
++  struct OC_FINGERPRINT_EXPORT WebRTCConfig {
++    WebRTCConfig();
++    WebRTCConfig(const WebRTCConfig& other);
++    ~WebRTCConfig();
++    WebRTCSpoofingMode mode = WebRTCSpoofingMode::kReal;
++    std::optional<std::string> public_ip;
++  };
++  std::optional<WebRTCConfig> webrtc;
++
++  // Storage configuration
++  struct OC_FINGERPRINT_EXPORT StorageConfig {
++    StorageConfig();
++    StorageConfig(const StorageConfig& other);
++    ~StorageConfig();
++    std::optional<std::string> user_data_path;
++    std::optional<std::string> cache_path;
++    std::optional<std::string> cookie_path;
++    std::optional<bool> persist;
++  };
++  std::optional<StorageConfig> storage;
++
++  // Proxy configuration
++  struct OC_FINGERPRINT_EXPORT ProxyConfig {
++    ProxyConfig();
++    ProxyConfig(const ProxyConfig& other);
++    ~ProxyConfig();
++
++    std::optional<bool> enabled;
++    std::string type; // "direct", "system", "http", "socks4", "socks5"
++    std::optional<std::string> host;
++    std::optional<uint16_t> port;
++    std::optional<std::string> username;
++    std::optional<std::string> password;
++  };
++  std::optional<ProxyConfig> proxy;
++
++  std::optional<std::string> webgl_vendor;
++  std::optional<std::string> webgl_renderer;
++
++  // Media Devices
++  struct MediaDevice {
++    std::string device_id;
++    std::string label;
++    std::string group_id;
++  };
++  std::optional<bool> media_devices_enabled;
++  std::optional<std::vector<MediaDevice>> video_inputs;
++  std::optional<std::vector<MediaDevice>> audio_inputs;
++  std::optional<std::vector<MediaDevice>> audio_outputs;
++
++  // Geolocation
++  std::optional<bool> geolocation_enabled;
++  std::optional<double> latitude;
++  std::optional<double> longitude;
++  std::optional<double> accuracy;
++
++  // Timezone
++  std::optional<bool> timezone_enabled;
++  std::optional<std::string> timezone_id;
++
++  // Audio configuration
++  std::optional<float> audio_noise_factor;
++
++  // HTTP/2 configuration
++  struct OC_FINGERPRINT_EXPORT Http2Config {
++    Http2Config();
++    Http2Config(const Http2Config& other);
++    ~Http2Config();
++    std::optional<uint32_t> initial_window_size;
++    std::optional<uint32_t> header_table_size;
++    std::optional<uint32_t> max_concurrent_streams;
++    std::optional<uint32_t> max_frame_size;
++    std::optional<uint32_t> max_header_list_size;
++    std::optional<bool> enable_push;
++    // Map of SpdySettingsId to value
++    std::optional<std::map<uint32_t, uint32_t>> settings;
++  };
++  std::optional<Http2Config> http2;
++
++  // Canvas configuration
++  std::optional<double> canvas_noise_factor;
++
++  // WebGL configuration (additional)
++  std::optional<double> webgl_noise_factor;
++
++  // Fonts configuration
++  enum class FontSpoofingMode {
++    kNone,
++    kAllowlist,
++  };
++  struct OC_FINGERPRINT_EXPORT FontConfig {
++    FontConfig();
++    FontConfig(const FontConfig& other);
++    ~FontConfig();
++    FontSpoofingMode mode = FontSpoofingMode::kNone;
++    std::vector<std::string> allowlist;
++  };
++  std::optional<FontConfig> fonts;
++
++  // TLS/JA3 configuration
++  struct OC_FINGERPRINT_EXPORT TlsConfig {
++    TlsConfig();
++    TlsConfig(const TlsConfig& other);
++    ~TlsConfig();
++    std::optional<std::string> cipher_suite_string;
++    std::optional<bool> permute_extensions;
++    std::optional<std::vector<uint16_t>> supported_groups;
++  };
++  std::optional<TlsConfig> tls;
++};
++
++class OC_FINGERPRINT_EXPORT FingerprintManager {
++ public:
++  static FingerprintManager* GetInstance();
++
++  FingerprintManager(const FingerprintManager&) = delete;
++  FingerprintManager& operator=(const FingerprintManager&) = delete;
++
++  const FingerprintConfig& GetConfig() const;
++
++ private:
++  friend class base::NoDestructor<FingerprintManager>;
++
++  FingerprintManager();
++  ~FingerprintManager();
++
++  void Initialize();
++
++  FingerprintConfig config_;
++};
++
++}  // namespace oc_fingerprint
++
++#endif  // OC_FINGERPRINT_FINGERPRINT_MANAGER_H_

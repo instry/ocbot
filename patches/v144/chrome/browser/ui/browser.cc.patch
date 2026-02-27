@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
+index f26fda618b33ab0e021df380dac7aa3eeb46c830..88e610659e6ceadc12189d8bea88eda3e4697e1f 100644
+--- a/chrome/browser/ui/browser.cc
++++ b/chrome/browser/ui/browser.cc
+@@ -772,7 +772,8 @@ GURL Browser::GetNewTabURL() const {
+   if (auto* const app_browser_controller = app_controller()) {
+     return app_browser_controller->GetAppNewTabUrl();
+   }
+-  return GURL(chrome::kChromeUINewTabURL);
++  // ocbot: Use oc://home instead of chrome://newtab
++  return GURL(chrome::kOcHomeURL);
+ }
+ 
+ gfx::Image Browser::GetCurrentPageIcon() const {

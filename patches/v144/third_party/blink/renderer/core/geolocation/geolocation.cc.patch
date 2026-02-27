@@ -1,0 +1,38 @@
+diff --git a/third_party/blink/renderer/core/geolocation/geolocation.cc b/third_party/blink/renderer/core/geolocation/geolocation.cc
+index b3c584fa93dcb33310f48dccda7dafba19a5a669..31412745571917e9cbcfac804c1707f433a1be41 100644
+--- a/third_party/blink/renderer/core/geolocation/geolocation.cc
++++ b/third_party/blink/renderer/core/geolocation/geolocation.cc
+@@ -52,6 +52,7 @@
+ #include "third_party/blink/renderer/core/timing/epoch_time_stamp.h"
+ #include "third_party/blink/renderer/platform/bindings/source_location.h"
+ #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ 
+ namespace blink {
+ namespace {
+@@ -67,12 +68,23 @@ const char kFeaturePolicyConsoleWarning[] =
+ 
+ Geoposition* CreateGeoposition(
+     const device::mojom::blink::Geoposition& position) {
++  const auto& config = oc_fingerprint::FingerprintManager::GetInstance()->GetConfig();
++  double latitude = position.latitude;
++  double longitude = position.longitude;
++  double accuracy = position.accuracy;
++
++  if (config.geolocation_enabled.value_or(false)) {
++    if (config.latitude) latitude = *config.latitude;
++    if (config.longitude) longitude = *config.longitude;
++    if (config.accuracy) accuracy = *config.accuracy;
++  }
++
+   auto* coordinates = MakeGarbageCollected<GeolocationCoordinates>(
+-      position.latitude, position.longitude,
++      latitude, longitude,
+       // Lowest point on land is at approximately -400 meters.
+       position.altitude > -10000. ? std::make_optional(position.altitude)
+                                   : std::nullopt,
+-      position.accuracy,
++      accuracy,
+       position.altitude_accuracy >= 0.
+           ? std::make_optional(position.altitude_accuracy)
+           : std::nullopt,

@@ -1,0 +1,36 @@
+diff --git a/third_party/blink/renderer/core/frame/navigator.cc b/third_party/blink/renderer/core/frame/navigator.cc
+index fa76e30466faacf4018224562e08f832d5707eab..342d1cf2cb0fc3c8497c1eda35ebc1e2a0ad4a2d 100644
+--- a/third_party/blink/renderer/core/frame/navigator.cc
++++ b/third_party/blink/renderer/core/frame/navigator.cc
+@@ -35,6 +35,8 @@
+ #include "third_party/blink/renderer/core/page/page.h"
+ #include "third_party/blink/renderer/core/probe/core_probes.h"
+ #include "third_party/blink/renderer/platform/language.h"
++#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ 
+ namespace blink {
+ 
+@@ -108,6 +110,22 @@ bool Navigator::webdriver() const {
+ }
+ 
+ String Navigator::GetAcceptLanguages() {
++  if (auto* fingerprint_manager =
++          oc_fingerprint::FingerprintManager::GetInstance()) {
++    const auto& config = fingerprint_manager->GetConfig();
++    if (config.languages_enabled.value_or(false) && config.languages.has_value() &&
++        !config.languages->empty()) {
++      StringBuilder builder;
++      for (size_t i = 0; i < config.languages->size(); ++i) {
++        if (i > 0) {
++          builder.Append(",");
++        }
++        builder.Append(String::FromUTF8(config.languages->at(i).c_str()));
++      }
++      return builder.ToString();
++    }
++  }
++
+   if (!DomWindow())
+     return DefaultLanguage();
+ 

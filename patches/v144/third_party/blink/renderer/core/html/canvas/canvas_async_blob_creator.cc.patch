@@ -1,0 +1,82 @@
+diff --git a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+index adb616defbf323aa0d94ead86822908c355601fc..04be7f38d0dd7cd0d1e6b3adebc9837314c9633e 100644
+--- a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
++++ b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+@@ -4,10 +4,14 @@
+ 
+ #include "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h"
+ 
++#include <cmath>
++
+ #include "base/location.h"
+ #include "base/metrics/histogram_functions.h"
+ #include "base/metrics/histogram_macros.h"
++#include "base/numerics/checked_math.h"
+ #include "build/build_config.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/public/platform/task_type.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+@@ -247,6 +251,62 @@ bool CanvasAsyncBlobCreator::EncodeImage(
+   if (!buffer) {
+     return false;
+   }
++  if (auto* fingerprint_manager =
++          oc_fingerprint::FingerprintManager::GetInstance()) {
++    const auto& config = fingerprint_manager->GetConfig();
++    if (config.canvas_noise_factor.has_value()) {
++      double noise_factor = config.canvas_noise_factor.value();
++      if (std::isfinite(noise_factor) && noise_factor > 0) {
++        if (noise_factor > 255.0) {
++          noise_factor = 255.0;
++        }
++        int delta = static_cast<int>(noise_factor);
++        if (delta > 0 && buffer->MakeWritable()) {
++          int width = buffer->Width();
++          int height = buffer->Height();
++          int bytes_per_pixel = buffer->BytesPerPixel();
++          size_t row_bytes = buffer->RowBytes();
++          if (width > 0 && height > 0 && bytes_per_pixel >= 3) {
++            base::CheckedNumeric<size_t> min_row_bytes = width;
++            min_row_bytes *= bytes_per_pixel;
++            if (min_row_bytes.IsValid() &&
++                row_bytes >= min_row_bytes.ValueOrDie()) {
++              base::span<uint8_t> bytes = buffer->MutablePixelData();
++              base::CheckedNumeric<size_t> total_bytes = row_bytes;
++              total_bytes *= height;
++              if (total_bytes.IsValid() &&
++                  bytes.size() >= total_bytes.ValueOrDie()) {
++                for (int row = 0; row < height; ++row) {
++                  size_t row_offset =
++                      static_cast<size_t>(row) * row_bytes;
++                  for (int col = 0; col < width; ++col) {
++                    size_t pixel_offset =
++                        static_cast<size_t>(col) * bytes_per_pixel;
++                    size_t pixel_base = row_offset + pixel_offset;
++                    int64_t hash =
++                        (static_cast<int64_t>(col) * 49297) +
++                        (static_cast<int64_t>(row) * 9301) + 49297;
++                    int noise =
++                        static_cast<int>(hash % (delta * 2 + 1)) - delta;
++                    for (int k = 0; k < 3; ++k) {
++                      size_t index = pixel_base + static_cast<size_t>(k);
++                      int value = static_cast<int>(bytes[index]) + noise;
++                      if (value < 0) {
++                        value = 0;
++                      } else if (value > 255) {
++                        value = 255;
++                      }
++                      bytes[index] = static_cast<uint8_t>(value);
++                    }
++                  }
++                }
++              }
++            }
++          }
++        }
++      }
++    }
++  }
+   return buffer->EncodeImage(mime_type, quality, encoded_image);
+ }
+ 

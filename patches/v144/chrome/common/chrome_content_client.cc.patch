@@ -1,0 +1,22 @@
+diff --git a/chrome/common/chrome_content_client.cc b/chrome/common/chrome_content_client.cc
+index 12b399993afcdd071b2c53d7836c40444032dd05..3dac62107ae3bb12d20294304a1187bab20a8434 100644
+--- a/chrome/common/chrome_content_client.cc
++++ b/chrome/common/chrome_content_client.cc
+@@ -193,6 +193,7 @@ static const char* const kChromeStandardURLSchemes[] = {
+     webapps::kIsolatedAppScheme,
+ #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+         // BUILDFLAG(IS_CHROMEOS)
++    chrome::kOcScheme,  // ocbot: custom oc:// scheme
+     chrome::kChromeNativeScheme,        chrome::kChromeSearchScheme,
+     dom_distiller::kDomDistillerScheme,
+ #if BUILDFLAG(IS_ANDROID)
+@@ -225,6 +226,9 @@ void ChromeContentClient::AddAdditionalSchemes(Schemes* schemes) {
+   schemes->savable_schemes.push_back(chrome::kChromeSearchScheme);
+   schemes->savable_schemes.push_back(dom_distiller::kDomDistillerScheme);
+ 
++  // ocbot: oc:// is secure (redirects to chrome-extension://)
++  schemes->secure_schemes.push_back(chrome::kOcScheme);
++
+   // chrome-search: resources shouldn't trigger insecure content warnings.
+   schemes->secure_schemes.push_back(chrome::kChromeSearchScheme);
+ 

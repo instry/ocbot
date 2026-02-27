@@ -1,0 +1,20 @@
+diff --git a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+index f5c0db2d1b58de1fb54aa6545de8ac0fb177319e..eeb9d56be3b8915c2b4cb5ebb18045ba8a778a84 100644
+--- a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
++++ b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+@@ -5,10 +5,15 @@
+ #include "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.h"
+ 
+ #include "base/system/sys_info.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ 
+ namespace blink {
+ 
+ unsigned NavigatorConcurrentHardware::hardwareConcurrency() const {
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp && fp->GetConfig().hardware_concurrency) {
++    return *fp->GetConfig().hardware_concurrency;
++  }
+   return static_cast<unsigned>(base::SysInfo::NumberOfProcessors());
+ }
+ 

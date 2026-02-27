@@ -1,0 +1,82 @@
+diff --git a/oc_fingerprint/fingerprint_manager.cc b/oc_fingerprint/fingerprint_manager.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..81d4bf35b8a42bf2629887806118d118b5f64982
+--- /dev/null
++++ b/oc_fingerprint/fingerprint_manager.cc
+@@ -0,0 +1,76 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "oc_fingerprint/fingerprint_manager.h"
++
++#include "base/command_line.h"
++#include "base/no_destructor.h"
++#include "oc_fingerprint/config_parser.h"
++
++namespace oc_fingerprint {
++
++// FingerprintConfig Implementation
++FingerprintConfig::FingerprintConfig() = default;
++FingerprintConfig::FingerprintConfig(const FingerprintConfig& other) = default;
++FingerprintConfig::~FingerprintConfig() = default;
++
++// FontConfig Implementation
++FingerprintConfig::FontConfig::FontConfig() = default;
++FingerprintConfig::FontConfig::FontConfig(const FontConfig& other) = default;
++FingerprintConfig::FontConfig::~FontConfig() = default;
++
++// WebRTCConfig Implementation
++FingerprintConfig::WebRTCConfig::WebRTCConfig() = default;
++FingerprintConfig::WebRTCConfig::WebRTCConfig(const WebRTCConfig& other) = default;
++FingerprintConfig::WebRTCConfig::~WebRTCConfig() = default;
++
++// ProxyConfig Implementation
++FingerprintConfig::ProxyConfig::ProxyConfig() = default;
++FingerprintConfig::ProxyConfig::ProxyConfig(const ProxyConfig& other) = default;
++FingerprintConfig::ProxyConfig::~ProxyConfig() = default;
++
++// StorageConfig Implementation
++FingerprintConfig::StorageConfig::StorageConfig() = default;
++FingerprintConfig::StorageConfig::StorageConfig(const StorageConfig& other) = default;
++FingerprintConfig::StorageConfig::~StorageConfig() = default;
++
++// Http2Config Implementation
++FingerprintConfig::Http2Config::Http2Config() = default;
++FingerprintConfig::Http2Config::Http2Config(const Http2Config& other) = default;
++FingerprintConfig::Http2Config::~Http2Config() = default;
++
++// TlsConfig Implementation
++FingerprintConfig::TlsConfig::TlsConfig() = default;
++FingerprintConfig::TlsConfig::TlsConfig(const TlsConfig& other) = default;
++FingerprintConfig::TlsConfig::~TlsConfig() = default;
++
++// FingerprintManager Implementation
++
++// static
++FingerprintManager* FingerprintManager::GetInstance() {
++  static base::NoDestructor<FingerprintManager> instance;
++  return instance.get();
++}
++
++FingerprintManager::FingerprintManager() {
++  Initialize();
++}
++
++FingerprintManager::~FingerprintManager() = default;
++
++const FingerprintConfig& FingerprintManager::GetConfig() const {
++  return config_;
++}
++
++void FingerprintManager::Initialize() {
++  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
++  if (command_line->HasSwitch("oc-config-json")) {
++    std::string config_json =
++        command_line->GetSwitchValueASCII("oc-config-json");
++    config_ = ConfigParser::ParseFromJson(config_json);
++    return;
++  }
++}
++
++}  // namespace oc_fingerprint
