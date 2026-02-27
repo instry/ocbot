@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ui/ocbot/ocbot_side_panel_manager.cc b/chrome/browser/ui/ocbot/ocbot_side_panel_manager.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..733d25c51cefad20c2087d225f7c3b4d5076a913
+index 0000000000000000000000000000000000000000..33a09cca781ba3d66c78b2af3eed56c92c458689
 --- /dev/null
 +++ b/chrome/browser/ui/ocbot/ocbot_side_panel_manager.cc
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,111 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -14,15 +14,50 @@ index 0000000000000000000000000000000000000000..733d25c51cefad20c2087d225f7c3b4d
 +#include "chrome/browser/ui/ocbot/ocbot_constants.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/tabs/tab_strip_model.h"
 +#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 +#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
 +#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
++#include "chrome/common/url_constants.h"
++#include "content/public/browser/web_contents.h"
 +#include "extensions/browser/extension_registry.h"
 +
 +namespace ocbot {
 +
++namespace {
++
++// Returns true if the active tab is showing oc://home (or its extension URL).
++bool IsActiveTabOcHome(BrowserWindowInterface* browser_window) {
++  auto* tab_strip = browser_window->GetTabStripModel();
++  if (!tab_strip) {
++    return false;
++  }
++  auto* web_contents = tab_strip->GetActiveWebContents();
++  if (!web_contents) {
++    return false;
++  }
++  const GURL& url = web_contents->GetLastCommittedURL();
++  if (url.SchemeIs(chrome::kOcScheme)) {
++    return true;
++  }
++  // Also check the extension URL form (chrome-extension://<id>/home.html)
++  if (url.SchemeIs("chrome-extension") &&
++      url.host() == kOcbotExtensionId &&
++      url.path().starts_with("/home.html")) {
++    return true;
++  }
++  return false;
++}
++
++}  // namespace
++
 +void ToggleSidePanel(BrowserWindowInterface* browser_window) {
 +  if (!browser_window) {
++    return;
++  }
++
++  // ocbot: Don't toggle side panel on oc://home — it already has chat
++  if (IsActiveTabOcHome(browser_window)) {
 +    return;
 +  }
 +
