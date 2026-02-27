@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/ui/startup/startup_tab_provider.cc b/chrome/browser/ui/startup/startup_tab_provider.cc
+index e494f9aa4228fe92012ced9159717f7c911709a7..d424a07957cc2cfd0b479240820963a406ec0fb1 100644
+--- a/chrome/browser/ui/startup/startup_tab_provider.cc
++++ b/chrome/browser/ui/startup/startup_tab_provider.cc
+@@ -307,7 +307,8 @@ StartupTabs StartupTabProviderImpl::GetNewTabPageTabsForState(
+     const SessionStartupPref& pref) {
+   StartupTabs tabs;
+   if (!pref.ShouldRestoreLastSession()) {
+-    tabs.emplace_back(GURL(chrome::kChromeUINewTabURL));
++    // ocbot: Use oc://home instead of chrome://newtab
++    tabs.emplace_back(GURL(chrome::kOcHomeURL));
+   }
+   return tabs;
+ }

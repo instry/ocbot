@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+index 05d871ec6a28ca14bc706edb7088754af843fbcb..af9e154a5fe60982cefcd75e37eec90547152183 100644
+--- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+@@ -59,6 +59,7 @@
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/chrome_version.h"
+ #include "chrome/common/pref_names.h"
++#include "chrome/common/url_constants.h"
+ #include "chrome/common/webui_url_constants.h"
+ #include "components/custom_handlers/protocol_handler_registry.h"
+ #include "components/prefs/pref_service.h"
+@@ -570,7 +571,8 @@ StartupBrowserCreatorImpl::DetermineStartupTabs(
+       return {std::move(tabs), launch_result};
+     }
+ 
+-    return {StartupTabs({StartupTab(GURL(chrome::kChromeUINewTabURL))}),
++    // ocbot: Use oc://home instead of chrome://newtab
++    return {StartupTabs({StartupTab(GURL(chrome::kOcHomeURL))}),
+             launch_result};
+   }
+ 
+@@ -705,7 +707,7 @@ Browser* StartupBrowserCreatorImpl::RestoreOrCreateBrowser(
+   browser = OpenTabsInBrowser(
+       browser, process_startup,
+       (tabs.empty()
+-           ? StartupTabs({StartupTab(GURL(chrome::kChromeUINewTabURL))})
++           ? StartupTabs({StartupTab(GURL(chrome::kOcHomeURL))})
+            : tabs),
+       (behavior == BrowserOpenBehavior::USE_EXISTING_AND_OVERWRITE_ACTIVE_TAB
+            ? (TabOverWrite::kYes)
