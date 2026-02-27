@@ -1,0 +1,12 @@
+diff --git a/third_party/blink/renderer/core/BUILD.gn b/third_party/blink/renderer/core/BUILD.gn
+index c8135570f00e9bd737bd775478ea5a8642507d7a..1867cc9076bb09d6c9edafe155c4951629173180 100644
+--- a/third_party/blink/renderer/core/BUILD.gn
++++ b/third_party/blink/renderer/core/BUILD.gn
+@@ -439,6 +439,7 @@ component("core") {
+     "//ui/gfx/geometry",
+     "//ui/gfx/geometry:geometry_skia",
+     "//ui/strings",
++    "//oc_fingerprint",
+   ]
+ 
+   if (is_mac) {

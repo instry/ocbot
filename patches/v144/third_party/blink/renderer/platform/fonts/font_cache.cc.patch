@@ -1,0 +1,41 @@
+diff --git a/third_party/blink/renderer/platform/fonts/font_cache.cc b/third_party/blink/renderer/platform/fonts/font_cache.cc
+index 7344fa93eb881a7f45eb7d6c9ba42d9f561c2709..2365506f489e13f45a3b3c4d20e2e484a16fd40e 100644
+--- a/third_party/blink/renderer/platform/fonts/font_cache.cc
++++ b/third_party/blink/renderer/platform/fonts/font_cache.cc
+@@ -65,6 +65,7 @@
+ #include "third_party/blink/renderer/platform/wtf/text/code_point_iterator.h"
+ #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
+ #include "third_party/blink/renderer/platform/wtf/vector.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ #include "ui/gfx/font_list.h"
+ 
+ #if BUILDFLAG(IS_WIN)
+@@ -153,6 +154,28 @@ const SimpleFontData* FontCache::GetFontData(
+     const FontDescription& font_description,
+     const AtomicString& family,
+     AlternateFontName altername_font_name) {
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp && fp->GetConfig().fonts.has_value() &&
++      fp->GetConfig().fonts->mode == oc_fingerprint::FingerprintConfig::FontSpoofingMode::kAllowlist) {
++    bool allowed = false;
++    for (const auto& allowed_font : fp->GetConfig().fonts->allowlist) {
++      if (EqualIgnoringASCIICase(family, String(allowed_font.c_str()))) {
++        allowed = true;
++        break;
++      }
++    }
++    // Always allow generic families and internal Blink families
++    if (!allowed && !family.StartsWith("Blink") &&
++        family != font_family_names::kSansSerif &&
++        family != font_family_names::kSerif &&
++        family != font_family_names::kMonospace &&
++        family != font_family_names::kCursive &&
++        family != font_family_names::kFantasy &&
++        family != font_family_names::kSystemUi) {
++       return nullptr; // Treat as missing
++    }
++  }
++
+   if (const FontPlatformData* platform_data = GetFontPlatformData(
+           font_description,
+           FontFaceCreationParams(

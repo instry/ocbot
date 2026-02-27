@@ -1,0 +1,11 @@
+diff --git a/third_party/blink/renderer/modules/font_access/BUILD.gn b/third_party/blink/renderer/modules/font_access/BUILD.gn
+index 60cb7a8c77f9ab30fcde3c3d52b68c5944fe3290..aa4ba20d1ea8d2f052ad65a185adfee8d9cfb733 100644
+--- a/third_party/blink/renderer/modules/font_access/BUILD.gn
++++ b/third_party/blink/renderer/modules/font_access/BUILD.gn
+@@ -15,5 +15,6 @@ blink_modules_sources("font_access") {
+   deps = [
+     "//third_party/blink/public/common:font_enumeration_table_proto",
+     "//third_party/blink/renderer/platform",
++    "//oc_fingerprint",
+   ]
+ }

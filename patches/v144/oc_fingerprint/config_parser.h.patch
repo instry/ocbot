@@ -1,0 +1,27 @@
+diff --git a/oc_fingerprint/config_parser.h b/oc_fingerprint/config_parser.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..c5cbb2eb19948de8ca08e39e6571029bc66312c1
+--- /dev/null
++++ b/oc_fingerprint/config_parser.h
+@@ -0,0 +1,21 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef OC_FINGERPRINT_CONFIG_PARSER_H_
++#define OC_FINGERPRINT_CONFIG_PARSER_H_
++
++#include <string>
++#include "oc_fingerprint/fingerprint_manager.h"
++
++namespace oc_fingerprint {
++
++class ConfigParser {
++ public:
++  static FingerprintConfig Parse(const std::string& file_path);
++  static FingerprintConfig ParseFromJson(const std::string& json);
++};
++
++}  // namespace oc_fingerprint
++
++#endif  // OC_FINGERPRINT_CONFIG_PARSER_H_

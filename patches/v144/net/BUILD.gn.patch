@@ -1,0 +1,12 @@
+diff --git a/net/BUILD.gn b/net/BUILD.gn
+index 6ea3f02025d04480826a2ed542dbbb39eeb65369..1866b9e0c8919b496c0188b03a777e85a50e425e 100644
+--- a/net/BUILD.gn
++++ b/net/BUILD.gn
+@@ -1200,6 +1200,7 @@ component("net") {
+   }
+ 
+   deps = [
++    "//oc_fingerprint",
+     ":cronet_buildflags",
+     ":net_deps",
+     "//components/network_time/time_tracker",

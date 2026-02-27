@@ -1,0 +1,40 @@
+diff --git a/third_party/blink/renderer/core/frame/navigator_language.cc b/third_party/blink/renderer/core/frame/navigator_language.cc
+index 75cd3461317b7df6bcf666c24d8b14a1e631f2a1..ee5e7b4984fb25dc455f4432a2f671a7355fad84 100644
+--- a/third_party/blink/renderer/core/frame/navigator_language.cc
++++ b/third_party/blink/renderer/core/frame/navigator_language.cc
+@@ -11,6 +11,7 @@
+ #include "third_party/blink/renderer/core/probe/core_probes.h"
+ #include "third_party/blink/renderer/platform/language.h"
+ #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ 
+ namespace blink {
+ 
+@@ -87,14 +88,23 @@ void NavigatorLanguage::EnsureUpdatedLanguage() {
+     languages_ = ParseAndSanitize(GetAcceptLanguages());
+     // Reduce the Accept-Language if the ReduceAcceptLanguage deprecation
+     // trial is not enabled and feature flag ReduceAcceptLanguage is enabled.
++    bool reduce_accept_language =
++        base::FeatureList::IsEnabled(network::features::kReduceAcceptLanguage) &&
++        !base::CommandLine::ForCurrentProcess()->HasSwitch(
++            blink::switches::kDisableReduceAcceptLanguage);
++
++    if (auto* fingerprint_manager = oc_fingerprint::FingerprintManager::GetInstance()) {
++      const auto& config = fingerprint_manager->GetConfig();
++      if (config.languages_enabled.value_or(false)) {
++        reduce_accept_language = false;
++      }
++    }
++
+     if (RuntimeEnabledFeatures::DisableReduceAcceptLanguageEnabled(
+             execution_context_)) {
+       UseCounter::Count(execution_context_,
+                         WebFeature::kDisableReduceAcceptLanguage);
+-    } else if (base::FeatureList::IsEnabled(
+-                   network::features::kReduceAcceptLanguage) &&
+-               !base::CommandLine::ForCurrentProcess()->HasSwitch(
+-                   blink::switches::kDisableReduceAcceptLanguage)) {
++    } else if (reduce_accept_language) {
+       languages_ = Vector<String>({languages_.front()});
+     }
+     languages_dirty_ = false;

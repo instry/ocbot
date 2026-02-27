@@ -1,0 +1,35 @@
+diff --git a/third_party/blink/renderer/modules/webaudio/offline_audio_destination_handler.cc b/third_party/blink/renderer/modules/webaudio/offline_audio_destination_handler.cc
+index 2ee00d2382c374bd0325f635e7c271adcf1be29c..88d203b449513908666b9f1517d3e0fce4ecd347 100644
+--- a/third_party/blink/renderer/modules/webaudio/offline_audio_destination_handler.cc
++++ b/third_party/blink/renderer/modules/webaudio/offline_audio_destination_handler.cc
+@@ -26,6 +26,9 @@
+ #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
+ #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+ 
++#include <cstdlib>
++#include "oc_fingerprint/fingerprint_manager.h"
++
+ namespace blink {
+ 
+ OfflineAudioDestinationHandler::OfflineAudioDestinationHandler(
+@@ -206,6 +209,20 @@ void OfflineAudioDestinationHandler::DoOfflineRendering() {
+     frames_to_process_ -= frames_available_to_copy;
+   }
+ 
++  // Inject noise for fingerprint spoofing
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp && fp->GetConfig().audio_noise_factor) {
++    float noise_factor = *fp->GetConfig().audio_noise_factor;
++    for (unsigned i = 0; i < number_of_channels; ++i) {
++      float* channel_data = static_cast<float*>(shared_render_target_->channels()[i].Data());
++      uint32_t length = shared_render_target_->length();
++      for (uint32_t j = 0; j < length; ++j) {
++        float noise = ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * noise_factor;
++        UNSAFE_TODO(channel_data[j]) += noise;
++      }
++    }
++  }
++
+   DCHECK_EQ(frames_to_process_, 0u);
+   FinishOfflineRendering();
+ }

@@ -1,0 +1,17 @@
+diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.h b/third_party/blink/renderer/platform/graphics/image_data_buffer.h
+index 7788473df7e915a0f5d53b7c134cf1ad8177582e..70db4a5de87ff809cc1465fcf0633a39bbd64e51 100644
+--- a/third_party/blink/renderer/platform/graphics/image_data_buffer.h
++++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.h
+@@ -58,6 +58,12 @@ class PLATFORM_EXPORT ImageDataBuffer {
+                    Vector<unsigned char>* encoded_image) const;
+ 
+   base::span<const uint8_t> PixelData() const;
++  base::span<uint8_t> MutablePixelData();
++  bool MakeWritable();
++  int Width() const { return pixmap_.width(); }
++  int Height() const { return pixmap_.height(); }
++  size_t RowBytes() const { return pixmap_.rowBytes(); }
++  int BytesPerPixel() const { return pixmap_.info().bytesPerPixel(); }
+ 
+  private:
+   ImageDataBuffer(const SkPixmap&);

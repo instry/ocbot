@@ -1,0 +1,77 @@
+diff --git a/third_party/blink/renderer/platform/p2p/ipc_network_manager.cc b/third_party/blink/renderer/platform/p2p/ipc_network_manager.cc
+index 945808a2c4bcdafaf68b8f5e25db612566f8e1d8..6d8de2698e1936689c80a0a7442b33e4d68aa902 100644
+--- a/third_party/blink/renderer/platform/p2p/ipc_network_manager.cc
++++ b/third_party/blink/renderer/platform/p2p/ipc_network_manager.cc
+@@ -20,6 +20,7 @@
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/renderer/platform/wtf/functional.h"
+ #include "third_party/webrtc/rtc_base/socket_address.h"
++#include "oc_fingerprint/fingerprint_manager.h"
+ 
+ namespace blink {
+ 
+@@ -97,6 +98,23 @@ void IpcNetworkManager::OnNetworkListChanged(
+     const net::IPAddress& default_ipv4_local_address,
+     const net::IPAddress& default_ipv6_local_address) {
+   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
++
++  // Spoofing Logic
++  net::NetworkInterfaceList filtered_list = list;
++  net::IPAddress filtered_ipv4 = default_ipv4_local_address;
++  net::IPAddress filtered_ipv6 = default_ipv6_local_address;
++
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp && fp->GetConfig().webrtc.has_value()) {
++    const auto& config = fp->GetConfig().webrtc.value();
++    if (config.mode == oc_fingerprint::FingerprintConfig::WebRTCSpoofingMode::kProxy ||
++        config.mode == oc_fingerprint::FingerprintConfig::WebRTCSpoofingMode::kDisabled) {
++       filtered_list.clear();
++       filtered_ipv4 = net::IPAddress();
++       filtered_ipv6 = net::IPAddress();
++    }
++  }
++
+   // Update flag if network list received for the first time.
+   if (!network_list_received_) {
+     VLOG(1) << "IpcNetworkManager received network list from browser process "
+@@ -112,7 +130,7 @@ void IpcNetworkManager::OnNetworkListChanged(
+   // webrtc::Network uses these prefix_length to compare network
+   // interfaces discovered.
+   std::vector<std::unique_ptr<webrtc::Network>> networks;
+-  for (auto it = list.begin(); it != list.end(); it++) {
++  for (auto it = filtered_list.begin(); it != filtered_list.end(); it++) {
+     webrtc::IPAddress ip_address =
+         webrtc::NetIPAddressToRtcIPAddress(it->address);
+     DCHECK(!ip_address.IsNil());
+@@ -143,7 +161,7 @@ void IpcNetworkManager::OnNetworkListChanged(
+ 
+     webrtc::InterfaceAddress iface_addr;
+     if (it->address.IsIPv4()) {
+-      use_default_ipv4_address |= (default_ipv4_local_address == it->address);
++      use_default_ipv4_address |= (filtered_ipv4 == it->address);
+       iface_addr = webrtc::InterfaceAddress(ip_address);
+     } else {
+       DCHECK(it->address.IsIPv6());
+@@ -168,7 +186,7 @@ void IpcNetworkManager::OnNetworkListChanged(
+       }
+ #endif  // BUILDFLAG(IS_FUCHSIA)
+ 
+-      use_default_ipv6_address |= (default_ipv6_local_address == it->address);
++      use_default_ipv6_address |= (filtered_ipv6 == it->address);
+     }
+     network->AddIP(iface_addr);
+     networks.push_back(std::move(network));
+@@ -179,11 +197,11 @@ void IpcNetworkManager::OnNetworkListChanged(
+   webrtc::IPAddress ipv6_default;
+   if (use_default_ipv4_address) {
+     ipv4_default =
+-        webrtc::NetIPAddressToRtcIPAddress(default_ipv4_local_address);
++        webrtc::NetIPAddressToRtcIPAddress(filtered_ipv4);
+   }
+   if (use_default_ipv6_address) {
+     ipv6_default =
+-        webrtc::NetIPAddressToRtcIPAddress(default_ipv6_local_address);
++        webrtc::NetIPAddressToRtcIPAddress(filtered_ipv6);
+   }
+   set_default_local_addresses(ipv4_default, ipv6_default);
+ 

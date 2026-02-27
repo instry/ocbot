@@ -1,0 +1,15 @@
+diff --git a/services/network/public/mojom/network_context.mojom b/services/network/public/mojom/network_context.mojom
+index 2c22826c90d078b710c11a336058c78ec27cb6f4..43fa9b47aefa978e98eb70e0f99fccecc84ee8f5 100644
+--- a/services/network/public/mojom/network_context.mojom
++++ b/services/network/public/mojom/network_context.mojom
+@@ -598,6 +598,10 @@ struct NetworkContextParams {
+   // gets applied while constructing NetworkContext by updating the quic_params.
+   int64? quic_idle_connection_timeout_seconds;
+ 
++  // HTTP/2 SETTINGS parameters to override.
++  // Keys are SpdySettingsId (uint32), values are the setting values (uint32).
++  map<uint32, uint32>? http2_settings;
++
+   // If true, the HTTP cache will be encrypted on disk.
+   bool enable_encrypted_http_cache = false;
+ 

@@ -1,5 +1,5 @@
 diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
-index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..357bd36610d3aa209871dd3302581637a3aef894 100644
+index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..af8a006e2f24fce48a6b3af2e234145d8cda282d 100644
 --- a/chrome/app/theme/chromium/BRANDING
 +++ b/chrome/app/theme/chromium/BRANDING
 @@ -1,10 +1,10 @@
@@ -13,14 +13,14 @@ index f8363d5b294fe210ebfdd18374e95b54d6ff5c17..357bd36610d3aa209871dd3302581637
 -MAC_BUNDLE_ID=org.chromium.Chromium
 -MAC_CREATOR_CODE=Cr24
 -MAC_TEAM_ID=
-+COMPANY_FULLNAME=The Ocbot Authors
-+COMPANY_SHORTNAME=The Ocbot Authors
++COMPANY_FULLNAME=MALA TECH LLC
++COMPANY_SHORTNAME=MALA TECH
 +PRODUCT_FULLNAME=Ocbot
 +PRODUCT_SHORTNAME=Ocbot
 +PRODUCT_INSTALLER_FULLNAME=Ocbot Installer
 +PRODUCT_INSTALLER_SHORTNAME=Ocbot Installer
-+COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Ocbot Authors. All rights reserved.
-+MAC_BUNDLE_ID=oc.bot.app
-+MAC_CREATOR_CODE=oc24
++COPYRIGHT=Copyright @LASTCHANGE_YEAR@ MALA TECH LLC. All rights reserved.
++MAC_BUNDLE_ID=bot.oc.ocbiz
++MAC_CREATOR_CODE=OcBz
 +MAC_TEAM_ID=
 \ No newline at end of file

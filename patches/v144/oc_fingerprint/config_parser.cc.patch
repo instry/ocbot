@@ -1,0 +1,395 @@
+diff --git a/oc_fingerprint/config_parser.cc b/oc_fingerprint/config_parser.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..56fc2152c881f1c5b87089802b948a2ebd14681a
+--- /dev/null
++++ b/oc_fingerprint/config_parser.cc
+@@ -0,0 +1,389 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "oc_fingerprint/config_parser.h"
++
++#include "base/files/file_util.h"
++#include "base/json/json_reader.h"
++#include "base/logging.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/values.h"
++
++namespace oc_fingerprint {
++
++// static
++FingerprintConfig ConfigParser::ParseFromJson(const std::string& json) {
++  FingerprintConfig config;
++  auto result =
++      base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
++  if (!result || !result->is_dict()) {
++    LOG(ERROR) << "Failed to parse fingerprint config JSON.";
++    return config;
++  }
++
++  const base::DictValue& dict = result->GetDict();
++
++  if (const std::string* platform = dict.FindString("platform")) {
++    config.platform = *platform;
++  }
++
++  if (std::optional<int> hw = dict.FindInt("hardware_concurrency")) {
++    config.hardware_concurrency = static_cast<uint16_t>(*hw);
++  }
++
++  if (std::optional<double> mem = dict.FindDouble("device_memory")) {
++    config.device_memory = static_cast<float>(*mem);
++  }
++
++  if (const std::string* ua = dict.FindString("user_agent")) {
++    config.user_agent = *ua;
++  }
++
++  if (const std::string* full_version = dict.FindString("ua_full_version")) {
++    config.ua_full_version = *full_version;
++  }
++
++  if (const std::string* architecture = dict.FindString("architecture")) {
++    config.architecture = *architecture;
++  }
++
++  if (const std::string* model = dict.FindString("model")) {
++    config.model = *model;
++  }
++
++  if (std::optional<bool> mobile = dict.FindBool("mobile")) {
++    config.mobile = *mobile;
++  }
++
++  if (const std::string* bitness = dict.FindString("bitness")) {
++    config.bitness = *bitness;
++  }
++
++  if (std::optional<bool> wow64 = dict.FindBool("wow64")) {
++    config.wow64 = *wow64;
++  }
++
++  if (const std::string* platform_version = dict.FindString("platform_version")) {
++    config.platform_version = *platform_version;
++  }
++
++  if (const base::ListValue* full_version_list =
++          dict.FindList("full_version_list")) {
++    std::vector<BrandVersion> brands;
++    for (const auto& val : *full_version_list) {
++      if (val.is_dict()) {
++        const base::DictValue& brand_dict = val.GetDict();
++        const std::string* brand = brand_dict.FindString("brand");
++        const std::string* version = brand_dict.FindString("version");
++        if (brand && version) {
++          brands.push_back({*brand, *version});
++        }
++      }
++    }
++    if (!brands.empty()) {
++      config.full_version_list = std::move(brands);
++    }
++  }
++
++  // TLS/JA3
++  if (const base::DictValue* tls_dict = dict.FindDict("tls")) {
++    FingerprintConfig::TlsConfig tls_config;
++    if (const std::string* cipher_suites = tls_dict->FindString("cipher_suites")) {
++      tls_config.cipher_suite_string = *cipher_suites;
++    }
++    if (std::optional<bool> permute = tls_dict->FindBool("permute_extensions")) {
++      tls_config.permute_extensions = *permute;
++    }
++    if (const base::ListValue* groups = tls_dict->FindList("supported_groups")) {
++      std::vector<uint16_t> groups_vec;
++      for (const auto& val : *groups) {
++        if (val.is_int()) {
++          groups_vec.push_back(static_cast<uint16_t>(val.GetInt()));
++        }
++      }
++      if (!groups_vec.empty()) {
++        tls_config.supported_groups = std::move(groups_vec);
++      }
++    }
++    config.tls = std::move(tls_config);
++  }
++
++  if (const base::DictValue* storage_dict = dict.FindDict("storage")) {
++    FingerprintConfig::StorageConfig storage_config;
++    if (const std::string* user_data_path = storage_dict->FindString("user_data_path")) {
++      storage_config.user_data_path = *user_data_path;
++    }
++    if (const std::string* cache_path = storage_dict->FindString("cache_path")) {
++      storage_config.cache_path = *cache_path;
++    }
++    if (const std::string* cookie_path = storage_dict->FindString("cookie_path")) {
++      storage_config.cookie_path = *cookie_path;
++    }
++    if (std::optional<bool> persist = storage_dict->FindBool("persist")) {
++      storage_config.persist = *persist;
++    }
++    config.storage = std::move(storage_config);
++  }
++
++  if (const base::DictValue* langs_dict = dict.FindDict("languages")) {
++    if (std::optional<bool> enabled = langs_dict->FindBool("enabled")) {
++      config.languages_enabled = *enabled;
++    }
++    if (const base::ListValue* langs = langs_dict->FindList("value")) {
++      std::vector<std::string> languages_vec;
++      for (const auto& val : *langs) {
++        if (val.is_string()) {
++          languages_vec.push_back(val.GetString());
++        }
++      }
++      if (!languages_vec.empty()) {
++        config.languages = std::move(languages_vec);
++      }
++    }
++  } else if (const base::ListValue* langs = dict.FindList("languages")) {
++    // Fallback for backward compatibility or simple list format
++    std::vector<std::string> languages_vec;
++    for (const auto& val : *langs) {
++      if (val.is_string()) {
++        languages_vec.push_back(val.GetString());
++      }
++    }
++    if (!languages_vec.empty()) {
++      config.languages = std::move(languages_vec);
++      // Implicitly enabled if list is present in legacy format? 
++      // Or leave languages_enabled as nullopt (which might be interpreted as true if languages has value, or false? 
++      // Consistent with others: explicit enabled flag overrides or guards. 
++      // Let's set it to true for backward compatibility if data is present.
++      config.languages_enabled = true;
++    }
++  }
++
++  if (const std::string* policy = dict.FindString("webrtc_policy")) {
++    config.webrtc_policy = *policy;
++  }
++
++  if (const std::string* local_ip = dict.FindString("webrtc_local_ip")) {
++    config.webrtc_local_ip = *local_ip;
++  }
++
++  if (const base::DictValue* webrtc_dict = dict.FindDict("webrtc")) {
++    FingerprintConfig::WebRTCConfig webrtc_config;
++    if (const std::string* mode = webrtc_dict->FindString("mode")) {
++      if (*mode == "disabled") {
++        webrtc_config.mode = FingerprintConfig::WebRTCSpoofingMode::kDisabled;
++      } else if (*mode == "proxy") {
++        webrtc_config.mode = FingerprintConfig::WebRTCSpoofingMode::kProxy;
++      } else {
++        webrtc_config.mode = FingerprintConfig::WebRTCSpoofingMode::kReal;
++      }
++    }
++    if (const std::string* ip = webrtc_dict->FindString("public_ip")) {
++      webrtc_config.public_ip = *ip;
++    }
++    config.webrtc = std::move(webrtc_config);
++  }
++
++  // Proxy
++  if (const base::DictValue* proxy_dict = dict.FindDict("proxy")) {
++    FingerprintConfig::ProxyConfig proxy_config;
++    if (std::optional<bool> enabled = proxy_dict->FindBool("enabled")) {
++      proxy_config.enabled = *enabled;
++    }
++    if (const std::string* type = proxy_dict->FindString("type")) {
++      proxy_config.type = *type;
++    } else {
++      proxy_config.type = "system";
++    }
++
++    if (const std::string* host = proxy_dict->FindString("host")) {
++      proxy_config.host = *host;
++    }
++
++    if (std::optional<int> port = proxy_dict->FindInt("port")) {
++      proxy_config.port = static_cast<uint16_t>(*port);
++    }
++
++    if (const std::string* username = proxy_dict->FindString("username")) {
++      proxy_config.username = *username;
++    }
++
++    if (const std::string* password = proxy_dict->FindString("password")) {
++      proxy_config.password = *password;
++    }
++    config.proxy = std::move(proxy_config);
++  }
++
++  if (const base::DictValue* webgl = dict.FindDict("webgl")) {
++    if (const std::string* vendor = webgl->FindString("vendor")) {
++      config.webgl_vendor = *vendor;
++    }
++    if (const std::string* renderer = webgl->FindString("renderer")) {
++      config.webgl_renderer = *renderer;
++    }
++    if (std::optional<double> noise = webgl->FindDouble("noise_factor")) {
++      config.webgl_noise_factor = *noise;
++    }
++  }
++
++  // Canvas
++  if (const base::DictValue* canvas = dict.FindDict("canvas")) {
++    if (std::optional<double> noise = canvas->FindDouble("noise_factor")) {
++      config.canvas_noise_factor = *noise;
++    }
++  }
++
++  // Geolocation
++  if (const base::DictValue* geo = dict.FindDict("geolocation")) {
++    if (std::optional<bool> enabled = geo->FindBool("enabled")) {
++      config.geolocation_enabled = *enabled;
++    }
++    if (std::optional<double> lat = geo->FindDouble("latitude")) {
++      config.latitude = *lat;
++    }
++    if (std::optional<double> lng = geo->FindDouble("longitude")) {
++      config.longitude = *lng;
++    }
++    if (std::optional<double> acc = geo->FindDouble("accuracy")) {
++      config.accuracy = *acc;
++    }
++  }
++
++  // Timezone
++  if (const base::DictValue* tz = dict.FindDict("timezone")) {
++    if (std::optional<bool> enabled = tz->FindBool("enabled")) {
++      config.timezone_enabled = *enabled;
++    }
++    if (const std::string* id = tz->FindString("zone_id")) {
++      config.timezone_id = *id;
++    }
++  }
++
++  // Media Devices
++  if (const base::DictValue* md = dict.FindDict("media_devices")) {
++    if (std::optional<bool> enabled = md->FindBool("enabled")) {
++      config.media_devices_enabled = *enabled;
++    }
++
++    auto parse_devices = [](const base::ListValue* list) -> std::vector<FingerprintConfig::MediaDevice> {
++      std::vector<FingerprintConfig::MediaDevice> devices;
++      if (!list) return devices;
++      for (const auto& val : *list) {
++        if (val.is_dict()) {
++          const base::DictValue& d = val.GetDict();
++          const std::string* id = d.FindString("device_id");
++          const std::string* label = d.FindString("label");
++          const std::string* group = d.FindString("group_id");
++          if (id && label && group) {
++            devices.push_back({*id, *label, *group});
++          }
++        }
++      }
++      return devices;
++    };
++
++    if (const base::ListValue* list = md->FindList("video_inputs")) {
++      auto devices = parse_devices(list);
++      if (!devices.empty()) config.video_inputs = std::move(devices);
++    }
++    if (const base::ListValue* list = md->FindList("audio_inputs")) {
++      auto devices = parse_devices(list);
++      if (!devices.empty()) config.audio_inputs = std::move(devices);
++    }
++    if (const base::ListValue* list = md->FindList("audio_outputs")) {
++      auto devices = parse_devices(list);
++      if (!devices.empty()) config.audio_outputs = std::move(devices);
++    }
++  }
++
++  // Parse audio configuration
++  const base::DictValue* audio_dict = dict.FindDict("audio");
++  if (audio_dict) {
++    std::optional<double> noise_factor = audio_dict->FindDouble("noise_factor");
++    if (noise_factor.has_value()) {
++      config.audio_noise_factor = static_cast<float>(*noise_factor);
++    }
++  }
++
++  // Parse fonts configuration
++  if (const base::DictValue* fonts_dict = dict.FindDict("fonts")) {
++    FingerprintConfig::FontConfig font_config;
++    const std::string* mode_str = fonts_dict->FindString("mode");
++    if (mode_str && *mode_str == "allowlist") {
++      font_config.mode = FingerprintConfig::FontSpoofingMode::kAllowlist;
++    }
++
++    if (const base::ListValue* allowlist = fonts_dict->FindList("allowlist")) {
++      for (const auto& val : *allowlist) {
++        if (val.is_string()) {
++          font_config.allowlist.push_back(val.GetString());
++        }
++      }
++    }
++    config.fonts = std::move(font_config);
++  }
++
++  // HTTP/2
++  if (const base::DictValue* http2_dict = dict.FindDict("http2")) {
++    FingerprintConfig::Http2Config http2_config;
++    std::map<uint32_t, uint32_t> settings_map;
++
++    if (std::optional<int> val = http2_dict->FindInt("initial_window_size")) {
++      http2_config.initial_window_size = static_cast<uint32_t>(*val);
++      settings_map[4] = static_cast<uint32_t>(*val); // SETTINGS_INITIAL_WINDOW_SIZE
++    }
++    if (std::optional<int> val = http2_dict->FindInt("header_table_size")) {
++      http2_config.header_table_size = static_cast<uint32_t>(*val);
++      settings_map[1] = static_cast<uint32_t>(*val); // SETTINGS_HEADER_TABLE_SIZE
++    }
++    if (std::optional<int> val = http2_dict->FindInt("max_concurrent_streams")) {
++      http2_config.max_concurrent_streams = static_cast<uint32_t>(*val);
++      settings_map[3] = static_cast<uint32_t>(*val); // SETTINGS_MAX_CONCURRENT_STREAMS
++    }
++    if (std::optional<int> val = http2_dict->FindInt("max_frame_size")) {
++      http2_config.max_frame_size = static_cast<uint32_t>(*val);
++      settings_map[5] = static_cast<uint32_t>(*val); // SETTINGS_MAX_FRAME_SIZE
++    }
++    if (std::optional<int> val = http2_dict->FindInt("max_header_list_size")) {
++      http2_config.max_header_list_size = static_cast<uint32_t>(*val);
++      settings_map[6] = static_cast<uint32_t>(*val); // SETTINGS_MAX_HEADER_LIST_SIZE
++    }
++    if (std::optional<bool> val = http2_dict->FindBool("enable_push")) {
++      http2_config.enable_push = *val;
++      settings_map[2] = *val ? 1 : 0; // SETTINGS_ENABLE_PUSH
++    }
++    
++    // Explicit settings map in JSON overrides individual fields if present
++    if (const base::DictValue* settings_dict = http2_dict->FindDict("settings")) {
++      for (const auto [key, value] : *settings_dict) {
++         if (value.is_int()) {
++             // Assuming key is the ID
++             int id = 0;
++             if (base::StringToInt(key, &id)) {
++                 settings_map[static_cast<uint32_t>(id)] = static_cast<uint32_t>(value.GetInt());
++             }
++         }
++      }
++    }
++
++    if (!settings_map.empty()) {
++        http2_config.settings = std::move(settings_map);
++    }
++    config.http2 = std::move(http2_config);
++  }
++
++  return config;
++}
++
++FingerprintConfig ConfigParser::Parse(const std::string& file_path) {
++  std::string file_content;
++  if (!base::ReadFileToString(base::FilePath::FromUTF8Unsafe(file_path),
++                              &file_content)) {
++    LOG(ERROR) << "Failed to read fingerprint config file: " << file_path;
++    return FingerprintConfig();
++  }
++
++  return ParseFromJson(file_content);
++}
++
++}  // namespace oc_fingerprint

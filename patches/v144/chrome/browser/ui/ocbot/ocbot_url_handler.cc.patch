@@ -1,0 +1,56 @@
+diff --git a/chrome/browser/ui/ocbot/ocbot_url_handler.cc b/chrome/browser/ui/ocbot/ocbot_url_handler.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..25704bc66d89bddfed24e14e1a577b7179f21f23
+--- /dev/null
++++ b/chrome/browser/ui/ocbot/ocbot_url_handler.cc
+@@ -0,0 +1,50 @@
++#include "chrome/browser/ui/ocbot/ocbot_url_handler.h"
++
++#include "chrome/browser/ui/ocbot/ocbot_constants.h"
++#include "chrome/common/url_constants.h"
++#include "extensions/common/constants.h"
++#include "url/gurl.h"
++
++namespace ocbot {
++
++bool HandleOcURL(GURL* url, content::BrowserContext* browser_context) {
++  if (!url->SchemeIs(chrome::kOcScheme)) {
++    return false;
++  }
++
++  // oc://home -> chrome-extension://<id>/home.html#/home
++  // oc://settings -> chrome-extension://<id>/home.html#/settings
++  std::string path(url->host());
++  if (url->has_path() && url->path() != "/") {
++    path += std::string(url->path());
++  }
++  if (path.empty()) {
++    path = "home";
++  }
++
++  *url = GURL(std::string(extensions::kExtensionScheme) + "://" +
++              kOcbotExtensionId + "/home.html#/" + path);
++  return true;
++}
++
++bool HandleOcURLReverse(GURL* url, content::BrowserContext* browser_context) {
++  if (!url->SchemeIs(extensions::kExtensionScheme) ||
++      url->host() != kOcbotExtensionId ||
++      !url->path().starts_with("/home.html")) {
++    return false;
++  }
++
++  // chrome-extension://<id>/home.html#/home -> oc://home
++  std::string ref(url->ref());
++  if (ref.starts_with("/")) {
++    ref = ref.substr(1);
++  }
++  if (ref.empty()) {
++    ref = "home";
++  }
++
++  *url = GURL(std::string(chrome::kOcScheme) + "://" + ref);
++  return true;
++}
++
++}  // namespace ocbot

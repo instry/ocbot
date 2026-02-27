@@ -1,0 +1,119 @@
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index b1c0cb14fede49fba031c05c5f7a3158efb941d2..cb5d8e1e79e7fc3736d2b433461cf680f2760286 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -60,6 +60,7 @@
+ #include "chrome/browser/bluetooth/chrome_bluetooth_delegate_impl_client.h"
+ #include "chrome/browser/browser_about_handler.h"
+ #include "chrome/browser/browser_features.h"
++#include "chrome/browser/ui/ocbot/ocbot_url_handler.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/browsing_data/chrome_browsing_data_model_delegate.h"
+ #include "chrome/browser/browsing_data/chrome_browsing_data_remover_constants.h"
+@@ -100,6 +101,10 @@
+ #include "chrome/browser/media/router/media_router_feature.h"
+ #include "chrome/browser/media/webrtc/audio_debug_recordings_handler.h"
+ #include "chrome/browser/media/webrtc/capture_policy_utils.h"
++#include "base/strings/utf_string_conversions.h"
++#include "oc_fingerprint/fingerprint_manager.h"
++#include "net/third_party/quiche/src/quiche/http2/core/spdy_protocol.h"
++#include "base/containers/flat_map.h"
+ #include "chrome/browser/media/webrtc/chrome_screen_enumerator.h"
+ #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
+ #include "chrome/browser/media/webrtc/media_device_salt_service_factory.h"
+@@ -4942,6 +4947,9 @@ void ChromeContentBrowserClient::BrowserURLHandlerCreated(
+     part->BrowserURLHandlerCreated(handler);
+   }
+ 
++  // ocbot: Rewrite oc:// URLs to extension page
++  handler->AddHandlerPair(&ocbot::HandleOcURL, &ocbot::HandleOcURLReverse);
++
+   // Handler to rewrite chrome://about and chrome://sync URLs.
+   handler->AddHandlerPair(&HandleChromeAboutAndChromeSyncRewrite,
+                           BrowserURLHandler::null_handler());
+@@ -6660,6 +6668,54 @@ void ChromeContentBrowserClient::ConfigureNetworkContextParams(
+     network_context_params->user_agent = GetUserAgent();
+     network_context_params->accept_language = GetApplicationLocale();
+   }
++
++  // oc_fingerprint
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp && fp->GetConfig().storage.has_value()) {
++    const auto& storage = fp->GetConfig().storage.value();
++
++    // Determine base paths
++    base::FilePath user_data_dir;
++    if (storage.user_data_path) {
++      user_data_dir = base::FilePath::FromUTF8Unsafe(*storage.user_data_path);
++    }
++
++    if (storage.cache_path) {
++      if (!network_context_params->file_paths) {
++        network_context_params->file_paths = network::mojom::NetworkContextFilePaths::New();
++      }
++      network_context_params->file_paths->http_cache_directory = base::FilePath::FromUTF8Unsafe(*storage.cache_path);
++    } else if (!user_data_dir.empty()) {
++      if (!network_context_params->file_paths) {
++        network_context_params->file_paths = network::mojom::NetworkContextFilePaths::New();
++      }
++      network_context_params->file_paths->http_cache_directory = user_data_dir.Append(FILE_PATH_LITERAL("Cache"));
++    }
++
++    if (storage.cookie_path) {
++       if (!network_context_params->file_paths) {
++         network_context_params->file_paths = network::mojom::NetworkContextFilePaths::New();
++       }
++       network_context_params->file_paths->cookie_database_name = base::FilePath::FromUTF8Unsafe(*storage.cookie_path);
++    } else if (!user_data_dir.empty()) {
++       if (!network_context_params->file_paths) {
++         network_context_params->file_paths = network::mojom::NetworkContextFilePaths::New();
++       }
++       network_context_params->file_paths->cookie_database_name = user_data_dir.Append(FILE_PATH_LITERAL("Cookies"));
++    }
++
++    if (storage.persist.has_value() && !storage.persist.value()) {
++       network_context_params->http_cache_enabled = false;
++    }
++  }
++
++  // oc_fingerprint: HTTP/2 Settings
++  if (fp && fp->GetConfig().http2.has_value() && fp->GetConfig().http2->settings.has_value()) {
++    network_context_params->http2_settings = base::flat_map<uint32_t, uint32_t>();
++    for (const auto& [id, value] : fp->GetConfig().http2->settings.value()) {
++       network_context_params->http2_settings->insert({id, value});
++    }
++  }
+ }
+ 
+ std::vector<base::FilePath>
+@@ -6850,6 +6906,12 @@ ChromeContentBrowserClient::CreateClientCertStore(
+       ->CreateClientCertStore();
+ }
+ 
++class StubLoginDelegate : public content::LoginDelegate {
++ public:
++  StubLoginDelegate() = default;
++  ~StubLoginDelegate() override = default;
++};
++
+ std::unique_ptr<content::LoginDelegate>
+ ChromeContentBrowserClient::CreateLoginDelegate(
+     const net::AuthChallengeInfo& auth_info,
+@@ -6863,6 +6925,17 @@ ChromeContentBrowserClient::CreateLoginDelegate(
+     bool first_auth_attempt,
+     content::GuestPageHolder* guest,
+     content::LoginDelegate::LoginAuthRequiredCallback auth_required_callback) {
++  auto* fp = oc_fingerprint::FingerprintManager::GetInstance();
++  if (fp && fp->GetConfig().proxy.has_value() && auth_info.is_proxy) {
++    const auto& config = fp->GetConfig().proxy.value();
++    if (config.username && config.password) {
++      std::move(auth_required_callback).Run(
++          net::AuthCredentials(base::UTF8ToUTF16(*config.username),
++                               base::UTF8ToUTF16(*config.password)));
++      return std::make_unique<StubLoginDelegate>();
++    }
++  }
++
+ #if BUILDFLAG(IS_CHROMEOS)
+   // Negotiate challenge is handled via GSSAPI library, which can not receive
+   // external credentials. However, on ChromeOS we can suggest the user to
