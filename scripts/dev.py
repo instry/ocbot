@@ -21,6 +21,24 @@ except ImportError as e:
     print(f"Error importing scripts: {e}")
     sys.exit(1)
 
+def _build_extension(logger, zip=True):
+    logger.info("Building extension...")
+    extension_dir = get_agent_root()
+    try:
+        if not (extension_dir / 'node_modules').exists():
+            logger.info("Installing extension dependencies...")
+            subprocess.run(['npm', 'install'], cwd=extension_dir, check=True)
+        subprocess.run(['npm', 'run', 'build'], cwd=extension_dir, check=True)
+        if zip:
+            logger.info("Packaging extension zip...")
+            subprocess.run(['npm', 'run', 'zip'], cwd=extension_dir, check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to build extension: {e}")
+        sys.exit(1)
+    except FileNotFoundError:
+        logger.error("npm not found. Please install nodejs and npm.")
+        sys.exit(1)
+
 def main():
     parser = argparse.ArgumentParser(description='ocbot development utility')
     
@@ -62,6 +80,11 @@ def main():
     parser_run = subparsers.add_parser('run', help='Run Ocbot', parents=[parent_parser])
     parser_run.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Ocbot')
     parser_run.add_argument('--official', action='store_true', help='Run official build')
+    parser_run.add_argument('--build-extension', action='store_true', help='Build extension before running')
+
+    # Build Extension
+    parser_build_ext = subparsers.add_parser('build-extension', help='Build ocbot extension only', parents=[parent_parser])
+    parser_build_ext.add_argument('--zip', action='store_true', help='Also create zip package (default: False for dev)')
 
     # Package
     parser_package = subparsers.add_parser('package', help='Package Ocbot.app into a .dmg installer', parents=[parent_parser])
@@ -157,24 +180,15 @@ def main():
         install_icons(icons_src, icons_dest)
         
         # Build extension
-        logger.info("Building and packaging extension...")
-        extension_dir = get_agent_root()
-        try:
-            if not (extension_dir / 'node_modules').exists():
-                logger.info("Installing extension dependencies...")
-                subprocess.run(['npm', 'install'], cwd=extension_dir, check=True)
-            subprocess.run(['npm', 'run', 'build'], cwd=extension_dir, check=True)
-            subprocess.run(['npm', 'run', 'zip'], cwd=extension_dir, check=True)
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to build extension: {e}")
-            sys.exit(1)
-        except FileNotFoundError:
-             logger.error("npm not found. Please install nodejs and npm.")
-             sys.exit(1)
+        _build_extension(logger, zip=True)
 
         build_chromium(args)
     elif args.command == 'run':
+        if getattr(args, 'build_extension', False):
+             _build_extension(logger, zip=False)
         run_chromium(args)
+    elif args.command == 'build-extension':
+        _build_extension(logger, zip=getattr(args, 'zip', False))
     elif args.command == 'package':
         if sys.platform == 'win32':
             package_windows(args)
