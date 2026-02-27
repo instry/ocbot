@@ -160,6 +160,9 @@ def main():
         logger.info("Building and packaging extension...")
         extension_dir = get_agent_root()
         try:
+            if not (extension_dir / 'node_modules').exists():
+                logger.info("Installing extension dependencies...")
+                subprocess.run(['npm', 'install'], cwd=extension_dir, check=True)
             subprocess.run(['npm', 'run', 'build'], cwd=extension_dir, check=True)
             subprocess.run(['npm', 'run', 'zip'], cwd=extension_dir, check=True)
         except subprocess.CalledProcessError as e:
