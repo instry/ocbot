@@ -59,8 +59,8 @@ def get_version_map():
         return json.load(f)
 
 def get_agent_root():
-    """Returns the root of the ocbot_agent project (sibling of ocbot)."""
-    return get_project_root().parent / 'ocbot_agent'
+    """Returns the root of the ocbot_agent project (submodule inside ocbot)."""
+    return get_project_root() / 'ocbot_agent'
 
 def sync_extension_version():
     """Sync VERSION into ocbot_agent/wxt.config.ts."""

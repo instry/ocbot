@@ -46,10 +46,36 @@ Crypto is the economic lifeblood of the AI era. As digital-native entities, AI A
 
 ## Development
 
+### Quick Start
+
+```bash
+# Clone with submodule (ocbot_agent)
+git clone --recursive https://github.com/instry/ocbot.git
+
+# If already cloned without --recursive
+git submodule update --init
+```
+
+### Project Structure
+
+```
+ocbot/
+├── scripts/            # Dev tooling (dev.py, build.py, run.py, etc.)
+├── patches/            # Generated Chromium patches
+├── plans/              # Feature plan files (source of truth)
+├── ocbot_agent/        # AI extension (git submodule → instry/ocbot_agent)
+└── docs/               # Development documentation
+```
+
+The `ocbot_agent` submodule contains the AI browser extension (Chrome Side Panel), shared with [ocbot_biz](https://github.com/instry/ocbot_biz). It is built automatically during `dev.py build`.
+
+### Documentation
+
 | Doc | Description |
 |-----|-------------|
 | [Plan-Driven Development](docs/plan-driven-dev.md) | **The Main Guide**: Workflow, Setup, Commands, and Architecture |
 | [Plans](plans/) | Feature plan files — the source of truth for each Chromium modification |
+| [ocbot_agent README](ocbot_agent/README.md) | AI extension development guide |
 
 ---
 
