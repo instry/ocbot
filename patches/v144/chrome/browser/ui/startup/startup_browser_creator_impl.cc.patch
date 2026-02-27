@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-index 05d871ec6a28ca14bc706edb7088754af843fbcb..af9e154a5fe60982cefcd75e37eec90547152183 100644
+index 05d871ec6a28ca14bc706edb7088754af843fbcb..444db6a2494906e0fa52c8ea8fa8631acdefc955 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 @@ -59,6 +59,7 @@
@@ -29,3 +29,13 @@ index 05d871ec6a28ca14bc706edb7088754af843fbcb..af9e154a5fe60982cefcd75e37eec905
             : tabs),
        (behavior == BrowserOpenBehavior::USE_EXISTING_AND_OVERWRITE_ACTIVE_TAB
             ? (TabOverWrite::kYes)
+@@ -747,7 +749,8 @@ StartupBrowserCreatorImpl::DetermineBrowserOpenBehavior(
+     // Don't perform a session restore on a post-crash launch, as this could
+     // cause a crash loop.
+     if (!(options & IS_POST_CRASH_LAUNCH)) {
+-      return BrowserOpenBehavior::SYNCHRONOUS_RESTORE;
++      // ocbot: Don't session-restore, always start with oc://home
++      return BrowserOpenBehavior::NEW;
+     }
+   }
+ 
