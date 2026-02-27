@@ -18,7 +18,7 @@ The internet's audience is shifting from humans to **AI Agents**. UI is no longe
 
 ### Decentralized — Compute Equity & Sovereignty Reclaimed
 
-Breaking the monopoly of big tech and influencers over the internet. Web 4.0 is the era of equity — information flow returns from "spoon-fed" feeds to **autonomous retrieval**. Media is power, and decentralization returns that power to the individual.
+Breaking the monopoly of big tech and influencers over the internet. Web 4.0 is the era of equity — information flow returns from "spoon-fed" feeds to **autonomous retrieval**. 
 
 ### Crypto-Support — The Settlement Protocol for All
 
