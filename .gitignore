@@ -8,4 +8,5 @@ node_modules/
 .wxt/
 backup/
 .apple.json
+docs/skill-system.md
 
