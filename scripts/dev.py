@@ -16,7 +16,7 @@ try:
     from icons import install_icons
     from package import package_dmg, package_windows
     from release import release_extension, release_browser
-    from common import get_source_dir, get_project_root
+    from common import get_source_dir, get_project_root, get_agent_root
 except ImportError as e:
     print(f"Error importing scripts: {e}")
     sys.exit(1)
@@ -72,7 +72,7 @@ def main():
     parser_package.add_argument('--apple-id', help="Apple ID for notarization (or set APPLE_ID)")
     parser_package.add_argument('--team-id', help="Team ID for notarization (or set TEAM_ID)")
     parser_package.add_argument('--password-file', help="Path to file containing app-specific password", default=".apple.json")
-    parser_package.add_argument('--extension-src', help="Path to extension build output to bundle in DMG (default: ocbot/extension/.output/chrome-mv3)")
+    parser_package.add_argument('--extension-src', help="Path to extension build output to bundle in DMG (default: ocbot_agent/.output/chrome-mv3)")
 
     # Release Extension
     parser_release = subparsers.add_parser('release-extension', help='Release ocbot extension to GitHub', parents=[parent_parser])
@@ -84,7 +84,7 @@ def main():
 
     # Default extension source path
     if args.command == 'package' and not args.extension_src:
-        args.extension_src = get_project_root() / 'extension' / '.output' / 'chrome-mv3'
+        args.extension_src = get_agent_root() / '.output' / 'chrome-mv3'
 
     # Read password from file if applicable
     # Only read if --official is set or if the user explicitly provided a password file
@@ -158,7 +158,7 @@ def main():
         
         # Build extension
         logger.info("Building and packaging extension...")
-        extension_dir = get_project_root() / 'extension'
+        extension_dir = get_agent_root()
         try:
             subprocess.run(['npm', 'run', 'build'], cwd=extension_dir, check=True)
             subprocess.run(['npm', 'run', 'zip'], cwd=extension_dir, check=True)

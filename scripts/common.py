@@ -58,11 +58,15 @@ def get_version_map():
     with open(map_file) as f:
         return json.load(f)
 
+def get_agent_root():
+    """Returns the root of the ocbot_agent project (sibling of ocbot)."""
+    return get_project_root().parent / 'ocbot_agent'
+
 def sync_extension_version():
-    """Sync VERSION into extension/wxt.config.ts."""
+    """Sync VERSION into ocbot_agent/wxt.config.ts."""
     import re
     version = get_product_version()
-    config_path = get_project_root() / 'extension' / 'wxt.config.ts'
+    config_path = get_agent_root() / 'wxt.config.ts'
     content = config_path.read_text()
     updated = re.sub(
         r"(version:\s*['\"])[^'\"]+(['\"])",
