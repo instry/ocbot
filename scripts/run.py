@@ -4,12 +4,12 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from common import get_logger, get_source_dir, get_project_root
+from common import get_logger, get_source_dir, get_project_root, get_agent_root
 
 
-def _sync_extension(logger, root_dir, out_dir):
+def _sync_extension(logger, out_dir):
     """Copy latest extension build into the app bundle or build output directory."""
-    extension_src = root_dir / 'ocbot' / 'extension' / '.output' / 'chrome-mv3'
+    extension_src = get_agent_root() / '.output' / 'chrome-mv3'
     if not extension_src.exists():
         logger.warning(f"Extension build output not found: {extension_src}")
         return
@@ -74,11 +74,11 @@ def run_chromium(args):
 
     # ocbot is loaded as a component extension from the Framework Resources dir.
     # Sync latest extension build into the app bundle before launching.
-    _sync_extension(logger, root_dir, out_dir)
+    _sync_extension(logger, out_dir)
 
     # Dev mode: point component_loader to local extension build directly,
     # so hot-updated / bundled versions are skipped and OTA updater is disabled.
-    extension_dev_path = root_dir / 'ocbot' / 'extension' / '.output' / 'chrome-mv3'
+    extension_dev_path = get_agent_root() / '.output' / 'chrome-mv3'
     if extension_dev_path.exists():
         cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
 

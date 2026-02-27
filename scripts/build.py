@@ -3,12 +3,12 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from common import get_logger, get_source_dir, get_project_root, sync_extension_version
+from common import get_logger, get_source_dir, get_project_root, get_agent_root, sync_extension_version
 
 
 def _install_extension(logger, out_dir):
     """Copy built extension into the app bundle or build output directory."""
-    extension_src = get_project_root() / 'extension' / '.output' / 'chrome-mv3'
+    extension_src = get_agent_root() / '.output' / 'chrome-mv3'
     if not extension_src.exists():
         logger.warning(f"Extension build output not found: {extension_src}")
         return

@@ -4,7 +4,7 @@ import sys
 import shutil
 import subprocess
 from pathlib import Path
-from common import get_logger, get_project_root, get_product_version
+from common import get_logger, get_project_root, get_agent_root, get_product_version
 
 logger = get_logger()
 
@@ -29,7 +29,7 @@ def run_command(cmd, cwd=None, check=True, capture_output=False):
 def release_extension(args):
     """Release ocbot extension to GitHub Releases."""
     project_root = get_project_root()
-    extension_dir = project_root / 'extension'
+    agent_root = get_agent_root()
     dist_dir = project_root / 'dist'
     
     # Check prerequisites
@@ -49,10 +49,10 @@ def release_extension(args):
     
     # Build extension
     logger.info("Building extension...")
-    run_command(['npm', 'run', 'build'], cwd=extension_dir)
-    
+    run_command(['npm', 'run', 'build'], cwd=agent_root)
+
     # Package
-    build_output = extension_dir / '.output' / 'chrome-mv3'
+    build_output = agent_root / '.output' / 'chrome-mv3'
     if not build_output.exists():
         logger.error(f"Build output not found at {build_output}")
         sys.exit(1)
@@ -73,8 +73,8 @@ def release_extension(args):
     
     # Check if release exists
     logger.info(f"Checking if release {tag} exists...")
-    repo = "instry/ocbot"
-    
+    repo = "instry/ocbot_agent"
+
     try:
         run_command(['gh', 'release', 'view', tag, '--repo', repo], check=True, capture_output=True)
         exists = True
