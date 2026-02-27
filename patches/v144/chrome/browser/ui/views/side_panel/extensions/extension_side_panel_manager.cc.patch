@@ -1,17 +1,16 @@
 diff --git a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc
-index 30d4b3bc95d1c115595dc258ba60850500c73d91..36ed3e088ef54fde30cb27fbb360d078bad478a2 100644
+index 30d4b3bc95d1c115595dc258ba60850500c73d91..bccf41c60b82dbcd09e7be244744492a3ee1eea4 100644
 --- a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc
 +++ b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.cc
-@@ -6,6 +6,8 @@
+@@ -6,6 +6,7 @@
  
  #include "base/memory/scoped_refptr.h"
  #include "base/strings/utf_string_conversions.h"
 +#include "base/task/sequenced_task_runner.h"
-+#include "chrome/browser/ui/ocbot/ocbot_constants.h"
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/ui/actions/chrome_action_id.h"
  #include "chrome/browser/ui/actions/chrome_actions.h"
-@@ -17,7 +19,9 @@
+@@ -17,7 +18,9 @@
  #include "chrome/browser/ui/views/frame/browser_view.h"
  #include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
  #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
@@ -21,59 +20,7 @@ index 30d4b3bc95d1c115595dc258ba60850500c73d91..36ed3e088ef54fde30cb27fbb360d078
  #include "content/public/browser/browser_context.h"
  #include "content/public/browser/web_contents.h"
  #include "extensions/common/extension.h"
-@@ -71,6 +75,28 @@ void ExtensionSidePanelManager::RegisterExtensionEntries() {
-   for (const auto& extension : extension_registry->enabled_extensions()) {
-     MaybeCreateExtensionSidePanelCoordinator(extension.get());
-   }
-+
-+  // ocbot: Auto-open side panel for ocbot extension after entries are registered
-+  if (browser_) {
-+    for (const auto& extension : extension_registry->enabled_extensions()) {
-+      if (ocbot::IsOcbotExtension(extension->id())) {
-+        // Auto-open side panel after UI is ready
-+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-+            FROM_HERE,
-+            base::BindOnce(
-+                [](base::WeakPtr<BrowserWindowInterface> browser, ExtensionId extension_id) {
-+                  if (!browser || !browser->GetWindow()) return;
-+                  auto* side_panel_ui = browser->GetFeatures().side_panel_ui();
-+                  if (!side_panel_ui) return;
-+                  SidePanelEntry::Key key(SidePanelEntry::Id::kExtension, extension_id);
-+                  side_panel_ui->Show(key);
-+                },
-+                browser_->GetWeakPtr(), extension->id()),
-+            base::Seconds(1));
-+        break;
-+      }
-+    }
-+  }
- }
- 
- void ExtensionSidePanelManager::InitializeActions() {
-@@ -85,6 +111,22 @@ void ExtensionSidePanelManager::OnExtensionLoaded(
-     const Extension* extension) {
-   MaybeCreateActionItemForExtension(extension);
-   MaybeCreateExtensionSidePanelCoordinator(extension);
-+
-+  // ocbot: Auto-open side panel when extension is loaded at runtime
-+  if (browser_ && ocbot::IsOcbotExtension(extension->id())) {
-+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-+        FROM_HERE,
-+        base::BindOnce(
-+            [](base::WeakPtr<BrowserWindowInterface> browser, ExtensionId extension_id) {
-+              if (!browser || !browser->GetWindow()) return;
-+              auto* side_panel_ui = browser->GetFeatures().side_panel_ui();
-+              if (!side_panel_ui) return;
-+              SidePanelEntry::Key key(SidePanelEntry::Id::kExtension, extension_id);
-+              side_panel_ui->Show(key);
-+            },
-+            browser_->GetWeakPtr(), extension->id()),
-+        base::Seconds(2));
-+  }
- }
- 
- void ExtensionSidePanelManager::MaybeCreateActionItemForExtension(
-@@ -118,7 +160,7 @@ void ExtensionSidePanelManager::MaybeCreateActionItemForExtension(
+@@ -118,7 +121,7 @@ void ExtensionSidePanelManager::MaybeCreateActionItemForExtension(
            .SetActionId(extension_action_id)
            .SetProperty(actions::kActionItemPinnableKey,
                         std::underlying_type_t<actions::ActionPinnableState>(
