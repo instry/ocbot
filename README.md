@@ -32,17 +32,15 @@ Crypto is the economic lifeblood of the AI era. As digital-native entities, AI A
 *   **AI-Native Kernel**: AI capabilities are deeply integrated into the browser kernel — not a plugin, but a core primitive. Your browser understands, reasons, and acts.
 *   **Autonomous Task Execution**: Describe what you need in natural language — "Download all invoices", "Monitor flight prices" — and the agent handles the rest, end to end.
 *   **Self-Healing Workflows**: Web UI changed? The agent uses visual understanding to automatically repair execution paths. Learn once, reuse forever.
-*   **Browser Plugin Terminator**: Native AI capabilities replace the need for fragmented extensions. One cohesive system instead of dozens of plugins.
 *   **Chrome Lossless Experience**: Retains the full Chrome experience. Import your bookmarks, history, and passwords — continue browsing without interruption.
 
 ### 2. Decentralized & Private
 *   **Freedom of Choice**: Freely switch between LLMs. Supports mainstream cloud models and fully **local LLMs** — your data never leaves your machine.
 *   **Always-On, Everywhere**: ocbot runs on your desktop and can be commanded remotely via mobile browsers or IM apps. Your personal agent, always reachable.
 
-### 3. Crypto-Support
-*   **Agent Economy Infrastructure**: Built to support agent-to-agent micro-transactions and on-chain settlement — the financial layer for autonomous agents.
+### 3. Crypto Economy (Planned)
+*   **Crypto Economy Infrastructure**: Built to support agent-to-agent micro-transactions and on-chain settlement — the financial layer for autonomous agents.
 *   **Wallet-Native**: Integrated crypto wallet for seamless interaction with dApps, DeFi protocols, and agent payment networks.
-*   **Open & Extensible**: Fully open-source (AGPL v3). Build your own agents, plugins, and workflows on top of ocbot.
 
 ---
 
