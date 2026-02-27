@@ -176,10 +176,12 @@ Run: `python3 ocbot/scripts/dev.py build`
 
 ---
 
-## Task 3: Redirect NTP to oc://home
+## Task 3: Redirect NTP and browser startup to oc://home
 
 **Files:**
 - Modify: `chrome/browser/ui/browser.cc` (~line 771-776)
+- Modify: `chrome/browser/ui/startup/startup_tab_provider.cc` (~line 310)
+- Modify: `chrome/browser/ui/startup/startup_browser_creator_impl.cc` (~line 574, ~line 710)
 
 **Step 1: Change GetNewTabURL to return oc://home**
 
@@ -195,7 +197,30 @@ GURL Browser::GetNewTabURL() const {
 }
 ```
 
-**Step 2: Build and verify**
+**Step 2: Change startup default page**
+
+In `startup_tab_provider.cc`, `GetNewTabPageTabsForState()`:
+
+```cpp
+  if (!pref.ShouldRestoreLastSession()) {
+    // ocbot: Use oc://home instead of chrome://newtab
+    tabs.emplace_back(GURL(chrome::kOcHomeURL));
+  }
+```
+
+**Step 3: Change startup fallbacks**
+
+In `startup_browser_creator_impl.cc`, add `#include "chrome/common/url_constants.h"` and replace both `kChromeUINewTabURL` fallbacks with `chrome::kOcHomeURL`:
+
+```cpp
+// Line ~574 (incognito/guest fallback):
+return {StartupTabs({StartupTab(GURL(chrome::kOcHomeURL))}), launch_result};
+
+// Line ~710 (session restore failure fallback):
+? StartupTabs({StartupTab(GURL(chrome::kOcHomeURL))})
+```
+
+**Step 4: Build and verify**
 
 Run: `python3 ocbot/scripts/dev.py build`
 
@@ -536,5 +561,5 @@ git commit -m "feat: add oc://home page — plan and patches"
 - **GURL API returns `string_view`**: `url->host()`, `url->path()`, and `url->ref()` return `std::string_view` in Chromium 144+. Must use explicit `std::string()` construction (e.g., `std::string(url->host())`), not `std::string path = url->host()`.
 - **No `path_piece()` method**: Use `url->path()` instead of `url->path_piece()` — the latter doesn't exist in current GURL API.
 - WXT may need the `home` entrypoint to be an "unlisted-page" type if it doesn't auto-detect from the `entrypoints/home/` directory structure — check WXT docs if build doesn't include `home.html`.
-- `GetNewTabURL()` returns a `GURL` that then goes through `BrowserURLHandler` rewriting — so returning `oc://home` will correctly trigger the oc:// handler and get rewritten to the extension URL.
+- **Startup vs NTP are different code paths**: `Browser::GetNewTabURL()` only controls the "new tab" button. Browser startup page is determined by `StartupTabProviderImpl::GetNewTabPageTabsForState()` in `startup_tab_provider.cc` and fallbacks in `startup_browser_creator_impl.cc`. All three must be changed.
 - The reverse handler (`HandleOcURLReverse`) makes the omnibox show `oc://home` instead of the long `chrome-extension://` URL.
