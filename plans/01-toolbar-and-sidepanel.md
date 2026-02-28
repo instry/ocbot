@@ -204,6 +204,25 @@ Place `ocbot_toolbar_icon.png` in `chrome/app/theme/chromium/` directory.
 
 Add ocbot .cc/.h files to sources.
 
+### 15. Hide Chromium Side Panel Header for Ocbot
+
+**File:** `chrome/browser/ui/views/side_panel/extensions/extension_side_panel_coordinator.cc`
+
+In `CreateAndRegisterEntry()`, after creating the `SidePanelEntry`, disable the built-in header for ocbot:
+
+```cpp
+#include "chrome/browser/ui/ocbot/ocbot_constants.h"
+
+// In CreateAndRegisterEntry(), before registry_->Register():
+if (ocbot::IsOcbotExtension(extension_->id())) {
+  entry->set_should_show_header(false);
+}
+```
+
+This removes Chromium's built-in side panel header (extension icon + name + pin/close buttons). Ocbot's extension provides its own header with history toggle, new session, and close button.
+
+**Why:** The built-in header duplicated the extension logo and name, wasting vertical space. Ocbot's custom header provides better UX with session management controls.
+
 ## Key Decisions
 
 - **Standalone button vs extension pin**: Chose standalone toolbar button (left of avatar) over extension pinning mechanism. Benefit: fixed position, unaffected by user actions
