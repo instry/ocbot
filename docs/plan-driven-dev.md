@@ -114,6 +114,9 @@ python scripts/dev.py build                                  # Build Browser
 # Run
 python scripts/dev.py run                                    # Run with extension loaded
 
+# Build Extension
+python3 scripts/dev.py build-extension                       
+
 # Package
 python scripts/dev.py package                                # Package into DMG
 
