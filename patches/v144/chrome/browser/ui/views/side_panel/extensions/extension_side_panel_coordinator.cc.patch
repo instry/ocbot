@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_coordinator.cc b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_coordinator.cc
+index 7ea9ea804580f50600acadba55e2511c1f59357d..4507d2869ec9e46b9678fd9d067b0f24ef606177 100644
+--- a/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_coordinator.cc
++++ b/chrome/browser/ui/views/side_panel/extensions/extension_side_panel_coordinator.cc
+@@ -28,6 +28,7 @@
+ #include "extensions/common/extension.h"
+ #include "extensions/common/manifest_handlers/icons_handler.h"
+ #include "extensions/common/permissions/api_permission.h"
++#include "chrome/browser/ui/ocbot/ocbot_constants.h"
+ #include "extensions/common/permissions/permissions_data.h"
+ #include "ui/actions/actions.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -240,6 +241,11 @@ void ExtensionSidePanelCoordinator::CreateAndRegisterEntry() {
+           weak_factory_.GetWeakPtr()),
+       /*default_content_width_callback=*/base::NullCallback());
+ 
++  // Hide the Chromium-provided header for ocbot — it has its own header.
++  if (ocbot::IsOcbotExtension(extension_->id())) {
++    entry->set_should_show_header(false);
++  }
++
+   scoped_entry_observation_.Observe(entry.get());
+   registry_->Register(std::move(entry));
+ }
