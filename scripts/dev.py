@@ -80,11 +80,11 @@ def main():
     parser_run = subparsers.add_parser('run', help='Run Ocbot', parents=[parent_parser])
     parser_run.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Ocbot')
     parser_run.add_argument('--official', action='store_true', help='Run official build')
-    parser_run.add_argument('--build-extension', action='store_true', help='Build extension before running')
+    parser_run.add_argument('--update-web', action='store_true', help='Build extension before running')
 
-    # Build Extension
-    parser_build_ext = subparsers.add_parser('build-extension', help='Build ocbot extension only', parents=[parent_parser])
-    parser_build_ext.add_argument('--zip', action='store_true', help='Also create zip package (default: False for dev)')
+    # Update Web (build extension only)
+    parser_update_web = subparsers.add_parser('update-web', help='Build ocbot extension only', parents=[parent_parser])
+    parser_update_web.add_argument('--zip', action='store_true', help='Also create zip package (default: False for dev)')
 
     # Package
     parser_package = subparsers.add_parser('package', help='Package Ocbot.app into a .dmg installer', parents=[parent_parser])
@@ -184,10 +184,10 @@ def main():
 
         build_chromium(args)
     elif args.command == 'run':
-        if getattr(args, 'build_extension', False):
+        if getattr(args, 'update_web', False):
              _build_extension(logger, zip=False)
         run_chromium(args)
-    elif args.command == 'build-extension':
+    elif args.command == 'update-web':
         _build_extension(logger, zip=getattr(args, 'zip', False))
     elif args.command == 'package':
         if sys.platform == 'win32':
