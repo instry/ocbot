@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ui/ocbot/ocbot_url_handler.cc b/chrome/browser/ui/ocbot/ocbot_url_handler.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..25704bc66d89bddfed24e14e1a577b7179f21f23
+index 0000000000000000000000000000000000000000..8c5ebbd730026efce2fbfa17b4fd6257755ba336
 --- /dev/null
 +++ b/chrome/browser/ui/ocbot/ocbot_url_handler.cc
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,83 @@
 +#include "chrome/browser/ui/ocbot/ocbot_url_handler.h"
 +
 +#include "chrome/browser/ui/ocbot/ocbot_constants.h"
@@ -18,14 +18,28 @@ index 0000000000000000000000000000000000000000..25704bc66d89bddfed24e14e1a577b71
 +    return false;
 +  }
 +
-+  // oc://home -> chrome-extension://<id>/home.html#/home
-+  // oc://settings -> chrome-extension://<id>/home.html#/settings
-+  std::string path(url->host());
-+  if (url->has_path() && url->path() != "/") {
-+    path += std::string(url->path());
++  // oc://home           -> chrome-extension://<id>/home.html#/home
++  // oc://home/skills    -> chrome-extension://<id>/home.html#/skills
++  // oc://home/skills?id=xxx -> chrome-extension://<id>/home.html#/skills?id=xxx
++  if (url->host() != chrome::kOcHomeHost) {
++    return false;
++  }
++
++  // Extract path after host: "/skills" -> "skills", "/" -> ""
++  std::string path(url->path());
++  if (!path.empty() && path[0] == '/') {
++    path = path.substr(1);
++  }
++  if (!path.empty() && path.back() == '/') {
++    path.pop_back();
 +  }
 +  if (path.empty()) {
 +    path = "home";
++  }
++
++  // Preserve query string
++  if (url->has_query()) {
++    path += "?" + std::string(url->query());
 +  }
 +
 +  *url = GURL(std::string(extensions::kExtensionScheme) + "://" +
@@ -40,16 +54,35 @@ index 0000000000000000000000000000000000000000..25704bc66d89bddfed24e14e1a577b71
 +    return false;
 +  }
 +
++  // chrome-extension://<id>/home.html#/skills?id=xxx -> oc://home/skills?id=xxx
 +  // chrome-extension://<id>/home.html#/home -> oc://home
 +  std::string ref(url->ref());
 +  if (ref.starts_with("/")) {
 +    ref = ref.substr(1);
 +  }
-+  if (ref.empty()) {
-+    ref = "home";
++
++  // Split fragment at '?' to separate path and query
++  std::string frag_path;
++  std::string frag_query;
++  auto qpos = ref.find('?');
++  if (qpos != std::string::npos) {
++    frag_path = ref.substr(0, qpos);
++    frag_query = ref.substr(qpos);  // includes '?'
++  } else {
++    frag_path = ref;
 +  }
 +
-+  *url = GURL(std::string(chrome::kOcScheme) + "://" + ref);
++  // oc://home is the root; other pages are oc://home/<page>
++  std::string oc_url = std::string(chrome::kOcScheme) + "://" +
++                        chrome::kOcHomeHost;
++  if (!frag_path.empty() && frag_path != "home") {
++    oc_url += "/" + frag_path;
++  }
++  if (!frag_query.empty()) {
++    oc_url += frag_query;
++  }
++
++  *url = GURL(oc_url);
 +  return true;
 +}
 +
