@@ -6,6 +6,69 @@ ocbot Skills are **Claude-compatible Agent Skills** extended for browser automat
 
 **Design principle**: An ocbot Skill IS a Claude Skill (SKILL.md + resources). It additionally HAS browser replay data (steps.json) and execution metrics.
 
+**Core goals（按优先级排序）**：
+
+| 优先级 | 目标 | 含义 |
+|--------|------|------|
+| **1. 稳** | 把事情搞定，符合用户期望 | 不稳的话省和快毫无意义——做错了还得重来 |
+| **2. 省** | 省 token | 少调 LLM = 省钱 |
+| **3. 快** | 省时间 | 稳了之后，省和快往往是同一件事 |
+
+每一层设计都服务于这三个目标：
+
+```
+                        稳          省          快
+Primitive 硬编码         ✓✓✓        ✓✓✓        ✓✓✓    ← 最理想
+缓存回放 (Fast Track)    ✓✓         ✓✓✓        ✓✓✓
+Self-heal L1 (fuzzy)    ✓✓         ✓✓✓        ✓✓
+Self-heal L2 (单步LLM)  ✓✓         ✓✓         ✓✓
+Self-heal L3 (段落LLM)  ✓          ✓          ✓
+Agent Track (全量LLM)   ✓          ✗          ✗      ← 最后手段
+```
+
+### 目标验证：Benchmark 体系
+
+**度量指标**：
+
+| 目标 | 指标 | 计算方式 |
+|------|------|---------|
+| **稳** | Task Success Rate | 成功次数 / 总执行次数 |
+| **稳** | First-Attempt Success Rate | 无需任何自愈即成功的比例 |
+| **稳** | Self-Heal Recovery Rate | 自愈成功次数 / 自愈触发次数 |
+| **省** | Tokens per Task | 完成一次任务的总 token 消耗 |
+| **省** | Primitive Ratio | primitive steps / total steps（越高越省） |
+| **省** | Cache Hit Rate | 缓存命中次数 / 总 act 调用次数 |
+| **快** | Time to Complete | 从任务开始到完成的总时间 |
+| **快** | LLM Latency Ratio | 等待 LLM 的时间 / 总时间（越低越快） |
+
+**竞品对比基准**：
+
+用同一组标准任务（如"淘宝查发票"、"LinkedIn 发连接请求"、"下载 PDF 报告"），对比不同方案：
+
+```
+                    稳(成功率)   省(tokens/task)   快(秒/task)
+─────────────────────────────────────────────────────────────
+人工操作              99%          0                60s
+传统 RPA (UiPath)     70%*         0                5s
+纯 LLM Agent          80%          ~5000            30s
+AI Browser (竞品)     85%          ~3000            20s
+ocbot 首次执行        85%          ~2000**          15s
+ocbot 重复执行        95%+         ~0-200***        3-5s
+─────────────────────────────────────────────────────────────
+* 传统 RPA: UI 一变就废，长期成功率低
+** 首次执行: primitive steps 已省掉部分 token
+*** 重复执行: Fast Track + primitive，几乎不消耗 token
+```
+
+**ocbot 的核心优势不在首次执行，而在重复执行**——同样的任务跑第 2 次、第 10 次、第 100 次时，token 趋近于零，速度趋近于纯 RPA，但稳定性远超传统 RPA（因为有 self-heal）。
+
+**Benchmark 执行方式**：
+- 定义 10-20 个标准任务覆盖不同类别（电商、社交、金融、办公）
+- 每个任务跑 3 轮：首次执行 → 间隔 24h 后重复 → 间隔 7 天后重复
+- 记录每轮的三个指标
+- 与竞品在相同任务上对比（如 Browser Use、Stagehand、Operator）
+- 定期回归（网站 UI 变化后重跑，验证 self-heal 效果）
+
 **Core architecture principle — Progressive Disclosure: 永远从最小成本开始，按需升级，绝不预付。** 借鉴 [Agent Skills 规范](https://agentskills.io) 的 Progressive Disclosure 思想，这一原则贯穿 ocbot Skill 系统的每一层设计：
 
 | 场景 | Level 1 (cheapest) | Level 2 | Level 3 (most expensive) |
