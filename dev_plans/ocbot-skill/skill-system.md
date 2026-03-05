@@ -6,9 +6,211 @@ ocbot Skills are **Claude-compatible Agent Skills** extended for browser automat
 
 **Design principle**: An ocbot Skill IS a Claude Skill (SKILL.md + resources). It additionally HAS browser replay data (steps.json) and execution metrics.
 
+**Core architecture principle — Progressive Disclosure: 永远从最小成本开始，按需升级，绝不预付。** 借鉴 [Agent Skills 规范](https://agentskills.io) 的 Progressive Disclosure 思想，这一原则贯穿 ocbot Skill 系统的每一层设计：
+
+| 场景 | Level 1 (cheapest) | Level 2 | Level 3 (most expensive) |
+|------|-------|---------|---------|
+| **Skill 加载** | metadata ~100 tokens | SKILL.md body ~500 tokens | steps.json 0 tokens (不发 LLM) |
+| **Skill 匹配** | triggerPhrases 文本匹配 <1ms | URL + name 匹配 <1ms | LLM 语义匹配 ~500 tokens |
+| **执行** | 缓存回放 0 tokens | self-heal L1/L2 0~500 tokens | Agent Track full tokens |
+| **Primitive** | 硬编码（确定性） | 模式规则匹配 | 涌现（数据驱动） |
+| **LLM 上下文** | 当前页面 + step instruction | + SKILL.md Workflow | + 完整执行历史 |
+| **页面理解** | 可视区域 AXTree ~100 元素 | 完整 AXTree ~500 元素 | Hybrid DOM + AXTree |
+| **参数收集** | 从用户消息自动提取 | 缺失必填参数 → 弹表单 | 执行中追问 |
+
 **Positioning**: Browser Plugin Terminator — Skills replace traditional Chrome Extensions with AI-driven automation.
 
 **Business model**: The browser is open-source, but the Skill ecosystem is closed. Official high-quality Skills are provided by ocbot; users can also create, Clone, and Fork community Skills.
+
+---
+
+## LLM-Compiled RPA: 与传统 RPA 的对比
+
+ocbot Skill 的执行层本质是 RPA——预定义的动作序列，确定性回放，不依赖 LLM。但生成和维护机制根本不同：**LLM 是 RPA 的编译器 + 维护者。**
+
+```
+传统 RPA:  人写脚本 → 回放 → 坏了 → 人修 → 回放 → 坏了 → 放弃
+ocbot:    LLM 生成 → 回放 → 坏了 → 自愈 → 回放 → 进化 → 越来越稳
+               ↑                        ↑
+          自然语言输入              4 级自愈，不需要人
+```
+
+| 维度 | 传统 RPA | ocbot Skill |
+|------|---------|-------------|
+| 创建 | 人手工录制/编写脚本 | 自然语言描述 → LLM 编译为步骤序列 |
+| 维护 | UI 变了 → 人修脚本 | UI 变了 → 4 级自愈自动修复 |
+| 门槛 | 需要技术背景 | 说人话即可 |
+| 稳定性 | 脆弱，UI 一变就废 | 越跑越稳（自愈成功后回写缓存） |
+| 复用 | 同一系统内 copy-paste | 跨站通用 Action Primitives |
+| 进化 | 不会 | 执行即训练，自动提炼通用模式 |
+
+### Action Primitives（动作原语库）
+
+网页任务是一连串动作，但不是所有动作都需要 LLM 推理：
+
+- 有些动作**极其稳定**（navigate、scroll、pressKey）— 几乎不会坏
+- 有些动作**跨站通用**（下载 PDF、关闭 cookie 弹窗、填写表单）— 与具体网站无关
+- 只有 **site-specific 的动作**才真正需要 LLM 推理
+
+将稳定、通用的动作固化为 Action Primitives（预编写、经过测试、不需要 LLM 推理的标准操作），Skill 的 steps 变成：一部分引用 primitive，一部分是 LLM 推理的 custom action。
+
+### Primitive 三层确定机制
+
+```
+第一层: 硬编码 primitives（~10 个，确定性判断）
+  navigate, scroll, wait, pressKey, goBack, goForward, switchTab, closeTab, refresh
+  → step.type 直接判断，不需要匹配
+
+第二层: 模式匹配 primitives（~10-20 个，系统预置规则）
+  download_file: method=click + target.href 匹配 /\.(pdf|csv|xlsx|zip)/
+  close_popup:   method=click + target 匹配 cookie/accept/dismiss/close 关键词
+  fill_search:   method=type + target.role=searchbox|combobox
+  → 基于 action pattern（method + target 特征）的规则匹配
+
+第三层: 涌现 primitives（从执行数据中发现）
+  候选条件（全部满足）:
+    ① 同样的 action pattern 在 ≥3 个不同 domain 出现过
+    ② 历史 heal_level 平均 < 1.0（几乎不需要自愈）
+    ③ 成功率 > 90%
+    ④ selector 中无 site-specific 特征（如特定 class name）
+  → 数据驱动，系统越跑越聪明
+```
+
+匹配基于**实际执行的 actions（method + target 特征）**，而非 instruction 文本。不管用户说"下载报告"还是"save the PDF"，底层 action pattern 一样就能匹配。
+
+**Primitive 替换可逆**：如果 primitive step 执行失败触发自愈，回写时退回 custom step，同时给该 primitive 匹配规则一条负反馈。
+
+### Primitive 规模治理
+
+随着第三层涌现 primitive 增多，会出现**匹配冲突**（多个 primitive 都能匹配同一个 step）和**误匹配**（看起来像但实际不适用）。
+
+**冲突解决**：
+- 层级优先：第一层 > 第二层 > 第三层
+- 同层内按历史成功率排序，选成功率最高的
+- confidence 阈值随 primitive 总量增长而提高（30 个时 0.85，100 个时 0.9+）
+
+**误匹配治理**：
+- 反馈闭环：primitive step 执行失败 → 自愈触发 → 退回 custom → 负反馈降低该规则匹配权重
+- 定期淘汰：第三层 primitive 成功率连续低于 85% → 降级回 custom pattern，不再作为 primitive 推荐
+- 第一层和第二层（系统预置）不受淘汰影响，仅第三层（涌现）参与淘汰
+
+**规模预期**：第一层 ~10 个 + 第二层 ~20 个 = 短期内 ~30 个，冲突概率低。第三层涌现是 Phase 4 的事，届时数据量足够支撑更精细的淘汰策略。
+
+### 两轮优化：规划时 + 保存时
+
+Primitive 优化发生在**两个时机**，不矛盾：
+
+**第一轮：规划后、执行前（首次执行就省 token）**
+
+LLM 规划出 steps 后，执行前先扫一遍，把能识别的 primitive 跳过 LLM 推理：
+
+```
+用户: "淘宝帮我看看硬盘发票开了没，开了就下载"
+
+LLM 规划输出 7 个 steps:
+  step 1: "导航到淘宝"           → navigate        → 第一层 primitive ✓ 跳过推理
+  step 2: "点击已买到的宝贝"      → click_by_text   → 第二层 primitive ✓ 跳过推理
+  step 3: "找到硬盘订单"          →                 → custom，LLM 推理
+  step 4: "点击进入订单详情"       →                 → custom，LLM 推理
+  step 5: "找发票入口"            →                 → custom，LLM 推理
+  step 6: "检查发票状态"          →                 → custom，LLM 推理
+  step 7: "下载发票"             → download_file    → 第二层 primitive ✓ 跳过推理
+
+首次执行就省了 3 个 step 的 LLM 推理
+```
+
+这一轮基于 **instruction 文本 + step type** 匹配，能识别第一层和部分第二层 primitive。
+
+**第二轮：执行成功后保存时（基于实际 actions 更精确）**
+
+```typescript
+function optimizeSteps(steps: AgentReplayStep[], registry: PrimitiveRegistry): OptimizedStep[] {
+  return steps.map(step => {
+    if (step.type === 'navigate') {
+      return { type: 'primitive', name: 'navigate', params: { url: step.url } }
+    }
+    if (step.type === 'scroll') {
+      return { type: 'primitive', name: 'scroll', params: { direction: step.direction } }
+    }
+    if (step.type === 'act') {
+      // 基于实际 actions 的 pattern 匹配（比 instruction 文本更准）
+      const match = registry.matchByActions(step.actions)
+      if (match && match.confidence > 0.85) {
+        return { type: 'primitive', name: match.primitive.name, params: match.extractedParams }
+      }
+      // 不匹配 → 记录模式，供第三层涌现分析
+      registry.recordPattern(step.instruction, step.actions, step.url)
+    }
+    return { type: 'custom', ...step }
+  })
+}
+```
+
+这一轮基于 **实际执行的 actions（method + target 特征）** 匹配，能发现第一轮没识别出的 primitive。
+
+**两轮对比**：
+
+| | 第一轮（规划后） | 第二轮（保存时） |
+|---|---|---|
+| 时机 | 首次执行前 | 执行成功后 |
+| 匹配依据 | instruction 文本 + step type | 实际 actions (method + target) |
+| 准确度 | 中（文本匹配） | 高（action pattern） |
+| 价值 | 首次执行就省 token | 后续执行更多 step 变 primitive |
+
+### 从执行数据中涌现新 Primitives
+
+新 primitives 不是预设的，而是从大量执行数据中**自然涌现**：
+
+```
+阶段 1: 收集 — 每次 step 执行，recordPattern() 记录 instruction + actions + domain + success + heal_level
+阶段 2: 聚类 — 对 instruction 做 embedding 向量聚类，语义相似的归为一组
+阶段 3: 筛选 — 候选条件：≥N 个不同 skill + ≥M 个不同 domain + heal_level < 1.0 + 成功率 > 90%
+阶段 4: 抽象 — 从 cluster 中多个 action 序列提取共同模式，参数化 site-specific 部分
+阶段 5: 验证 — 随机 K 个站点自动测试，通过率 > 85% 正式入库
+```
+
+**示例：涌现 "download_file" primitive**
+
+```
+聚类发现 cluster:
+  skill_1 (site_A): instruction="下载报告" → actions=[click(a[href$=".pdf"])]
+  skill_2 (site_B): instruction="download PDF" → actions=[click(button:has-text("Download"))]
+  skill_3 (site_C): instruction="保存文件"   → actions=[click(a[download])]
+
+筛选: 3 个 skill, 3 个 domain, heal_level=0, 成功率=100% ✓
+
+抽象: download_file(selector?) →
+  1. 找 a[href$=".pdf"] || a[download] || button:has-text("Download")
+  2. 点击 → 等待下载完成
+
+验证: 10 个随机站点测试，通过 9/10 → 入库
+```
+
+入库后，**已有的 skill 也自动受益**：后台 re-optimize 扫描所有 skill 的 steps，匹配到新 primitive 的自动替换。
+
+**本地 vs 云端**：
+- 本地挖掘（Phase 2）：分析用户自己的执行历史，发现个人重复模式
+- 云端挖掘（Phase 4）：聚合匿名数据（只上传 instruction + action pattern，不传用户数据），发现真正通用的 primitive
+
+### 进化循环
+
+```
+系统内置 primitives (第一层 ~10 个 + 第二层 ~10-20 个规则)
+        ↓
+用户输入任务 → LLM 规划 steps
+        ↓
+第一轮优化: 规划后扫描，识别 primitive steps → 跳过 LLM 推理直接执行
+        ↓
+执行成功 → 保存为 Skill
+        ↓
+第二轮优化: 基于实际 actions 做 pattern 匹配 → 发现更多 primitive
+        ↓
+执行数据积累 → 聚类发现新模式 → 验证 → 第三层涌现 primitive 入库
+        ↓
+已有 skill re-optimize → 更多 step 变成 primitive
+        ↓
+整个系统越来越快、越来越稳定、LLM 依赖越来越低
+```
 
 ---
 
@@ -175,927 +377,6 @@ L3 is unique to ocbot — it's machine-executable replay data consumed directly 
 
 ---
 
-## Data Model
-
-### Core Types
-
-```typescript
-interface Skill {
-  id: string
-  name: string                      // from SKILL.md frontmatter
-  description: string               // from SKILL.md frontmatter
-  version: number
-  categories: string[]              // from SKILL.md frontmatter
-  parameters: SkillParameter[]      // from SKILL.md frontmatter
-  triggerPhrases: string[]           // from SKILL.md frontmatter
-
-  // Creation
-  author: string                    // user ID or "official"
-  sourceSkillId?: string            // if forked, points to the original
-  createdAt: number
-  updatedAt: number
-
-  // Content (L2 + L3)
-  skillMd: string                   // SKILL.md full content (frontmatter + body)
-  steps: AgentReplayStep[]          // recorded execution steps (steps.json)
-  startUrl: string                  // URL where execution begins
-
-  // Auto-skill fields
-  source: 'auto' | 'user'          // 'auto' = recorded from execution, 'user' = manually saved
-  instruction: string               // normalized user instruction (auto-skill matching key)
-  configSignature: string           // "provider:model" (auto-skill matching key)
-
-  // Metrics (computed from executions)
-  score: number                     // 0-1, composite score
-  status: 'active' | 'degraded' | 'archived' | 'creating'
-  totalRuns: number
-  successCount: number
-  fragileSteps?: number[]           // step indices that frequently need healing
-
-  // Distribution
-  license: 'open-source' | 'closed-source'
-  repositoryUrl?: string            // GitHub URL (open-source only)
-  encryptedPayload?: string         // encrypted bundle (closed-source only)
-  distributionKeyId?: string        // key for decryption (closed-source only)
-
-  // Display
-  iconUrl?: string
-  official?: boolean
-}
-
-interface SkillParameter {
-  name: string
-  type: 'string' | 'number' | 'boolean' | 'select'
-  description: string
-  required: boolean
-  default?: string | number | boolean
-  options?: string[]                // for 'select' type
-}
-```
-
-### Replay Step Types
-
-```typescript
-type AgentReplayStep =
-  | { type: 'act'; instruction: string; actions: ActionStep[] }
-  | { type: 'fillForm'; fields: FormField[]; actions: ActionStep[] }
-  | { type: 'navigate'; url: string }
-  | { type: 'scroll'; direction: string }
-  | { type: 'wait' }
-  | { type: 'ariaTree' | 'think' | 'extract' | 'observe' }  // 回放时跳过
-
-interface ActionStep {
-  method: 'click' | 'type' | 'select' | 'press'
-  backendNodeId: number             // CDP node ID (changes every page load)
-  xpath?: string                     // absolute XPath (stable across sessions)
-  roleName: string                   // "role:name" e.g. "link:已买到的宝贝"
-  className?: string                 // CSS class
-  testId?: string                    // data-testid
-  alternativeSelectors?: AlternativeSelector[]  // historically successful selectors
-  clickPoint?: { x: number; y: number }         // cached coordinates for click fallback
-  args?: string[]
-  description: string
-}
-```
-
-### Execution & Heal Types
-
-```typescript
-interface SkillExecution {
-  id: string
-  skillId: string
-  skillVersion: number
-  timestamp: number
-  track: 'fast' | 'agent' | 'hybrid'
-  healEvents: HealEvent[]
-  totalSteps: number
-  completedSteps: number
-  success: boolean
-  userFeedback?: 'good' | 'bad'
-  url: string
-  parameters: Record<string, string>
-  durationMs: number
-}
-
-interface HealEvent {
-  stepIndex: number
-  level: 0 | 1 | 2 | 3 | 4
-  reason: string                     // "selector_not_found" | "element_gone" | "page_changed"
-  resolved: boolean
-  newActions?: ActionStep[]
-  tokenCost: number
-  durationMs: number
-}
-
-interface SkillVersion {
-  version: number
-  steps: AgentReplayStep[]
-  skillMd: string
-  createdAt: number
-  reason: string                     // "evolve_l3" | "user_edit" | "rollback"
-  metrics: {
-    executions: number
-    successRate: number
-    avgDurationMs: number
-    avgTokenCost: number
-  }
-}
-```
-
-### Marketplace Extensions (for cloud/public skills)
-
-```typescript
-interface SkillMarketplace extends Skill {
-  rating: number                    // 1-5 stars
-  reviewCount: number
-  cloneCount: number
-  forkCount: number
-  longDescription: string           // Markdown, for detail page
-  screenshots: string[]
-  changelog: ChangelogEntry[]
-  compatibleSites: string[]         // e.g. ["linkedin.com"]
-}
-```
-
----
-
-## Skill Matching
-
-### triggerPhrases: The Key Innovation
-
-Claude Skills rely on LLM semantic matching against the description. This works for dev tools (low frequency, high tolerance for latency) but is too slow for browser automation (every user message triggers a match check).
-
-ocbot adds `triggerPhrases` — explicit trigger strings that enable **fast text matching without LLM calls**:
-
-```
-User: "帮我查一下淘宝 iPhone 16 价格"
-  │
-  ▼ Phase 1: triggerPhrases scan (O(n), no LLM, <1ms)
-  ├─ skill.triggerPhrases.some(phrase => userMessage.includes(phrase))
-  ├─ Match found → confidence: 'strong'
-  └─ No match → Phase 2
-  │
-  ▼ Phase 2: URL hostname match + name keywords (O(n), no LLM, <1ms)
-  ├─ currentUrl hostname matches skill.startUrl hostname?
-  ├─ AND user message contains name keywords (≥3 chars)?
-  ├─ Match found → confidence: 'strong'
-  └─ No match → Phase 3
-  │
-  ▼ Phase 3: LLM semantic match (optional, ~500 tokens)
-  └─ Send compact skill list + user message to LLM
-     └─ LLM returns {id, confidence: 'strong'|'weak'} or null
-```
-
-### triggerPhrases Generation
-
-During `createSkillFromExecution`, the LLM generates triggerPhrases as part of skill metadata:
-
-```
-Prompt: "Based on this browser task execution, generate 3-5 trigger phrases
-         that a user would say to invoke this skill. Include variations
-         in language (Chinese + English), different wordings, and common
-         abbreviations."
-
-Example output:
-  triggerPhrases: ["淘宝价格", "淘宝比价", "taobao price", "监控价格", "商品价格追踪"]
-```
-
-### Full Matching Priority
-
-```
-User input
-  │
-  ├─ [1] Explicit invocation: user selects skill from UI or says "run <skill-name>"
-  │
-  ├─ [2] User Skill match: triggerPhrases → URL+name → (optional) LLM semantic
-  │  └─ Match → confirm with user → SkillRunner.execute()
-  │
-  ├─ [3] Auto-Skill match: instruction exact + configSignature exact + URL hostname
-  │  └─ Match → SkillRunner.executeFastTrackOnly()
-  │
-  └─ [4] No match → normal Agent loop (no skill)
-```
-
-### Auto-Skill Matching Details
-
-```typescript
-// matcher.ts → matchAutoSkill() — 精确匹配
-match = allSkills.find(s =>
-  s.source === 'auto' &&
-  s.status === 'active' &&
-  s.instruction === normalized &&                  // 指令精确匹配
-  s.configSignature === configSignature &&          // 模型精确匹配
-  (s.steps[0]?.type === 'navigate' ||              // 首步是 navigate 或
-    hostname matches s.startUrl)                    // 当前 URL hostname 匹配
-)
-```
-
-归一化规则：
-- `instruction` → `trim().toLowerCase()`
-- `configSignature` → `"providerType:modelId"` 如 `"openai-compatible:qwen3.5-plus"`
-
----
-
-## Skill Lifecycle
-
-### Chat-Driven Creation & Editing
-
-Skill 的创建和编辑统一通过 **chat 交互** 完成。不需要独立的表单 UI — sidepanel 的对话界面就是 skill 编辑器。
-
-**为什么用 chat 而不是表单？**
-
-- SKILL.md 对齐 Claude 规范后内容复杂（frontmatter + Workflow + Preconditions + triggerPhrases），表单难以覆盖
-- Chat 能理解意图："把触发词加上英文版本" — 一句话改多个字段
-- LLM 能分析执行历史："这个 skill 最近老失败，帮我优化" — 表单做不到
-- 参数设计需要经验："搜索关键词应该做成参数" — LLM 自动识别并改 SKILL.md
-
-### Creation Methods
-
-| Method | User Experience | Technical Path |
-|--------|----------------|----------------|
-| **Save from execution** | Agent completes任务 → "Save as Skill" → LLM 在 chat 中生成 SKILL.md → 用户可继续对话调整 | 录制 steps → LLM 生成 SKILL.md → 保存 |
-| **Chat creation** | 用户在 chat 中描述想要的 skill → LLM 生成 SKILL.md → 首次运行时录制 steps | 纯对话生成 SKILL.md，无 steps.json → 首次 Agent Track 执行时录制 |
-| **Clone/Fork** | Browse Marketplace, clone or fork | Clone: read-only copy; Fork: independent copy，可通过 chat 编辑 |
-
-### Creation Flow: Save from Execution
-
-```
-Agent 完成任务 → 用户点击 "Save as Skill"
-  │
-  ▼ Phase 1: Save placeholder immediately
-  保存到 SkillStore，status: 'creating'，最小 metadata
-  │
-  ▼ Phase 2: LLM analysis (background)
-  LLM 分析录制的 steps，生成完整 SKILL.md：
-  - frontmatter: name, description, triggerPhrases, categories, parameters, startUrl
-  - body: Workflow, Preconditions, Success Criteria
-  │
-  ▼ Phase 3: Update skill
-  解析 LLM 输出 → 更新 placeholder → status: 'active'
-  │
-  ▼ On failure: delete placeholder
-```
-
-### Creation Flow: Chat Creation (No Prior Execution)
-
-```
-用户: "帮我创建一个 skill，追踪淘宝商品价格"
-  │
-  ▼ LLM 生成 SKILL.md（frontmatter + body）
-  展示预览 → 用户可继续对话调整
-  │
-  ▼ 用户: "加一个参数，用户名"
-  LLM 更新 SKILL.md → 展示 diff
-  │
-  ▼ 用户确认 → 保存
-  此时只有 SKILL.md，没有 steps.json
-  │
-  ▼ 首次运行 → Agent Track（LLM 读 SKILL.md 执行）→ 录制 steps.json
-  ▼ 之后运行 → Fast Track（replay steps.json）
-```
-
-### Editing Flow: Chat-Based
-
-```
-用户进入 Skill 详情 → 点击 "Edit" → 进入 chat 编辑模式
-  │
-  ▼ System prompt 包含:
-  - 当前 SKILL.md 全文
-  - 最近执行历史摘要（成功率、heal events、fragile steps）
-  │
-  ▼ 用户可以说:
-  - "加一个参数叫 keyword"           → 更新 frontmatter.parameters
-  - "触发词加上 '淘宝比价'"           → 更新 frontmatter.triggerPhrases
-  - "workflow 第 3 步改成先等页面加载" → 更新 body Workflow section
-  - "这个 skill 为什么老失败？帮我修" → LLM 分析 heal events + fragile steps
-  │
-  ▼ LLM 输出修改后的 SKILL.md → diff 预览 → 用户确认 → 保存
-```
-
-### Auto-Skill Creation (Automatic)
-
-Auto-Skill 在 **LLM loop 完成后** 自动创建，无需用户操作：
-
-```
-LLM loop 结束
-  ├─ recordedSteps.length > 0 且 userInstruction 存在
-  │  └─ createAutoSkill(instruction, steps, startUrl, configSignature)
-  │     └─ skillStore.saveAutoSkill(autoSkill)
-  └─ 首次创建时 score=1, status='active'
-```
-
-Tool call → replay step 记录逻辑：
-
-| Tool Call | 记录为 | 说明 |
-|-----------|--------|------|
-| `act({instruction})` | `{type: 'act', instruction, actions}` | instruction-based |
-| `act({nodeId, method})` | `{type: 'act', instruction: description, actions}` | description 来自结果 |
-| `navigate({url})` | `{type: 'navigate', url}` | — |
-| `scroll({direction})` | `{type: 'scroll', direction}` | — |
-| `waitForNavigation` | `{type: 'wait'}` | — |
-| `fillForm({fields})` | `{type: 'fillForm', fields, actions}` | — |
-| `ariaTree` / `think` / `extract` / `observe` | 对应 type | 回放时跳过 |
-| `screenshot` | **不记录** | — |
-
-### Full Lifecycle
-
-```
-Create (chat) → Edit (chat) → Run → Self-Heal → Evolve → Score → Archive/Thrive
-                    ↑          ↑                                       │
-                    │          └───────── Clone / Fork ────────────────┘
-                    └── "帮我优化这个 skill"（chat 编辑 + 执行历史分析）
-```
-
----
-
-## Execution & Caching
-
-### Two-Layer Cache Architecture
-
-| Layer | File | Granularity | Cache Key | Purpose |
-|-------|------|-------------|-----------|---------|
-| **ActCache** | `lib/agent/cache.ts` | 单个 act 动作 | `SHA-256(instruction + url)` | 元素级缓存 + 5 级选择器自愈 |
-| **Auto-Skill** | `lib/skills/store.ts` | 完整任务流程 | `instruction + configSignature` | 任务级缓存 + 4 级自愈 |
-
-### Execution Priority
-
-```
-runAgentLoop(provider, messages, ...)
-  │
-  ├─ [1] User Skill 匹配 — matchSkill()
-  │  └─ triggerPhrases + URL hostname + name keywords
-  │     └─ 命中 → 询问用户确认 → SkillRunner.execute()
-  │
-  ├─ [2] Auto-Skill 匹配 — matchAutoSkill()
-  │  └─ instruction 精确 + configSignature 精确
-  │     └─ 命中 → SkillRunner.executeFastTrackOnly()
-  │        ├─ ✅ 成功 → 直接返回
-  │        └─ ❌ 失败 → 跌入 [3]
-  │
-  └─ [3] 完整 LLM Loop
-     └─ 每个 turn 中的 act() 调用内部走 ActCache
-        └─ 结束后保存为新的 auto-skill
-```
-
-### Dual Track Execution
-
-```
-Skill triggered (match or manual select)
-  │
-  ├─ Has steps?
-  │   YES → Fast Track: replayAgentSteps()
-  │         ├─ Success → done (0 tokens)
-  │         └─ Failure → 4-level self-heal
-  │                      └─ All levels fail → Agent Track
-  │
-  └─ NO → Agent Track: runAgentLoop() with SKILL.md as instructions
-          └─ Success → record steps → save to steps.json
-```
-
-### ActCache — Action-Level Caching
-
-```
-act(instruction, provider, cache)
-  │
-  ├─ cache.lookup(instruction, url)
-  │  ├─ Cache Hit
-  │  │  ├─ selfHealFromSnapshot() — 5 级选择器修复
-  │  │  │  ├─ 1. XPath 查找（最稳定的 DOM 选择器）
-  │  │  │  ├─ 2. testId 匹配（data-testid）
-  │  │  │  ├─ 3. clickPoint 坐标点击（绕过 DOM，仅 click 动作）
-  │  │  │  ├─ 4. roleName 模糊匹配（精确 → 忽略大小写 → 子串）
-  │  │  │  └─ 5. alternativeSelectors（历史成功的选择器，LRU 最多 5 个）
-  │  │  ├─ ✅ Self-heal 成功 → 执行动作 → 更新缓存 → 返回
-  │  │  └─ ❌ Self-heal 失败 → 调 LLM 重新推理 → 如果成功则更新缓存
-  │  └─ Cache Miss
-  │     └─ 调 LLM 推理动作 → 执行 → 成功则存入缓存（含 xpath + clickPoint）
-  │
-  └─ 返回 ActResult { success, actions, cacheHit, selfHealed }
-```
-
-### Replay Flow (Auto-Skill / User Skill)
-
-```
-SkillRunner.execute(skill, parameters)
-  └─ runFastTrack()
-     │
-     ├─ substituteStepParams() — %paramName% 参数替换
-     ├─ 脆弱步骤预检（如果 fragileSteps 已知）
-     │  └─ 对每个脆弱步骤检查 xpath 是否存在，不存在则提前 L2 修复
-     │
-     └─ replayAgentSteps(steps, executeTool, callbacks, signal, healFn)
-        │
-        ├─ 对每个步骤：
-        │  ├─ ariaTree/think/extract/observe → 跳过
-        │  ├─ navigate → executeTool('navigate', {url})
-        │  ├─ act → executeTool('act', {instruction})
-        │  │  └─ 内部走 act() → ActCache lookup → self-heal → 或 LLM 推理
-        │  ├─ 检查结果 success === false?
-        │  │  ├─ 是 → L2 healFn → healStep()
-        │  │  │     ├─ ✅ 成功 → 继续
-        │  │  │     └─ ❌ 失败 → 回放终止
-        │  │  └─ 否 → 继续
-        │  └─ 检查 selfHealed → 记录 heal event
-        │
-        └─ 回放终止:
-           ├─ ✅ 全部成功 → 返回 success
-           └─ ❌ 某步失败 → L3 healSegment()
-              ├─ ✅ 成功 → evolveSkill
-              └─ ❌ 失败 → 返回 failure → loop.ts 跌入完整 LLM loop
-```
-
-### Capacity Limits
-
-| Resource | Limit | Eviction |
-|----------|-------|----------|
-| ActCache entries | 500 | LRU by `updatedAt` |
-| Auto-Skills | 50 (separate pool) | LRU by `updatedAt` |
-| Total Skills | 200 | LRU by `updatedAt` |
-| Executions per Skill | 50 | FIFO |
-
-### Known Issue: nodeId vs instruction Path Split
-
-```
-                    写入 ActCache?   可复用?
-act({nodeId, method})    ❌             ❌    ← LLM 倾向使用（更快）
-act({instruction})       ✅             ✅    ← 缓存友好（但多一轮 LLM 推理）
-```
-
-改进方向：
-1. ✅ 已实现 — `clickPoint` 坐标兜底
-2. nodeId 调用也写入 ActCache（用 `description` 作为 instruction）
-3. Auto-skill 回放容错 — L3 segment repair 从当前页面继续
-4. 部分回放利用 — 即使回放失败，已成功步骤不浪费
-
----
-
-## Self-Heal & Evolution
-
-Skill 的核心价值不是"一次录制，永远回放"，而是 **执行即训练** — 每次运行都是一次进化机会。
-
-### 4-Level Progressive Self-Heal
-
-```
-Skill 执行开始
-     │
-     ▼
-┌─────────────────────────────────────┐
-│  Level 0: 直接回放 (Fast Track)      │  成本: 0 token, ~100ms/step
-│  replay cached steps as-is          │
-└──────────┬──────────────────────────┘
-           │ step 失败
-           ▼
-┌─────────────────────────────────────┐
-│  Level 1: 元素级自愈                  │  成本: 0 token, ~200ms
-│  re-snapshot + fuzzyMatch            │
-│  同一个 instruction，只是 selector 变了│
-│  成功后回写 steps.json               │
-└──────────┬──────────────────────────┘
-           │ fuzzy match 全部失败
-           ▼
-┌─────────────────────────────────────┐
-│  Level 2: 步骤级重推理               │  成本: ~500 token, ~2s
-│  只对失败的这一步调 LLM re-inference  │
-│  保留前后步骤不变                     │
-│  成功后回写该步骤到 steps.json        │
-└──────────┬──────────────────────────┘
-           │ 重推理也失败（页面流程变了）
-           ▼
-┌─────────────────────────────────────┐
-│  Level 3: 段落级重规划               │  成本: ~2000 token, ~5s
-│  从失败步骤开始，用 SKILL.md 的       │
-│  instructions 引导 LLM 重新规划      │
-│  后续步骤（不是从头开始）              │
-│  成功后替换 failedIndex 之后的 steps  │
-└──────────┬──────────────────────────┘
-           │ 段落重规划也失败
-           ▼
-┌─────────────────────────────────────┐
-│  Level 4: 全量重执行 (Agent Track)   │  成本: 全量 token, 完整时间
-│  SKILL.md instructions + 当前页面    │
-│  状态，Agent 从头推理                 │
-│  成功后用完整新轨迹替换 steps.json    │
-└─────────────────────────────────────┘
-```
-
-### Level 2 — 步骤级重推理
-
-```typescript
-async function healStep(
-  failedStep: AgentReplayStep,
-  pageSnapshot: Snapshot,
-  provider: LlmProvider,
-  signal?: AbortSignal,
-): Promise<AgentReplayStep | null> {
-  const result = await inferActions(failedStep.instruction, pageSnapshot, provider, signal)
-  if (result.success) {
-    return { ...failedStep, actions: result.actions }
-  }
-  return null  // 升级到 Level 3
-}
-```
-
-### Level 3 — 段落级重规划
-
-SKILL.md（L2 语义层）和 steps.json（L3 执行层）分离的核心价值所在——L3 坏了，L2 能指导修复。
-
-**结构化 SKILL.md 对 L3 的提升**：遵循 Claude SKILL.md 规范后，SKILL.md 包含标准化的 `## Workflow`、`## Preconditions`、`## Success Criteria` sections，LLM 在重规划时能更精确地理解"已完成哪些步骤"和"接下来该做什么"。
-
-```typescript
-async function healSegment(
-  steps: AgentReplayStep[],
-  failedIndex: number,
-  skillMd: string,          // SKILL.md（含结构化 Workflow section）
-  pageSnapshot: Snapshot,
-  provider: LlmProvider,
-  signal?: AbortSignal,
-): Promise<AgentReplayStep[]> {
-  // LLM 产出新的步骤序列，替换 failedIndex 之后的所有步骤
-}
-```
-
-### Evolution Logic
-
-```
-每次执行完成后:
-│
-├─ success && healEvents.length === 0
-│   → 完美执行，不需要进化
-│
-├─ success && healEvents 中仅有 resolved 的 Level 1/2
-│   → 微进化：用 healEvent.newActions 回写 steps.json
-│   → version 不变，只是 steps 更新（cache refresh）
-│
-├─ success && healEvents 中有 Level 3/4
-│   → 大进化：用本次完整执行轨迹替换 steps.json
-│   → version + 1
-│   → 可选：LLM 分析新旧 steps 差异，更新 SKILL.md
-│
-├─ failed && userFeedback === 'bad'
-│   → 标记为 degraded
-│   → 触发诊断：分析最近 N 次执行的 healEvents → 找脆弱点
-│
-└─ failed 但用户没反馈
-    → 静默记录，等累积到阈值再触发进化
-```
-
----
-
-## Scoring & Fragility
-
-### Scoring Formula
-
-```
-score = recentSuccessRate * 0.35       // 最近 20 次执行的成功率
-      + stability * 0.25               // 1 - (需要 L2+ 自愈的执行占比)
-      + efficiency * 0.15              // 1 - (avgHealLevel / 4)
-      + userSatisfaction * 0.15        // thumbsUp / (thumbsUp + thumbsDown)
-      + usageFrequency * 0.10          // 归一化的使用频率
-
-stability = 1 - (executions_needing_L2_plus / total_recent_executions)
-efficiency = 1 - (avg_heal_level_when_healed / 4)
-```
-
-一个每次都成功但每次都要 Level 3 自愈的 Skill，score 不会很高——虽然能用但很脆弱。
-
-### Status Transitions
-
-| Condition | Action |
-|-----------|--------|
-| `score ≥ 0.6` | `active` — 正常使用 |
-| `0.3 ≤ score < 0.6` | `degraded` — UI 显示警告，不再自动匹配 |
-| `score < 0.3` 且 `totalRuns > 10` | `archived` — 不再推荐 |
-| `degraded` 持续 30 天无改善 | 自动归档 |
-| 用户手动"修复" degraded skill | 触发 Agent Track 执行，用新 steps 刷新 |
-
-### Fragility Detection
-
-```typescript
-interface StepFragility {
-  stepIndex: number
-  instruction: string
-  healCount: number              // 被自愈的次数
-  healSuccessRate: number
-  avgHealLevel: number           // 越高越脆弱
-  lastHealAt: number
-  alternativeSelectors: string[]
-}
-```
-
-如果一个 step 频繁需要 Level 2+ 自愈（healCount / recentExecutions > 0.5）：
-
-```
-收集该步骤的所有 healEvent
-  │
-  ├─ 大多是 Level 1 修复 → 增强 fuzzy match，记录 alternativeSelectors
-  ├─ 大多是 Level 2 修复 → instruction 不够精确，LLM 生成更稳定的 instruction
-  └─ 大多是 Level 3/4 修复 → 页面大改，通知用户重新录制，标记 degraded
-```
-
-### Clone/Fork Evolution Graph
-
-```
-linkedin-outreach v1 (official, score=0.85)
-  ├── fork: linkedin-outreach-cn (user_A, score=0.92)   ← 中文适配版
-  │     └── fork: linkedin-outreach-cn-v2 (user_B)
-  └── fork: linkedin-connect-only (user_C, score=0.78)  ← 精简版
-```
-
-`sourceSkillId` 记录 fork 来源。Fork 版本 score 持续高于原版时，Marketplace 自然将其排在更前面。
-
----
-
-## Quality Engineering
-
-参考 [Claude skill-creator 的工程化实践](../claude-skill-creator-analysis.md)，Skill 需要超越"录制 → 回放"，具备完整的质量保障体系。
-
-### Automated Evals
-
-Eval 定义存储在 `scripts/evals.json`，每个 eval 是 input → expect 断言：
-
-```typescript
-interface SkillEval {
-  id: string
-  name: string
-  input: {
-    parameters: Record<string, string>
-    startUrl?: string
-  }
-  expect: EvalAssertion[]
-}
-
-type EvalAssertion =
-  | { type: 'url_contains'; value: string }
-  | { type: 'url_matches'; pattern: string }
-  | { type: 'element_exists'; selector: string }
-  | { type: 'element_not_exists'; selector: string }
-  | { type: 'text_visible'; value: string }
-  | { type: 'element_count_gte'; selector: string; count: number }
-```
-
-**执行流程**:
-
-```
-用户点击 "Run Evals" 或发布前自动运行
-  │
-  ▼ 对每个 eval:
-  ├─ 打开新标签页（隔离环境）
-  ├─ SkillRunner.execute(skill, eval.input.parameters)
-  ├─ 执行完毕后，逐条检查 expect 断言
-  ├─ 记录: pass/fail, 耗时, token 消耗, heal events
-  └─ 关闭标签页
-  │
-  ▼ 汇总结果:
-  Eval Report:
-    ✅ eval-1: 搜索商品应显示结果 (3.2s, 0 tokens, fast track)
-    ❌ eval-2: 空搜索应显示提示 (failed: text "请输入" not found)
-  Pass rate: 1/2 (50%)
-```
-
-通过 chat 生成（"帮这个 skill 加几个测试用例"），与 skill 创建/编辑体验一致。
-
-### Skill Doctor（发布前诊断）
-
-不实际执行操作，只做静态检查：
-
-```
-Diagnose:
-  │
-  ▼ 1. SKILL.md 结构检查
-  ├─ frontmatter 完整性：name, description, triggerPhrases 是否存在
-  ├─ body 结构：是否包含 ## Workflow section
-  └─ triggerPhrases 质量：是否 ≥ 3 个，是否包含多语言变体
-  │
-  ▼ 2. Selector 预检
-  ├─ 导航到 startUrl
-  ├─ 遍历 scripts/steps.json 每个 step 的 xpath/roleName
-  └─ 标记不可解析的步骤 → 建议修复
-  │
-  ▼ 3. Self-Heal 验证（可选）
-  ├─ 故意移除 xpath，验证 L1 自愈能否恢复
-  └─ 评估对 DOM 变化的容忍度
-```
-
-### Version Comparison & Rollback
-
-- evolve (version+1) 时保存前一版本快照到 `scripts/versions.json`（最近 5 个版本）
-- 展示版本间指标对比：成功率、速度、token 消耗
-
-**自动回滚机制**：
-
-```
-version+1 后的最近 5 次执行:
-  │
-  ├─ 新版本成功率 < 旧版本成功率 - 20%
-  │   → 自动回滚到上一版本
-  │   → 通知用户 "Skill v{N} 表现不佳，已回滚到 v{N-1}"
-  │
-  └─ 新版本成功率 ≥ 旧版本 → 保持新版本
-```
-
-### Marketplace 可信度（Phase 4）
-
-Skill 卡片展示：Reliability %、Avg Cost、Verified 徽章。
-
-**Verified 条件**：eval pass rate ≥ 90% + score ≥ 0.8 + totalRuns ≥ 50 + 无 degraded 历史（最近 30 天）。
-
----
-
-## Open-Source vs Closed-Source Skills
-
-Skill 分为两种分发模式：**开源（Open-Source）** 和 **闭源（Closed-Source）**。
-
-### 对比
-
-| | Open-Source | Closed-Source |
-|---|---|---|
-| **SKILL.md** | 明文可读 | 加密，仅 metadata 可见 |
-| **scripts/steps.json** | 明文可读 | 加密 |
-| **scripts/references/assets** | 明文可读 | 加密 |
-| **分发方式** | GitHub repo / zip / URL 导入 | Marketplace 加密分发 |
-| **Fork** | 自由 fork，完整源码 | 不可 fork（看不到源码） |
-| **Clone** | 可 clone（跟随上游更新） | 可 clone（跟随上游更新） |
-| **社区贡献** | PR / fork 改进 / issue 反馈 | 只能反馈给作者 |
-| **商业模式** | 免费，靠声誉和生态 | 付费 / 订阅 / 免费增值 |
-| **转换** | 不可转闭源（已公开） | 作者可选择开源（单向） |
-
-### Open-Source Skill
-
-**格式**：标准文件目录，可直接托管在 GitHub：
-
-```
-my-skill/
-├── SKILL.md              # 明文，任何人可读
-├── scripts/
-│   ├── steps.json         # 明文，可学习和改进
-│   └── *.py / *.sh        # 明文
-├── references/            # 明文
-└── assets/                # 明文
-```
-
-**导入方式**：
-- **GitHub URL**: 粘贴 repo URL → 一键导入
-- **Zip 上传**: 拖拽 zip 文件到 Skills 页面
-- **Marketplace**: 开源 skill 也可发布到 marketplace，标记为 "Open Source"
-
-**导出方式**：
-- Skill 详情页 → "Export" → 生成 zip 文件
-- 或直接 "Push to GitHub"（需要 GitHub 授权）
-
-### Closed-Source Skill
-
-**格式**：加密 bundle：
-
-```
-my-skill.ocskill (encrypted bundle)
-├── manifest.json          # 明文：name, description, parameters, categories, triggerPhrases
-└── payload.enc            # 加密：SKILL.md body + scripts/steps.json + resources
-```
-
-**Clone 流程（闭源唯一的获取方式）**：
-```
-用户浏览闭源 Skill → "Clone" (或 "购买" 后 Clone)
-  ▼ 下载加密 bundle → 本地解密执行
-  ▼ 只能运行，不能查看或编辑 SKILL.md/steps.json
-  ▼ 跟随上游更新：作者发布新版本 → 自动同步
-  ▼ self-heal 产生的进化数据存在本地（不回写上游）
-```
-
----
-
-## Encryption & Cloud Storage (Phase 3+)
-
-核心原则：**密钥永远不出内核层，JS 层只传密文进出，服务端永远不持有明文。**
-
-### Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Chromium 内核层 (C++)                  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  OcbotCryptoService (Mojo IPC)                    │  │
-│  │  ● Key Derivation (HKDF-SHA256)                   │  │
-│  │  ● Encrypt / Decrypt (AES-256-GCM)               │  │
-│  │  ● Master Key ←→ OS Keychain (Ocbot Safe Storage) │  │
-│  └───────────────────┬───────────────────────────────┘  │
-│                      │ chrome.ocbot.crypto API           │
-├──────────────────────┼──────────────────────────────────┤
-│  ┌───────────────────▼───────────────────────────────┐  │
-│  │              Extension 层 (TypeScript)              │  │
-│  │  SkillStore ──► encrypt ──► Cloud API ──► Server   │  │
-│  │  SkillStore ◄── decrypt ◄── Cloud API ◄── Server   │  │
-│  └───────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────┤
-│                    Cloud 层                              │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │ Auth Service │  │ Skill Store  │  │ Marketplace   │  │
-│  │ (JWT/OAuth)  │  │ (encrypted)  │  │ (metadata)    │  │
-│  └─────────────┘  └──────────────┘  └───────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Why Kernel-Level Crypto
-
-| Dimension | Web Crypto (JS) | Kernel (C++) |
-|-----------|-----------------|-------------|
-| Master Key storage | JS heap, readable by devtools | OS Keychain, process-isolated |
-| Key lifecycle | GC timing uncertain | Manual `memset(0)` |
-| Attack surface | Malicious extensions, console | Mojo IPC with permission check |
-| Hardware support | None | macOS: Secure Enclave; Windows: TPM |
-
-### Key Hierarchy
-
-```
-OS Keychain ("Ocbot Safe Storage")
-  └─ Master Key (AES-256)           ← 设备级，永不离开内核
-       │ HKDF-SHA256(master_key, context)
-       ├─ SK_skill_1                 ← context: "skill:<skillId>"
-       ├─ SK_skill_2
-       └─ SK_provider_keys           ← context: "provider:<providerId>"
-```
-
-### Mojo Interface
-
-```mojom
-interface OcbotCryptoService {
-  Initialize() => (bool success);
-  Encrypt(string context, array<uint8> plaintext) => (array<uint8> ciphertext, array<uint8> nonce);
-  Decrypt(string context, array<uint8> ciphertext, array<uint8> nonce) => (array<uint8>? plaintext);
-  ExportWrappedKey(string passphrase) => (array<uint8> wrapped_key);
-  ImportWrappedKey(string passphrase, array<uint8> wrapped_key) => (bool success);
-};
-```
-
-### Private vs Public Skill Encryption
-
-**Private Skill** — 全加密，服务端只看到 opaque blob + timestamps：
-
-```json
-{
-  "id": "skill_abc123",
-  "owner_id": "user_xyz",
-  "visibility": "private",
-  "blob": "<base64 encrypted everything>",
-  "blob_nonce": "<base64>",
-  "updated_at": 1740700800
-}
-```
-
-**Public Skill (Marketplace)** — metadata 明文（供发现），content 加密（保护 IP）：
-
-```json
-{
-  "id": "skill_def456",
-  "visibility": "public",
-  "metadata": { "name": "...", "description": "...", "categories": [...] },
-  "encrypted_content": "<base64>",
-  "distribution_blob": "<base64>"
-}
-```
-
-### Clone Key Transformation
-
-```
-作者发布: plaintext → encrypt(author_SK) → encrypted_content
-          plaintext → encrypt(dist_key)  → distribution_blob
-
-用户 Clone: download distribution_blob → decrypt(dist_key) → re-encrypt(user_SK) → 本地密文
-```
-
-### Cross-Device Sync
-
-```
-设备 A: passphrase → PBKDF2 → wrapping_key → AES-KW(master_key) → wrapped_blob → QR/text
-设备 B: paste wrapped_blob + passphrase → 解包 → 存入 Keychain → 云端数据即可解密
-```
-
-### Cloud API
-
-```
-POST   /api/skills                  上传 (encrypted blob)
-GET    /api/skills/:id              下载
-PUT    /api/skills/:id              更新
-DELETE /api/skills/:id              删除
-GET    /api/skills?q=...&cat=...    搜索 (public skill metadata)
-POST   /api/skills/:id/clone        Clone
-POST   /api/skills/:id/fork         Fork (只返回参数骨架)
-POST   /api/skills/:id/metrics      上报执行指标
-```
-
-### Bonus: Encrypt Existing Sensitive Data
-
-有了 `chrome.ocbot.crypto`，可统一加密现有明文数据（`LlmProvider.apiKey`、`ChannelConfig.botToken`）：
-
-```typescript
-const { ciphertext, nonce } = await chrome.ocbot.crypto.encrypt(
-  `provider:${provider.id}`,
-  new TextEncoder().encode(provider.apiKey)
-)
-// 明文不落盘，只存密文
-```
-
----
-
 ## Skill Categories
 
 | Category | Typical Use Cases |
@@ -1169,6 +450,16 @@ snapshot.ts: capturePageSnapshot     扩展为 hybrid snapshot（DOM + AXTree）
 ```
 
 ---
+
+## Sub-Documents
+
+| Document | Content |
+|----------|---------|
+| [skill-data-model.md](./skill-data-model.md) | All TypeScript interfaces: Skill, ActionStep, Execution, Heal, Version, Eval, Marketplace, Primitives |
+| [skill-execution.md](./skill-execution.md) | Matching, Lifecycle (chat-driven creation/editing), Execution & Caching |
+| [skill-evolution.md](./skill-evolution.md) | 4-level Self-Heal, Scoring & Fragility, Quality Engineering (Evals, Doctor, Versioning) |
+| [skill-distribution.md](./skill-distribution.md) | Open-Source vs Closed-Source, Encryption & Cloud Storage |
+| [skill-dev-plan.md](./skill-dev-plan.md) | Development roadmap and phase plan |
 
 ## References
 
