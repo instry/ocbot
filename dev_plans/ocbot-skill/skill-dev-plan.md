@@ -38,6 +38,14 @@
 - `types.ts`: `SkillExecution` 增加 `primitiveRatio?: number`
 - `runner.ts`: `recordExecution()` 计算并记录 `primitiveRatio`
 
+### Completed (Phase 3.1 — User Account System) — ✅ DONE
+- Supabase Auth (PKCE flow) — 扩展直连，支持 Email/Password + Google OAuth
+- Go + Gin API 服务端 (`ocbot_server/`) — JWT 鉴权 via JWKS，SQLite 存储（开发阶段）
+- Device registration: `getOrCreateDeviceId()` + 自动注册
+- `useAuth` hook: session 管理、状态监听、自动 token refresh
+- Settings > Account tab: 登录/注册表单、Google OAuth、设备列表、登出
+- Background service worker: SW wake 时恢复 session
+
 ### In Progress
 - Vision MVP: screenshot + AXTree hybrid inference (see plan file)
 
@@ -52,6 +60,7 @@
 | 执行 | Fast Track + Agent Track + Primitive skip L2 heal | 设计一致 | ✅ 基本完成 |
 | 自愈 | L1 fuzzy + L2 step re-inference + L3 segment repair | 设计一致 | ✅ 基本完成 |
 | 评分 | 完整公式 + fragility detection | 设计一致 | ✅ 基本完成 |
+| 账号 | Supabase Auth + Go API + Device registration | 设计一致 | ✅ 完成 |
 | Evals | 无 | scripts/evals.json + 自动化测试 | 完全缺失 |
 | Primitive | Layer 1 硬编码 ✅ | 3 层体系 + 两轮优化 + 涌现 | 缺 Layer 2/3 |
 | Benchmark | 无 | 8 个指标 + 竞品对比 | 完全缺失 |
@@ -93,31 +102,21 @@
 
 ---
 
-## Phase 3: Accounts + Encryption
+## Phase 3: Accounts — ✅ Complete
 
-**Goal**: 用户身份和 E2EE 加密。
+**Goal**: 用户身份体系。
 
-### 3.1 User Account System
-- Authentication service (JWT/OAuth)
-- Device registration (device_id)
-- Login/register UI in extension
-
-### 3.2 `chrome.ocbot.crypto` API (Chromium Patch)
-- `ocbot_crypto.mojom` + C++ implementation (~400 lines)
-- IDL + API binding (~200 lines)
-- Extension ID whitelist (~50 lines)
-- Operations: Initialize, Encrypt, Decrypt, ExportWrappedKey, ImportWrappedKey
-- Master Key in OS Keychain ("Ocbot Safe Storage")
-
-### 3.3 Encrypt Existing Sensitive Data
-- Provider API keys, Channel bot tokens
-- Migrate from plaintext to encrypted storage
+### 3.1 User Account System — ✅ DONE
+- Supabase Auth (PKCE) + Go API server + SQLite (dev)
+- Email/Password + Google OAuth
+- Device registration + useAuth hook + Account tab UI
+- Background session restore for token refresh
 
 ---
 
-## Phase 4: Cloud + Marketplace
+## Phase 4: Cloud Sync + Marketplace ← CURRENT
 
-**Goal**: Skill 分享、发现和生态。
+**Goal**: Skill 云同步、分享、发现和生态。
 
 ### 4.1 Cloud Skill Store
 - Backend API: CRUD + sync for private skills
@@ -206,6 +205,25 @@
 
 ---
 
+## Phase 6: `chrome.ocbot.crypto` API (Chromium Patch)
+
+**Goal**: E2EE 加密，保护敏感数据。
+
+**依赖**: Phase 3 ✅ 已完成
+
+### 6.1 Crypto API
+- `ocbot_crypto.mojom` + C++ implementation (~400 lines)
+- IDL + API binding (~200 lines)
+- Extension ID whitelist (~50 lines)
+- Operations: Initialize, Encrypt, Decrypt, ExportWrappedKey, ImportWrappedKey
+- Master Key in OS Keychain ("Ocbot Safe Storage")
+
+### 6.2 Encrypt Existing Sensitive Data
+- Provider API keys, Channel bot tokens
+- Migrate from plaintext to encrypted storage
+
+---
+
 ## Dependencies
 
 ```
@@ -213,21 +231,20 @@ Phase 1 ──────────────── ✅ Complete
   │
 Phase 2 ────────────────── ✅ Complete (triggerPhrases + SKILL.md + Primitive L1)
   │
-Phase 3 (accounts + crypto) ─── ← NEXT
+Phase 3 (accounts) ──────── ✅ Complete
   │
-Phase 4 (cloud + marketplace) ── 依赖 Phase 3
+Phase 4 (cloud + marketplace) ─── ← CURRENT
   │
-Phase 5 (optimization + 度量) ── 最后做
-  ├─ 5.1 Benchmark 框架        HIGH   「验证」
-  ├─ 5.2 Primitive Layer 2     MEDIUM 「省」+「快」 (依赖 2.3 ✅)
-  ├─ 5.3 Primitive Layer 3     MEDIUM  依赖 4.1 (需要云端数据)
-  ├─ 5.4 Eval 框架             MEDIUM 「稳」
-  └─ 5.5-5.7 增量改进           LOW    可并行
+Phase 5 (optimization + 度量) ── 度量 + 进阶优化
+  │
+Phase 6 (crypto — Chromium patch) ── 最后做
+  ├─ 6.1 chrome.ocbot.crypto API
+  └─ 6.2 Encrypt sensitive data
 ```
 
 ## Next Action
 
-**Phase 3.1 — User Account System**:
-- Authentication service (JWT/OAuth)
-- Device registration (device_id)
-- Login/register UI in extension
+**Phase 4.1 — Cloud Skill Store**:
+- Backend API: skill CRUD + sync endpoints in `ocbot_server`
+- Client sync module: upload/download skills with incremental sync
+- Conflict resolution strategy (last-write-wins or merge)
