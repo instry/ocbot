@@ -25,6 +25,7 @@
 | 数据模型 | Skill, SkillParameter, AgentReplayStep, HealEvent | + ActionPrimitive, license, triggerPhrases | 缺 primitive 类型、分发字段 |
 | 匹配 | URL hostname + name 关键词 | + triggerPhrases 快速匹配 → URL → LLM 语义 | 缺 triggerPhrases |
 | 创建 | LLM 生成 name/description/categories | + 结构化 SKILL.md（frontmatter + Workflow/Preconditions/Success Criteria） | skillMd 自由格式，无标准 section |
+| 创建质量 | 无写作规范、无参数自动识别、无创建后验证 | + 祈使句风格、主动参数化、自动验证（对标 skill-creator） | prompt 无指导，无验证步骤 |
 | 执行 | Fast Track + Agent Track | + Primitive steps 直接执行（0 token） | 无 primitive 优化 |
 | 自愈 | L1 fuzzy + L2 step re-inference + L3 segment repair | 设计一致 | ✅ 基本完成 |
 | 评分 | 完整公式 + fragility detection | 设计一致 | ✅ 基本完成 |
@@ -71,11 +72,34 @@
 
 **Template for LLM prompt**:
 ```
-Generate a SKILL.md document with this structure:
+You are a skill-metadata generator for a browser automation agent.
+Analyse the recorded execution steps and generate a structured SKILL.md.
+
+## Output Rules
+
+**Writing style**: Use imperative/infinitive form ("Navigate to...", "Click the button").
+Do NOT use second person ("you should", "you need to").
+Be concrete: include specific URLs, selectors, text to look for — not vague descriptions.
+
+**description**: Must state BOTH what the skill does AND when to use it.
+Good: "Track product prices on Taobao. Use when monitoring price changes for specific products."
+Bad: "A skill for Taobao."
+
+**triggerPhrases**: Generate 3-5 phrases a user would actually say to trigger this skill.
+Include: Chinese + English variations, different wordings, common abbreviations.
+
+**parameters**: Actively identify user-configurable values from the steps:
+search terms, usernames, URLs, quantities, dates, email addresses, etc.
+Mark as required if the skill cannot run without them.
+
+**Workflow**: Each step should be concrete enough that an LLM can re-execute it
+from the SKILL.md alone (Agent Track / L3 self-heal scenario).
+
+## Output Structure
 
 ---
-name: <kebab-case-name>
-description: <what it does + when to use it (决定 LLM 语义匹配准确度)>
+name: <kebab-case-name, max 60 chars>
+description: <what it does + when to use it>
 triggerPhrases:
   - "<phrase 1>"
   - "<phrase 2>"
@@ -108,14 +132,20 @@ parameters:
 ```
 
 **Steps**:
-1. 更新 `createSkillFromExecution` prompt，要求输出结构化 SKILL.md
+1. 更新 `createSkillFromExecution` prompt，要求输出结构化 SKILL.md（含写作风格、参数识别、triggerPhrases 生成指导）
 2. 解析 frontmatter → 填充 Skill 字段（name, description, triggerPhrases, categories, parameters）
 3. 存储完整 SKILL.md（frontmatter + body）到 `skillMd` 字段
 4. 更新 `createAutoSkill` 生成最小结构化 skillMd
+5. **创建后自动验证**（参考 skill-creator Step 5 packaging validation）：
+   - frontmatter 完整性：name, description, triggerPhrases, startUrl 必须存在
+   - triggerPhrases 数量 ≥ 3
+   - body 包含 `## Workflow` section
+   - description 包含 "when to use" 语义（长度 > 20 字符）
+   - 验证失败 → 回退到基本 metadata（不阻塞保存，但标记质量低）
 
-**Verification**: 从不同类型任务创建 skill，验证 SKILL.md 包含所有标准 section。
+**Verification**: 从不同类型任务创建 skill，验证：(1) SKILL.md 包含所有标准 section (2) 写作风格为祈使句 (3) triggerPhrases ≥ 3 且含多语言 (4) parameters 自动识别了可配置值 (5) 创建后验证通过。
 
-**Estimate**: ~150 行改动
+**Estimate**: ~200 行改动（prompt 重写 + frontmatter 解析 + 验证逻辑）
 
 ### 2A.3 Primitive Layer 1（硬编码）— MEDIUM PRIORITY「省」+「快」
 
