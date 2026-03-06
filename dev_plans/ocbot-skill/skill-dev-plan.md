@@ -63,9 +63,11 @@
 
 **Problem**: `skillMd` 是 LLM 自由生成的 markdown，质量不稳定。L3 heal 没有可靠的结构可依赖。
 
+**Reference**: 对标 [Claude skill-creator](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/skills) 的创建流程——理解→规划→结构化→迭代。当前 `create.ts` 只做了"总结"（返回 JSON），缺少"规划"（识别参数化值、脆弱步骤、成功标准）。
+
 **Files**: `lib/skills/create.ts`
 
-**Solution**: 更新 LLM prompt，输出标准化 SKILL.md（YAML frontmatter + Workflow + Preconditions + Success Criteria）。
+**Solution**: 更新 LLM prompt，输出标准化 SKILL.md（YAML frontmatter + Workflow + Preconditions + Success Criteria）。LLM 不只是总结 steps，还要主动规划：识别可参数化的值、分析哪些步骤依赖特定 UI 元素（可能脆弱）、定义明确的成功标准。
 
 **Template for LLM prompt**:
 ```
@@ -73,7 +75,7 @@ Generate a SKILL.md document with this structure:
 
 ---
 name: <kebab-case-name>
-description: <one-sentence description>
+description: <what it does + when to use it (决定 LLM 语义匹配准确度)>
 triggerPhrases:
   - "<phrase 1>"
   - "<phrase 2>"

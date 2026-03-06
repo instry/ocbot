@@ -104,6 +104,35 @@ Skill 的创建和编辑统一通过 **chat 交互** 完成。不需要独立的
 | **Chat creation** | 用户在 chat 中描述想要的 skill → LLM 生成 SKILL.md → 首次运行时录制 steps | 纯对话生成 SKILL.md，无 steps.json → 首次 Agent Track 执行时录制 |
 | **Clone/Fork** | Browse Marketplace, clone or fork | Clone: read-only copy; Fork: independent copy，可通过 chat 编辑 |
 
+### Creation Quality Standards
+
+参考 [Claude skill-creator](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/skills) 的 6 步创建流程（理解→规划→初始化→编辑→打包→迭代），ocbot 在自动化创建中应体现同等的工程严谨度。
+
+**skill-creator 的核心思想**：Skill 不是简单的录制回放，而是需要 **理解 → 规划 → 结构化 → 迭代** 的工程化产物。关键借鉴：
+
+| skill-creator 步骤 | ocbot 对应实现 |
+|---------------------|---------------|
+| **Step 1: 理解** — 明确 skill 的使用场景和触发方式 | LLM 分析录制的 steps，生成 triggerPhrases（多语言、不同说法） |
+| **Step 2: 规划** — 识别可复用的 scripts/references/assets | LLM 识别哪些值应参数化、哪些步骤可能脆弱、成功标准是什么 |
+| **Step 3: 初始化** — 标准化骨架 | 输出结构化 SKILL.md（frontmatter + Workflow + Preconditions + Success Criteria） |
+| **Step 4: 编辑** — 完善内容 | Chat-based editing，用户可对话调整 |
+| **Step 5: 打包** — 验证 + 分发 | Phase 4 Marketplace 发布前诊断（Skill Doctor） |
+| **Step 6: 迭代** — test → observe → improve | 执行即训练 + 自愈回写 + chat 编辑优化 |
+
+**元数据质量要求**（对齐 skill-creator）：
+
+- **description**: 不只是 "one-sentence summary"，要明确 **what it does + when to use it**。description 直接决定 LLM 语义匹配的准确度
+- **triggerPhrases**: 3-5 个，覆盖中英文、不同说法、常见缩写。这是 ocbot 超越 Claude skill 匹配速度的关键
+- **parameters**: LLM 应主动识别可参数化的值（搜索词、用户名、URL、数量等），而非等用户指定
+- **Workflow section**: 用祈使句（"Navigate to..."），具体到 URL、selector、要查找的文本，不写模糊描述
+
+**Progressive Disclosure 在创建中的体现**：
+
+skill-creator 强调三级加载（metadata → SKILL.md body → bundled resources）。ocbot 创建时同样遵循：
+- L1 metadata（name, description, triggerPhrases）必须精准 — 这决定匹配质量
+- L2 SKILL.md body 结构化 — 这决定 Agent Track 和 L3 自愈的质量
+- L3 steps.json 由执行自动生成 — 不需要人工编写
+
 ### Creation Flow: Save from Execution
 
 ```

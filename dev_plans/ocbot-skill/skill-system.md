@@ -114,8 +114,7 @@ my-skill/
 │   ├── steps.json         # L3: recorded replay steps (ocbot browser execution layer)
 │   ├── executions.json    # L3: execution history, HealEvents, metrics
 │   ├── evals.json         # automated test cases
-│   ├── versions.json      # version snapshots (last 5)
-│   └── *.py / *.sh        # Optional: utility scripts (same as Claude)
+│   └──versions.json       # version snapshots (last 5)
 ├── references/            # Optional: detailed docs (same as Claude)
 └── assets/                # Optional: templates, images (same as Claude)
 ```
@@ -365,6 +364,5 @@ snapshot.ts: capturePageSnapshot     扩展为 hybrid snapshot（DOM + AXTree）
 
 - [skill-dev-plan.md](./skill-dev-plan.md) — Development roadmap and phase plan
 - [claude-skill-creator-analysis.md](../claude-skill-creator-analysis.md) — Claude skill-creator evals/benchmarks analysis
-- [Claude Skills Documentation](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/skills)
+- [Claude skill-creator guide](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/skills) — Skill creation methodology: 6-step process, Progressive Disclosure, metadata quality standards
 - [Agent Skills Open Standard](https://agentskills.io)
-- Stagehand source: `/stagehand/packages/core/lib/v3/` — ActCache, AgentCache, self-heal reference
