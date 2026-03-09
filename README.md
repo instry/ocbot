@@ -4,11 +4,9 @@
 
 # ocbot - AI Browser & Assistant
 
-*Got brains, got arms, up before the alarm.*
-
 [中文文档](README_CN.md)
 
-**ocbot** is an open-source, AI-native and OpenClaw Friendly browser. It can be used as a standalone AI Agent or seamlessly integrated with OpenClaw. Ocbot is super smart and super quick at getting things done(because it have 8 brains and 8 arms 😁)
+**ocbot** is an open-source, AI-native and OpenClaw Friendly browser. It can be used as a standalone AI Agent or seamlessly integrated with OpenClaw.
 
 ---
 
