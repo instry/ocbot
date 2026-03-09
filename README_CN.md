@@ -4,7 +4,7 @@
 
 # ocbot - AI 浏览器 & 助手
 
-**ocbot** 是一个开源的、AI 原生且对 OpenClaw 友好的浏览器。它可以作为独立的 AI Agent 使用，也可以与 OpenClaw 无缝集成。
+**ocbot** 是一个开源的、AI 原生且对 OpenClaw 友好的浏览器。它可以作为独立的 AI Agent 使用，也可以与 OpenClaw 配合使用。
 
 ---
 
