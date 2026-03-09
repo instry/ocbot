@@ -86,15 +86,15 @@ def apply_patches(args):
                 return
             continue
 
-        # Use git apply
-        cmd = ['git', 'apply', '--ignore-whitespace', '-p1', str(patch_file)]
-        
+        # Use git apply (--ignore-cr-at-eol handles Windows CRLF line endings)
+        cmd = ['git', 'apply', '--ignore-whitespace', '--ignore-cr-at-eol', '-p1', str(patch_file)]
+
         result = subprocess.run(cmd, cwd=src_dir, capture_output=True, text=True)
-        
+
         if result.returncode != 0:
             # Check if it's already applied
             # git apply --check --reverse returns 0 if the patch can be reversed (meaning it's applied)
-            cmd_check = ['git', 'apply', '--check', '--reverse', '--ignore-whitespace', '-p1', str(patch_file)]
+            cmd_check = ['git', 'apply', '--check', '--reverse', '--ignore-whitespace', '--ignore-cr-at-eol', '-p1', str(patch_file)]
             result_check = subprocess.run(cmd_check, cwd=src_dir, capture_output=True, text=True)
             
             if result_check.returncode == 0:
