@@ -1,4 +1,4 @@
-import { fetchMarketplaceSkills, fetchMarketplaceSkill, type MarketplaceSkill } from '@/lib/marketplace/api'
+import { fetchMarketplaceSkills, fetchMarketplaceSkill, type MarketplaceSkillSummary } from '@/lib/marketplace/api'
 
 export interface Skill {
   id: string
@@ -72,60 +72,21 @@ export interface SkillDetail extends Skill {
 }
 
 // ---------------------------------------------------------------------------
-// Marketplace functions (replace MOCK_SKILLS)
+// Marketplace functions
 // ---------------------------------------------------------------------------
 
-function parseCategories(raw: string): string[] {
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-/** Convert a MarketplaceSkill from the server into the display Skill type */
-export function toMarketplaceDisplaySkill(ms: MarketplaceSkill): Skill {
+/** Convert a MarketplaceSkillSummary into the display Skill type */
+export function toMarketplaceDisplaySkill(ms: MarketplaceSkillSummary): Skill {
   return {
     id: ms.id,
     name: ms.name,
     description: ms.description,
-    categories: parseCategories(ms.categories),
-    installs: ms.clone_count,
+    categories: ms.categories,
+    installs: 0,
     version: `v${ms.version}`,
     official: false,
-    author: ms.author_name || 'community',
+    author: ms.author,
     publishedId: ms.id,
-  }
-}
-
-/** Convert a MarketplaceSkill into a display SkillDetail */
-export function toMarketplaceDisplayDetail(ms: MarketplaceSkill): SkillDetail {
-  // Try to parse the data blob for richer detail
-  let parameters: SkillParameter[] = []
-  let longDescription = ms.description
-  let compatibleSites: string[] = []
-
-  try {
-    const data = JSON.parse(ms.data)
-    if (data.parameters) parameters = data.parameters
-    if (data.skillMd) longDescription = data.skillMd
-    if (data.startUrl) {
-      try { compatibleSites = [new URL(data.startUrl).hostname] } catch {}
-    }
-  } catch {}
-
-  return {
-    ...toMarketplaceDisplaySkill(ms),
-    longDescription,
-    screenshots: [],
-    changelog: [],
-    parameters,
-    compatibleSites,
-    rating: 0,
-    reviewCount: 0,
-    runCount: ms.clone_count,
-    updatedAt: ms.updated_at ? new Date(ms.updated_at).toISOString().slice(0, 10) : '',
   }
 }
 
@@ -151,15 +112,15 @@ export async function getMarketplaceSkills(
 /** Fetch a single marketplace skill detail from the server */
 export async function getMarketplaceSkillDetail(id: string): Promise<SkillDetail | null> {
   try {
-    const ms = await fetchMarketplaceSkill(id)
-    return toMarketplaceDisplayDetail(ms)
+    const real = await fetchMarketplaceSkill(id)
+    return toDisplaySkillDetail(real, true)
   } catch {
     return null
   }
 }
 
 // ---------------------------------------------------------------------------
-// Local skill functions (unchanged)
+// Local skill functions
 // ---------------------------------------------------------------------------
 
 import { SkillStore } from '@/lib/skills/store'
@@ -167,7 +128,7 @@ import type { Skill as RealSkill, SkillExecution as RealSkillExecution } from '@
 import { computeStepFragility, type StepFragility } from '@/lib/skills/fragility'
 
 // Convert internal Skill to display Skill format
-export function toDisplaySkill(real: RealSkill): Skill {
+export function toDisplaySkill(real: RealSkill, isMarketplace = false): Skill {
   return {
     id: real.id,
     name: real.name,
@@ -178,13 +139,14 @@ export function toDisplaySkill(real: RealSkill): Skill {
     official: false,
     author: real.author,
     creating: real.status === 'creating',
+    publishedId: isMarketplace ? real.id : undefined,
   }
 }
 
 // Convert internal Skill to display SkillDetail format
-export function toDisplaySkillDetail(real: RealSkill): SkillDetail {
+export function toDisplaySkillDetail(real: RealSkill, isMarketplace = false): SkillDetail {
   return {
-    ...toDisplaySkill(real),
+    ...toDisplaySkill(real, isMarketplace),
     longDescription: real.skillMd || real.description,
     screenshots: [],
     changelog: [],
@@ -208,7 +170,7 @@ const skillStoreInstance = new SkillStore()
 
 export async function getLocalSkills(): Promise<Skill[]> {
   const skills = await skillStoreInstance.list()
-  return skills.filter(s => s.source === 'user').map(toDisplaySkill)
+  return skills.filter(s => s.source === 'user').map(s => toDisplaySkill(s))
 }
 
 export async function getLocalSkillDetail(id: string): Promise<SkillDetail | null> {

@@ -1,34 +1,31 @@
+import type { Skill } from '@/lib/skills/types'
+
 const BASE_URL = 'https://raw.githubusercontent.com/instry/ocbot_skills/main'
 
-export interface MarketplaceSkill {
+/** Summary entry in index.json — enough for list display */
+export interface MarketplaceSkillSummary {
   id: string
-  skill_id: string
-  author_id: string
-  author_name: string
   name: string
   description: string
-  categories: string  // JSON array string
-  data: string        // full Skill JSON blob
-  url_pattern: string // URL scope pattern
-  clone_count: number
+  author: string
+  categories: string[]
+  url_pattern: string
   version: number
-  created_at: number
-  updated_at: number
 }
 
 // --- In-memory cache for index.json ---
 
-let cachedIndex: MarketplaceSkill[] | null = null
+let cachedIndex: MarketplaceSkillSummary[] | null = null
 let cacheTimestamp = 0
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
-async function getIndex(): Promise<MarketplaceSkill[]> {
+async function getIndex(): Promise<MarketplaceSkillSummary[]> {
   const now = Date.now()
   if (cachedIndex && now - cacheTimestamp < CACHE_TTL) return cachedIndex
 
   const res = await fetch(`${BASE_URL}/index.json`)
   if (!res.ok) throw new Error(`Failed to fetch index: ${res.status}`)
-  const data: MarketplaceSkill[] = await res.json()
+  const data: MarketplaceSkillSummary[] = await res.json()
   cachedIndex = data
   cacheTimestamp = now
   return data
@@ -41,20 +38,15 @@ export async function fetchMarketplaceSkills(params: {
   q?: string
   offset?: number
   limit?: number
-}): Promise<{ skills: MarketplaceSkill[]; total: number }> {
+}): Promise<{ skills: MarketplaceSkillSummary[]; total: number }> {
   let skills = await getIndex()
 
   // Filter by category
   if (params.category) {
     const cat = params.category.toLowerCase()
-    skills = skills.filter(s => {
-      try {
-        const cats: string[] = JSON.parse(s.categories)
-        return cats.some(c => c.toLowerCase() === cat)
-      } catch {
-        return false
-      }
-    })
+    skills = skills.filter(s =>
+      s.categories.some(c => c.toLowerCase() === cat),
+    )
   }
 
   // Filter by query (name or description)
@@ -73,8 +65,9 @@ export async function fetchMarketplaceSkills(params: {
   return { skills, total }
 }
 
-export async function fetchMarketplaceSkill(id: string): Promise<MarketplaceSkill> {
-  const res = await fetch(`${BASE_URL}/skills/${id}.json`)
+/** Fetch full skill data (RealSkill) from the marketplace */
+export async function fetchMarketplaceSkill(id: string): Promise<Skill> {
+  const res = await fetch(`${BASE_URL}/skills/${id}/skill.json`)
   if (!res.ok) throw new Error(`Failed to fetch marketplace skill: ${res.status}`)
   return res.json()
 }
@@ -88,7 +81,7 @@ export async function discoverSkills(params: {
   url: string
   instruction?: string
   limit?: number
-}): Promise<{ skills: MarketplaceSkill[]; total: number }> {
+}): Promise<{ skills: MarketplaceSkillSummary[]; total: number }> {
   let skills = await getIndex()
 
   // Filter by url_pattern prefix match

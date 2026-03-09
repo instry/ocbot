@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react'
-import { fetchMarketplaceSkills, type MarketplaceSkill } from '@/lib/marketplace/api'
+import { fetchMarketplaceSkills, type MarketplaceSkillSummary } from '@/lib/marketplace/api'
 
-export function SuggestionChips({ onSelect }: { onSelect: (skill: MarketplaceSkill) => void }) {
-  const [skills, setSkills] = useState<MarketplaceSkill[]>([])
+export function SuggestionChips({ onSelect }: { onSelect: (skill: MarketplaceSkillSummary) => void }) {
+  const [skills, setSkills] = useState<MarketplaceSkillSummary[]>([])
 
   useEffect(() => {
     fetchMarketplaceSkills({ limit: 4 })
       .then(({ skills }) => {
-        // Sort by clone_count descending to show most popular
-        const sorted = [...skills].sort((a, b) => b.clone_count - a.clone_count)
-        setSkills(sorted.slice(0, 4))
+        setSkills(skills.slice(0, 4))
       })
       .catch(() => {})
   }, [])

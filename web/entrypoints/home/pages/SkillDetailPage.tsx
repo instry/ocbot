@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { ArrowLeft, Star, GitFork, BadgeCheck, Play, Copy, ImageOff, Trash2, Pencil, Check, Loader2 } from 'lucide-react'
 import { getLocalSkillDetail, getMarketplaceSkillDetail, getSkillAbbr, skillStoreInstance, getRealSkill, type Skill, type SkillDetail } from '../data/skills'
-import { cloneSkill as apiCloneSkill } from '@/lib/marketplace/api'
+import { cloneSkill as apiCloneSkill, fetchMarketplaceSkill } from '@/lib/marketplace/api'
 import type { Skill as RealSkill } from '@/lib/skills/types'
 
 // ---------------------------------------------------------------------------
@@ -415,15 +415,14 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
     if (!skill.publishedId) return
     setCloning(true)
     try {
-      // Fetch the full marketplace skill to get the data blob
-      const ms = await import('@/lib/marketplace/api').then(m => m.fetchMarketplaceSkill(skill.publishedId!))
-      const skillData: RealSkill = JSON.parse(ms.data)
+      // Fetch the full RealSkill from marketplace
+      const skillData = await fetchMarketplaceSkill(skill.publishedId!)
 
       // Create a cloned copy
       const clonedSkill: RealSkill = {
         ...skillData,
         id: crypto.randomUUID(),
-        sourceSkillId: ms.skill_id,
+        sourceSkillId: skill.publishedId!,
         source: 'user',
         author: 'cloned',
         totalRuns: 0,
