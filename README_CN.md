@@ -1,0 +1,83 @@
+<p align="center">
+  <img src="octopus.png" alt="ocbot logo" width="200"/>
+</p>
+
+# ocbot - AI 浏览器 & 助手
+
+**ocbot** 是一个开源的、AI 原生且对 OpenClaw 友好的浏览器。它可以作为独立的 AI Agent 使用，也可以与 OpenClaw 无缝集成。
+
+---
+
+## 主要特性
+
+*   **AI 原生 & OpenClaw 友好**: AI 能力深度集成到浏览器内核中——不是插件，而是核心原语。你的浏览器能够理解、推理并行动。
+*   **SKILL 支持**: 在执行任务时自动学习新的 SKILL。一次学习，多次执行。大幅度节省 Token。
+*   **随时随地，永远在线**: ocbot 在你的桌面上运行，可以通过移动浏览器或 IM 应用远程指挥。它是你随时可达的个人代理。
+*   **自愈工作流**: Web UI 变了？Agent 使用视觉理解自动修复执行路径。
+*   **Chrome 无损体验**: 保留完整的 Chrome 体验。导入你的书签、历史记录和密码——无缝继续浏览。
+*   **选择自由 & 隐私保护**: 自由切换 LLM。支持主流云模型和完全**本地 LLM**——你的数据从未离开你的机器。
+
+---
+
+## 开发
+
+###先决条件
+
+- macOS / Linux (Windows 未测试)
+- Python 3
+- Node.js + npm (用于构建扩展)
+- [Depot Tools](https://chromium.googlesource.com/chromium/tools/depot_tools.git) (用于完整构建)
+
+### 快速开始
+
+```bash
+# 1. 克隆代码库（包含子模块 ocbot_agent）
+git clone --recursive https://github.com/instry/ocbot.git
+
+# 2. 检查环境
+./scripts/dev.py check
+
+# 3. 下载 Chromium 源码
+./scripts/dev.py download                          # 快速 tarball (仅用于代码审查)
+./scripts/dev.py download --method depot --no-history  # 完整源码 (用于构建)
+
+# 4. 应用现有补丁以获取当前的 ocbot 状态
+./scripts/dev.py patch
+
+# 5. 构建 (这需要时间!)
+# - M3 Ultra + 96G RAM: ~45 分钟
+# - M4 + 24G RAM: ~4.5 小时
+./scripts/dev.py build
+
+# 6. 运行
+./scripts/dev.py run
+```
+
+### 项目结构
+
+```
+ocbot/
+├── scripts/            # 开发工具 (dev.py, build.py, run.py 等)
+├── patches/            # 生成的 Chromium 补丁
+├── plans/              # 功能计划文件 (真理之源)
+├── ocbot_agent/        # AI 扩展 (git 子模块 → instry/ocbot_agent)
+└── docs/               # 开发文档
+```
+
+`ocbot_agent` 子模块包含 AI 浏览器扩展（Chrome 侧边栏），与 [ocbot_biz](https://github.com/instry/ocbot_biz) 共享。它会在 `dev.py build` 期间自动构建。
+
+### 文档
+
+| 文档 | 描述 |
+|-----|-------------|
+| [计划驱动开发](docs/plan-driven-dev.md) | **主要指南**: 工作流、设置、命令和架构 |
+| [Plans](plans/) | 功能计划文件——每次 Chromium 修改的真理之源 |
+| [ocbot_agent README](ocbot_agent/README.md) | AI 扩展开发指南 |
+
+---
+
+## 许可证
+
+本项目基于 MIT 许可证开源 - 详见 [LICENSE](LICENSE) 文件。
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
