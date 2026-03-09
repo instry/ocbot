@@ -8,4 +8,6 @@ node_modules/
 .wxt/
 backup/
 .apple.json
+dist/
+scripts/installer/win/Output/
 

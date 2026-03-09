@@ -88,8 +88,8 @@ def main():
     parser_update_web.add_argument('--zip', action='store_true', help='Also create zip package (default: False for dev)')
 
     # Package
-    parser_package = subparsers.add_parser('package', help='Package Ocbot.app into a .dmg installer', parents=[parent_parser])
-    parser_package.add_argument('--output', help='Output DMG path (default: dist/<AppName>-<Version>.dmg)')
+    parser_package = subparsers.add_parser('package', help='Package Ocbot into an installer (DMG/EXE)', parents=[parent_parser])
+    parser_package.add_argument('--output', help='Output path (default: dist/<AppName>-<Version>.[dmg|zip])')
     parser_package.add_argument('--official', action='store_true', help='Package official build')
     parser_package.add_argument('--sign', help="Code signing identity (or set CODESIGN_IDENTITY)")
     parser_package.add_argument('--notarize', help="Notarization profile name (or set NOTARY_PROFILE)")

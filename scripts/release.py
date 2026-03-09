@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-import os
+import argparse
 import sys
-import shutil
 import subprocess
+import os
+import shutil
 from pathlib import Path
 from common import get_logger, get_project_root, get_agent_root, get_product_version
 
 logger = get_logger()
 
-def run_command(cmd, cwd=None, check=True, capture_output=False, shell=False):
+def run_command(cmd, cwd=None, check=True, capture_output=False):
     try:
         result = subprocess.run(
-            cmd,
-            cwd=cwd,
-            check=check,
-            capture_output=capture_output,
-            text=True,
-            shell=shell
+            cmd, 
+            cwd=cwd, 
+            check=check, 
+            capture_output=capture_output, 
+            text=True
         )
         return result
     except subprocess.CalledProcessError as e:
@@ -50,8 +50,7 @@ def release_extension(args):
     
     # Build extension
     logger.info("Building extension...")
-    _shell = sys.platform == 'win32'
-    run_command(['npm', 'run', 'build'], cwd=agent_root, shell=_shell)
+    run_command(['npm', 'run', 'build'], cwd=agent_root)
 
     # Package
     build_output = agent_root / '.output' / 'chrome-mv3'
@@ -116,19 +115,32 @@ def release_browser(args):
     # Get version
     version = get_product_version()
     tag = f"v{version}"
+    dmg = dist_dir / f"Ocbot-{version}.dmg"
 
     if sys.platform == 'win32':
-        artifact = dist_dir / f"Ocbot-{version}.zip"
-        artifact_type = "ZIP"
+        # Match package.py output for Windows
+        artifacts = []
+        portable = dist_dir / f"Ocbot-{version}-win-x64-portable.zip"
+        installer = dist_dir / f"Ocbot-Setup-{version}.exe"
+        mini = dist_dir / f"Ocbot-{version}-win-x64-mini.exe"
+        
+        if portable.exists():
+            artifacts.append(portable)
+        if installer.exists():
+            artifacts.append(installer)
+        if mini.exists():
+            artifacts.append(mini)
+            
+        if not artifacts:
+             logger.error(f"No Windows artifacts found in {dist_dir}. Run 'dev.py package' first.")
+             sys.exit(1)
     else:
-        artifact = dist_dir / f"Ocbot-{version}.dmg"
-        artifact_type = "DMG"
+        if not dmg.exists():
+            logger.error(f"DMG not found: {dmg}. Run 'dev.py package' first.")
+            sys.exit(1)
+        artifacts = [dmg]
 
-    if not artifact.exists():
-        logger.error(f"{artifact_type} not found: {artifact}. Run 'dev.py package' first.")
-        sys.exit(1)
-
-    logger.info(f"Preparing browser release for Ocbot v{version} (tag: {tag})...")
+    logger.info(f"Preparing release for Ocbot v{version} (tag: {tag})...")
 
     repo = "instry/ocbot"
 
@@ -140,20 +152,13 @@ def release_browser(args):
         exists = False
 
     if exists:
-        logger.info(f"Release {tag} already exists. Uploading {artifact_type}...")
-        run_command([
-            'gh', 'release', 'upload', tag, str(artifact),
-            '--clobber',
-            '--repo', repo
-        ])
+        logger.info(f"Release {tag} already exists. Uploading artifacts...")
+        cmd = ['gh', 'release', 'upload', tag] + [str(a) for a in artifacts] + ['--clobber', '--repo', repo]
+        run_command(cmd)
     else:
-        logger.info(f"Creating release {tag} with {artifact_type}...")
-        run_command([
-            'gh', 'release', 'create', tag, str(artifact),
-            '--repo', repo,
-            '--title', f"Ocbot v{version}",
-            '--notes', f"Ocbot v{version}"
-        ])
+        logger.info(f"Creating release {tag} with artifacts...")
+        cmd = ['gh', 'release', 'create', tag] + [str(a) for a in artifacts] + ['--repo', repo, '--title', f"Ocbot v{version}", '--notes', f"Ocbot v{version}"]
+        run_command(cmd)
 
-    logger.info(f"Done! Ocbot v{version} browser {artifact_type} released as {tag}")
+    logger.info(f"Done! Ocbot v{version} released as {tag}")
     logger.info("Running instances will auto-update in the background.")
