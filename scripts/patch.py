@@ -1,5 +1,6 @@
 import subprocess
 import shutil
+import sys
 import os
 from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root
@@ -86,17 +87,19 @@ def apply_patches(args):
                 return
             continue
 
-        # Use git apply (--ignore-cr-at-eol handles Windows CRLF line endings)
-        cmd = ['git', 'apply', '--ignore-whitespace', '--ignore-cr-at-eol', '-p1', str(patch_file)]
+        # Use git apply
+        # On Windows, override autocrlf to avoid CRLF/LF mismatch with patch context
+        git_cfg = ['-c', 'core.autocrlf=false'] if sys.platform == 'win32' else []
+        cmd = ['git'] + git_cfg + ['apply', '--ignore-whitespace', '-p1', str(patch_file)]
 
         result = subprocess.run(cmd, cwd=src_dir, capture_output=True, text=True)
 
         if result.returncode != 0:
             # Check if it's already applied
             # git apply --check --reverse returns 0 if the patch can be reversed (meaning it's applied)
-            cmd_check = ['git', 'apply', '--check', '--reverse', '--ignore-whitespace', '--ignore-cr-at-eol', '-p1', str(patch_file)]
+            cmd_check = ['git'] + git_cfg + ['apply', '--check', '--reverse', '--ignore-whitespace', '-p1', str(patch_file)]
             result_check = subprocess.run(cmd_check, cwd=src_dir, capture_output=True, text=True)
-            
+
             if result_check.returncode == 0:
                  logger.debug(f"[{i+1}/{len(patches)}] {patch_name} (already applied)")
             else:
