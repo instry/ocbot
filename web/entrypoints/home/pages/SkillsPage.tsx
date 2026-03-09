@@ -238,7 +238,6 @@ export function SkillsPage() {
       <SkillEditPage
         skillId={editingSkillId}
         onBack={() => { setEditingSkillId(null); refreshMySkills() }}
-        onDeleted={refreshMySkills}
       />
     )
   }
