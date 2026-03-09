@@ -155,24 +155,7 @@ def update_patches(args):
     base_ref = getattr(args, 'base', None)
     
     if not base_ref:
-        # Try to auto-detect base
-        # If it's a shallow clone (tarball mode), usually root commit is the base
-        try:
-            # Check commit count
-            res = subprocess.run(['git', 'rev-list', '--count', 'HEAD'], cwd=src_dir, capture_output=True, text=True)
-            if res.returncode == 0:
-                count = int(res.stdout.strip())
-                if count < 50: # Arbitrary small number implies local/tarball repo
-                    # Get root commit
-                    res = subprocess.run(['git', 'rev-list', '--max-parents=0', 'HEAD'], cwd=src_dir, capture_output=True, text=True)
-                    if res.returncode == 0:
-                        base_ref = res.stdout.strip().split('\n')[-1] # Use the last one if multiple roots (unlikely)
-                        logger.info(f"Auto-detected base commit (root): {base_ref}")
-        except Exception:
-            pass
-            
-    if not base_ref:
-        logger.info("No base commit specified or detected. Using HEAD (uncommitted changes only).")
+        logger.info("No base commit specified. Defaulting to HEAD (uncommitted changes only).")
         logger.info("To compare against a specific commit (e.g. for committed changes), use --base <commit-ish>")
         base_ref = 'HEAD'
     else:
@@ -332,6 +315,27 @@ def update_patches(args):
             logger.warning(f"No diff generated for {file_path}. Skipping.")
             continue
             
+        # Check if it's just a subproject commit change (gitlink)
+        # Typically looks like:
+        # -Subproject commit <old>
+        # +Subproject commit <new>
+        # And we want to ignore it if it's in third_party
+        if 'third_party/' in file_path or 'v8/' in file_path:
+             lines = diff_result.stdout.strip().splitlines()
+             # Filter out header lines (diff --git, index, ---, +++)
+             content_lines = [l for l in lines if not (l.startswith('diff --git') or l.startswith('index ') or l.startswith('--- ') or l.startswith('+++ '))]
+             
+             # Check if all remaining lines are subproject commit lines
+             is_only_subproject = True
+             for l in content_lines:
+                 if not (l.startswith('-Subproject commit') or l.startswith('+Subproject commit')):
+                     is_only_subproject = False
+                     break
+            
+             if is_only_subproject and content_lines:
+                 logger.info(f"Skipping submodule version change for {file_path}")
+                 continue
+
         with open(patch_file, 'w') as f:
             f.write(diff_result.stdout)
             
