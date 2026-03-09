@@ -67,7 +67,7 @@ Remove: the `g_did_auto_open` static variable, the `kAutoOpenDelay` constant, an
 
 ### 5. Shared Chat Components (Extension)
 
-**Target:** Extension source tree (`ocbot_agent/`)
+**Target:** Extension source tree (`web/`)
 
 **Logic:**
 

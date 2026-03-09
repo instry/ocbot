@@ -32,8 +32,8 @@
 ### Getting Started
 
 ```bash
-# 1. Clone with submodule (ocbot_agent)
-git clone --recursive https://github.com/instry/ocbot.git
+# 1. Clone the repository
+git clone https://github.com/instry/ocbot.git
 
 # 2. Check your environment
 ./scripts/dev.py check
@@ -61,11 +61,11 @@ ocbot/
 ├── scripts/            # Dev tooling (dev.py, build.py, run.py, etc.)
 ├── patches/            # Generated Chromium patches
 ├── plans/              # Feature plan files (source of truth)
-├── ocbot_agent/        # AI extension (git submodule → instry/ocbot_agent)
+├── web/                # AI extension (browser UI)
 └── docs/               # Development documentation
 ```
 
-The `ocbot_agent` submodule contains the AI browser extension (Chrome Side Panel), shared with [ocbot_biz](https://github.com/instry/ocbot_biz). It is built automatically during `dev.py build`.
+The `web/` directory contains the AI browser extension (Chrome Side Panel). It is built automatically during `dev.py build`.
 
 ### Documentation
 
@@ -73,7 +73,7 @@ The `ocbot_agent` submodule contains the AI browser extension (Chrome Side Panel
 |-----|-------------|
 | [Plan-Driven Development](docs/plan-driven-dev.md) | **The Main Guide**: Workflow, Setup, Commands, and Architecture |
 | [Plans](plans/) | Feature plan files — the source of truth for each Chromium modification |
-| [ocbot_agent README](ocbot_agent/README.md) | AI extension development guide |
+| [web README](web/README.md) | AI extension development guide |
 
 ---
 

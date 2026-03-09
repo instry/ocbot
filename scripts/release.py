@@ -27,7 +27,7 @@ def run_command(cmd, cwd=None, check=True, capture_output=False):
         raise e
 
 def release_extension(args):
-    """Release ocbot extension to GitHub Releases."""
+    """Release ocbot extension to GitHub Releases (instry/ocbot)."""
     project_root = get_project_root()
     agent_root = get_agent_root()
     dist_dir = project_root / 'dist'
@@ -73,7 +73,7 @@ def release_extension(args):
     
     # Check if release exists
     logger.info(f"Checking if release {tag} exists...")
-    repo = "instry/ocbot_agent"
+    repo = "instry/ocbot"
 
     try:
         run_command(['gh', 'release', 'view', tag, '--repo', repo], check=True, capture_output=True)
