@@ -1,3 +1,0 @@
-[submodule "ocbot_agent"]
-	path = ocbot_agent
-	url = https://github.com/instry/ocbot_agent.git

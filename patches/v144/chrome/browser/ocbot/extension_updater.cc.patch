@@ -1,6 +1,6 @@
 diff --git a/chrome/browser/ocbot/extension_updater.cc b/chrome/browser/ocbot/extension_updater.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..641c539a8724d6affb082cb991e4eeb35fea2ebf
+index 0000000000000000000000000000000000000000..4fd74abf64ffd79a45aa61c4192cbe8de50c6ab8
 --- /dev/null
 +++ b/chrome/browser/ocbot/extension_updater.cc
 @@ -0,0 +1,410 @@
@@ -42,7 +42,7 @@ index 0000000000000000000000000000000000000000..641c539a8724d6affb082cb991e4eeb3
 +
 +constexpr char kOcbotExtensionId[] = "gidimhmdbcpoeljccjcnodepmmjpfnmf";
 +constexpr char kGitHubReleasesApiUrl[] =
-+    "https://api.github.com/repos/instry/ocbot_agent/releases/latest";
++    "https://api.github.com/repos/instry/ocbot/releases/latest";
 +constexpr char kZipAssetName[] = "ocbot-extension.zip";
 +constexpr char kUpdateDirName[] = "ocbot-extension";
 +

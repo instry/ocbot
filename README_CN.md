@@ -30,8 +30,8 @@
 ### 快速开始
 
 ```bash
-# 1. 克隆代码库（包含子模块 ocbot_agent）
-git clone --recursive https://github.com/instry/ocbot.git
+# 1. 克隆代码库
+git clone https://github.com/instry/ocbot.git
 
 # 2. 检查环境
 ./scripts/dev.py check
@@ -59,11 +59,11 @@ ocbot/
 ├── scripts/            # 开发工具 (dev.py, build.py, run.py 等)
 ├── patches/            # 生成的 Chromium 补丁
 ├── plans/              # 功能计划文件 (真理之源)
-├── ocbot_agent/        # AI 扩展 (git 子模块 → instry/ocbot_agent)
+├── web/                # AI 扩展 (浏览器 UI)
 └── docs/               # 开发文档
 ```
 
-`ocbot_agent` 子模块包含 AI 浏览器扩展（Chrome 侧边栏），与 [ocbot_biz](https://github.com/instry/ocbot_biz) 共享。它会在 `dev.py build` 期间自动构建。
+`web/` 目录包含 AI 浏览器扩展（Chrome 侧边栏）。它会在 `dev.py build` 期间自动构建。
 
 ### 文档
 
@@ -71,7 +71,7 @@ ocbot/
 |-----|-------------|
 | [计划驱动开发](docs/plan-driven-dev.md) | **主要指南**: 工作流、设置、命令和架构 |
 | [Plans](plans/) | 功能计划文件——每次 Chromium 修改的真理之源 |
-| [ocbot_agent README](ocbot_agent/README.md) | AI 扩展开发指南 |
+| [web README](web/README.md) | AI 扩展开发指南 |
 
 ---
 
