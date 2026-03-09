@@ -4,10 +4,6 @@
 
 # ocbot - AI Browser & Assistant
 
-## **[https://oc.bot](https://oc.bot)**
-
----
-
 **ocbot** is an open-source, AI-native and OpenClaw Friendly browser. It can be used as a standalone AI Agent or seamlessly integrated with OpenClaw.
 
 ---
