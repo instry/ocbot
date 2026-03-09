@@ -1,4 +1,5 @@
 import { initFromStorage, startChannel, stopChannel, getAllStatuses } from '../../lib/channels/manager'
+import { setupMarketplaceSync } from '../../lib/marketplace/api'
 import type { ChannelConfig } from '../../lib/channels/types'
 
 export default defineBackground(() => {
@@ -9,6 +10,9 @@ export default defineBackground(() => {
   initFromStorage().catch(err => {
     console.error('[ocbot] Failed to init channels:', err)
   })
+
+  // Setup marketplace periodic sync (every 5 minutes)
+  setupMarketplaceSync()
 
   // Handle messages from sidepanel
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

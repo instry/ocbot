@@ -62,6 +62,7 @@ export interface SkillExecution {
   url: string
   parameters: Record<string, string>
   durationMs: number
+  tokenUsage?: number            // total token usage for this execution
   primitiveRatio?: number   // primitive steps / total steps (0-1)
 }
 

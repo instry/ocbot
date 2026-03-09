@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ArrowLeft, Star, GitFork, BadgeCheck, Play, Copy, ImageOff, Trash2, Pencil, Check, Loader2 } from 'lucide-react'
+import { ArrowLeft, GitFork, BadgeCheck, Play, Copy, ImageOff, Trash2, Pencil, Check, Loader2, CheckCircle2, Clock, Zap } from 'lucide-react'
 import { getLocalSkillDetail, getMarketplaceSkillDetail, getSkillAbbr, skillStoreInstance, getRealSkill, type Skill, type SkillDetail } from '../data/skills'
 import { cloneSkill as apiCloneSkill, fetchMarketplaceSkill } from '@/lib/marketplace/api'
 import type { Skill as RealSkill } from '@/lib/skills/types'
@@ -377,6 +377,23 @@ function DetailIcon({ detail, className = 'h-16 w-16' }: { detail: SkillDetail; 
   )
 }
 
+function formatDuration(ms: number): string {
+  if (ms <= 0) return '—'
+  if (ms < 1000) return `${ms}ms`
+  const sec = ms / 1000
+  if (sec < 60) return `${sec.toFixed(1)}s`
+  const min = Math.floor(sec / 60)
+  const remainSec = Math.round(sec % 60)
+  return `${min}m ${remainSec}s`
+}
+
+function formatTokens(tokens: number): string {
+  if (tokens <= 0) return '—'
+  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`
+  return tokens.toString()
+}
+
 function formatCount(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
   return n.toString()
@@ -481,28 +498,34 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 <span>Updated {detail.updatedAt}</span>
               </div>
               <div className="mt-1.5 flex items-center gap-3 text-sm text-muted-foreground">
-                {detail.rating > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                    <span className="font-medium text-foreground">{detail.rating}</span>
-                    <span>({detail.reviewCount} reviews)</span>
-                  </span>
-                )}
                 <span className="flex items-center gap-1">
                   <GitFork className="h-3.5 w-3.5" />
-                  {formatCount(detail.installs)} clones
+                  {formatCount(detail.runCount)} runs
                 </span>
+                {isMarketplaceSkill && detail.installs > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Copy className="h-3.5 w-3.5" />
+                    {formatCount(detail.installs)} clones
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           {/* Action buttons */}
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => onRun?.(skill)}
+              className="flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            >
+              <Play className="h-4 w-4" />
+              Run
+            </button>
             {isMarketplaceSkill && (
               <button
                 onClick={handleClone}
                 disabled={cloning || cloneSuccess}
-                className="flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/80 disabled:opacity-60"
               >
                 {cloning ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -514,13 +537,6 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 {cloning ? 'Cloning…' : cloneSuccess ? 'Cloned!' : 'Clone'}
               </button>
             )}
-            <button
-              onClick={() => onRun?.(skill)}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
-            >
-              <Play className="h-4 w-4" />
-              Run
-            </button>
             {onEdit && (
               <button
                 onClick={() => onEdit(skill.id)}
@@ -557,6 +573,31 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 </button>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border/40 bg-muted/30 px-4 py-4">
+            <CheckCircle2 className={`h-5 w-5 ${detail.successRate >= 80 ? 'text-green-500' : detail.successRate >= 50 ? 'text-amber-500' : 'text-muted-foreground'}`} />
+            <span className="text-2xl font-bold text-foreground">
+              {detail.runCount > 0 ? `${detail.successRate}%` : '—'}
+            </span>
+            <span className="text-xs text-muted-foreground">Success Rate</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border/40 bg-muted/30 px-4 py-4">
+            <Clock className="h-5 w-5 text-blue-500" />
+            <span className="text-2xl font-bold text-foreground">
+              {formatDuration(detail.avgDurationMs)}
+            </span>
+            <span className="text-xs text-muted-foreground">Avg. Duration</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border/40 bg-muted/30 px-4 py-4">
+            <Zap className="h-5 w-5 text-amber-500" />
+            <span className="text-2xl font-bold text-foreground">
+              {formatTokens(detail.avgTokens)}
+            </span>
+            <span className="text-xs text-muted-foreground">Avg. Tokens</span>
           </div>
         </div>
 
