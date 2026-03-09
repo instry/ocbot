@@ -53,48 +53,6 @@ git clone --recursive https://github.com/instry/ocbot.git
 ./scripts/dev.py run
 ```
 
-After `patch`, the Chromium source tree at `chromium/<version>/src/` contains all ocbot modifications and is ready for development.
-
-### Commands Reference
-
-```bash
-# Download
-python scripts/dev.py download --method tarball                 # Quick download
-python scripts/dev.py download --method depot --no-history      # Full download
-
-# Patch
-python scripts/dev.py patch                                  # Apply all patches
-
-# Update Patches
-python scripts/dev.py update_patches                         # Generate patches from source
-
-# Build
-python scripts/dev.py build                                  # Build Browser
-
-# Run
-python scripts/dev.py run                                    # Run with extension loaded
-
-# Build Extension
-python3 scripts/dev.py build-extension                       
-
-# Package
-python scripts/dev.py package                                # Package into DMG
-
-# Help
-python scripts/dev.py --help
-```
-
-| Command | Description |
-|---------|-------------|
-| `check` | Check environment, recommend download method |
-| `download` | Download Chromium source (`--method tarball\|depot\|sync`) |
-| `patch` | Apply all patches to source (sync state) |
-| `reset` | Revert all patches (clean source) |
-| `update_patches` | Generate patches from modified source |
-| `build` | Build Ocbot (`--official`, `--clean`, `--target`) |
-| `run` | Run Ocbot (`--official`) |
-| `package` | Package into DMG (`--sign`, `--notarize`) |
-
 ### Project Structure
 
 ```
