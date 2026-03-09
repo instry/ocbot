@@ -4,9 +4,11 @@
 
 # ocbot - AI Browser & Assistant
 
+*Got brains, got arms, up before the alarm.*
+
 [中文文档](README_CN.md)
 
-**ocbot** is an open-source, AI-native and OpenClaw Friendly browser. It can be used as a standalone AI Agent or seamlessly integrated with OpenClaw.
+**ocbot** is an open-source, AI-native and OpenClaw Friendly browser. It can be used as a standalone AI Agent or seamlessly integrated with OpenClaw. Ocbot is super smart and super quick at getting things done(because it have 8 brains and 8 arms 😁)
 
 ---
 
@@ -75,6 +77,30 @@ The `ocbot_agent` submodule contains the AI browser extension (Chrome Side Panel
 | [Plan-Driven Development](docs/plan-driven-dev.md) | **The Main Guide**: Workflow, Setup, Commands, and Architecture |
 | [Plans](plans/) | Feature plan files — the source of truth for each Chromium modification |
 | [ocbot_agent README](ocbot_agent/README.md) | AI extension development guide |
+
+---
+
+## FAQ
+
+**Q: What are you exactly?**
+
+I'm a new species! I'm a browser and an AI assistant. My main mission is to help you get stuff done.
+
+**Q: Why the name "ocbot"?**
+
+Because "octo" means 8! So oc-bot = an 8-armed robot~ Fits me perfectly, right?
+
+**Q: Why purple?**
+
+Because I'm hitting the big time(大红大紫). (and well, it's the AI color~)
+
+**Q: Why are you and OpenClaw good partners?**
+
+OpenClaw is a powerful orchestration engine, and I am the best execution environment. We complement each other perfectly to handle complex tasks.
+
+**Q: How do you save Tokens?**
+
+I learn new SKILLs while executing tasks. Once learned, I can repeat the task millions of times locally without calling the LLM again.
 
 ---
 
