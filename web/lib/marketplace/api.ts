@@ -1,6 +1,10 @@
 import type { Skill } from '@/lib/skills/types'
+import { storage } from '@/lib/storage-backend'
 
 const BASE_URL = 'https://raw.githubusercontent.com/instry/ocbot_skills/main'
+const CACHE_KEY = 'ocbot_marketplace_cache'
+const ALARM_NAME = 'ocbot_marketplace_sync'
+const SYNC_INTERVAL_MINUTES = 5
 
 /** Summary entry in index.json — enough for list display */
 export interface MarketplaceSkillSummary {
@@ -13,25 +17,63 @@ export interface MarketplaceSkillSummary {
   version: number
 }
 
-// --- In-memory cache for index.json ---
+interface MarketplaceCache {
+  index: MarketplaceSkillSummary[]
+  skills: Record<string, Skill>  // id -> full skill data
+  updatedAt: number
+}
 
-let cachedIndex: MarketplaceSkillSummary[] | null = null
-let cacheTimestamp = 0
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+// --- In-memory cache (backed by chrome.storage.local) ---
 
-async function getIndex(): Promise<MarketplaceSkillSummary[]> {
-  const now = Date.now()
-  if (cachedIndex && now - cacheTimestamp < CACHE_TTL) return cachedIndex
+let cache: MarketplaceCache | null = null
 
-  const res = await fetch(`${BASE_URL}/index.json`)
-  if (!res.ok) throw new Error(`Failed to fetch index: ${res.status}`)
-  const data: MarketplaceSkillSummary[] = await res.json()
-  cachedIndex = data
-  cacheTimestamp = now
-  return data
+async function loadCache(): Promise<MarketplaceCache> {
+  if (cache) return cache
+  const result = await storage.get(CACHE_KEY)
+  cache = (result[CACHE_KEY] as MarketplaceCache) || { index: [], skills: {}, updatedAt: 0 }
+  return cache
+}
+
+async function saveCache(): Promise<void> {
+  if (cache) await storage.set({ [CACHE_KEY]: cache })
+}
+
+/** Fetch latest index from GitHub and update cache */
+export async function syncMarketplace(): Promise<void> {
+  try {
+    const res = await fetch(`${BASE_URL}/index.json`)
+    if (!res.ok) return
+    const index: MarketplaceSkillSummary[] = await res.json()
+
+    const c = await loadCache()
+    c.index = index
+    c.updatedAt = Date.now()
+    await saveCache()
+  } catch {
+    // Network error — keep existing cache
+  }
+}
+
+/** Setup chrome.alarms for periodic sync (call from background script) */
+export function setupMarketplaceSync(): void {
+  chrome.alarms.create(ALARM_NAME, { periodInMinutes: SYNC_INTERVAL_MINUTES })
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === ALARM_NAME) syncMarketplace()
+  })
+  // Initial sync on startup
+  syncMarketplace()
 }
 
 // --- Public endpoints ---
+
+async function getIndex(): Promise<MarketplaceSkillSummary[]> {
+  const c = await loadCache()
+  if (c.index.length === 0) {
+    await syncMarketplace()
+    return (await loadCache()).index
+  }
+  return c.index
+}
 
 export async function fetchMarketplaceSkills(params: {
   category?: string
@@ -65,11 +107,23 @@ export async function fetchMarketplaceSkills(params: {
   return { skills, total }
 }
 
-/** Fetch full skill data (RealSkill) from the marketplace */
+/** Fetch full skill data (RealSkill) from the marketplace, with cache */
 export async function fetchMarketplaceSkill(id: string): Promise<Skill> {
+  const c = await loadCache()
+
+  // Return from cache if available
+  if (c.skills[id]) return c.skills[id]
+
+  // Fetch from GitHub
   const res = await fetch(`${BASE_URL}/skills/${id}/skill.json`)
   if (!res.ok) throw new Error(`Failed to fetch marketplace skill: ${res.status}`)
-  return res.json()
+  const skill: Skill = await res.json()
+
+  // Cache the skill
+  c.skills[id] = skill
+  await saveCache()
+
+  return skill
 }
 
 export async function cloneSkill(_publishedId: string): Promise<void> {

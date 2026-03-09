@@ -118,6 +118,8 @@ export function SkillsPage() {
 
   useEffect(() => {
     getLocalSkills().then(setMySkills)
+    // Preload marketplace total count
+    getMarketplaceSkills().then(({ total }) => setMarketplaceTotal(total)).catch(() => {})
   }, [])
 
   // Auto-refresh when skills storage changes (e.g. skill created from sidepanel)

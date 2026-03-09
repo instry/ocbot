@@ -66,9 +66,12 @@ export interface SkillDetail extends Skill {
   parameters: SkillParameter[]
   compatibleSites: string[]
   rating: number
-  reviewCount: number
   runCount: number
   updatedAt: string
+  // Stats
+  successRate: number    // 0-100 percentage
+  avgDurationMs: number  // average execution time in ms
+  avgTokens: number      // average token usage per run
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +147,25 @@ export function toDisplaySkill(real: RealSkill, isMarketplace = false): Skill {
 }
 
 // Convert internal Skill to display SkillDetail format
-export function toDisplaySkillDetail(real: RealSkill, isMarketplace = false): SkillDetail {
+export function toDisplaySkillDetail(
+  real: RealSkill,
+  isMarketplace = false,
+  executions?: RealSkillExecution[],
+): SkillDetail {
+  const successRate = real.totalRuns > 0
+    ? Math.round((real.successCount / real.totalRuns) * 100)
+    : 0
+
+  let avgDurationMs = 0
+  let avgTokens = 0
+  if (executions && executions.length > 0) {
+    avgDurationMs = Math.round(executions.reduce((sum, e) => sum + e.durationMs, 0) / executions.length)
+    const tokenExecs = executions.filter(e => e.tokenUsage && e.tokenUsage > 0)
+    if (tokenExecs.length > 0) {
+      avgTokens = Math.round(tokenExecs.reduce((sum, e) => sum + (e.tokenUsage || 0), 0) / tokenExecs.length)
+    }
+  }
+
   return {
     ...toDisplaySkill(real, isMarketplace),
     longDescription: real.skillMd || real.description,
@@ -160,9 +181,11 @@ export function toDisplaySkillDetail(real: RealSkill, isMarketplace = false): Sk
     })),
     compatibleSites: real.startUrl ? [new URL(real.startUrl).hostname] : [],
     rating: real.score * 5,
-    reviewCount: 0,
     runCount: real.totalRuns,
     updatedAt: new Date(real.updatedAt).toISOString().slice(0, 10),
+    successRate,
+    avgDurationMs,
+    avgTokens,
   }
 }
 
@@ -176,7 +199,8 @@ export async function getLocalSkills(): Promise<Skill[]> {
 export async function getLocalSkillDetail(id: string): Promise<SkillDetail | null> {
   const skill = await skillStoreInstance.get(id)
   if (!skill) return null
-  return toDisplaySkillDetail(skill)
+  const executions = await skillStoreInstance.getExecutions(id)
+  return toDisplaySkillDetail(skill, false, executions)
 }
 
 export async function deleteLocalSkill(id: string): Promise<void> {
