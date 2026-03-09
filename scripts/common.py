@@ -46,7 +46,7 @@ def get_patches_dir():
         major = chromium_version.split('.')[0]
     else:
         major = get_product_version().split('.')[0]
-    return get_project_root() / 'patches' / f"v{major}"
+    return get_project_root() / 'chromium' / 'patches' / f"v{major}"
 
 def get_product_version():
     """Read product version from VERSION file."""
