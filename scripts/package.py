@@ -199,7 +199,7 @@ def package_dmg(args):
         final_dmg = dist_dir / f"{app_name}-{product_version}.dmg"
 
     vol_name = f"{app_name} {product_version}"
-    icon_file = project_root / 'icons' / 'app.icns'
+    icon_file = project_root / 'chromium' / 'icons' / 'app.icns'
 
     # Code Signing
     sign_identity = getattr(args, 'sign', None) or os.environ.get('CODESIGN_IDENTITY')

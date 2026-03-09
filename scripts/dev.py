@@ -172,9 +172,9 @@ def main():
             src_dir = src_dir / 'src'
 
         # Install icons before build
-        # Source: ocbot/icons
+        # Source: ocbot/chromium/icons
         # Dest: src/chrome/app/theme/chromium
-        icons_src = get_project_root() / 'icons'
+        icons_src = get_project_root() / 'chromium' / 'icons'
         icons_dest = src_dir / 'chrome' / 'app' / 'theme' / 'chromium'
         
         install_icons(icons_src, icons_dest)
