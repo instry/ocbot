@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ArrowLeft, GitFork, BadgeCheck, Play, Copy, ImageOff, Trash2, Pencil, Check, Loader2, CheckCircle2, Clock, Zap } from 'lucide-react'
+import { ArrowLeft, GitFork, BadgeCheck, Play, Copy, Trash2, Pencil, Check, Loader2, CheckCircle2, Clock, Zap } from 'lucide-react'
 import { getLocalSkillDetail, getMarketplaceSkillDetail, getSkillAbbr, skillStoreInstance, getRealSkill, type Skill, type SkillDetail } from '../data/skills'
 import { cloneSkill as apiCloneSkill, fetchMarketplaceSkill } from '@/lib/marketplace/api'
 import type { Skill as RealSkill } from '@/lib/skills/types'
@@ -577,27 +577,23 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border/40 bg-muted/30 px-4 py-4">
-            <CheckCircle2 className={`h-5 w-5 ${detail.successRate >= 80 ? 'text-green-500' : detail.successRate >= 50 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-            <span className="text-2xl font-bold text-foreground">
-              {detail.runCount > 0 ? `${detail.successRate}%` : '—'}
-            </span>
-            <span className="text-xs text-muted-foreground">Success Rate</span>
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className={`h-3.5 w-3.5 ${detail.successRate >= 80 ? 'text-green-500' : detail.successRate >= 50 ? 'text-amber-500' : 'text-muted-foreground'}`} />
+            <span className="font-medium text-foreground">{detail.runCount > 0 ? `${detail.successRate}%` : '—'}</span>
+            <span className="text-muted-foreground">success</span>
           </div>
-          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border/40 bg-muted/30 px-4 py-4">
-            <Clock className="h-5 w-5 text-blue-500" />
-            <span className="text-2xl font-bold text-foreground">
-              {formatDuration(detail.avgDurationMs)}
-            </span>
-            <span className="text-xs text-muted-foreground">Avg. Duration</span>
+          <span className="text-border">·</span>
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-blue-500" />
+            <span className="font-medium text-foreground">{formatDuration(detail.avgDurationMs)}</span>
+            <span className="text-muted-foreground">avg</span>
           </div>
-          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border/40 bg-muted/30 px-4 py-4">
-            <Zap className="h-5 w-5 text-amber-500" />
-            <span className="text-2xl font-bold text-foreground">
-              {formatTokens(detail.avgTokens)}
-            </span>
-            <span className="text-xs text-muted-foreground">Avg. Tokens</span>
+          <span className="text-border">·</span>
+          <div className="flex items-center gap-1.5">
+            <Zap className="h-3.5 w-3.5 text-amber-500" />
+            <span className="font-medium text-foreground">{formatTokens(detail.avgTokens)}</span>
+            <span className="text-muted-foreground">tokens</span>
           </div>
         </div>
 
@@ -667,23 +663,6 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
             </div>
           </section>
         )}
-
-        {/* Screenshots */}
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-foreground">Screenshots</h2>
-          {detail.screenshots.length > 0 ? (
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {detail.screenshots.map((src, i) => (
-                <img key={i} src={src} alt={`Screenshot ${i + 1}`} className="h-48 rounded-xl border border-border/40 object-cover" />
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-xl border border-dashed border-border/60 px-5 py-8 text-sm text-muted-foreground/60">
-              <ImageOff className="h-4 w-4" />
-              No screenshots available
-            </div>
-          )}
-        </section>
 
         {/* Changelog */}
         {detail.changelog.length > 0 && (
