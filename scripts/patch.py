@@ -43,6 +43,30 @@ def _get_patches_list(logger):
             
     return patches, patches_dir
 
+def _normalize_crlf(patch_file, src_dir):
+    """On Windows, convert CRLF→LF in files targeted by a patch so context lines match."""
+    if sys.platform != 'win32':
+        return
+    try:
+        content = patch_file.read_text(encoding='utf-8', errors='replace')
+    except Exception:
+        return
+    for line in content.splitlines():
+        # Parse "--- a/path" or "+++ b/path" to find target files
+        if line.startswith('--- a/') or line.startswith('+++ b/'):
+            rel = line[6:]
+            if rel == '/dev/null':
+                continue
+            target = src_dir / rel
+            if target.is_file():
+                try:
+                    raw = target.read_bytes()
+                    if b'\r\n' in raw:
+                        target.write_bytes(raw.replace(b'\r\n', b'\n'))
+                except Exception:
+                    pass
+
+
 def apply_patches(args):
     logger = get_logger()
     src_dir = _get_src_dir(args)
@@ -88,16 +112,16 @@ def apply_patches(args):
             continue
 
         # Use git apply
-        # On Windows, override autocrlf to avoid CRLF/LF mismatch with patch context
-        git_cfg = ['-c', 'core.autocrlf=false'] if sys.platform == 'win32' else []
-        cmd = ['git'] + git_cfg + ['apply', '--ignore-whitespace', '-p1', str(patch_file)]
+        # On Windows, normalize target files from CRLF to LF so patch context matches
+        _normalize_crlf(patch_file, src_dir)
+        cmd = ['git', 'apply', '--ignore-whitespace', '-p1', str(patch_file)]
 
         result = subprocess.run(cmd, cwd=src_dir, capture_output=True, text=True)
 
         if result.returncode != 0:
             # Check if it's already applied
             # git apply --check --reverse returns 0 if the patch can be reversed (meaning it's applied)
-            cmd_check = ['git'] + git_cfg + ['apply', '--check', '--reverse', '--ignore-whitespace', '-p1', str(patch_file)]
+            cmd_check = ['git', 'apply', '--check', '--reverse', '--ignore-whitespace', '-p1', str(patch_file)]
             result_check = subprocess.run(cmd_check, cwd=src_dir, capture_output=True, text=True)
 
             if result_check.returncode == 0:
