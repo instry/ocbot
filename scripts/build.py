@@ -119,14 +119,32 @@ def build_chromium(args):
         needs_gen = True
     
     if needs_clean:
-            logger.info(f"Cleaning output directory {out_dir} for siso migration...")
-            subprocess.run(['gn', 'clean', str(out_dir)], cwd=src_dir, check=True)
+        logger.info(f"Cleaning output directory {out_dir} for siso migration...")
+        gn_cmd = 'gn'
+        if sys.platform == 'win32' and shutil.which('gn.bat'):
+            gn_cmd = 'gn.bat'
+        subprocess.run([gn_cmd, 'clean', str(out_dir)], cwd=src_dir, check=True)
 
     if needs_gen:
-        subprocess.run(['gn', 'gen', str(out_dir)], cwd=src_dir, check=True)
+        gn_cmd = 'gn'
+        if sys.platform == 'win32':
+             # Use gn.bat if it exists, otherwise gn.exe (depot_tools usually has gn.bat wrapping gn.exe)
+             # But gn.exe is the actual binary.
+             # However, subprocess.run(['gn', ...]) usually works because gn is an exe.
+             # Just in case, try to find it.
+             if shutil.which('gn.bat'):
+                 gn_cmd = 'gn.bat'
+        
+        subprocess.run([gn_cmd, 'gen', str(out_dir)], cwd=src_dir, check=True)
     
     logger.info(f"Building {args.target}...")
-    subprocess.run(['autoninja', '-C', str(out_dir), args.target], cwd=src_dir)
+    
+    # On Windows, autoninja is a batch file (autoninja.bat)
+    autoninja_cmd = 'autoninja'
+    if sys.platform == 'win32':
+        autoninja_cmd = 'autoninja.bat'
+        
+    subprocess.run([autoninja_cmd, '-C', str(out_dir), args.target], cwd=src_dir)
 
     # Sync extension version before installing
     sync_extension_version()

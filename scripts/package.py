@@ -2,6 +2,7 @@
 """Package Ocbot into platform-specific installers (.dmg on macOS, .exe/.zip on Windows)."""
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -10,7 +11,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from common import get_logger, get_project_root, get_source_dir, get_product_version
+from common import get_logger, get_project_root, get_source_dir, get_product_version, get_agent_root
 
 if sys.platform == 'darwin':
     import plistlib
@@ -151,29 +152,60 @@ def notarize_dmg(dmg_path, notary_profile=None, apple_id=None, team_id=None, pas
     cmd = [
         'xcrun', 'notarytool', 'submit',
         str(dmg_path),
-        '--wait'
+        '--wait',
+        '--json'
     ]
     
+    auth_args = []
     if notary_profile:
-        cmd.extend(['--keychain-profile', notary_profile])
+        auth_args = ['--keychain-profile', notary_profile]
     elif apple_id and team_id and password:
-        cmd.extend(['--apple-id', apple_id])
-        cmd.extend(['--team-id', team_id])
-        cmd.extend(['--password', password])
+        auth_args = ['--apple-id', apple_id, '--team-id', team_id, '--password', password]
     else:
         logger.error("Notarization requires either a profile or (apple_id, team_id, password).")
         sys.exit(1)
 
+    cmd.extend(auth_args)
+
     try:
-        subprocess.run(cmd, check=True)
+        # Run and capture output
+        result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, text=True)
+        # Parse JSON
+        data = json.loads(result.stdout)
         
+        status = data.get('status', 'Unknown')
+        submission_id = data.get('id', 'Unknown')
+        
+        logger.info(f"Notarization Status: {status}")
+        logger.info(f"Submission ID: {submission_id}")
+        
+        if status != "Accepted":
+            logger.error(f"Notarization failed with status: {status}")
+            
+            # Try to fetch log
+            logger.info("Fetching notarization log...")
+            log_cmd = ['xcrun', 'notarytool', 'log', submission_id] + auth_args
+            
+            # Dump the log to stdout for the user to see
+            subprocess.run(log_cmd, check=False) 
+            
+            sys.exit(1)
+            
         logger.info("Stapling ticket to DMG...")
         subprocess.run([
             'xcrun', 'stapler', 'staple', str(dmg_path)
         ], check=True)
         
     except subprocess.CalledProcessError as e:
-        logger.error(f"Notarization failed: {e}")
+        logger.error(f"Notarization command failed: {e}")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        logger.error("Failed to parse notarytool output")
+        # If capturing failed, result might not be defined in this scope if exception happened before assignment?
+        # No, result is assigned before json.loads. But if subprocess raised CalledProcessError, we go to that catch.
+        # If json.loads fails, result is defined.
+        if 'result' in locals():
+            logger.error(result.stdout)
         sys.exit(1)
 
 
@@ -316,8 +348,91 @@ def package_dmg(args):
     logger.info(f"Done: {final_dmg} ({size_mb:.1f} MB)")
 
 
+def _stage_files(out_dir, staging_dir):
+    """Copy runtime files to staging directory."""
+    staging_dir = Path(staging_dir)
+    staging_dir.mkdir(parents=True, exist_ok=True)
+    
+    portable_patterns = [
+        '*.exe', '*.dll', '*.pak', '*.bin', '*.dat',
+    ]
+    portable_dirs = [
+        'locales',
+        'MEIPresto',
+        'ocbot_extension',
+    ]
+    extra_files = ['icudtl.dat', 'v8_context_snapshot.bin', 'snapshot_blob.bin']
+
+    logger.info(f"Staging files from {out_dir} to {staging_dir}...")
+
+    # Copy patterns
+    for pattern in portable_patterns:
+        for f in out_dir.glob(pattern):
+            if f.is_file():
+                shutil.copy2(f, staging_dir / f.name)
+
+    # Copy directories
+    for dirname in portable_dirs:
+        src = out_dir / dirname
+        if src.exists() and src.is_dir():
+            dest = staging_dir / dirname
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest)
+
+    # Copy extra files
+    for extra in extra_files:
+        src = out_dir / extra
+        if src.exists():
+            shutil.copy2(src, staging_dir / extra)
+
+def _create_inno_installer(staging_dir, dist_dir, version):
+    """Create Inno Setup installer."""
+    # Check for ISCC
+    iscc = shutil.which('iscc')
+    if not iscc:
+        # Check common paths
+        common_paths = [
+            r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            r"C:\Program Files\Inno Setup 6\ISCC.exe"
+        ]
+        for p in common_paths:
+            if os.path.exists(p):
+                iscc = p
+                break
+    
+    if not iscc:
+        logger.warning("Inno Setup Compiler (ISCC) not found. Skipping installer creation.")
+        return
+
+    iss_file = get_project_root() / 'scripts' / 'installer' / 'win' / 'setup.iss'
+    if not iss_file.exists():
+         logger.warning(f"Installer script not found at {iss_file}")
+         return
+
+    output_name = f"Ocbot-Setup-{version}"
+    cmd = [
+        iscc,
+        f"/dMyAppVersion={version}",
+        f"/dSourceDir={staging_dir}",
+        f"/O{dist_dir}",
+        f"/F{output_name}",
+        str(iss_file)
+    ]
+    
+    logger.info(f"Running Inno Setup: {' '.join(cmd)}")
+    try:
+        subprocess.run(cmd, check=True)
+        installer_path = dist_dir / f"{output_name}.exe"
+        if installer_path.exists():
+            size_mb = installer_path.stat().st_size / (1024 * 1024)
+            logger.info(f"Inno Installer: {installer_path} ({size_mb:.1f} MB)")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Inno Setup failed: {e}")
+
+
 def package_windows(args):
-    """Package Ocbot for Windows: copy mini_installer.exe and create portable zip."""
+    """Package Ocbot for Windows: portable zip and Inno Setup installer."""
     if getattr(args, 'src_dir', None):
         src_dir = Path(args.src_dir).resolve()
     else:
@@ -330,58 +445,40 @@ def package_windows(args):
     out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
     out_dir = src_dir / 'out' / out_dir_name
 
+    # Sync extension before packaging
+    extension_src = get_agent_root() / '.output' / 'chrome-mv3'
+    if extension_src.exists():
+        dest = out_dir / 'ocbot_extension'
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(extension_src, dest)
+        logger.info(f"Extension synced to {dest}")
+    else:
+        logger.warning(f"Extension build output not found: {extension_src}")
+
     product_version = get_product_version()
     project_root = get_project_root()
     dist_dir = project_root / 'dist'
     dist_dir.mkdir(exist_ok=True)
 
-    # --- 1. Copy mini_installer.exe ---
+    # --- 1. Copy mini_installer.exe (if exists) ---
     mini_installer = out_dir / 'mini_installer.exe'
     if mini_installer.exists():
-        dest_installer = dist_dir / f"Ocbot-{product_version}-win-x64.exe"
+        dest_installer = dist_dir / f"Ocbot-{product_version}-win-x64-mini.exe"
         shutil.copy2(mini_installer, dest_installer)
         size_mb = dest_installer.stat().st_size / (1024 * 1024)
-        logger.info(f"Installer: {dest_installer} ({size_mb:.1f} MB)")
-    else:
-        logger.warning(f"mini_installer.exe not found at {mini_installer}, skipping installer.")
+        logger.info(f"Mini Installer: {dest_installer} ({size_mb:.1f} MB)")
 
-    # --- 2. Create portable zip ---
-    # Collect essential runtime files from the build output
-    portable_patterns = [
-        '*.exe', '*.dll', '*.pak', '*.bin', '*.dat',
-    ]
-    portable_dirs = [
-        'locales',
-        'MEIPresto',
-        'ocbot_extension',
-    ]
+    # --- 2. Create Staging Directory ---
+    import tempfile
+    with tempfile.TemporaryDirectory() as staging_dir_str:
+        staging_dir = Path(staging_dir_str)
+        _stage_files(out_dir, staging_dir)
 
-    portable_zip_path = dist_dir / f"Ocbot-{product_version}-win-x64-portable.zip"
-    logger.info(f"Creating portable zip: {portable_zip_path}")
-
-    with zipfile.ZipFile(portable_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # Add files matching patterns
-        for pattern in portable_patterns:
-            for f in out_dir.glob(pattern):
-                if f.is_file():
-                    zf.write(f, f.name)
-
-        # Add subdirectories
-        for dirname in portable_dirs:
-            dir_path = out_dir / dirname
-            if dir_path.exists() and dir_path.is_dir():
-                for f in dir_path.rglob('*'):
-                    if f.is_file():
-                        zf.write(f, str(f.relative_to(out_dir)))
-
-        # Add icudtl.dat and v8 snapshot if present (sometimes at top level)
-        for extra in ['icudtl.dat', 'v8_context_snapshot.bin', 'snapshot_blob.bin']:
-            extra_path = out_dir / extra
-            if extra_path.exists():
-                zf.write(extra_path, extra)
-
-    size_mb = portable_zip_path.stat().st_size / (1024 * 1024)
-    logger.info(f"Portable zip: {portable_zip_path} ({size_mb:.1f} MB)")
-
-
-
+        # --- 3. Create Portable Zip ---
+        portable_zip_path = dist_dir / f"Ocbot-{product_version}-win-x64-portable"
+        logger.info(f"Creating portable zip: {portable_zip_path}.zip")
+        shutil.make_archive(str(portable_zip_path), 'zip', staging_dir)
+        
+        # --- 4. Create Inno Setup Installer ---
+        _create_inno_installer(staging_dir, dist_dir, product_version)

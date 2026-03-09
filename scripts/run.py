@@ -1,4 +1,3 @@
-
 import os
 import shutil
 import subprocess
@@ -59,14 +58,20 @@ def run_chromium(args):
     # Platform-specific executable path
     if sys.platform == 'win32':
         executable = out_dir / 'ocbot.exe'
+        if not executable.exists():
+             executable = out_dir / 'chrome.exe'
     else:
         executable = out_dir / 'Ocbot.app' / 'Contents' / 'MacOS' / 'Ocbot'
+        if not executable.exists():
+             # Fallback to Chromium/Google Chrome for macOS if Ocbot.app is missing
+             # (Though usually on macOS we build the app bundle)
+             pass
 
     if not executable.exists():
         if sys.platform == 'win32':
-            logger.error(f"ocbot.exe not found at {executable}")
+            logger.error(f"Executable not found at {out_dir / 'ocbot.exe'} or {out_dir / 'chrome.exe'}")
         else:
-            logger.error(f"Ocbot.app not found at {executable.parent.parent}")
+            logger.error(f"Ocbot.app not found at {out_dir / 'Ocbot.app'}")
         logger.info("Please build first: python ocbot/scripts/dev.py build")
         return
 
@@ -80,7 +85,12 @@ def run_chromium(args):
     # so hot-updated / bundled versions are skipped and OTA updater is disabled.
     extension_dev_path = get_agent_root() / '.output' / 'chrome-mv3'
     if extension_dev_path.exists():
-        cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
+        if executable.name.lower() == 'chrome.exe':
+            # Vanilla Chromium uses standard flag
+            cmd.append(f'--load-extension={extension_dev_path}')
+        else:
+            # Ocbot uses custom flag
+            cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
 
     # Pass through extra args
     if hasattr(args, 'args') and args.args:
