@@ -1,8 +1,34 @@
 import os
 import shutil
 import subprocess
+import sys
+import tarfile
+import urllib.request
 from pathlib import Path
 from common import get_logger, get_project_root, get_source_dir
+
+
+def _download_file(url, dest_path, logger):
+    """Download a file using urllib with progress reporting."""
+    def _progress(block_num, block_size, total_size):
+        if total_size > 0:
+            downloaded = block_num * block_size
+            pct = min(100, downloaded * 100 // total_size)
+            mb = downloaded / (1024 * 1024)
+            total_mb = total_size / (1024 * 1024)
+            sys.stdout.write(f"\r   {mb:.1f}/{total_mb:.1f} MB ({pct}%)")
+            sys.stdout.flush()
+
+    logger.info(f"Downloading {url}...")
+    urllib.request.urlretrieve(url, str(dest_path), reporthook=_progress)
+    print()  # newline after progress
+
+
+def _extract_tarball(archive_path, target_dir, logger):
+    """Extract a .tar.xz archive using the tarfile module."""
+    logger.info(f"Extracting {archive_path}...")
+    with tarfile.open(str(archive_path)) as tf:
+        tf.extractall(path=str(target_dir))
 
 
 def get_chromium_version():
@@ -166,10 +192,9 @@ def download_tarball(args, target_dir):
     if dest_path.exists():
         logger.info(f"File {filename} already exists. Skipping download.")
     else:
-        logger.info(f"Downloading {url}...")
         logger.info("File size: ~1-2GB, this may take 10-30 minutes...")
         try:
-            subprocess.run(['curl', '-L', '-o', str(dest_path), url], check=True)
+            _download_file(url, dest_path, logger)
             logger.info("✓ Download completed")
         except Exception as e:
             logger.warning(f"Download failed: {e}")
@@ -179,7 +204,7 @@ def download_tarball(args, target_dir):
             dest_path = target_dir.parent / filename
             logger.info(f"Trying lite version: {url}")
             try:
-                subprocess.run(['curl', '-L', '-o', str(dest_path), url], check=True)
+                _download_file(url, dest_path, logger)
                 logger.info("✓ Lite version download completed")
             except Exception as e2:
                 logger.error(f"Lite download failed too: {e2}")
@@ -195,7 +220,7 @@ def download_tarball(args, target_dir):
         try:
             # Tarball contains a root folder 'chromium-VERSION'
             # We extract to parent of target_dir
-            subprocess.run(['tar', '-xf', str(dest_path), '-C', str(target_dir.parent)], check=True)
+            _extract_tarball(dest_path, target_dir.parent, logger)
             
             # Identify the extracted folder name
             extracted_name = filename.replace('.tar.xz', '')

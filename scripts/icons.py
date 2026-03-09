@@ -9,10 +9,23 @@ from common import get_logger
 def resize_and_copy_icon(src_path, dest_path, target_size):
     """
     Resize image from src_path and save to dest_path with target_size (width=height).
-    Uses sips (macOS) or direct copy as fallback.
+    Tries Pillow first (cross-platform), then sips (macOS), then direct copy as fallback.
     """
     logger = get_logger()
 
+    # Try Pillow first (cross-platform)
+    try:
+        from PIL import Image
+        with Image.open(src_path) as img:
+            resized = img.resize((target_size, target_size), Image.LANCZOS)
+            resized.save(dest_path)
+        return
+    except ImportError:
+        pass
+    except Exception:
+        pass
+
+    # Try sips (macOS only)
     if sys.platform.startswith('darwin'):
         try:
             cmd = ["sips", "-z", str(target_size), str(target_size),

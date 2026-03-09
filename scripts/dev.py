@@ -24,14 +24,15 @@ except ImportError as e:
 def _build_extension(logger, zip=True):
     logger.info("Building extension...")
     extension_dir = get_agent_root()
+    _shell = sys.platform == 'win32'
     try:
         if not (extension_dir / 'node_modules').exists():
             logger.info("Installing extension dependencies...")
-            subprocess.run(['npm', 'install'], cwd=extension_dir, check=True)
-        subprocess.run(['npm', 'run', 'build'], cwd=extension_dir, check=True)
+            subprocess.run(['npm', 'install'], cwd=extension_dir, check=True, shell=_shell)
+        subprocess.run(['npm', 'run', 'build'], cwd=extension_dir, check=True, shell=_shell)
         if zip:
             logger.info("Packaging extension zip...")
-            subprocess.run(['npm', 'run', 'zip'], cwd=extension_dir, check=True)
+            subprocess.run(['npm', 'run', 'zip'], cwd=extension_dir, check=True, shell=_shell)
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to build extension: {e}")
         sys.exit(1)

@@ -8,14 +8,15 @@ from common import get_logger, get_project_root, get_agent_root, get_product_ver
 
 logger = get_logger()
 
-def run_command(cmd, cwd=None, check=True, capture_output=False):
+def run_command(cmd, cwd=None, check=True, capture_output=False, shell=False):
     try:
         result = subprocess.run(
-            cmd, 
-            cwd=cwd, 
-            check=check, 
-            capture_output=capture_output, 
-            text=True
+            cmd,
+            cwd=cwd,
+            check=check,
+            capture_output=capture_output,
+            text=True,
+            shell=shell
         )
         return result
     except subprocess.CalledProcessError as e:
@@ -49,7 +50,8 @@ def release_extension(args):
     
     # Build extension
     logger.info("Building extension...")
-    run_command(['npm', 'run', 'build'], cwd=agent_root)
+    _shell = sys.platform == 'win32'
+    run_command(['npm', 'run', 'build'], cwd=agent_root, shell=_shell)
 
     # Package
     build_output = agent_root / '.output' / 'chrome-mv3'
@@ -114,10 +116,16 @@ def release_browser(args):
     # Get version
     version = get_product_version()
     tag = f"v{version}"
-    dmg = dist_dir / f"Ocbot-{version}.dmg"
 
-    if not dmg.exists():
-        logger.error(f"DMG not found: {dmg}. Run 'dev.py package' first.")
+    if sys.platform == 'win32':
+        artifact = dist_dir / f"Ocbot-{version}.zip"
+        artifact_type = "ZIP"
+    else:
+        artifact = dist_dir / f"Ocbot-{version}.dmg"
+        artifact_type = "DMG"
+
+    if not artifact.exists():
+        logger.error(f"{artifact_type} not found: {artifact}. Run 'dev.py package' first.")
         sys.exit(1)
 
     logger.info(f"Preparing browser release for Ocbot v{version} (tag: {tag})...")
@@ -132,20 +140,20 @@ def release_browser(args):
         exists = False
 
     if exists:
-        logger.info(f"Release {tag} already exists. Uploading DMG...")
+        logger.info(f"Release {tag} already exists. Uploading {artifact_type}...")
         run_command([
-            'gh', 'release', 'upload', tag, str(dmg),
+            'gh', 'release', 'upload', tag, str(artifact),
             '--clobber',
             '--repo', repo
         ])
     else:
-        logger.info(f"Creating release {tag} with DMG...")
+        logger.info(f"Creating release {tag} with {artifact_type}...")
         run_command([
-            'gh', 'release', 'create', tag, str(dmg),
+            'gh', 'release', 'create', tag, str(artifact),
             '--repo', repo,
             '--title', f"Ocbot v{version}",
             '--notes', f"Ocbot v{version}"
         ])
 
-    logger.info(f"Done! Ocbot v{version} browser DMG released as {tag}")
+    logger.info(f"Done! Ocbot v{version} browser {artifact_type} released as {tag}")
     logger.info("Running instances will auto-update in the background.")

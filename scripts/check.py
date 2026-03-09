@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import sys
 import requests
 import os
 from pathlib import Path
@@ -67,6 +68,10 @@ def check_environment(args):
     else:
         print("   depot_tools not installed ⚠")
         print("   Install command: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git")
+        if sys.platform == 'win32':
+            print("   Then add to PATH: set PATH=%PATH%;C:\\path\\to\\depot_tools")
+        else:
+            print("   Then add to PATH: export PATH=\"$PATH:/path/to/depot_tools\"")
     print("")
 
     print("==========================================")
