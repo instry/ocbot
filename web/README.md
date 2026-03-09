@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="octopus.png" alt="ocbot logo" width="200"/>
+  <img src="ocbot_logo.png" alt="ocbot logo" width="200"/>
 </p>
 
 # ocbot - AI Browser Assistant
