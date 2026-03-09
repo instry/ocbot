@@ -26,24 +26,26 @@ def get_project_root():
 def get_chromium_version():
     """
     Look up the full Chromium version from version_map.json using the
-    major version extracted from the product VERSION file (e.g. 144.1.0 -> 144).
+    full product version string (e.g. 26.3.9).
     """
     product_version = get_product_version()
-    major = product_version.split('.')[0]
     version_map = get_version_map()
-    entry = version_map.get(major)
+    entry = version_map.get(product_version)
     if entry:
         return entry['chromium']
     return None
 
 def get_patches_dir():
     """
-    Get the directory containing patches based on the product version.
-    Extracts major version from VERSION file and returns ocbot/patches/vXXX.
+    Get the directory containing patches based on the Chromium major version.
+    Derives major from the chromium version string and returns ocbot/patches/vXXX.
     Returns the path even if the directory does not yet exist.
     """
-    product_version = get_product_version()
-    major = product_version.split('.')[0]
+    chromium_version = get_chromium_version()
+    if chromium_version:
+        major = chromium_version.split('.')[0]
+    else:
+        major = get_product_version().split('.')[0]
     return get_project_root() / 'patches' / f"v{major}"
 
 def get_product_version():
