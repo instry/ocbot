@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ArrowLeft, GitFork, BadgeCheck, Play, Copy, Trash2, Pencil, Check, Loader2, CheckCircle2, Clock, Zap } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Play, Copy, Trash2, Pencil, Check, Loader2, CheckCircle2, Clock, Zap } from 'lucide-react'
 import { getLocalSkillDetail, getMarketplaceSkillDetail, getSkillAbbr, skillStoreInstance, getRealSkill, type Skill, type SkillDetail } from '../data/skills'
 import { cloneSkill as apiCloneSkill, fetchMarketplaceSkill } from '@/lib/marketplace/api'
 import type { Skill as RealSkill } from '@/lib/skills/types'
@@ -498,10 +498,6 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 <span>Updated {detail.updatedAt}</span>
               </div>
               <div className="mt-1.5 flex items-center gap-3 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <GitFork className="h-3.5 w-3.5" />
-                  {formatCount(detail.runCount)} runs
-                </span>
                 {isMarketplaceSkill && detail.installs > 0 && (
                   <span className="flex items-center gap-1">
                     <Copy className="h-3.5 w-3.5" />
@@ -509,6 +505,27 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                   </span>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className={`h-3.5 w-3.5 ${detail.successRate >= 80 ? 'text-green-500' : detail.successRate >= 50 ? 'text-amber-500' : 'text-muted-foreground'}`} />
+              <span className="font-medium text-foreground">{detail.runCount > 0 ? `${detail.successRate}%` : '—'}</span>
+              <span className="text-muted-foreground">success</span>
+            </div>
+            <span className="text-border">·</span>
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-blue-500" />
+              <span className="font-medium text-foreground">{formatDuration(detail.avgDurationMs)}</span>
+              <span className="text-muted-foreground">avg</span>
+            </div>
+            <span className="text-border">·</span>
+            <div className="flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5 text-amber-500" />
+              <span className="font-medium text-foreground">{formatTokens(detail.avgTokens)}</span>
+              <span className="text-muted-foreground">tokens</span>
             </div>
           </div>
 
@@ -573,27 +590,6 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 </button>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className={`h-3.5 w-3.5 ${detail.successRate >= 80 ? 'text-green-500' : detail.successRate >= 50 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-            <span className="font-medium text-foreground">{detail.runCount > 0 ? `${detail.successRate}%` : '—'}</span>
-            <span className="text-muted-foreground">success</span>
-          </div>
-          <span className="text-border">·</span>
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-blue-500" />
-            <span className="font-medium text-foreground">{formatDuration(detail.avgDurationMs)}</span>
-            <span className="text-muted-foreground">avg</span>
-          </div>
-          <span className="text-border">·</span>
-          <div className="flex items-center gap-1.5">
-            <Zap className="h-3.5 w-3.5 text-amber-500" />
-            <span className="font-medium text-foreground">{formatTokens(detail.avgTokens)}</span>
-            <span className="text-muted-foreground">tokens</span>
           </div>
         </div>
 
