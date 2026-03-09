@@ -16,10 +16,9 @@
 
 *   **AI-Native & OpenClaw Friendly **: AI capabilities are deeply integrated into the browser kernel — not a plugin, but a core primitive. Your browser understands, reasons, and acts.
 *   **SKILL support**: Learns new SKILLs automatically while executing tasks. Learn once, execute millions. Significantly saves tokens compared to traditional agents.
-*   **Always-On, Everywhere**: ocbot runs on your desktop and can be commanded remotely via mobile browsers or IM apps. Your personal agent, always reachable.
 *   **Self-Healing Workflows**: Web UI changed? The agent uses visual understanding to automatically repair execution paths.
 *   **Chrome Lossless Experience**: Retains the full Chrome experience. Import your bookmarks, history, and passwords — continue browsing without interruption.
-*   **Freedom of Choice & Priviacy protect**: Freely switch between LLMs. Supports mainstream cloud models and fully **local LLMs** — your data never leaves your machine.
+*   **Freedom of Choice**: Freely switch between LLMs. Supports mainstream cloud models and fully **local LLMs**.
 
 ---
 
