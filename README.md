@@ -21,15 +21,79 @@
 
 ## Development
 
-### Quick Start
+### Prerequisites
+
+- macOS / Linux (Windows untested)
+- Python 3
+- Node.js + npm (for extension build)
+- [Depot Tools](https://chromium.googlesource.com/chromium/tools/depot_tools.git) (for full build)
+
+### Getting Started
 
 ```bash
-# Clone with submodule (ocbot_agent)
+# 1. Clone with submodule (ocbot_agent)
 git clone --recursive https://github.com/instry/ocbot.git
 
-# If already cloned without --recursive
-git submodule update --init
+# 2. Check your environment
+./scripts/dev.py check
+
+# 3. Download Chromium source
+./scripts/dev.py download                          # Quick tarball (code review only)
+./scripts/dev.py download --method depot --no-history  # Full source (for building)
+
+# 4. Apply existing patches to get the current ocbot state
+./scripts/dev.py patch
+
+# 5. Build (This takes time!)
+# - M3 Ultra + 96G RAM: ~45 min
+# - M4 + 24G RAM: ~4.5 hours
+./scripts/dev.py build
+
+# 6. Run
+./scripts/dev.py run
 ```
+
+After `patch`, the Chromium source tree at `chromium/<version>/src/` contains all ocbot modifications and is ready for development.
+
+### Commands Reference
+
+```bash
+# Download
+python scripts/dev.py download --method tarball                 # Quick download
+python scripts/dev.py download --method depot --no-history      # Full download
+
+# Patch
+python scripts/dev.py patch                                  # Apply all patches
+
+# Update Patches
+python scripts/dev.py update_patches                         # Generate patches from source
+
+# Build
+python scripts/dev.py build                                  # Build Browser
+
+# Run
+python scripts/dev.py run                                    # Run with extension loaded
+
+# Build Extension
+python3 scripts/dev.py build-extension                       
+
+# Package
+python scripts/dev.py package                                # Package into DMG
+
+# Help
+python scripts/dev.py --help
+```
+
+| Command | Description |
+|---------|-------------|
+| `check` | Check environment, recommend download method |
+| `download` | Download Chromium source (`--method tarball\|depot\|sync`) |
+| `patch` | Apply all patches to source (sync state) |
+| `reset` | Revert all patches (clean source) |
+| `update_patches` | Generate patches from modified source |
+| `build` | Build Ocbot (`--official`, `--clean`, `--target`) |
+| `run` | Run Ocbot (`--official`) |
+| `package` | Package into DMG (`--sign`, `--notarize`) |
 
 ### Project Structure
 
