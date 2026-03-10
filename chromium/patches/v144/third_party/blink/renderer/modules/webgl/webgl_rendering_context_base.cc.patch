@@ -1,5 +1,5 @@
 diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
-index c02c0d6387ffa9403ce4b90740f55a1b12ef1565..b818d46fc83d9bb4ada0532c7827c373728c82d5 100644
+index 57a5afa3c5901d95fb09c617a39012d42a623e78..8e9c5eb676d8f16e3315690f719c94ab8aa2a1b6 100644
 --- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
 +++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
 @@ -25,6 +25,7 @@
@@ -18,7 +18,7 @@ index c02c0d6387ffa9403ce4b90740f55a1b12ef1565..b818d46fc83d9bb4ada0532c7827c373
  #include "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.h"
  #include "third_party/blink/renderer/modules/webgl/webgl_depth_texture.h"
  #include "third_party/blink/renderer/modules/webgl/webgl_draw_buffers.h"
-@@ -3771,6 +3773,21 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
+@@ -3770,6 +3772,21 @@ ScriptValue WebGLRenderingContextBase::getParameter(ScriptState* script_state,
                                                      GLenum pname) {
    if (isContextLost())
      return ScriptValue::CreateNull(script_state->GetIsolate());
@@ -40,7 +40,7 @@ index c02c0d6387ffa9403ce4b90740f55a1b12ef1565..b818d46fc83d9bb4ada0532c7827c373
    const int kIntZero = 0;
    switch (pname) {
      case GL_ACTIVE_TEXTURE:
-@@ -5133,6 +5150,91 @@ void WebGLRenderingContextBase::ReadPixelsHelper(GLint x,
+@@ -5132,6 +5149,91 @@ void WebGLRenderingContextBase::ReadPixelsHelper(GLint x,
      }
      ContextGL()->ReadPixels(x, y, width, height, format, type, data);
    }

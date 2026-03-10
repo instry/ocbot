@@ -60,6 +60,14 @@ def get_version_map():
     with open(map_file) as f:
         return json.load(f)
 
+def get_chromium_root():
+    """Returns the chromium workspace: <workspace>/chromium/"""
+    return get_project_root().parent / 'chromium'
+
+def get_main_repo():
+    """Returns the main depot_tools checkout: chromium/main/"""
+    return get_chromium_root() / 'main'
+
 def get_agent_root():
     """Returns the root of the web extension project (inside ocbot)."""
     return get_project_root() / 'web'
@@ -79,16 +87,25 @@ def sync_extension_version():
 
 def get_source_dir(version=None):
     """
-    Returns the source directory.
-    Default: sibling directory of ocbot project, structure: ../chromium/<version>
-    Example: ../chromium/130.0.6723.69
+    Returns the source directory for the active version.
+    Priority: v{major}/src → main/src → legacy <full-version>/src
     """
     if version is None:
         version = get_chromium_version()
-    
     if version:
-        # ocbot/../chromium/{version}
-        return get_project_root().parent / 'chromium' / version
-    else:
-        # Fallback if no version found
-        return get_project_root().parent / 'chromium' / 'src'
+        major = version.split('.')[0]
+        wt = get_chromium_root() / f'v{major}' / 'src'
+        if wt.exists():
+            return wt
+    main = get_main_repo() / 'src'
+    if main.exists():
+        return main
+    # Legacy fallback for old-style directories
+    if version:
+        legacy = get_chromium_root() / version / 'src'
+        if legacy.exists():
+            return legacy
+        legacy2 = get_chromium_root() / version
+        if legacy2.exists():
+            return legacy2
+    return get_chromium_root() / 'src'

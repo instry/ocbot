@@ -1,5 +1,5 @@
 diff --git a/chrome/common/url_constants.h b/chrome/common/url_constants.h
-index 377fe880e356f07816293571af8c10251a94123e..db3460c448e84e81048ea13efb746b902a1605aa 100644
+index e9589db1d58f5319479fb02d522f75969b0ee80a..19d5e1d6d0d0d0747e71fe002104c4f93bba9f2b 100644
 --- a/chrome/common/url_constants.h
 +++ b/chrome/common/url_constants.h
 @@ -149,6 +149,11 @@ inline constexpr char kChromeOsHelpViaWebUIURL[] =

@@ -1,9 +1,9 @@
 diff --git a/cc/trees/layer_tree_host_impl.cc b/cc/trees/layer_tree_host_impl.cc
-index 01011e0a71ae99ae40bad0dd244f216958c9b04b..01b04cb7e230c97cdaeb9cb995bc36956b84cf51 100644
+index 58ae26aa3935a7913527bc5905cbab053b46369a..db94eb185fb0fbd519970b0bf768f2a7d4815379 100644
 --- a/cc/trees/layer_tree_host_impl.cc
 +++ b/cc/trees/layer_tree_host_impl.cc
-@@ -6155,8 +6155,10 @@ void LayerTreeHostImpl::SetTreeLayerScrollOffsetMutated(
-   }
+@@ -6030,8 +6030,10 @@ void LayerTreeHostImpl::SetTreeLayerScrollOffsetMutated(
+     return;
  
    PropertyTrees* property_trees = tree->property_trees();
 -  DCHECK_EQ(1u, property_trees->scroll_tree().element_id_to_node_index().count(

@@ -49,9 +49,6 @@ def run_chromium(args):
         logger.error("Could not find source directory.")
         return
 
-    if (src_dir / 'src').exists() and (src_dir / 'src').is_dir():
-        src_dir = src_dir / 'src'
-
     out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
     out_dir = src_dir / 'out' / out_dir_name
 

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/startup/startup_tab_provider.cc b/chrome/browser/ui/startup/startup_tab_provider.cc
-index e494f9aa4228fe92012ced9159717f7c911709a7..d424a07957cc2cfd0b479240820963a406ec0fb1 100644
+index 41a7a50939bf8f4bc1f33eb18258b4c49f91c112..3cc03b4e2acff61ab330501cd25839d17ee5bc91 100644
 --- a/chrome/browser/ui/startup/startup_tab_provider.cc
 +++ b/chrome/browser/ui/startup/startup_tab_provider.cc
-@@ -307,7 +307,8 @@ StartupTabs StartupTabProviderImpl::GetNewTabPageTabsForState(
+@@ -375,7 +375,8 @@ StartupTabs StartupTabProviderImpl::GetNewTabPageTabsForState(
      const SessionStartupPref& pref) {
    StartupTabs tabs;
    if (!pref.ShouldRestoreLastSession()) {

@@ -1,11 +1,11 @@
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 12bc96592be0e291f2af8f35ef9b76c0652776a7..47e40047e87c756316be558251a859890a13a6cd 100644
+index d0cac58da0356babfb5adc80032675d790e779ec..221af145c19b0c2672ac3b29b3a102567dd63968 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -4410,10 +4410,12 @@ void BrowserView::UpdateTabSearchBubbleHost() {
+@@ -4594,10 +4594,12 @@ void BrowserView::UpdateTabSearchBubbleHost() {
+         vertical_tab_strip_container_->GetTopContainer()->GetTabSearchButton(),
          browser_.get());
-   } else if (tabs::GetTabSearchPosition(browser_->profile()) ==
-              tabs::TabSearchPosition::kToolbarButton) {
+   } else if (features::HasTabSearchToolbarButton()) {
 -    tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
 -        toolbar_->tab_search_button(), browser_.get());
 -    CHECK(toolbar_button_controller);

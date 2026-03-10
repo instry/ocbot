@@ -1,11 +1,11 @@
 diff --git a/google_apis/gcm/engine/registration_request.cc b/google_apis/gcm/engine/registration_request.cc
-index eb0c911a000695475ee9421625b214b6d246e024..9a530f42721b0b2e69d454a56a7d4c64940a92b2 100644
+index 488faff9f73443c7bd74931dd1850d10a97c3d93..985d6c83cb20cc4f3ad8d4e75e54bd77df4d6e09 100644
 --- a/google_apis/gcm/engine/registration_request.cc
 +++ b/google_apis/gcm/engine/registration_request.cc
 @@ -288,7 +288,7 @@ RegistrationRequest::Status RegistrationRequest::ParseResponse(
    if (error_pos != std::string::npos) {
-     std::string_view error = std::string_view(response).substr(
-         error_pos + std::size(kErrorPrefix) - 1);
+     std::string error =
+         response.substr(error_pos + std::size(kErrorPrefix) - 1);
 -    LOG(ERROR) << "Registration response error message: " << error;
 +    VLOG(1) << "Registration response error message: " << error;
      RegistrationRequest::Status status = GetStatusFromError(error);

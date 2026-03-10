@@ -1,5 +1,5 @@
 diff --git a/chrome/common/extensions/extension_constants.h b/chrome/common/extensions/extension_constants.h
-index aabd893d2b1c0433de522dcc06b7efcbf7586e47..10526d6fda11cd8bbecfceac9f9ddfb1c426c401 100644
+index 2d373de2cace168f37c75b3fdf06f9a87fac2365..eaf7c036cf89ebd424511b8ac228f138affd3fde 100644
 --- a/chrome/common/extensions/extension_constants.h
 +++ b/chrome/common/extensions/extension_constants.h
 @@ -66,6 +66,9 @@ inline constexpr char kInAppPaymentsSupportAppId[] =

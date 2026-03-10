@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/modules/BUILD.gn b/third_party/blink/renderer/modules/BUILD.gn
-index dbd1fd08624497fe09cd074ff18d3a8e902fe577..6bc092f5b1bab568037db2db94ac35ea35e22e39 100644
+index 35746fea54a485ae74cbe288a519f7bc5c406f4e..d4b079bef79254f03cc69bd6a8bc98c6b1fa20b7 100644
 --- a/third_party/blink/renderer/modules/BUILD.gn
 +++ b/third_party/blink/renderer/modules/BUILD.gn
-@@ -207,6 +207,7 @@ component("modules") {
+@@ -202,6 +202,7 @@ component("modules") {
      "//third_party/webrtc_overrides:webrtc_component",
      "//third_party/zlib",
      "//tools/v8_context_snapshot:buildflags",

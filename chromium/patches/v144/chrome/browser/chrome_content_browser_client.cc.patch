@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
-index b1c0cb14fede49fba031c05c5f7a3158efb941d2..cb5d8e1e79e7fc3736d2b433461cf680f2760286 100644
+index 900df063b86fa756af8cbe8d4296cbe966dc631d..f43b27848823dece6c88098bc0bf7c02963efe94 100644
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
-@@ -60,6 +60,7 @@
+@@ -59,6 +59,7 @@
  #include "chrome/browser/bluetooth/chrome_bluetooth_delegate_impl_client.h"
  #include "chrome/browser/browser_about_handler.h"
  #include "chrome/browser/browser_features.h"
@@ -21,7 +21,7 @@ index b1c0cb14fede49fba031c05c5f7a3158efb941d2..cb5d8e1e79e7fc3736d2b433461cf680
  #include "chrome/browser/media/webrtc/chrome_screen_enumerator.h"
  #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
  #include "chrome/browser/media/webrtc/media_device_salt_service_factory.h"
-@@ -4942,6 +4947,9 @@ void ChromeContentBrowserClient::BrowserURLHandlerCreated(
+@@ -4903,6 +4908,9 @@ void ChromeContentBrowserClient::BrowserURLHandlerCreated(
      part->BrowserURLHandlerCreated(handler);
    }
  
@@ -31,8 +31,8 @@ index b1c0cb14fede49fba031c05c5f7a3158efb941d2..cb5d8e1e79e7fc3736d2b433461cf680
    // Handler to rewrite chrome://about and chrome://sync URLs.
    handler->AddHandlerPair(&HandleChromeAboutAndChromeSyncRewrite,
                            BrowserURLHandler::null_handler());
-@@ -6660,6 +6668,54 @@ void ChromeContentBrowserClient::ConfigureNetworkContextParams(
-     network_context_params->user_agent = GetUserAgent();
+@@ -6610,6 +6618,54 @@ void ChromeContentBrowserClient::ConfigureNetworkContextParams(
+     network_context_params->user_agent = GetUserAgentBasedOnPolicy(context);
      network_context_params->accept_language = GetApplicationLocale();
    }
 +
@@ -86,7 +86,7 @@ index b1c0cb14fede49fba031c05c5f7a3158efb941d2..cb5d8e1e79e7fc3736d2b433461cf680
  }
  
  std::vector<base::FilePath>
-@@ -6850,6 +6906,12 @@ ChromeContentBrowserClient::CreateClientCertStore(
+@@ -6800,6 +6856,12 @@ ChromeContentBrowserClient::CreateClientCertStore(
        ->CreateClientCertStore();
  }
  
@@ -99,7 +99,7 @@ index b1c0cb14fede49fba031c05c5f7a3158efb941d2..cb5d8e1e79e7fc3736d2b433461cf680
  std::unique_ptr<content::LoginDelegate>
  ChromeContentBrowserClient::CreateLoginDelegate(
      const net::AuthChallengeInfo& auth_info,
-@@ -6863,6 +6925,17 @@ ChromeContentBrowserClient::CreateLoginDelegate(
+@@ -6813,6 +6875,17 @@ ChromeContentBrowserClient::CreateLoginDelegate(
      bool first_auth_attempt,
      content::GuestPageHolder* guest,
      content::LoginDelegate::LoginAuthRequiredCallback auth_required_callback) {

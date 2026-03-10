@@ -1,5 +1,5 @@
 diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
-index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcde0096f2e 100644
+index a774cc4e84d5842933767a5fb4dfe8c78ba17765..6288640107c6b6084a6e94256422e1c463a43fd9 100644
 --- a/chrome/app/chromium_strings.grd
 +++ b/chrome/app/chromium_strings.grd
 @@ -278,7 +278,7 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
@@ -11,7 +11,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          a few select overrides for the most prominent end-user strings.
  
          Rationale: https://goo.gle/chrome-for-testing#bookmark=id.n1rat320av91
-@@ -294,30 +294,30 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+@@ -294,45 +294,45 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
          </then>
          <else>
            <message name="IDS_PRODUCT_NAME" desc="The Chrome application name" translateable="false">
@@ -49,19 +49,6 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
 +          Welcome to Ocbot
          </message>
        </if>
-       <if expr="is_linux">
-@@ -328,25 +328,25 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
-           Cancel
-         </message>
-         <message name="IDS_TERMS_DIALOG_TITLE" desc="Window title for the Terms of Service dialog">
--          Chromium Additional Terms of Service
-+          Ocbot Additional Terms of Service
-         </message>
-         <message name="IDS_TERMS_DIALOG_ACCESSIBILITY_LABEL" desc="Accessibility label for the Terms of Service in the dialog. The actual terms text is just a placeholder for branded builds.">
--          Chromium Additional Terms of Service
-+          Ocbot Additional Terms of Service
-         </message>
-       </if>
        <if expr="is_chromeos">
          <message name="IDS_PRODUCT_OS_NAME" desc="The ChromeOS application name">
 -          ChromiumOS
@@ -83,7 +70,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
        <if expr="is_win">
          <message name="IDS_SHORTCUT_NEW_WINDOW" desc="The text label of the New window shortcut context menu entry as of Windows 8">
-@@ -360,7 +360,7 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+@@ -346,7 +346,7 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
        </if>
        <if expr="not is_macosx and not is_chromeos">
          <message name="IDS_TASK_MANAGER_TITLE" desc="The title of the Task Manager window">
@@ -92,29 +79,13 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
        <message name="IDS_TASK_MANAGER_SEARCH_PLACEHOLDER" desc="The placeholder text for the Search bar in the Task Manager window">
-@@ -394,18 +394,18 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+@@ -380,12 +380,12 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
          All tasks
        </message>
        <message name="IDS_SESSION_CRASHED_VIEW_UMA_OPTIN" desc="Text besides the checkbox to let users optin to UMA in the restore from previous crash bubble.">
 -        Help make Chromium better by sending crash reports and <ph name="UMA_LINK">$1<ex>usage statistics</ex></ph> to Google
 +        Help make Ocbot better by sending crash reports and <ph name="UMA_LINK">$1<ex>usage statistics</ex></ph> to Google
        </message>
-       <if expr="not is_android">
-         <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_TOO_MANY_BOOKMARKS_BODY" desc="Body of the signout confirmation dialog when the user has too many bookmarks.">
--        You reached Chromium’s limit of <ph name="BOOKMARK_LIMIT">$1<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Google Account yet.
-+        You reached Ocbot’s limit of <ph name="BOOKMARK_LIMIT">$1<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Google Account yet.
- 
- New bookmarks can’t be saved in your account until you delete some. If you sign out now, unsaved bookmarks will be deleted.
-         </message>
-       </if>
-       <if expr="is_android">
-         <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_TOO_MANY_BOOKMARKS_BODY" desc="Body of the signout confirmation dialog when the user has too many bookmarks." formatter_data="android_java">
--        You reached Chromium’s limit of <ph name="BOOKMARK_LIMIT">%1$s<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Google Account yet.
-+        You reached Ocbot’s limit of <ph name="BOOKMARK_LIMIT">%1$s<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Google Account yet.
- 
- New bookmarks can’t be saved in your account until you delete some. If you sign out now, unsaved bookmarks will be deleted.
-         </message>
-@@ -413,7 +413,7 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
        <message name="IDS_RESET_PROFILE_SETTINGS_EXPLANATION_IN_BULLET_POINTS" desc="A label formatted with bullet points describing the consequences of the 'reset profile settings' feature">
          This action will:
          <ph name="LINE_BREAKS">&lt;br&gt;&lt;br&gt;</ph>
@@ -123,7 +94,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
            <ph name="LINE_BREAK">&lt;br&gt;</ph>
            • Disable extensions
            <ph name="LINE_BREAK">&lt;br&gt;</ph>
-@@ -431,7 +431,7 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
+@@ -403,7 +403,7 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
            </then>
            <else>
              <message name="IDS_BROWSER_WINDOW_TITLE_FORMAT" desc="The format for titles displayed in tabs and popup windows">
@@ -132,7 +103,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
              </message>
            </else>
          </if>
-@@ -439,19 +439,19 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
+@@ -411,19 +411,19 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
        <if expr="is_chromeos">
          <!-- Browser Window Title Format -->
          <message name="IDS_BROWSER_WINDOW_TITLE_FORMAT" desc="The format for titles displayed in tabbed browser windows">
@@ -155,7 +126,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
        <if expr="is_macosx">
-@@ -470,18 +470,18 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
+@@ -442,18 +442,18 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
          </then>
          <else>
            <message name="IDS_ACCESSIBLE_BROWSER_WINDOW_TITLE_FORMAT" desc="The format for the accessible name of a tabbed browser window">
@@ -178,7 +149,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
        <if expr="_is_chrome_for_testing_branded">
          <then>
-@@ -494,22 +494,22 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
+@@ -466,22 +466,22 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
          </then>
          <else>
            <message name="IDS_ABOUT_VERSION_COMPANY_NAME" desc="Company name on the about pages">
@@ -208,7 +179,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
        <if expr="_is_chrome_for_testing_branded">
-@@ -520,117 +520,117 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
+@@ -492,108 +492,108 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
          </then>
          <else>
            <message name="IDS_ABOUT_TERMS_OF_SERVICE" desc="The terms of service label in the About box." translateable="false">
@@ -219,8 +190,8 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </if>
        <if expr="is_macosx">
          <message name="IDS_MACOS_OBSOLETE" desc="A message displayed on an at-launch infobar and About (Help) page warning the user that the OS version they are using will soon be or is already unsupported.">
--          To get future Chromium updates, you'll need macOS 13 or later. This computer is using macOS 12.
-+          To get future Ocbot updates, you'll need macOS 13 or later. This computer is using macOS 12.
+-          To get future Chromium updates, you'll need macOS 12 or later. This computer is using macOS 11.
++          To get future Ocbot updates, you'll need macOS 12 or later. This computer is using macOS 11.
          </message>
        </if>
        <if expr="is_win">
@@ -264,13 +235,6 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
 +          Ocbot is unresponsive. Relaunch now?
          </message>
        </if>
-       <!-- General app failure messages -->
-       <if expr="not is_chromeos and not is_android">
-         <message name="IDS_COULDNT_STARTUP_PROFILE_ERROR" desc="Error displayed when Chrome cannot start because profiles were not opened correctly.">
--          Cannot start Chromium because something went wrong when opening your profile. Try to restart Chromium.
-+          Cannot start Ocbot because something went wrong when opening your profile. Try to restart Ocbot.
-         </message>
-       </if>
        <!-- Sharing messages -->
        <message name="IDS_BROWSER_SHARING_CLICK_TO_CALL_DIALOG_HELP_TEXT_NO_DEVICES" desc="The label to be shown as a help text of the dialog when user click on a phone number, if there are no phones to choose from.">
 -        To send a number from here to your Android phone, sign in to Chromium on both devices.
@@ -303,10 +267,6 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        <message name="IDS_FR_CUSTOMIZE_DEFAULT_BROWSER" desc="Default browser checkbox label">
 -        Make Chromium the default browser
 +        Make Ocbot the default browser
-       </message>
-       <message name="IDS_DEFAULT_BROWSER_CHANGED_MESSAGE" desc="Body of the notification shown when Chrome is no longer the default browser.">
--        Chromium is no longer your default browser. Make Chromium the default browser?
-+        Ocbot is no longer your default browser. Make Ocbot the default browser?
        </message>
        <if expr="use_titlecase">
          <message name="IDS_STATUS_TRAY_KEEP_CHROME_RUNNING_IN_BACKGROUND" desc="In Title Case: The checkbox in the status tray context menu that controls whether chrome keeps running in the background after the last window is closed">
@@ -353,7 +313,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
        <message name="IDS_PREFERENCES_UNREADABLE_ERROR" desc="Error displayed on startup when user preferences file can not be read">
  Your preferences can not be read.
-@@ -640,21 +640,21 @@ Some features may be unavailable and changes to preferences won't be saved.
+@@ -603,21 +603,21 @@ Some features may be unavailable and changes to preferences won't be saved.
        <message name="IDS_PREFERENCES_CORRUPT_ERROR" desc="Error displayed on startup when user preferences file can not be read">
  Your preferences file is corrupt or invalid.
  
@@ -379,7 +339,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
        <message name="IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE" desc="The text of the Google Password Manager links displayed on Password Manager bubbles footer when the credentials are stored only locally.">
          Password Manager
-@@ -667,81 +667,81 @@ Chromium is unable to recover your settings.
+@@ -630,81 +630,81 @@ Chromium is unable to recover your settings.
        </message>
        <if expr="is_macosx">
        <message name="IDS_PASSWORDS_AUTHENTICATION_PROMPT_PREFIX" desc="Text shown in the beginning of the OS-level user authentication prompt before performing a seneitive operation such as show passwords in plain text.">
@@ -482,7 +442,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
            Access the Internet
          </message>
          <message name="IDS_UNINSTALL_DELETE_PROFILE" desc="Text to show user to ask whether to delete all the profile data also during uninstallation.">
-@@ -750,272 +750,272 @@ Chromium is unable to recover your settings.
+@@ -713,252 +713,252 @@ Chromium is unable to recover your settings.
          <message name="IDS_UNINSTALL_BUTTON_TEXT" desc="Label for uninstall button on Uninstall confirmation dialog.">
            Uninstall
          </message>
@@ -508,42 +468,16 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
            Keep in Dock
          </message>
        </if>
--      <message name="IDS_DEFAULT_BROWSER_INFOBAR_TEXT" desc="Text to show in an infobar when Chromium is not the current default browser.">
--        Chromium isn't your default browser
-+      <message name="IDS_DEFAULT_BROWSER_INFOBAR_TEXT" desc="Text to show in an infobar when Ocbot is not the current default browser.">
-+        Ocbot isn't your default browser
-       </message>
--      <message name="IDS_DEFAULT_BROWSER_PIN_INFOBAR_TEXT" desc="Text to show in an infobar when Chromium is not the current default browser and can be pinned to the taskbar.">
--        Set Chromium as your default browser and pin it to your taskbar
-+      <message name="IDS_DEFAULT_BROWSER_PIN_INFOBAR_TEXT" desc="Text to show in an infobar when Ocbot is not the current default browser and can be pinned to the taskbar.">
-+        Set Ocbot as your default browser and pin it to your taskbar
-       </message>
-       <if expr="not is_android and not is_chromeos">
-         <message name="IDS_DEFAULT_BROWSER_MODAL_TITLE_WITH_SETTINGS_ILLUSTRATION" desc="Title of the default browser modal with settings illustration.">
--          Set Chromium as your default browser
-+          Set Ocbot as your default browser
+-        <message name="IDS_DEFAULT_BROWSER_INFOBAR_TEXT" desc="Text to show in an infobar when Chromium is not the current default browser.">
+-          Chromium isn't your default browser
++        <message name="IDS_DEFAULT_BROWSER_INFOBAR_TEXT" desc="Text to show in an infobar when Ocbot is not the current default browser.">
++          Ocbot isn't your default browser
          </message>
-         <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITH_SETTINGS_ILLUSTRATION" desc="Body text of the default browser modal with settings illustration.">
--          Keep your passwords, bookmarks, and history perfectly synced across devices. Easily access the features you know and love by updating your default browser to Chromium.
-+          Keep your passwords, bookmarks, and history perfectly synced across devices. Easily access the features you know and love by updating your default browser to Ocbot.
+-        <message name="IDS_DEFAULT_BROWSER_PIN_INFOBAR_TEXT" desc="Text to show in an infobar when Chromium is not the current default browser and can be pinned to the taskbar.">
+-          Set Chromium as your default browser and pin it to your taskbar
++        <message name="IDS_DEFAULT_BROWSER_PIN_INFOBAR_TEXT" desc="Text to show in an infobar when Ocbot is not the current default browser and can be pinned to the taskbar.">
++          Set Ocbot as your default browser and pin it to your taskbar
          </message>
-         <message name="IDS_DEFAULT_BROWSER_MODAL_TITLE_WITHOUT_SETTINGS_ILLUSTRATION" desc="Title of the default browser modal without settings illustration.">
--          Use Chromium recommended browser settings
-+          Use Ocbot recommended browser settings
-         </message>
-         <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITHOUT_SETTINGS_ILLUSTRATION" desc="Body text of the default browser modal without settings illustration.">
--          Get easy access to the features you know, love, and trust by setting Chromium as your default browser. Chromium will be pinned to your taskbar for quick access.
-+          Get easy access to the features you know, love, and trust by setting Ocbot as your default browser. Ocbot will be pinned to your taskbar for quick access.
-         </message>
--        <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_TITLE" desc="Title of the dialog prompting the user to set Chromium as the default browser.">
-+        <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_TITLE" desc="Title of the dialog prompting the user to set Ocbot as the default browser.">
-           Use recommended browser settings
-         </message>
-         <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_BODY" desc="Main explanatory text in the default browser dialog.">
--          Get easy access to the features you know, love, and trust by setting Chromium as your default browser.
-+          Get easy access to the features you know, love, and trust by setting Ocbot as your default browser.
-         </message>
-       </if>
        <if expr="is_win or is_macosx">
 -        <message name="IDS_PDF_INFOBAR_TEXT" desc="Text to show in an infobar when Chromium is not the default PDF viewer.">
 -          Set Chromium as your default PDF viewer
@@ -830,7 +764,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
  
        <if expr="use_titlecase and not is_chromeos">
-@@ -1027,12 +1027,12 @@ Chromium is unable to recover your settings.
+@@ -970,12 +970,12 @@ Chromium is unable to recover your settings.
            </then>
            <else>
              <message name="IDS_ABOUT" desc="In Title Case: The text label of the About Chrome menu item">
@@ -845,7 +779,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
        <if expr="not use_titlecase and not is_chromeos">
-@@ -1044,32 +1044,32 @@ Chromium is unable to recover your settings.
+@@ -987,32 +987,32 @@ Chromium is unable to recover your settings.
            </then>
            <else>
              <message name="IDS_ABOUT" desc="The text label of the About Chrome menu item">
@@ -885,7 +819,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
  
-@@ -1078,24 +1078,24 @@ Chromium is unable to recover your settings.
+@@ -1021,24 +1021,24 @@ Chromium is unable to recover your settings.
          <if expr="use_titlecase">
            <then>
              <message name="IDS_CUSTOMIZE_CHROME" desc="In Title Case: The text label of the Customize Chrome menu item">
@@ -916,7 +850,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
              </message>
            </else>
          </if>
-@@ -1107,33 +1107,33 @@ Chromium is unable to recover your settings.
+@@ -1050,33 +1050,33 @@ Chromium is unable to recover your settings.
  
        <!-- Chrome sign-in page -->
        <message name="IDS_CHROME_SIGNIN_TITLE" desc="Title on the about:chrome-signin page" translateable="false">
@@ -957,7 +891,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
        <message name="IDS_SESSION_RESTORE_LINK" desc="Text for the link in the session restore infobar to open the Settings page.">
           Settings.
-@@ -1142,69 +1142,69 @@ Chromium is unable to recover your settings.
+@@ -1085,28 +1085,28 @@ Chromium is unable to recover your settings.
          Settings, opens in new tab.
        </message>
        <!-- Enterprise sign-in dialog -->
@@ -989,7 +923,14 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
 +        <message name="IDS_ENTERPRISE_VALUE_PROPOSITION_PROFILE_SUGGESTED_TITLE" desc="Title of the screen in the profile creation flow where the user is asked whether they want to confirm signing in to Ocbot with their enterprise account.">
 +          Sign in to Ocbot?
          </message>
-       </if>
+         <!-- New one-click sign-in dialog contents for SAML support -->
+         <message name="IDS_ONE_CLICK_SIGNIN_DIALOG_TITLE_NEW" desc="The title of the modal dialog window that opens when the user chooses to use one click sign-in.">
+-          You're signed in to Chromium!
++          You're signed in to Ocbot!
+         </message>
+         <message name="IDS_ONE_CLICK_SIGNIN_DIALOG_MESSAGE_NEW" desc="The message of the one click sign-in dialog.">
+           You're signed in as <ph name="USER_EMAIL_ADDRESS">$1<ex>foo@gmail.com</ex></ph>. Now you can access your bookmarks, history, and other settings on all your signed in devices.
+@@ -1115,40 +1115,40 @@ Chromium is unable to recover your settings.
  
        <!-- Management bubble -->
        <message name="IDS_MANAGEMENT_DIALOG_BROWSER_MANAGED" desc="Disclosure that an unnamed organization is managing the browser.">
@@ -1039,14 +980,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
  
-       <!-- NTP strings -->
-       <message name="IDS_NTP_CUSTOMIZE_TOOLBAR_CATEGORY_YOUR_CHROME" desc="The label for the category of actions that involve your Chrome data, such as opening the password manager or clearing browsing data.">
--        Your Chromium
-+        Your Ocbot
-       </message>
-       <if expr="_is_chrome_for_testing_branded">
-         <then>
-@@ -1213,34 +1213,34 @@ Chromium is unable to recover your settings.
+@@ -1160,21 +1160,21 @@ Chromium is unable to recover your settings.
            </message>
          </then>
          <else>
@@ -1061,22 +995,6 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
 -        Make Chromium Yours
 +        Make Ocbot Yours
        </message>
-       <message name="IDS_NTP_CUSTOMIZE_CHROME_RESET_TO_CLASSIC_CHROME_LABEL" desc="The label for the button for resetting theme back to default chrome in the New Tab Page customize chrome side panel.">
--        Reset to Default Chromium
-+        Reset to Default Ocbot
-       </message>
- 
-       <!-- New Tab Page browser feature promotions. -->
-       <if expr="not is_android">
-         <message name="IDS_NTP_CUSTOMIZATION_PROMO" desc="The text shown in the body of the New Tab Page browser customization promotion">
--          Customize Chromium to give your browser a new look
-+          Customize Ocbot to give your browser a new look
-         </message>
-         <message name="IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS" desc="The text shown in the body of the New Tab Page sign in promotion">
--          Sign in to Chromium to get your passwords, bookmarks, and more on all your devices
-+          Sign in to Ocbot to get your passwords, bookmarks, and more on all your devices
-         </message>
-       </if>
  
        <!-- Customize Chrome Auto Promo Strings -->
 -      <message name="IDS_IPH_CUSTOMIZE_CHROME_AUTO_OPEN_BODY" desc="The description of the IPH to auto open Customize Chromium">
@@ -1091,7 +1009,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
  
        <!-- Realbox Strings -->
-@@ -1254,269 +1254,269 @@ Chromium is unable to recover your settings.
+@@ -1188,269 +1188,269 @@ Chromium is unable to recover your settings.
        <!-- Signin Email Confirmation tab modal dialog -->
        <if expr="not is_chromeos">
          <message name="IDS_SIGNIN_EMAIL_CONFIRMATION_TITLE" desc="Title of the signin email confirmation tab modal dialog.">
@@ -1308,7 +1226,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </if>
  
        <!-- Profile Menu -->
-       <message name="IDS_PROFILE_MENU_SIGNIN_PROMO_BUTTON" meaning="Button" desc="Text for the button in the sign-in promo in the profile menu when the used is signed out.">
+       <message name="IDS_PROFILE_MENU_SIGNIN_PROMO_BUTTON" desc="Text for the button in the sign-in promo in the profile menu when the used is signed out.">
 -        Sign in to Chromium
 +        Sign in to Ocbot
        </message>
@@ -1465,7 +1383,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
  
-@@ -1524,40 +1524,40 @@ Chromium is unable to recover your settings.
+@@ -1458,40 +1458,40 @@ Chromium is unable to recover your settings.
        <if expr="not is_android and not is_chromeos">
          <!-- User pod remove sync warning text -->
          <message name="IDS_LOGIN_POD_USER_REMOVE_WARNING_SYNC" desc="Main text shown as a warning when attempting to remove an user.">
@@ -1516,7 +1434,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_TUTORIAL_PASSWORD_MANAGER_CLICK_PASSWORD_MANAGER" desc="The description of the 'click password manager' step in password manager tutorial">
            Click “Password Manager”
-@@ -1572,82 +1572,82 @@ Chromium is unable to recover your settings.
+@@ -1506,82 +1506,82 @@ Chromium is unable to recover your settings.
  
        <!-- Settings API bubble -->
        <message name="IDS_EXTENSIONS_SETTINGS_API_SECOND_LINE_START_PAGES" desc="Second line in the Settings API bubble. Only shown if the secondary change by the extension was just the start pages. The triple single quotes are needed to preserve the space before and after the sentence which is needed when the language (Chrome is being translated to) uses space as word separator. Please preserve them, unless the language being translated to does not use space as word separator.">
@@ -1623,7 +1541,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_RELAUNCH_AND_UPDATE" desc="The button in the Update Recommended dialog which updates and relaunches Chrome.">
            Relaunch
-@@ -1655,10 +1655,10 @@ Chromium is unable to recover your settings.
+@@ -1589,10 +1589,10 @@ Chromium is unable to recover your settings.
        </if>
        <if expr="is_chromeos">
          <message name="IDS_UPDATE_RECOMMENDED_DIALOG_TITLE" desc="The window title for the Update Recommended dialog.">
@@ -1636,7 +1554,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_RELAUNCH_AND_UPDATE" desc="The button in the Update Recommended dialog which updates and restarts ChromeOS.">
            Restart
-@@ -1667,71 +1667,71 @@ Chromium is unable to recover your settings.
+@@ -1601,71 +1601,71 @@ Chromium is unable to recover your settings.
  
        <if expr="is_win or is_macosx or is_linux">
          <message name="IDS_UPDATE_RECOMMENDED_DIALOG_TITLE_ALT" desc="Alternate window title for the Update Recommended dialog." translateable="false">
@@ -1725,7 +1643,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
        <message name="IDS_RECOVERY_BUBBLE_TEXT" desc="Text for the chrome recovery bubble view full description.">
-@@ -1739,92 +1739,92 @@ Chromium is unable to recover your settings.
+@@ -1673,92 +1673,92 @@ Chromium is unable to recover your settings.
        </message>
  
        <!-- Critical Notification bubble -->
@@ -1847,7 +1765,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_LOCAL_NETWORK_ACCESS_PERMISSION_DESC" desc="Text shown in the macOS permission dialog, describing why Chrome needs the permission to access local network.">
            This will allow you to select from available devices and display content on them.
-@@ -1833,12 +1833,12 @@ Chromium is unable to recover your settings.
+@@ -1767,12 +1767,12 @@ Chromium is unable to recover your settings.
  
        <!-- Side panel strings -->
        <message name="IDS_SIDE_PANEL_CUSTOMIZE_CHROME_TITLE" desc="The name of the Customize Chrome feature in the side panel combo box.">
@@ -1862,7 +1780,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
  
        <!-- Lens Overlay Strings -->
-@@ -2193,7 +2193,7 @@ Chromium is unable to recover your settings.
+@@ -2127,7 +2127,7 @@ Chromium is unable to recover your settings.
          </message>
          <message name="IDS_LENS_PERMISSION_BUBBLE_DIALOG_LEARN_MORE_ABOUT_GOOGLE_LENS_LINK"
            desc="Accessibility label for text link that is shown to users to learn more about privacy in relation to Google Lens.">
@@ -1871,7 +1789,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_LENS_PERMISSION_BUBBLE_DIALOG_TITLE"
            desc="The title of the lens permission search bubble dialog, introducing Lens as a way to search what's on their screen.">
-@@ -2290,17 +2290,17 @@ Chromium is unable to recover your settings.
+@@ -2229,17 +2229,17 @@ Chromium is unable to recover your settings.
        <!-- OOBE -->
        <if expr="is_chromeos">
          <message name="IDS_INSTALLING_UPDATE" desc="Label shown on the updates installation screen during OOBE">
@@ -1892,7 +1810,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
        <!-- Relaunch notification bubble and dialog. -->
-@@ -2308,115 +2308,115 @@ Chromium is unable to recover your settings.
+@@ -2247,115 +2247,115 @@ Chromium is unable to recover your settings.
          <if expr="not is_chromeos">
            <message name="IDS_RELAUNCH_RECOMMENDED_TITLE" desc="The title of a dialog that tells users that a browser relaunch is recommended for an update available for some number of days.">
              {0, plural,
@@ -2058,7 +1976,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
  
-@@ -2430,137 +2430,137 @@ Chromium is unable to recover your settings.
+@@ -2369,129 +2369,129 @@ Chromium is unable to recover your settings.
        <!-- Chrome parent extension/app install blocking dialog. -->
        <if expr="enable_extensions_core">
          <message name="IDS_EXTENSION_PERMISSIONS_BLOCKED_BY_PARENT_PROMPT_MESSAGE" desc="Text for the dialog indicating that a parent has blocked extensions and apps.">
@@ -2158,7 +2076,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
  
          <!-- First Run Experience -->
-         <message name="IDS_FRE_SIGN_IN_TITLE_0" meaning="Title"
+         <message name="IDS_FRE_SIGN_IN_TITLE_0"
 -          desc="This string appears as a heading on a full-page screen that asks the user to sign in to Chromium with their Google Account. It appears when the user launches Chromium for the first time. When they sign in, they can personalize and customize Chromium and remember their settings in their Google Account. The tone should be inviting and alluring.">
 -          Sign in to Chromium
 +          desc="This string appears as a heading on a full-page screen that asks the user to sign in to Ocbot with their Google Account. It appears when the user launches Ocbot for the first time. When they sign in, they can personalize and customize Ocbot and remember their settings in their Google Account. The tone should be inviting and alluring.">
@@ -2205,18 +2123,6 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
 +          Set Ocbot as your default browser
          </message>
  
-         <!-- Default Browser Promo Refresh -->
--        <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_TITLE" desc="Title for the page that prompts user to set Chromium as their default browser in the refreshed first run experience.">
--          Set Chromium as default and pin it to taskbar
-+        <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_TITLE" desc="Title for the page that prompts user to set Ocbot as their default browser in the refreshed first run experience.">
-+          Set Ocbot as default and pin it to taskbar
-         </message>
--        <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_SUBTITLE" desc="Subtitle for the page that prompts user to set Chromium as their default browser in the refreshed first run experience.">
--          Open links in Chromium from any app and keep the browser accessible on your taskbar
-+        <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_SUBTITLE" desc="Subtitle for the page that prompts user to set Ocbot as their default browser in the refreshed first run experience.">
-+          Open links in Ocbot from any app and keep the browser accessible on your taskbar
-         </message>
- 
          <!-- Profile switch IPH -->
          <message name="IDS_PROFILE_SWITCH_PROMO" desc="Text of the In-Product-Help bubble for profile switching.">
 -          You can switch between Chromium profiles here
@@ -2244,7 +2150,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
  
-@@ -2574,20 +2574,20 @@ Chromium is unable to recover your settings.
+@@ -2505,20 +2505,20 @@ Chromium is unable to recover your settings.
  
        <!-- ChromeLabs bubble -->
        <message name="IDS_CHROMELABS_RELAUNCH_FOOTER_MESSAGE" desc="Text that shows in the footer of the Chrome Labs bubble when relaunch is needed for changes to take effect.">
@@ -2269,31 +2175,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
        <message name="IDS_TAILORED_SECURITY_UNCONSENTED_PROMOTION_MESSAGE_DESCRIPTION" desc="Description shown in the message shown when a user changes their account-level tailored security setting encouraging them to enable Enhanced Safe Browsing">
          Enhanced protection does more to block phishing and malware
-@@ -2601,40 +2601,40 @@ Chromium is unable to recover your settings.
- 
-       <!--Launch On Startup-->
-       <if expr="is_win">
--        <message name="IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_LABEL" desc="Label for settings toggle button that enables or disables opening Chromium on system startup">
--          Launch Chromium when Windows starts
-+        <message name="IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_LABEL" desc="Label for settings toggle button that enables or disables opening Ocbot on system startup">
-+          Launch Ocbot when Windows starts
-         </message>
--        <message name="IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_SUB_LABEL" desc="Sub label for settings toggle button that enables or disables opening Chromium on system startup">
--          Launch Chromium automatically to begin browsing instantly.
-+        <message name="IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_SUB_LABEL" desc="Sub label for settings toggle button that enables or disables opening Ocbot on system startup">
-+          Launch Ocbot automatically to begin browsing instantly.
-         </message>
--        <message name="IDS_STARTUP_LAUNCH_INFOBAR_OPT_IN_TITLE" desc="Title of the infobar shown to ask the user if they want to allow Chromium to launch when windows starts.">
--          Begin browsing instantly: Chromium can now launch when Windows starts.
-+        <message name="IDS_STARTUP_LAUNCH_INFOBAR_OPT_IN_TITLE" desc="Title of the infobar shown to ask the user if they want to allow Ocbot to launch when windows starts.">
-+          Begin browsing instantly: Ocbot can now launch when Windows starts.
-         </message>
--        <message name="IDS_STARTUP_LAUNCH_INFOBAR_OPT_OUT_TITLE" desc="Title of the infobar shown to inform the user that Chromium now starts automatically when Windows starts.">
--          Chromium now launches when Windows starts so you can begin browsing instantly. You can turn this off in settings.
-+        <message name="IDS_STARTUP_LAUNCH_INFOBAR_OPT_OUT_TITLE" desc="Title of the infobar shown to inform the user that Ocbot now starts automatically when Windows starts.">
-+          Ocbot now launches when Windows starts so you can begin browsing instantly. You can turn this off in settings.
-         </message>
-       </if>
+@@ -2532,24 +2532,24 @@ Chromium is unable to recover your settings.
  
        <!-- Advanced security settings -->
        <message name="IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_ROW_ENABLED" desc="Description for the link row of the Javascript-optimization page when javascript-optimization is enabled.">
@@ -2325,7 +2207,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_NO_UPDATE_RESPONSE" desc="Updater response for no updates when handling install result.">
            No update is available.
-@@ -2643,7 +2643,7 @@ Chromium is unable to recover your settings.
+@@ -2558,7 +2558,7 @@ Chromium is unable to recover your settings.
            Installation failed. Please try again.
          </message>
          <message name="IDS_INSTALLER_DISPLAY_NAME" desc="Name for the updater metainstaller.">
@@ -2334,7 +2216,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_CLOSE_BUTTON" desc="Close button tooltip">
            Close
-@@ -2682,13 +2682,13 @@ Chromium is unable to recover your settings.
+@@ -2597,13 +2597,13 @@ Chromium is unable to recover your settings.
            Canceling...
          </message>
          <message name="IDS_TEXT_RESTART_BROWSER" desc="For when a browser must be restarted to complete the installation.">
@@ -2351,7 +2233,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_UPDATER_CLOSE" desc="For close button on the UI post install completion.">
            Close
-@@ -2748,7 +2748,7 @@ Chromium is unable to recover your settings.
+@@ -2663,7 +2663,7 @@ Chromium is unable to recover your settings.
          <!--Network errors.-->
          <message name="IDS_NO_NETWORK_PRESENT_ERROR"
                   desc="Error message displayed in the main dialog when the Updater is unable to connect to the network.">
@@ -2360,7 +2242,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_ERROR_HTTPSTATUS_UNAUTHORIZED"
                   desc="Error message displayed in the main dialog when an update check or download fails due to unauthorized access, usually due to proxy problems.">
-@@ -2874,99 +2874,99 @@ Chromium is unable to recover your settings.
+@@ -2789,22 +2789,22 @@ Chromium is unable to recover your settings.
          <!--Windows service strings.-->
          <message name="IDS_UPDATER_SERVICE_DISPLAY_NAME"
                   desc="The name of the Windows service. Displayed in the Windows Services management console.">
@@ -2387,14 +2269,22 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
        </if>
  
-       <!-- Memory Saver IPH strings -->
+@@ -2812,12 +2812,12 @@ Chromium is unable to recover your settings.
        <if expr="not is_android">
-         <message name="IDS_MEMORY_SAVER_MODE_PROMO_TITLE" desc="The title for the Memory Saver mode in-product promo bubble">
--          Make Chromium faster
-+          Make Ocbot faster
-         </message>
+         <if expr="use_titlecase">
+           <message name="IDS_MEMORY_SAVER_MODE_PROMO_TITLE" desc="In Title Case: The title for the Memory Saver mode in-product promo bubble">
+-            Make Chromium Faster
++            Make Ocbot Faster
+           </message>
+         </if>
+         <if expr="not use_titlecase">
+           <message name="IDS_MEMORY_SAVER_MODE_PROMO_TITLE" desc="The title for the Memory Saver mode in-product promo bubble">
+-            Make Chromium faster
++            Make Ocbot faster
+           </message>
+         </if>
        </if>
- 
+@@ -2825,70 +2825,70 @@ Chromium is unable to recover your settings.
        <!-- Performance Intervention Dialog strings -->
        <if expr="not is_android">
          <message name="IDS_PERFORMANCE_INTERVENTION_DIALOG_BODY_V1" desc="Body text for a dialog suggesting users to deactivate certain tabs to improve performance.">
@@ -2481,7 +2371,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CANARY" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered and the Glic window is closed. It indicates that this is the Canary version of the browser.">
            Open Gemini (Canary)
-@@ -2978,7 +2978,7 @@ Chromium is unable to recover your settings.
+@@ -2900,7 +2900,7 @@ Chromium is unable to recover your settings.
            Open Gemini (Beta)
          </message>
          <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered and the Glic window is open.">
@@ -2490,7 +2380,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_CANARY" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered and the Glic window is open. It indicates that this is the Canary version of the browser.">
            Close Gemini (Canary)
-@@ -2990,7 +2990,7 @@ Chromium is unable to recover your settings.
+@@ -2912,7 +2912,7 @@ Chromium is unable to recover your settings.
            Close Gemini (Beta)
          </message>
          <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered.">
@@ -2499,7 +2389,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          </message>
          <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_CANARY" translateable="false" desc="This is the tooltip that is shown when the glic status icon is hovered. It indicates that this is the Canary version of the browser.">
            Toggle Gemini (Canary)
-@@ -3002,89 +3002,89 @@ Chromium is unable to recover your settings.
+@@ -2924,89 +2924,89 @@ Chromium is unable to recover your settings.
            Toggle Gemini (Beta)
          </message>
          <message name="IDS_GLIC_STATUS_ICON_MENU_SHOW" translateable="false" desc="This is the menu item for showing the glic UI.">
@@ -2532,11 +2422,11 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
 -          Gemini in Chromium
 +          Gemini in Ocbot
          </message>
-         <message name="IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE" desc="Title for the Gemini feature introduction screen">
+         <message name="IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE" translateable="false" desc="Title for the Gemini feature introduction screen">
 -          Let Chromium browse for you
 +          Let Ocbot browse for you
          </message>
-         <message name="IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_SUBLABEL" desc="Subheader explaining what the Gemini feature does">
+         <message name="IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_SUBLABEL" translateable="false" desc="Subheader explaining what the Gemini feature does">
 -          Gemini in Chromium uses auto browse to work in your tabs and complete tasks you give it. <ph name="LINK_BEGIN">&lt;a href="#"&gt;</ph>Learn more<ph name="LINK_END">&lt;/a&gt;</ph>
 +          Gemini in Ocbot uses auto browse to work in your tabs and complete tasks you give it. <ph name="LINK_BEGIN">&lt;a href="#"&gt;</ph>Learn more<ph name="LINK_END">&lt;/a&gt;</ph>
          </message>
@@ -2612,7 +2502,7 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
        <message name="IDS_DICE_MIGRATION_CONFIRMATION_TOAST_BUTTON" desc="The text on the button of the confirmation toast shown after the user clicks the accept button on the Dice Migration dialog, that allows the users to control the sync settings or sign out of Chrome.">
          Manage
-@@ -3094,12 +3094,12 @@ Chromium is unable to recover your settings.
+@@ -3016,12 +3016,12 @@ Chromium is unable to recover your settings.
        <if expr="not is_android">
          <if expr="use_titlecase">
            <message name="IDS_PROFILE_MENU_ACCOUNT_SETTINGS_BUTTON" desc="Button in the avatar menu bubble view for opening Chrome account settings.">
@@ -2627,28 +2517,20 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
            </message>
          </if>
        </if>
-@@ -3107,66 +3107,66 @@ Chromium is unable to recover your settings.
+@@ -3029,30 +3029,30 @@ Chromium is unable to recover your settings.
        <!--Desktop to iOS promo strings-->
        <if expr="not is_android">
+         <message name="IDS_IOS_DESKTOP_ESB_PROMO_BUBBLE_DESCRIPTION_QR" desc="The description for the iOS desktop ESB promo bubble with a QR code.">
+-          Download Chromium on your phone to add an extra layer of protection when you're on the go
++          Download Ocbot on your phone to add an extra layer of protection when you're on the go
+         </message>
          <message name="IDS_IOS_DESKTOP_ESB_PROMO_BUBBLE_DESCRIPTION_REMINDER" desc="The description for the iOS desktop ESB promo bubble with a reminder button.">
 -          Stay safer on the go with Enhanced Safe Browsing on Chromium for iOS
 +          Stay safer on the go with Enhanced Safe Browsing on Ocbot for iOS
          </message>
-         <message name="IDS_IOS_DESKTOP_ESB_PROMO_BUBBLE_TITLE_QR" desc="The title for the iOS desktop ESB promo bubble with a QR code.">
--          Extend Enhanced Safe Browsing with Chromium on your phone
-+          Extend Enhanced Safe Browsing with Ocbot on your phone
-         </message>
          <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_FOOTER_DESCRIPTION_REMINDER" desc="The description for the footer of the iOS desktop password promo bubble.">
 -          Sign in faster to sites using saved passwords for Chromium on iOS
 +          Sign in faster to sites using saved passwords for Ocbot on iOS
-         </message>
-         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_FOOTER_TITLE" desc="The title for the footer of the iOS desktop password promo bubble suggesting to users that they can use their passwords on their iOS devices.">
--          Use your passwords with Chromium on your phone
-+          Use your passwords with Ocbot on your phone
-         </message>
-         <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_QR" desc="The text inside the iOS promo bubble button allowing the user to accept by getting the app via QR code.">
--          Get the Chromium app
-+          Get the Ocbot app
          </message>
          <message name="IDS_IOS_DESKTOP_PROMO_REMINDER_CONFIRMATION" desc="Body text of the promo bubble that appears after uses choose to be reminded of the feature on their iOS device. The placeholder will be replaced by the name of the feature.">
 -          You'll see a prompt to try <ph name="FEATURE_NAME">$1<ex>Google Lens</ex></ph> next time you open Chromium iOS.
@@ -2657,46 +2539,6 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
          <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_REMINDER_CONFIRMATION" desc="Body text of the promo bubble that appears after uses choose to be reminded of the Password Manager on their iOS device.">
 -          Next time you open Chromium on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you'll see a prompt to use Google Password Manager.
 +          Next time you open Ocbot on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you'll see a prompt to use Google Password Manager.
-         </message>
-         <message name="IDS_IOS_DESKTOP_LENS_PROMO_BUBBLE_DESCRIPTION_REMINDER" desc="The description for the iOS desktop Lens promo bubble.">
--          Shop, translate and identify what you see with your camera on the Chromium iOS app
-+          Shop, translate and identify what you see with your camera on the Ocbot iOS app
-         </message>
-         <message name="IDS_IOS_DESKTOP_LENS_PROMO_BUBBLE_TITLE_QR" desc="The title for the iOS desktop Lens promo bubble with a QR code.">
--          Try Google Lens with Chromium on your phone
-+          Try Google Lens with Ocbot on your phone
-         </message>
-         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_FOOTER_DESCRIPTION_QR" desc="The description for the iOS desktop password promo bubble footer which lets the user know how to use their saved passwords on their phone: follow the QR code, download Chrome for iOS and sign in to their account.">
--          To use your saved passwords, follow the QR code, download Chromium for iOS and sign in to your Google Account
-+          To use your saved passwords, follow the QR code, download Ocbot for iOS and sign in to your Google Account
-         </message>
-         <message name="IDS_IOS_DESKTOP_LENS_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Lens promo notification.">
--          Chromium Tip: Search With Lens
-+          Ocbot Tip: Search With Lens
-         </message>
-         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Password promo notification.">
--          Chromium Tip: Save Passwords
-+          Ocbot Tip: Save Passwords
-         </message>
-         <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_DESCRIPTION_QR" desc="The description for the iOS desktop price tracking promo bubble with a QR code.">
--          Download Chromium on your phone to track prices and get alerts when the price drops on any site
-+          Download Ocbot on your phone to track prices and get alerts when the price drops on any site
-         </message>
-         <message name="IDS_IOS_DESKTOP_PRICE_TRACKING_REMINDER_CONFIRMATION" desc="Body text of the promo bubble that appears after the user chooses to be reminded of price tracking on their iOS device.">
--          Next time you open Chromium on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you’ll see a prompt to enable price tracking alerts.
-+          Next time you open Ocbot on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you’ll see a prompt to enable price tracking alerts.
-         </message>
-         <message name="IDS_IOS_DESKTOP_SAFE_BROWSING_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Enhanced Safe Browsing promo notification.">
--          Chromium Tip: Enhanced Safe Browsing
-+          Ocbot Tip: Enhanced Safe Browsing
-         </message>
-         <message name="IDS_IOS_DESKTOP_TAB_GROUPS_PROMO_BUBBLE_DESCRIPTION_QR" desc="The description for the iOS desktop Tab Groups promo bubble with a QR code.">
--          Download Chromium on your phone to open or create new tab groups on the go.
-+          Download Ocbot on your phone to open or create new tab groups on the go.
-         </message>
-         <message name="IDS_IOS_DESKTOP_TAB_GROUPS_REMINDER_CONFIRMATION" desc="Body text of the promo bubble that appears after the user chooses to be reminded of tab groups on their iOS device.">
--          Next time you open Chromium on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you’ll see a prompt to use tab groups.
-+          Next time you open Ocbot on your <ph name="DEVICE_TYPE">$1<ex>iPhone</ex></ph>, you’ll see a prompt to use tab groups.
          </message>
        </if>
  
@@ -2714,17 +2556,3 @@ index 3f70a1d2b9d176c620cfd9bf08b75f2a154c72c0..5b44a97b093584df802af18272fecbcd
        </message>
        <message name="IDS_DEFAULT_SEARCH_ENGINE_RESET_NOTIFICATION_GOT_IT_BUTTON"
           desc="Label for the 'Got it' button in the default search engine reset notification, which dismisses the UI.">
-@@ -3178,11 +3178,11 @@ Chromium is unable to recover your settings.
-       </message>
- 
-       <!--Report-unsafe-site Dialog (accessed from Help menu)-->
--      <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE" desc="Title of the dialog for reporting an unsafe site to Chromium">
-+      <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE" desc="Title of the dialog for reporting an unsafe site to Ocbot">
-         Report this site
-       </message>
- 
--      <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_DESCRIPTION" desc="Explanatory text in dialog for reporting an unsafe site to Chromium">
-+      <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_DESCRIPTION" desc="Explanatory text in dialog for reporting an unsafe site to Ocbot">
-         Improve online safety for everyone when you report a site you think is harmful.
-       </message>
-     </messages>

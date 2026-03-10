@@ -1,8 +1,8 @@
 diff --git a/chrome/app/app-Info.plist b/chrome/app/app-Info.plist
-index e813de1e4e3649b509a9bf9246d6a9e29c72cd1d..1cc43fcaf8c8fc887a2db7273c5baee7714ff972 100644
+index 8142cf1c27c7c89971f0a74293e0f555bb4a3e89..3655f8f163f8d6dcb98328c22da1767bd11de445 100644
 --- a/chrome/app/app-Info.plist
 +++ b/chrome/app/app-Info.plist
-@@ -159,6 +159,8 @@
+@@ -151,6 +151,8 @@
  	<string>${CHROMIUM_SHORT_NAME}</string>
  	<key>CFBundlePackageType</key>
  	<string>APPL</string>

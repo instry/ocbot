@@ -8,7 +8,7 @@ from pathlib import Path
 
 try:
     from common import get_logger
-    from download import download_source
+    from download import init_chromium, create_worktree, list_worktrees, remove_worktree, sync_worktree
     from patch import apply_patches, reset_source, update_patches
     from build import build_chromium
     from run import run_chromium
@@ -50,16 +50,28 @@ def main():
     subparsers = parser.add_subparsers(dest='command', help='Command to run')
 
     # Check
-    parser_check = subparsers.add_parser('check', help='Check environment and recommend download method', parents=[parent_parser])
+    parser_check = subparsers.add_parser('check', help='Check environment and recommend setup steps', parents=[parent_parser])
 
-    # Download
-    parser_download = subparsers.add_parser('download', help='Download source code', parents=[parent_parser])
-    parser_download.add_argument('--version', help='Version to download (tarball method only)')
-    parser_download.add_argument('--method', choices=['tarball', 'depot', 'sync'], 
-                                default='tarball',
-                                help='Download method: tarball (quick) or depot (full dev) or sync (re-run gclient sync)')
-    parser_download.add_argument('--no-history', action='store_true',
-                                help='Fetch without git history (depot method only, reduces size)')
+    # Init (first-time chromium fetch)
+    parser_init = subparsers.add_parser('init', help='First-time Chromium setup (fetch to main/)', parents=[parent_parser])
+    parser_init.add_argument('--no-history', action='store_true',
+                             help='Fetch without git history (reduces download size)')
+
+    # Worktree management
+    parser_worktree = subparsers.add_parser('worktree', help='Manage version worktrees')
+    worktree_sub = parser_worktree.add_subparsers(dest='worktree_command', help='Worktree sub-command')
+
+    wt_create = worktree_sub.add_parser('create', help='Create a worktree for a Chromium version', parents=[parent_parser])
+    wt_create.add_argument('--version', help='Full Chromium version (e.g. 144.0.7559.132)')
+
+    wt_list = worktree_sub.add_parser('list', help='List all version worktrees', parents=[parent_parser])
+
+    wt_remove = worktree_sub.add_parser('remove', help='Remove a version worktree', parents=[parent_parser])
+    wt_remove.add_argument('major', help='Major version to remove (e.g. 144)')
+
+    # Sync
+    parser_sync = subparsers.add_parser('sync', help='Run gclient sync for a version worktree', parents=[parent_parser])
+    parser_sync.add_argument('--version', help='Full Chromium version (default: from VERSION file)')
 
     # Patch
     parser_patch = subparsers.add_parser('patch', help='Apply patches', parents=[parent_parser])
@@ -153,8 +165,19 @@ def main():
 
     logger = get_logger()
 
-    if args.command == 'download':
-        download_source(args)
+    if args.command == 'init':
+        init_chromium(args)
+    elif args.command == 'worktree':
+        if args.worktree_command == 'create':
+            create_worktree(args)
+        elif args.worktree_command == 'list':
+            list_worktrees(args)
+        elif args.worktree_command == 'remove':
+            remove_worktree(args)
+        else:
+            parser.parse_args(['worktree', '--help'])
+    elif args.command == 'sync':
+        sync_worktree(args)
     elif args.command == 'check':
         check_environment(args)
     elif args.command == 'patch':
@@ -168,16 +191,16 @@ def main():
             src_dir = Path(args.src_dir).resolve()
         else:
             src_dir = get_source_dir()
-        
-        if (src_dir / 'src').exists() and (src_dir / 'src').is_dir():
-            src_dir = src_dir / 'src'
+
+        # Auto-patch before build
+        apply_patches(args)
 
         # Install icons before build
         # Source: ocbot/chromium/icons
         # Dest: src/chrome/app/theme/chromium
         icons_src = get_project_root() / 'chromium' / 'icons'
         icons_dest = src_dir / 'chrome' / 'app' / 'theme' / 'chromium'
-        
+
         install_icons(icons_src, icons_dest)
         
         # Build extension

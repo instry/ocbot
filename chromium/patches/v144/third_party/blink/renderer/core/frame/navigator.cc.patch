@@ -1,17 +1,17 @@
 diff --git a/third_party/blink/renderer/core/frame/navigator.cc b/third_party/blink/renderer/core/frame/navigator.cc
-index fa76e30466faacf4018224562e08f832d5707eab..342d1cf2cb0fc3c8497c1eda35ebc1e2a0ad4a2d 100644
+index f8e3bb7712d31fd083082990e0bcb912097bd11f..b01694479dc9ab65687d4f1ff428bd01f6d00870 100644
 --- a/third_party/blink/renderer/core/frame/navigator.cc
 +++ b/third_party/blink/renderer/core/frame/navigator.cc
-@@ -35,6 +35,8 @@
- #include "third_party/blink/renderer/core/page/page.h"
+@@ -41,6 +41,8 @@
  #include "third_party/blink/renderer/core/probe/core_probes.h"
+ #include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
  #include "third_party/blink/renderer/platform/language.h"
 +#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 +#include "oc_fingerprint/fingerprint_manager.h"
  
  namespace blink {
  
-@@ -108,6 +110,22 @@ bool Navigator::webdriver() const {
+@@ -114,6 +116,22 @@ bool Navigator::webdriver() const {
  }
  
  String Navigator::GetAcceptLanguages() {

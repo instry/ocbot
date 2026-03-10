@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/core/geolocation/geolocation.cc b/third_party/blink/renderer/core/geolocation/geolocation.cc
-index b3c584fa93dcb33310f48dccda7dafba19a5a669..31412745571917e9cbcfac804c1707f433a1be41 100644
+index 5ba0744d960b4bca56273dadbf15b2341ffe0b50..65fb7b29d7870a5bff187883f7fe69a1c285e0d3 100644
 --- a/third_party/blink/renderer/core/geolocation/geolocation.cc
 +++ b/third_party/blink/renderer/core/geolocation/geolocation.cc
-@@ -52,6 +52,7 @@
+@@ -51,6 +51,7 @@
  #include "third_party/blink/renderer/core/timing/epoch_time_stamp.h"
  #include "third_party/blink/renderer/platform/bindings/source_location.h"
  #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -10,7 +10,7 @@ index b3c584fa93dcb33310f48dccda7dafba19a5a669..31412745571917e9cbcfac804c1707f4
  
  namespace blink {
  namespace {
-@@ -67,12 +68,23 @@ const char kFeaturePolicyConsoleWarning[] =
+@@ -65,12 +66,23 @@ const char kFeaturePolicyConsoleWarning[] =
  
  Geoposition* CreateGeoposition(
      const device::mojom::blink::Geoposition& position) {

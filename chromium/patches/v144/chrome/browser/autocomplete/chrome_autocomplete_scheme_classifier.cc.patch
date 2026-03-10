@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.cc b/chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.cc
-index 2f7ea50b69a46ee1bfabad3ceeeee8c6fc94a956..966923ef087c1afb0845100cfe21f824f7020097 100644
+index 3b46b2795f07d463decf4ba670b6987452b34d21..b059e462090c6719c065dfc5095e349fe119129a 100644
 --- a/chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.cc
 +++ b/chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.cc
 @@ -11,6 +11,7 @@
@@ -10,7 +10,7 @@ index 2f7ea50b69a46ee1bfabad3ceeeee8c6fc94a956..966923ef087c1afb0845100cfe21f824
  #include "components/custom_handlers/protocol_handler_registry.h"
  #include "content/public/common/url_constants.h"
  #include "url/url_util.h"
-@@ -72,7 +73,8 @@ ChromeAutocompleteSchemeClassifier::GetInputTypeForScheme(
+@@ -73,7 +74,8 @@ ChromeAutocompleteSchemeClassifier::GetInputTypeForScheme(
        (ProfileIOData::IsHandledProtocol(scheme) ||
         base::EqualsCaseInsensitiveASCII(scheme, content::kViewSourceScheme) ||
         base::EqualsCaseInsensitiveASCII(scheme, url::kJavaScriptScheme) ||
