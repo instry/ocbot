@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/core/BUILD.gn b/third_party/blink/renderer/core/BUILD.gn
-index c8135570f00e9bd737bd775478ea5a8642507d7a..1867cc9076bb09d6c9edafe155c4951629173180 100644
+index 0813930230f263520478e6fa0c7a3339e63cae52..ce71e174d20f0b745f51e8b4245d5ec150888f10 100644
 --- a/third_party/blink/renderer/core/BUILD.gn
 +++ b/third_party/blink/renderer/core/BUILD.gn
-@@ -439,6 +439,7 @@ component("core") {
+@@ -445,6 +445,7 @@ component("core") {
      "//ui/gfx/geometry",
      "//ui/gfx/geometry:geometry_skia",
      "//ui/strings",

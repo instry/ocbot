@@ -1,8 +1,8 @@
 diff --git a/components/embedder_support/BUILD.gn b/components/embedder_support/BUILD.gn
-index 595b42f9dff9bac01b03b3f48e5c4fb632119286..87a55d4422976fa2b2bbaf166fde98879e761d7b 100644
+index 660aeb47d9b125adad423e27c68541044c61191a..cbd8ccd41ec25fc5b0553d34e7fe0ce4a122646c 100644
 --- a/components/embedder_support/BUILD.gn
 +++ b/components/embedder_support/BUILD.gn
-@@ -64,6 +64,7 @@ static_library("user_agent") {
+@@ -65,6 +65,7 @@ static_library("user_agent") {
      "//net",
      "//third_party/blink/public/common:headers",
      "//ui/base",

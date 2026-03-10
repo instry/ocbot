@@ -1,5 +1,5 @@
 diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
-index 43d91211e346f1fb1b415adcb674a391da25f3be..45a5b3d6c0ffde7ca79fcfbbbf1f44d22624b86c 100644
+index 6ad685197a92cf501b2175127cbd9618919b1260..a352c81dc5d4f7f5ce00713f6c42bfb73560cf87 100644
 --- a/content/browser/renderer_host/render_process_host_impl.cc
 +++ b/content/browser/renderer_host/render_process_host_impl.cc
 @@ -3836,6 +3836,24 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(

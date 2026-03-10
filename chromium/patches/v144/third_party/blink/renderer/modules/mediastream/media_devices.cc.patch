@@ -1,5 +1,5 @@
 diff --git a/third_party/blink/renderer/modules/mediastream/media_devices.cc b/third_party/blink/renderer/modules/mediastream/media_devices.cc
-index 86a41c16dc22daa156d22dbc86e09471c4471323..9c10a7611890cccc2943abcfb5d3f129cee2e33a 100644
+index b4889339ffcf7d2313e005b8ff28d52098cfb95b..e4bc50838faa9dbdda6b8f0a55b2570a3116f782 100644
 --- a/third_party/blink/renderer/modules/mediastream/media_devices.cc
 +++ b/third_party/blink/renderer/modules/mediastream/media_devices.cc
 @@ -3,6 +3,7 @@
@@ -10,7 +10,7 @@ index 86a41c16dc22daa156d22dbc86e09471c4471323..9c10a7611890cccc2943abcfb5d3f129
  
  #include <algorithm>
  #include <utility>
-@@ -1288,18 +1289,67 @@ void MediaDevices::DevicesEnumerated(
+@@ -1285,18 +1286,67 @@ void MediaDevices::DevicesEnumerated(
      return;
    }
  
@@ -81,7 +81,7 @@ index 86a41c16dc22daa156d22dbc86e09471c4471323..9c10a7611890cccc2943abcfb5d3f129
                                mojom::blink::MediaDeviceType::kMediaAudioInput)]
                    .size(),
                audio_input_capabilities.size());
-@@ -1311,10 +1361,10 @@ void MediaDevices::DevicesEnumerated(
+@@ -1308,10 +1358,10 @@ void MediaDevices::DevicesEnumerated(
         i < static_cast<wtf_size_t>(
                 mojom::blink::MediaDeviceType::kNumMediaDeviceTypes);
         ++i) {

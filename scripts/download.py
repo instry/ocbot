@@ -2,39 +2,8 @@ import os
 import shutil
 import subprocess
 import sys
-import tarfile
-import urllib.request
 from pathlib import Path
-from common import get_logger, get_project_root, get_source_dir
-
-
-def _download_file(url, dest_path, logger):
-    """Download a file using urllib with progress reporting."""
-    def _progress(block_num, block_size, total_size):
-        if total_size > 0:
-            downloaded = block_num * block_size
-            pct = min(100, downloaded * 100 // total_size)
-            mb = downloaded / (1024 * 1024)
-            total_mb = total_size / (1024 * 1024)
-            sys.stdout.write(f"\r   {mb:.1f}/{total_mb:.1f} MB ({pct}%)")
-            sys.stdout.flush()
-
-    logger.info(f"Downloading {url}...")
-    urllib.request.urlretrieve(url, str(dest_path), reporthook=_progress)
-    print()  # newline after progress
-
-
-def _extract_tarball(archive_path, target_dir, logger):
-    """Extract a .tar.xz archive using the tarfile module."""
-    logger.info(f"Extracting {archive_path}...")
-    with tarfile.open(str(archive_path)) as tf:
-        tf.extractall(path=str(target_dir))
-
-
-def get_chromium_version():
-    """Read version from resources/chromium_version.txt"""
-    from common import get_chromium_version as common_get_version
-    return common_get_version()
+from common import get_logger, get_chromium_root, get_main_repo, get_source_dir, get_chromium_version
 
 
 def check_depot_tools():
@@ -45,26 +14,22 @@ def check_depot_tools():
 def init_depot_tools():
     """Initialize depot_tools by running gclient once"""
     logger = get_logger()
-    
+
     if not check_depot_tools():
         logger.error("depot_tools not found in PATH!")
         logger.info("Please install depot_tools first:")
         logger.info("  git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git")
         logger.info("  export PATH=\"$PATH:/path/to/depot_tools\"")
         return False
-    
-    # Check if already initialized
+
     try:
-        # Running --version is usually fast if already initialized
         result = subprocess.run(['gclient', '--version'], capture_output=True, text=True)
         if result.returncode == 0:
             logger.info(f"depot_tools is ready ({result.stdout.strip()})")
             return True
     except Exception:
-        # Ignore error here and proceed to explicit initialization
         pass
 
-    # Run gclient once to initialize
     logger.info("Initializing depot_tools...")
     try:
         result = subprocess.run(['gclient'], capture_output=True, text=True)
@@ -73,212 +38,262 @@ def init_depot_tools():
             return True
     except Exception as e:
         logger.error(f"Failed to initialize depot_tools: {e}")
-    
+
     return False
 
 
-def download_with_depot_tools(args, src_dir):
-    """Download source using depot_tools (fetch + gclient sync)"""
+def init_chromium(args):
+    """First-time setup: fetch chromium into chromium/main/"""
     logger = get_logger()
-    
+
     if not init_depot_tools():
         return False
-    
+
+    main_dir = get_main_repo()
+    main_src = main_dir / 'src'
+
     # Check if already fetched
-    if src_dir.exists() and (src_dir / '.git').exists():
-        logger.info("Source already fetched. Running gclient sync...")
-        return sync_with_depot_tools(args, src_dir)
-    
-    logger.info("Downloading source using depot_tools...")
-    logger.info("This will take a while (30GB+ source + dependencies)...")
-    
-    # Create and enter source directory
-    src_dir.mkdir(parents=True, exist_ok=True)
-    
-    logger.info(f"Preparing workspace at {src_dir}...")
-    os.chdir(src_dir)
-    
-    # Depot Tools mode enforces 'src' subdirectory
-    logger.warning("Depot Tools mode enforces 'src' subdirectory.")
-    logger.warning(f"Actual source will be in: {src_dir}/src")
-    
-    # Build fetch command
-    fetch_cmd = ['fetch', '--nohooks', 'chromium']
-    
-    if args.no_history:
-        fetch_cmd.insert(1, '--no-history')
-        logger.info("Using --no-history to reduce download size")
-    
-    logger.info(f"Running: {' '.join(fetch_cmd)}")
-    
-    try:
-        # Check if we are already in a gclient checkout
-        if (Path('.gclient').exists()):
-             logger.warning("Already inside a gclient checkout. Skipping fetch.")
-        else:
-            result = subprocess.run(fetch_cmd, check=False)
-            if result.returncode != 0:
-                # If fetch fails, it might be because the directory is not empty or partially initialized
-                # But sometimes fetch returns non-zero even if it did something useful or if we are re-running
-                logger.error("fetch command failed. If you are resuming, this might be expected.")
-                # We continue to sync regardless, as that's how we resume
-    except Exception as e:
-        logger.error(f"fetch failed: {e}")
-        return False
-    
-    # Now run gclient sync to get dependencies
-    # Even if fetch failed (or was skipped because of existing checkout), 
-    # we should try to sync, but only if .gclient exists or src/ exists
-    if not (src_dir / '.gclient').exists() and not (src_dir / 'src').exists():
-         logger.error("Source directory not found (no .gclient or src/). Please run fetch first or ensure directory is clean.")
-         return False
-
-    return sync_with_depot_tools(args, src_dir)
-
-
-def sync_with_depot_tools(args, build_dir):
-    """Sync dependencies using gclient sync"""
-    logger = get_logger()
-    src_dir = build_dir / 'src'
-    
-    # Check if .gclient exists in build_dir
-    if not (build_dir / '.gclient').exists() and not src_dir.exists():
-        logger.error("Source directory not found. Please run fetch first.")
-        return False
-    
-    os.chdir(build_dir)
-    
-    logger.info("Running gclient sync to download dependencies...")
-    logger.info("This downloads hundreds of third-party libraries (DEPS file)...")
-    
-    sync_cmd = ['gclient', 'sync']
-    
-    try:
-        result = subprocess.run(sync_cmd, check=False)
+    if main_src.exists() and (main_src / '.git').exists():
+        logger.info("Chromium already fetched in main/. Running gclient sync...")
+        os.chdir(main_dir)
+        result = subprocess.run(['gclient', 'sync'], check=False)
         if result.returncode != 0:
             logger.error("gclient sync failed")
             return False
-    except Exception as e:
-        logger.error(f"gclient sync failed: {e}")
+        logger.info("Sync complete.")
+        return True
+
+    logger.info("Fetching Chromium source into chromium/main/...")
+    logger.info("This will take a while (30GB+ source + dependencies)...")
+
+    main_dir.mkdir(parents=True, exist_ok=True)
+    os.chdir(main_dir)
+
+    # Check if .gclient already exists (partial fetch)
+    if (main_dir / '.gclient').exists():
+        logger.warning("Found existing .gclient. Resuming with gclient sync...")
+    else:
+        fetch_cmd = ['fetch', '--nohooks', 'chromium']
+        if getattr(args, 'no_history', False):
+            fetch_cmd.insert(1, '--no-history')
+            logger.info("Using --no-history to reduce download size")
+
+        logger.info(f"Running: {' '.join(fetch_cmd)}")
+        try:
+            result = subprocess.run(fetch_cmd, check=False)
+            if result.returncode != 0:
+                logger.warning("fetch returned non-zero. Attempting gclient sync to resume...")
+        except Exception as e:
+            logger.error(f"fetch failed: {e}")
+            return False
+
+    # Verify .gclient or src/ exists before syncing
+    if not (main_dir / '.gclient').exists() and not main_src.exists():
+        logger.error("No .gclient or src/ found after fetch. Something went wrong.")
         return False
-    
-    logger.info("✓ Source code and dependencies downloaded successfully!")
-    logger.info(f"Location: {src_dir}")
-    
+
+    logger.info("Running gclient sync...")
+    result = subprocess.run(['gclient', 'sync'], check=False)
+    if result.returncode != 0:
+        logger.error("gclient sync failed")
+        return False
+
+    logger.info(f"Chromium source ready at: {main_src}")
     return True
 
 
-def download_tarball(args, target_dir):
-    """Download source as tarball (quick method)"""
+def create_worktree(args):
+    """Create a git worktree for a specific Chromium version."""
     logger = get_logger()
-    
-    version = args.version or get_chromium_version()
+
+    version = getattr(args, 'version', None) or get_chromium_version()
     if not version:
         logger.error("Could not determine version. Please specify --version.")
         return False
-    
-    logger.info(f"Preparing to download Ocbot {version} (tarball method)...")
-    
-    base_url = "https://commondatastorage.googleapis.com/chromium-browser-official"
-    filename = f"chromium-{version}.tar.xz"
-    url = f"{base_url}/{filename}"
-    
-    # Prepare target directory
-    # If target_dir is 'chromium-123', we want contents DIRECTLY inside it
-    target_dir.mkdir(parents=True, exist_ok=True)
-    
-    dest_path = target_dir.parent / filename
-    
-    if dest_path.exists():
-        logger.info(f"File {filename} already exists. Skipping download.")
-    else:
-        logger.info("File size: ~1-2GB, this may take 10-30 minutes...")
-        try:
-            _download_file(url, dest_path, logger)
-            logger.info("✓ Download completed")
-        except Exception as e:
-            logger.warning(f"Download failed: {e}")
-            # Try lite version
-            filename = f"chromium-{version}-lite.tar.xz"
-            url = f"{base_url}/{filename}"
-            dest_path = target_dir.parent / filename
-            logger.info(f"Trying lite version: {url}")
-            try:
-                _download_file(url, dest_path, logger)
-                logger.info("✓ Lite version download completed")
-            except Exception as e2:
-                logger.error(f"Lite download failed too: {e2}")
-                return False
-    
-    # Extract
-    # Check if target dir is empty or looks like source
-    if (target_dir / 'chrome').exists():
-        logger.info(f"Target directory {target_dir} seems to already contain source. Skipping extraction.")
-    else:
-        logger.info(f"Extracting {dest_path}...")
-        logger.info("This may take several minutes...")
-        try:
-            # Tarball contains a root folder 'chromium-VERSION'
-            # We extract to parent of target_dir
-            _extract_tarball(dest_path, target_dir.parent, logger)
-            
-            # Identify the extracted folder name
-            extracted_name = filename.replace('.tar.xz', '')
-            extracted_path = target_dir.parent / extracted_name
-            
-            # If the extracted folder is different from target_dir, rename/move
-            if extracted_path != target_dir and extracted_path.exists():
-                logger.info(f"Moving contents to {target_dir}...")
-                
-                # If target dir is empty, we can just rename
-                try:
-                    # Remove empty target dir if created
-                    target_dir.rmdir() 
-                    extracted_path.rename(target_dir)
-                except OSError:
-                    # Fallback if target dir not empty or other error
-                    # shutil.move(str(extracted_path), str(target_dir))
-                    logger.warning(f"Could not rename {extracted_path} to {target_dir}. It might already exist.")
-                
-                logger.info("✓ Extraction completed")
-            elif extracted_path.exists():
-                 logger.info("✓ Extraction completed (matched target name)")
-            else:
-                logger.error(f"Could not find extracted directory {extracted_name}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Extraction failed: {e}")
-            return False
-    
-    logger.info(f"✓ Source code ready at: {target_dir}")
-    logger.warning("Note: Tarball method does NOT include third-party dependencies!")
-    
+
+    major = version.split('.')[0]
+    main_src = get_main_repo() / 'src'
+
+    if not main_src.exists() or not (main_src / '.git').exists():
+        logger.error("Main repo not found. Run 'dev.py init' first.")
+        return False
+
+    wt_root = get_chromium_root() / f'v{major}'
+    wt_src = wt_root / 'src'
+
+    if wt_src.exists():
+        logger.info(f"Worktree v{major} already exists at {wt_src}")
+        return True
+
+    # Fetch tags
+    logger.info("Fetching tags...")
+    subprocess.run(['git', 'fetch', '--tags'], cwd=main_src, check=False)
+
+    # Verify the tag exists
+    tag_found = False
+    for tag in [version, f"refs/tags/{version}"]:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--verify', tag],
+            cwd=main_src, capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            tag_found = True
+            break
+
+    if not tag_found:
+        logger.error(f"Tag {version} not found. Fetch may not have included it.")
+        return False
+
+    # Create worktree directory
+    wt_root.mkdir(parents=True, exist_ok=True)
+
+    # Create git worktree
+    logger.info(f"Creating worktree at {wt_src} from tag {version}...")
+    result = subprocess.run(
+        ['git', 'worktree', 'add', str(wt_src), version],
+        cwd=main_src, capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        logger.error(f"Failed to create worktree: {result.stderr}")
+        return False
+
+    # Create development branch
+    branch_name = f"ocbot_v{major}"
+    logger.info(f"Creating branch {branch_name}...")
+    result = subprocess.run(
+        ['git', 'checkout', '-b', branch_name],
+        cwd=wt_src, capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        # Branch may already exist
+        logger.warning(f"Could not create branch {branch_name}: {result.stderr.strip()}")
+        subprocess.run(['git', 'checkout', branch_name], cwd=wt_src, check=False)
+
+    # Generate .gclient for this worktree
+    gclient_content = f"""solutions = [{{
+  "name": "src",
+  "url": "https://chromium.googlesource.com/chromium/src.git@{version}",
+  "managed": False,
+  "custom_deps": {{}},
+  "custom_vars": {{}},
+}}]
+"""
+    gclient_path = wt_root / '.gclient'
+    gclient_path.write_text(gclient_content)
+    logger.info(f"Generated {gclient_path}")
+
+    # Run gclient sync
+    logger.info("Running gclient sync --nohooks for worktree...")
+    os.chdir(wt_root)
+    result = subprocess.run(['gclient', 'sync', '--nohooks'], check=False)
+    if result.returncode != 0:
+        logger.warning("gclient sync --nohooks returned non-zero. Dependencies may be incomplete.")
+
+    logger.info(f"Worktree v{major} created at {wt_src}")
     return True
 
 
-def download_source(args):
-    """Main download function - supports both methods"""
+def list_worktrees(args):
+    """List all version worktrees."""
     logger = get_logger()
-    
-    if args.src_dir:
-        src_dir = Path(args.src_dir).resolve()
+
+    main_src = get_main_repo() / 'src'
+    chromium_root = get_chromium_root()
+
+    print("Version worktrees:")
+    print("-" * 60)
+
+    # Use git worktree list if main repo exists
+    if main_src.exists() and (main_src / '.git').exists():
+        result = subprocess.run(
+            ['git', 'worktree', 'list'],
+            cwd=main_src, capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            for line in result.stdout.strip().splitlines():
+                print(f"  {line}")
+            print()
+
+    # Also scan for v* directories
+    if chromium_root.exists():
+        found = False
+        for d in sorted(chromium_root.iterdir()):
+            if d.is_dir() and d.name.startswith('v') and d.name[1:].isdigit():
+                src = d / 'src'
+                has_gclient = (d / '.gclient').exists()
+                has_src = src.exists()
+                status = "ok" if (has_gclient and has_src) else "incomplete"
+                print(f"  {d.name}: {d}  [{status}]")
+                found = True
+        if not found:
+            print("  (no version worktrees found)")
     else:
-        # Default: sibling directory with version
-        version = args.version or get_chromium_version()
-        src_dir = get_source_dir(version)
-        
-    logger.info(f"Target Source Directory: {src_dir}")
-    
-    # Determine download method
-    method = getattr(args, 'method', 'tarball')
-    
-    if method == 'depot':
-        return download_with_depot_tools(args, src_dir)
-    elif method == 'tarball':
-        return download_tarball(args, src_dir)
-    elif method == 'sync':
-        return sync_with_depot_tools(args, src_dir)
-    else:
-        logger.error(f"Unknown download method: {method}")
+        print("  (chromium directory not found)")
+
+
+def remove_worktree(args):
+    """Remove a version worktree."""
+    logger = get_logger()
+
+    major = args.major
+    if not major:
+        logger.error("Please specify the major version to remove (e.g. 144)")
         return False
+
+    main_src = get_main_repo() / 'src'
+    wt_root = get_chromium_root() / f'v{major}'
+    wt_src = wt_root / 'src'
+
+    if not wt_root.exists():
+        logger.error(f"Worktree directory v{major} not found.")
+        return False
+
+    # Remove git worktree
+    if main_src.exists() and (main_src / '.git').exists():
+        logger.info(f"Removing git worktree v{major}/src...")
+        result = subprocess.run(
+            ['git', 'worktree', 'remove', '--force', str(wt_src)],
+            cwd=main_src, capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            logger.warning(f"git worktree remove failed: {result.stderr.strip()}")
+            logger.info("Falling back to manual cleanup...")
+
+    # Remove the directory
+    if wt_root.exists():
+        logger.info(f"Removing directory {wt_root}...")
+        shutil.rmtree(wt_root)
+
+    logger.info(f"Worktree v{major} removed.")
+    return True
+
+
+def sync_worktree(args):
+    """Run gclient sync for a version worktree."""
+    logger = get_logger()
+
+    version = getattr(args, 'version', None) or get_chromium_version()
+    if version:
+        major = version.split('.')[0]
+        wt_root = get_chromium_root() / f'v{major}'
+    else:
+        # Try main
+        wt_root = get_main_repo()
+
+    if not wt_root.exists():
+        logger.error(f"Directory not found: {wt_root}")
+        return False
+
+    if not (wt_root / '.gclient').exists() and not (wt_root / 'src').exists():
+        logger.error(f"No .gclient or src/ found in {wt_root}")
+        return False
+
+    logger.info(f"Running gclient sync in {wt_root}...")
+    os.chdir(wt_root)
+    result = subprocess.run(['gclient', 'sync'], check=False)
+    if result.returncode != 0:
+        logger.error("gclient sync failed")
+        return False
+
+    logger.info("Sync complete.")
+    return True

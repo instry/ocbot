@@ -1,5 +1,5 @@
 diff --git a/third_party/blink/renderer/core/frame/navigator_language.cc b/third_party/blink/renderer/core/frame/navigator_language.cc
-index 75cd3461317b7df6bcf666c24d8b14a1e631f2a1..ee5e7b4984fb25dc455f4432a2f671a7355fad84 100644
+index 4907ba005a08a576abe1d9f6bd0c4077f178cc34..0ca016df6686ab4b95b2f38f7e7cbf980c960394 100644
 --- a/third_party/blink/renderer/core/frame/navigator_language.cc
 +++ b/third_party/blink/renderer/core/frame/navigator_language.cc
 @@ -11,6 +11,7 @@
@@ -10,7 +10,7 @@ index 75cd3461317b7df6bcf666c24d8b14a1e631f2a1..ee5e7b4984fb25dc455f4432a2f671a7
  
  namespace blink {
  
-@@ -87,14 +88,23 @@ void NavigatorLanguage::EnsureUpdatedLanguage() {
+@@ -88,14 +89,23 @@ void NavigatorLanguage::EnsureUpdatedLanguage() {
      languages_ = ParseAndSanitize(GetAcceptLanguages());
      // Reduce the Accept-Language if the ReduceAcceptLanguage deprecation
      // trial is not enabled and feature flag ReduceAcceptLanguage is enabled.

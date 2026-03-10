@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/actions/chrome_action_id.h b/chrome/browser/ui/actions/chrome_action_id.h
-index f7c15a7a9682eeb684ba7ebe9b5da1e3e073c264..0a9b266813531bcefbbd8d07197705dc6349dfa1 100644
+index 9da2b68be3f3a5b98f3c7ec604352143f6bcac07..f7c38e64d2f259b23e82b5be84a800ef6f2a00ad 100644
 --- a/chrome/browser/ui/actions/chrome_action_id.h
 +++ b/chrome/browser/ui/actions/chrome_action_id.h
-@@ -573,7 +573,8 @@
+@@ -565,7 +565,8 @@
    E(kActionSidePanelShowShoppingInsights) \
    E(kActionSidePanelShowSideSearch) \
    E(kActionSidePanelShowUserNote) \

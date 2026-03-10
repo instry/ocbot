@@ -1,5 +1,5 @@
 diff --git a/services/network/network_context.cc b/services/network/network_context.cc
-index 7e784ecaa70358f861764077882c9421ad793f38..cb2c8562c5c802186378ea9989cc96974a663687 100644
+index 48d5d5c0eb741ea1bb9b1f25233574716a77b49a..45f17ec2a8752f5c4a184d1c78e2d5e677e71fab 100644
 --- a/services/network/network_context.cc
 +++ b/services/network/network_context.cc
 @@ -4,6 +4,8 @@
@@ -11,7 +11,7 @@ index 7e784ecaa70358f861764077882c9421ad793f38..cb2c8562c5c802186378ea9989cc9697
  #include <algorithm>
  #include <memory>
  #include <optional>
-@@ -2966,6 +2968,13 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
+@@ -2969,6 +2971,13 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
  #endif  // BUILDFLAG(ENABLE_REPORTING)
  
    net::HttpNetworkSessionParams session_params;

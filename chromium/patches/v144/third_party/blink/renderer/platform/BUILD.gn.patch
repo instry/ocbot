@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/platform/BUILD.gn b/third_party/blink/renderer/platform/BUILD.gn
-index 878869ec15e97201f8aa557e30590a3c170a468c..14f073dbf9732a811169e1f378089baa73f1417d 100644
+index 49d07b1c0cbebcdb4d7587d1d564ba7c73939007..4af31deabc745bde6f0efda27201b89c7914bccf 100644
 --- a/third_party/blink/renderer/platform/BUILD.gn
 +++ b/third_party/blink/renderer/platform/BUILD.gn
-@@ -176,6 +176,7 @@ group("make_platform_generated") {
+@@ -175,6 +175,7 @@ group("make_platform_generated") {
      "//third_party/blink/public/common:buildflags",
      "//third_party/blink/renderer/platform/heap:blink_heap_buildflags",
      "//third_party/blink/renderer/platform/network:make_generated",
@@ -10,7 +10,7 @@ index 878869ec15e97201f8aa557e30590a3c170a468c..14f073dbf9732a811169e1f378089baa
    ]
  }
  
-@@ -1859,6 +1860,7 @@ component("platform") {
+@@ -1855,6 +1856,7 @@ component("platform") {
      "//ui/gfx/mojom",
      "//ui/gl:buildflags",
      "//ui/native_theme",

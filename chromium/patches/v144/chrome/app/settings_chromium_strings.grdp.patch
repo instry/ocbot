@@ -1,5 +1,5 @@
 diff --git a/chrome/app/settings_chromium_strings.grdp b/chrome/app/settings_chromium_strings.grdp
-index 0ff62147019be7309ae76ef3ae071d9f969e4e37..e15eeb0f9460465c89a3a7f924d4c6b65464fdea 100644
+index ad21e4aa6a52698227b1b3656149ec7ca5fd2acc..f9ceb214a516238832d989f5663b0edb7747e286 100644
 --- a/chrome/app/settings_chromium_strings.grdp
 +++ b/chrome/app/settings_chromium_strings.grdp
 @@ -1,10 +1,10 @@
@@ -15,7 +15,7 @@ index 0ff62147019be7309ae76ef3ae071d9f969e4e37..e15eeb0f9460465c89a3a7f924d4c6b6
      </message>
    </if>
    <!-- About Page -->
-@@ -18,99 +18,99 @@
+@@ -18,109 +18,109 @@
        </message>
      </then>
      <else>
@@ -112,9 +112,23 @@ index 0ff62147019be7309ae76ef3ae071d9f969e4e37..e15eeb0f9460465c89a3a7f924d4c6b6
    </message>
  
    <!-- Enhanced autofill Page-->
-   <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_CAN_FILL_DIFFICULT_FIELDS" desc="Bullet point that appears beneath the 'When on' title when seeing the Enhanced Autofill description page. This string explains one of the advantages users will get from enabling the feature and serves as a way to incentivize the user to do so.">
--    Chromium can autofill difficult fields that standard autofill might miss
-+    Ocbot can autofill difficult fields that standard autofill might miss
+   <message name="IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION" desc="The description of the enhanced autofill button on chrome://settings/autofill.">
+-    Chromium understands forms better and can autofill them faster for you
++    Ocbot understands forms better and can autofill them faster for you
+   </message>
+   <message name="IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION_FEATURE_ON" desc="The sublabel of the enhanced autofill row on chrome://settings/ai when the enhanced autofill feature is on.
+ ">
+-Chromium understands forms better and can autofill them faster for you. This setting is on.
++Ocbot understands forms better and can autofill them faster for you. This setting is on.
+   </message>
+   <message name="IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION_FEATURE_OFF" desc="The sublabel of the enhanced autofill row on chrome://settings/ai when the enhanced autofill feature is off.">
+-Chromium understands forms better and can autofill them faster for you. This setting is off.
++Ocbot understands forms better and can autofill them faster for you. This setting is off.
+   </message>
+-  <message name="IDS_SETTINGS_AUTOFILL_AI_TOGGLE_SUB_LABEL" desc="The description of the setting. By 'understand forms better', we mean that when a user submits a form on a website, and if they're using enhanced autofill, this feature can offer to save the user's submitted info. When Chromium saves that info, we save the submitted values and consider the page context.">
+-    Chromium understands forms better and can autofill them faster for you
++  <message name="IDS_SETTINGS_AUTOFILL_AI_TOGGLE_SUB_LABEL" desc="The description of the setting. By 'understand forms better', we mean that when a user submits a form on a website, and if they're using enhanced autofill, this feature can offer to save the user's submitted info. When Ocbot saves that info, we save the submitted values and consider the page context.">
++    Ocbot understands forms better and can autofill them faster for you
    </message>
 -  <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_USE_TO_FILL"  desc="Bullet 2 of 2 that appears beneath the “When on” title. “Later”: this is a two-step feature. 1) data is saved, 2) it becomes valuable to the user later when they want to fill in a form with similar data. “Chromium can ask”: the user has a choice, every time, whether their data is saved and also whether they want to autofill their saved info into forms.">
 -    Later, Chromium can ask if you want to use saved info to autofill forms for you
@@ -153,7 +167,7 @@ index 0ff62147019be7309ae76ef3ae071d9f969e4e37..e15eeb0f9460465c89a3a7f924d4c6b6
      </message>
      <if expr="_is_chrome_for_testing_branded">
        <then>
-@@ -119,8 +119,8 @@
+@@ -129,8 +129,8 @@ Chromium understands forms better and can autofill them faster for you. This set
          </message>
        </then>
        <else>
@@ -164,7 +178,7 @@ index 0ff62147019be7309ae76ef3ae071d9f969e4e37..e15eeb0f9460465c89a3a7f924d4c6b6
          </message>
        </else>
      </if>
-@@ -128,350 +128,350 @@
+@@ -138,352 +138,352 @@ Chromium understands forms better and can autofill them faster for you. This set
  
    <!-- Preloading Page-->
    <message name="IDS_SETTINGS_PRELOAD_PAGES_STANDARD_PRELOADING_WHEN_ON_BULLET_TWO" desc="Bullet point in the standard preloading and when on column. Informs the user about what the standard preloading setting does.">
@@ -456,6 +470,12 @@ index 0ff62147019be7309ae76ef3ae071d9f969e4e37..e15eeb0f9460465c89a3a7f924d4c6b6
 -    Only someone with your passphrase can read your encrypted data. The passphrase is not sent to or stored by Google. If you forget your passphrase or want to change this setting, you’ll need to <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>delete the Chromium data in your account<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
 +    Only someone with your passphrase can read your encrypted data. The passphrase is not sent to or stored by Google. If you forget your passphrase or want to change this setting, you’ll need to <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>delete the Ocbot data in your account<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
    </message>
+ <if expr="not is_chromeos">
+   <message name="IDS_SETTINGS_ENCRYPT_ACCOUNT_DATA_WITH_PASSPHRASE_WALLET_LABEL" desc="Label for the radio button which, when selected, causes synced settings to be encrypted with a user-provided password.">
+-    Use your <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>own passphrase<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph> to encrypt all the Chromium data in your Google Account. Addresses and any data saved in Google Wallet won’t be encrypted by your passphrase. Browsing history from Chromium won’t sync.
++    Use your <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>own passphrase<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph> to encrypt all the Ocbot data in your Google Account. Addresses and any data saved in Google Wallet won’t be encrypted by your passphrase. Browsing history from Ocbot won’t sync.
+   </message>
+ </if>
    <message name="IDS_SETTINGS_PASSPHRASE_RESET_HINT_ACCOUNT_DATA_ENCRYPTION" desc="Informs user how to change their encryption setting.">
 -    If you forgot your passphrase or want to change this setting, <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>delete the Chromium data in your account<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>
 +    If you forgot your passphrase or want to change this setting, <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>delete the Ocbot data in your account<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>
@@ -598,10 +618,6 @@ index 0ff62147019be7309ae76ef3ae071d9f969e4e37..e15eeb0f9460465c89a3a7f924d4c6b6
    <message name="IDS_SETTINGS_SECURITY_PASSWORDS_LEAK_DETECTION_DESC" desc="Text that briefly describes the 'Password Leak Detection' feature.">
 -    Get warned if Chromium finds one of your passwords in a public data breach
 +    Get warned if Ocbot finds one of your passwords in a public data breach
-   </message>
-   <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_HOW_IT_WORKS_CONTENT" desc="Content of the Safe Browsing standard protection column describing how it works">
--    When you visit a site, Chromium sends an obfuscated portion of the URL to <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://safebrowsing.google.com/"&gt;</ph>Google Safe Browsing<ph name="END_LINK">&lt;/a&gt;</ph> through a privacy server that hides your IP address. If a site does something suspicious, full URLs and bits of page content are also sent.
-+    When you visit a site, Ocbot sends an obfuscated portion of the URL to <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://safebrowsing.google.com/"&gt;</ph>Google Safe Browsing<ph name="END_LINK">&lt;/a&gt;</ph> through a privacy server that hides your IP address. If a site does something suspicious, full URLs and bits of page content are also sent.
    </message>
  
    <!-- Secure connections -->

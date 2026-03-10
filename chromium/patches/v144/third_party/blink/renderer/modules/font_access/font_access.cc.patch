@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/modules/font_access/font_access.cc b/third_party/blink/renderer/modules/font_access/font_access.cc
-index 3fd2acdb1f3cf6059d62c8cfeae638d60dc16f4a..f19b914da4f6876e22efdf8e10fcce7ad2fae33c 100644
+index 427b5a905aeaee9771fb430bdeaeea81a9cff95a..38a7a84a4b34883ee62c93272a95fea65f67d937 100644
 --- a/third_party/blink/renderer/modules/font_access/font_access.cc
 +++ b/third_party/blink/renderer/modules/font_access/font_access.cc
-@@ -22,6 +22,7 @@
+@@ -23,6 +23,7 @@
  #include "third_party/blink/renderer/core/frame/local_frame.h"
  #include "third_party/blink/renderer/modules/font_access/font_metadata.h"
  #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -10,7 +10,7 @@ index 3fd2acdb1f3cf6059d62c8cfeae638d60dc16f4a..f19b914da4f6876e22efdf8e10fcce7a
  
  namespace blink {
  
-@@ -161,6 +162,20 @@ void FontAccess::DidGetEnumerationResponse(
+@@ -157,6 +158,20 @@ void FontAccess::DidGetEnumerationResponse(
        continue;
      }
  

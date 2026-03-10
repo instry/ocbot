@@ -1,8 +1,8 @@
 diff --git a/net/BUILD.gn b/net/BUILD.gn
-index 6ea3f02025d04480826a2ed542dbbb39eeb65369..1866b9e0c8919b496c0188b03a777e85a50e425e 100644
+index 0a78202f61958c78af90984049a7d4ee78801074..d6a89bdc0aba7520d6ae3253f13bd3e8e306e3b4 100644
 --- a/net/BUILD.gn
 +++ b/net/BUILD.gn
-@@ -1200,6 +1200,7 @@ component("net") {
+@@ -1178,6 +1178,7 @@ component("net") {
    }
  
    deps = [

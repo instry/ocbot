@@ -1,8 +1,8 @@
 diff --git a/chrome/app/theme/chrome_unscaled_resources.grd b/chrome/app/theme/chrome_unscaled_resources.grd
-index 18fdde153e08a72eb3d60ba91a8eee023e58253c..d0de4f52987f0580c3b94d97d385f97bf0e258f2 100644
+index 590a4a77ba9222b1f350967af801897de30b95a6..703822a8f2f168f8f5c111ea4dc30bf0d64313f1 100644
 --- a/chrome/app/theme/chrome_unscaled_resources.grd
 +++ b/chrome/app/theme/chrome_unscaled_resources.grd
-@@ -91,6 +91,7 @@
+@@ -93,6 +93,7 @@
              <include name="IDR_PRODUCT_LOGO_24_SHORTCUTS" file="chromium/product_logo_24.png" type="BINDATA" />
              <include name="IDR_PRODUCT_LOGO_64_SHORTCUTS" file="chromium/product_logo_64.png" type="BINDATA" />
              <include name="IDR_PRODUCT_LOGO_128_SHORTCUTS" file="chromium/product_logo_128.png" type="BINDATA" />

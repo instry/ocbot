@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-index 05d871ec6a28ca14bc706edb7088754af843fbcb..444db6a2494906e0fa52c8ea8fa8631acdefc955 100644
+index eee0ccf1b6dd897158b7ebb993bc3863d21f83c6..8819d5882354a90f7af2ad75602a832ed409270c 100644
 --- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
-@@ -59,6 +59,7 @@
+@@ -57,6 +57,7 @@
  #include "chrome/common/chrome_switches.h"
  #include "chrome/common/chrome_version.h"
  #include "chrome/common/pref_names.h"
@@ -10,7 +10,7 @@ index 05d871ec6a28ca14bc706edb7088754af843fbcb..444db6a2494906e0fa52c8ea8fa8631a
  #include "chrome/common/webui_url_constants.h"
  #include "components/custom_handlers/protocol_handler_registry.h"
  #include "components/prefs/pref_service.h"
-@@ -570,7 +571,8 @@ StartupBrowserCreatorImpl::DetermineStartupTabs(
+@@ -501,7 +502,8 @@ StartupBrowserCreatorImpl::DetermineStartupTabs(
        return {std::move(tabs), launch_result};
      }
  
@@ -20,7 +20,7 @@ index 05d871ec6a28ca14bc706edb7088754af843fbcb..444db6a2494906e0fa52c8ea8fa8631a
              launch_result};
    }
  
-@@ -705,7 +707,7 @@ Browser* StartupBrowserCreatorImpl::RestoreOrCreateBrowser(
+@@ -637,7 +639,7 @@ Browser* StartupBrowserCreatorImpl::RestoreOrCreateBrowser(
    browser = OpenTabsInBrowser(
        browser, process_startup,
        (tabs.empty()
@@ -29,7 +29,7 @@ index 05d871ec6a28ca14bc706edb7088754af843fbcb..444db6a2494906e0fa52c8ea8fa8631a
             : tabs),
        (behavior == BrowserOpenBehavior::USE_EXISTING_AND_OVERWRITE_ACTIVE_TAB
             ? (TabOverWrite::kYes)
-@@ -747,7 +749,8 @@ StartupBrowserCreatorImpl::DetermineBrowserOpenBehavior(
+@@ -679,7 +681,8 @@ StartupBrowserCreatorImpl::DetermineBrowserOpenBehavior(
      // Don't perform a session restore on a post-crash launch, as this could
      // cause a crash loop.
      if (!(options & IS_POST_CRASH_LAUNCH)) {
