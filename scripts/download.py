@@ -157,6 +157,14 @@ def create_worktree(args):
         logger.error(f"Failed to create worktree: {result.stderr}")
         return False
 
+    # Create base branch explicitly for reference
+    base_branch = f"base_{version}"
+    logger.info(f"Creating base branch {base_branch} for reference...")
+    subprocess.run(
+        ['git', 'branch', base_branch, version],
+        cwd=wt_src, check=False
+    )
+
     # Create development branch
     branch_name = f"ocbot_v{major}"
     logger.info(f"Creating branch {branch_name}...")
