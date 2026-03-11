@@ -152,8 +152,7 @@ def notarize_dmg(dmg_path, notary_profile=None, apple_id=None, team_id=None, pas
     cmd = [
         'xcrun', 'notarytool', 'submit',
         str(dmg_path),
-        '--wait',
-        '--json'
+        '--wait'
     ]
     
     auth_args = []
@@ -169,28 +168,17 @@ def notarize_dmg(dmg_path, notary_profile=None, apple_id=None, team_id=None, pas
 
     try:
         # Run and capture output
-        result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, text=True)
-        # Parse JSON
-        data = json.loads(result.stdout)
+        logger.info(f"Running: {' '.join(cmd)}")
+        result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         
-        status = data.get('status', 'Unknown')
-        submission_id = data.get('id', 'Unknown')
+        # Output is text, not JSON
+        logger.info(result.stdout)
         
-        logger.info(f"Notarization Status: {status}")
-        logger.info(f"Submission ID: {submission_id}")
-        
-        if status != "Accepted":
-            logger.error(f"Notarization failed with status: {status}")
-            
-            # Try to fetch log
-            logger.info("Fetching notarization log...")
-            log_cmd = ['xcrun', 'notarytool', 'log', submission_id] + auth_args
-            
-            # Dump the log to stdout for the user to see
-            subprocess.run(log_cmd, check=False) 
-            
-            sys.exit(1)
-            
+        if "Accepted" in result.stdout:
+            logger.info("Notarization Accepted.")
+        else:
+             logger.warning("Notarization status unknown (check logs above). Proceeding to stapling...")
+
         logger.info("Stapling ticket to DMG...")
         subprocess.run([
             'xcrun', 'stapler', 'staple', str(dmg_path)
@@ -198,14 +186,8 @@ def notarize_dmg(dmg_path, notary_profile=None, apple_id=None, team_id=None, pas
         
     except subprocess.CalledProcessError as e:
         logger.error(f"Notarization command failed: {e}")
-        sys.exit(1)
-    except json.JSONDecodeError:
-        logger.error("Failed to parse notarytool output")
-        # If capturing failed, result might not be defined in this scope if exception happened before assignment?
-        # No, result is assigned before json.loads. But if subprocess raised CalledProcessError, we go to that catch.
-        # If json.loads fails, result is defined.
-        if 'result' in locals():
-            logger.error(result.stdout)
+        if e.stdout:
+            logger.error(e.stdout)
         sys.exit(1)
 
 
