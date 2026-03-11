@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root, get_agent_root
 
@@ -92,6 +93,20 @@ def run_chromium(args):
     # Pass through extra args
     if hasattr(args, 'args') and args.args:
         cmd.extend(args.args)
+
+    # Check if --user-data-dir is already provided
+    has_user_data_dir = False
+    for arg in cmd:
+        if arg.startswith('--user-data-dir'):
+            has_user_data_dir = True
+            break
+    
+    if not has_user_data_dir:
+        # Default to a dev profile in temp directory to avoid conflicts with stable installation
+        dev_profile = Path(tempfile.gettempdir()) / "ocbot-dev-profile"
+        dev_profile.mkdir(parents=True, exist_ok=True)
+        cmd.append(f"--user-data-dir={dev_profile}")
+        logger.info(f"Using dev profile: {dev_profile}")
 
     logger.info(f"Launching Ocbot...")
     logger.info(f"Command: {' '.join(cmd)}")
