@@ -9,10 +9,8 @@ import { ensureAttached, sendCdp } from './cdp'
 import {
   type AgentReplayStep,
   toolCallToReplayStep,
-  getConfigSignature,
 } from './agentCache'
-import { matchSkill, matchAutoSkill } from '@/lib/skills/matcher'
-import { createAutoSkill } from '@/lib/skills/create'
+import { matchSkill } from '@/lib/skills/matcher'
 import { SkillStore } from '@/lib/skills/store'
 import { SkillRunner } from '@/lib/skills/runner'
 import type { Skill, SkillMatch, SkillParameter } from '@/lib/skills/types'
@@ -97,7 +95,6 @@ export async function runAgentLoop(
     }
   }
   const startUrl = pageContext?.url || ''
-  const configSig = getConfigSignature(provider)
   const skillStore = new SkillStore()
   console.log(`${TAG} instruction: "${userInstruction}"`)
   console.log(`${TAG} page: ${startUrl || '(no page)'}`)
@@ -228,40 +225,6 @@ export async function runAgentLoop(
     }
   }
 
-  // --- Auto-skill replay (replaces AgentCache) ---
-  if (userInstruction) {
-    const autoSkill = await matchAutoSkill(userInstruction, configSig, startUrl, skillStore)
-    if (autoSkill?.steps.length) {
-      console.log(`${TAG} 🔄 Auto-skill hit, replaying ${autoSkill.steps.length} steps`)
-      const runner = new SkillRunner(skillStore)
-      const result = await runner.executeFastTrackOnly(
-        autoSkill,
-        {},
-        provider,
-        cache!,
-        {
-          onStepStart: (i, step) => callbacks.onToolCallStart(`replay_${i}`, step.type),
-          onStepEnd: (i, step, res) => callbacks.onToolCallEnd(`replay_${i}`, step.type, res),
-          onTrackSwitch: () => {},
-          onHeal: () => {},
-          onTextDelta: callbacks.onTextDelta,
-        },
-        signal,
-        variables,
-      )
-
-      if (result.success) {
-        console.log(`${TAG} ✅ Auto-skill replay completed`)
-        console.groupEnd()
-        callbacks.onTextDelta('Task completed successfully (from auto-skill).')
-        callbacks.onAssistantMessage('Task completed successfully (from auto-skill).', [])
-        return
-      }
-      // Auto-skill failed — fall through to normal LLM loop
-      console.log(`${TAG} ❌ Auto-skill replay failed, falling back to LLM`)
-    }
-  }
-
   // --- Normal LLM loop ---
   console.log(`${TAG} 🤖 Entering LLM loop`)
 
@@ -351,11 +314,6 @@ export async function runAgentLoop(
       console.groupEnd() // turn
       console.log(`${TAG} ⏱ Agent finished in ${(performance.now() - t0).toFixed(0)}ms`)
       console.groupEnd() // agent
-      // Store recorded steps as auto-skill
-      if (userInstruction && recordedSteps.length > 0) {
-        const autoSkill = createAutoSkill(userInstruction, recordedSteps, startUrl, configSig)
-        await skillStore.saveAutoSkill(autoSkill)
-      }
       // Expose recorded steps for "Save as Skill"
       if (recordedSteps.length > 0 && userInstruction && callbacks.onRecordedSteps) {
         callbacks.onRecordedSteps(recordedSteps, userInstruction, startUrl)
@@ -462,13 +420,9 @@ export async function runAgentLoop(
     console.groupEnd() // turn
   }
 
-  // Safety limit reached — store what we have and send final message
+  // Safety limit reached
   console.log(`${TAG} ⚠ Safety limit (${MAX_TURNS} turns) reached`)
   console.groupEnd() // agent
-  if (userInstruction && recordedSteps.length > 0) {
-    const autoSkill = createAutoSkill(userInstruction, recordedSteps, startUrl, configSig)
-    await skillStore.saveAutoSkill(autoSkill)
-  }
   if (recordedSteps.length > 0 && userInstruction && callbacks.onRecordedSteps) {
     callbacks.onRecordedSteps(recordedSteps, userInstruction, startUrl)
   }
