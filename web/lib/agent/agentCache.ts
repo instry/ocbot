@@ -1,11 +1,12 @@
 import type { ActionStep } from './cache'
 import type { FormField } from './fillForm'
+import type { CapturedExchange } from './networkCapture'
 import { logDebug } from '@/lib/debug/eventLog'
 
 // --- Types ---
 
 export type AgentReplayStep =
-  | { type: 'act'; instruction: string; actions: ActionStep[]; primitive?: boolean }
+  | { type: 'act'; instruction: string; actions: ActionStep[]; primitive?: boolean; apiCalls?: CapturedExchange[] }
   | { type: 'fillForm'; fields: FormField[]; actions: ActionStep[]; primitive?: boolean }
   | { type: 'navigate'; url: string; primitive?: boolean }
   | { type: 'scroll'; direction: string; primitive?: boolean }
@@ -219,7 +220,8 @@ export function toolCallToReplayStep(
       if (!instruction && parsed?.description) {
         instruction = parsed.description as string
       }
-      return { type: 'act', instruction, actions }
+      const apiCalls = parsed?.apiCalls as CapturedExchange[] | undefined
+      return { type: 'act', instruction, actions, ...(apiCalls?.length && { apiCalls }) }
     }
     case 'fillForm': {
       const fields = (args.fields || []) as FormField[]

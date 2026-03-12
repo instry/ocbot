@@ -275,6 +275,7 @@ export async function executeTool(
           status,
           selfHealed: result.selfHealed,
           noEffect: result.noEffect,
+          ...(result.capturedExchanges?.length && { apiCalls: result.capturedExchanges }),
         })
       }
       case 'extract': {

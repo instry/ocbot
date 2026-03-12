@@ -6,6 +6,7 @@ import { inferActions, inferStepTwo } from './inference'
 import { ensureAttached, sendCdp } from './cdp'
 import { diffTrees } from './diff'
 import { logDebug } from '@/lib/debug/eventLog'
+import { NetworkCapture, type CapturedExchange } from './networkCapture'
 
 export interface ActOptions {
   /** When true, verify click actions had an effect via diffTrees */
@@ -20,6 +21,8 @@ export interface ActResult {
   selfHealed: boolean
   /** Set when a click action had no observable effect (only during skillReplay) */
   noEffect?: boolean
+  /** API calls captured during action execution (Phase 1 recording) */
+  capturedExchanges?: CapturedExchange[]
 }
 
 async function getActiveTabId(): Promise<number> {
@@ -547,6 +550,9 @@ export async function act(
   }
 
   // 3. Execute actions (with twoStep support)
+  const capture = new NetworkCapture()
+  await capture.start(tabId)
+
   const allActions: ActionStep[] = []
   let allSuccess = true
 
@@ -570,12 +576,15 @@ export async function act(
         if (healed) {
           const healReplay = await replayActions(tabId, healed.actions, verifyClicks)
           if (healReplay.success) {
+            let healExchanges: CapturedExchange[] = []
+            try { healExchanges = await capture.stop(tabId) } catch {}
             return {
               success: true,
               actions: healed.actions,
               description: healed.description,
               cacheHit: false,
               selfHealed: true,
+              capturedExchanges: healExchanges.length > 0 ? healExchanges : undefined,
             }
           }
         }
@@ -587,11 +596,22 @@ export async function act(
 
   console.log(`[ocbot:act] result: ${allSuccess ? '✓' : '✗'}`)
 
+  let capturedExchanges: CapturedExchange[] = []
+  try {
+    capturedExchanges = await capture.stop(tabId)
+  } catch (err) {
+    console.log('[ocbot:act] network capture stop failed:', err)
+  }
+  if (capturedExchanges.length > 0) {
+    console.log(`[ocbot:act] captured ${capturedExchanges.length} API call(s)`)
+  }
+
   return {
     success: allSuccess,
     actions: allActions,
     description: inferResult.description,
     cacheHit: false,
     selfHealed: false,
+    capturedExchanges: capturedExchanges.length > 0 ? capturedExchanges : undefined,
   }
 }
