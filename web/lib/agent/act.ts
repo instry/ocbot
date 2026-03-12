@@ -488,7 +488,6 @@ export async function act(
 
     if (replay.success) {
       console.log('[ocbot:act] ✓ XPath replay succeeded')
-      await cache.update(instruction, url, replay.updatedActions)
       return {
         success: true,
         actions: replay.updatedActions,
@@ -508,9 +507,6 @@ export async function act(
     }
 
     const healReplay = await replayActions(tabId, healed.actions, verifyClicks)
-    if (healReplay.success) {
-      await cache.update(instruction, url, healed.actions)
-    }
 
     return {
       success: healReplay.success,
@@ -574,7 +570,6 @@ export async function act(
         if (healed) {
           const healReplay = await replayActions(tabId, healed.actions, verifyClicks)
           if (healReplay.success) {
-            await cache.store(instruction, url, healed.actions, healed.description)
             return {
               success: true,
               actions: healed.actions,
@@ -591,10 +586,6 @@ export async function act(
   }
 
   console.log(`[ocbot:act] result: ${allSuccess ? '✓' : '✗'}`)
-
-  if (allSuccess) {
-    await cache.store(instruction, url, allActions, inferResult.description)
-  }
 
   return {
     success: allSuccess,
