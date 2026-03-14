@@ -1,0 +1,18 @@
+diff --git a/extensions/browser/process_manager.cc b/extensions/browser/process_manager.cc
+index 49e64253b1abbbb46cc1c1fe75e26f9b3c1e667b..2ececac4b967bfbda8bec61b5ab22c4858568af6 100644
+--- a/extensions/browser/process_manager.cc
++++ b/extensions/browser/process_manager.cc
+@@ -730,6 +730,13 @@ base::Uuid ProcessManager::IncrementServiceWorkerKeepaliveCount(
+   DCHECK(extension);
+   DCHECK(BackgroundInfo::IsServiceWorkerBased(extension));
+ 
++  // Component extensions should never have their service workers
++  // idle-terminated, as they may maintain long-lived connections.
++  if (extension->location() == mojom::ManifestLocation::kComponent) {
++    timeout_type =
++        content::ServiceWorkerExternalRequestTimeoutType::kDoesNotTimeout;
++  }
++
+   base::Uuid request_uuid = base::Uuid::GenerateRandomV4();
+ 
+ 
