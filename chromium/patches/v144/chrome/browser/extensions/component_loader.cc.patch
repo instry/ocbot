@@ -25,6 +25,7 @@ index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..e6ad3ae062115a1fcca157bc625a694d
  #include "chrome/browser/extensions/profile_util.h"
 +#include "chrome/browser/ocbot/browser_updater.h"
 +#include "chrome/browser/ocbot/extension_updater.h"
++#include "services/network/public/cpp/simple_url_loader.h"
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/common/channel_info.h"
  #include "chrome/common/chrome_paths.h"
