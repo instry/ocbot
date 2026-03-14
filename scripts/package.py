@@ -193,12 +193,21 @@ def notarize_dmg(dmg_path, notary_profile=None, apple_id=None, team_id=None, pas
 
 def package_dmg(args):
     """Create a .dmg from the built .app bundle."""
-    if getattr(args, 'src_dir', None):
-        src_dir = Path(args.src_dir).resolve()
-    else:
-        src_dir = get_source_dir()
+    app_path = None
+    if getattr(args, 'app_path', None):
+        p = Path(args.app_path).resolve()
+        if p.exists():
+            app_path = p
+        else:
+            logger.error(f"App bundle not found: {p}")
+            sys.exit(1)
 
-    app_path = _find_app(src_dir, is_official=getattr(args, 'official', False))
+    if not app_path:
+        if getattr(args, 'src_dir', None):
+            src_dir = Path(args.src_dir).resolve()
+        else:
+            src_dir = get_source_dir()
+        app_path = _find_app(src_dir, is_official=getattr(args, 'official', False))
     app_name, _plist_version = _read_plist(app_path)
     product_version = get_product_version()
     logger.info(f"Packaging {app_name} ({product_version}) from {app_path}")
