@@ -19,7 +19,7 @@ index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..e6ad3ae062115a1fcca157bc625a694d
  #include "base/trace_event/trace_event.h"
  #include "base/values.h"
  #include "build/branding_buildflags.h"
-@@ -28,6 +31,8 @@
+@@ -28,6 +31,9 @@
  #include "chrome/browser/extensions/component_loader_factory.h"
  #include "chrome/browser/extensions/data_deleter.h"
  #include "chrome/browser/extensions/profile_util.h"
