@@ -10,6 +10,7 @@ index 0000000000000000000000000000000000000000..0b01f9175c4084fbf0a77bdb704aa77b
 +#include "chrome/browser/ocbot/browser_updater.h"
 +
 +#include "base/logging.h"
++#include "services/network/public/cpp/simple_url_loader.h"
 +
 +namespace ocbot {
 +
