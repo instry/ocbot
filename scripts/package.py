@@ -377,6 +377,47 @@ def _stage_files(out_dir, staging_dir):
         if src.exists():
             shutil.copy2(src, staging_dir / extra)
 
+# VC++ Redistributable download URL (VS 2015-2022, x64)
+_VCREDIST_URL = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+
+def _ensure_vcredist(staging_dir):
+    """Ensure vc_redist.x64.exe is available in deps/ alongside staging dir.
+
+    The Inno Setup script references {#SourceDir}\\..\\deps\\vc_redist.x64.exe,
+    so we place it at <staging_parent>/deps/vc_redist.x64.exe.
+    """
+    deps_dir = Path(staging_dir).parent / 'deps'
+    deps_dir.mkdir(exist_ok=True)
+    vcredist = deps_dir / 'vc_redist.x64.exe'
+
+    if vcredist.exists():
+        logger.info(f"VC++ Redistributable already present: {vcredist}")
+        return
+
+    # Check project-local cache first (scripts/installer/win/deps/)
+    cached = get_project_root() / 'scripts' / 'installer' / 'win' / 'deps' / 'vc_redist.x64.exe'
+    if cached.exists():
+        logger.info(f"Using cached VC++ Redistributable: {cached}")
+        shutil.copy2(cached, vcredist)
+        return
+
+    # Download from Microsoft
+    logger.info(f"Downloading VC++ Redistributable from {_VCREDIST_URL}...")
+    try:
+        import urllib.request
+        urllib.request.urlretrieve(_VCREDIST_URL, vcredist)
+        size_mb = vcredist.stat().st_size / (1024 * 1024)
+        logger.info(f"Downloaded vc_redist.x64.exe ({size_mb:.1f} MB)")
+
+        # Cache for future builds
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(vcredist, cached)
+        logger.info(f"Cached to {cached}")
+    except Exception as e:
+        logger.warning(f"Failed to download VC++ Redistributable: {e}")
+        logger.warning("Install may fail on systems without VC++ Runtime.")
+        logger.warning(f"Manually download from {_VCREDIST_URL} and place at {cached}")
+
 def _create_inno_installer(staging_dir, dist_dir, version):
     """Create Inno Setup installer."""
     # Check for ISCC
@@ -391,10 +432,13 @@ def _create_inno_installer(staging_dir, dist_dir, version):
             if os.path.exists(p):
                 iscc = p
                 break
-    
+
     if not iscc:
         logger.warning("Inno Setup Compiler (ISCC) not found. Skipping installer creation.")
         return
+
+    # Ensure VC++ Redistributable is available for bundling
+    _ensure_vcredist(staging_dir)
 
     iss_file = get_project_root() / 'scripts' / 'installer' / 'win' / 'setup.iss'
     if not iss_file.exists():
@@ -410,7 +454,7 @@ def _create_inno_installer(staging_dir, dist_dir, version):
         f"/F{output_name}",
         str(iss_file)
     ]
-    
+
     logger.info(f"Running Inno Setup: {' '.join(cmd)}")
     try:
         subprocess.run(cmd, check=True)

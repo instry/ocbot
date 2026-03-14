@@ -10,4 +10,5 @@ backup/
 .apple.json
 dist/
 scripts/installer/win/Output/
+scripts/installer/win/deps/
 
