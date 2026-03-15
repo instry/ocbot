@@ -193,9 +193,6 @@ def main():
         else:
             src_dir = get_source_dir()
 
-        # Auto-patch before build
-        apply_patches(args)
-
         # Install icons before build
         # Source: ocbot/chromium/icons
         # Dest: src/chrome/app/theme/chromium
