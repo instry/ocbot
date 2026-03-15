@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/extension_updater.cc b/chrome/browser/ocbot/extension_updater.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..4fd74abf64ffd79a45aa61c4192cbe8de50c6ab8
+index 0000000000000000000000000000000000000000..0cd0f0360cfc05d446ee16d3f03a84fa3f5d1234
 --- /dev/null
 +++ b/chrome/browser/ocbot/extension_updater.cc
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,409 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -44,7 +44,6 @@ index 0000000000000000000000000000000000000000..4fd74abf64ffd79a45aa61c4192cbe8d
 +constexpr char kGitHubReleasesApiUrl[] =
 +    "https://api.github.com/repos/instry/ocbot/releases/latest";
 +constexpr char kZipAssetName[] = "ocbot-extension.zip";
-+constexpr char kUpdateDirName[] = "ocbot-extension";
 +
 +// First check 30 seconds after startup.
 +constexpr base::TimeDelta kInitialDelay = base::Seconds(30);
@@ -403,7 +402,7 @@ index 0000000000000000000000000000000000000000..4fd74abf64ffd79a45aa61c4192cbe8d
 +  if (!base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
 +    return base::FilePath();
 +  }
-+  return user_data_dir.Append(FILE_PATH_LITERAL(kUpdateDirName));
++  return user_data_dir.Append(FILE_PATH_LITERAL("ocbot-extension"));
 +}
 +
 +network::mojom::URLLoaderFactory*
