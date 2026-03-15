@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/extensions/component_loader.cc b/chrome/browser/extensions/component_loader.cc
-index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..e6ad3ae062115a1fcca157bc625a694d5dd12040 100644
+index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..e0c9c0b88650a933d5a98e3d06249dc10576cb50 100644
 --- a/chrome/browser/extensions/component_loader.cc
 +++ b/chrome/browser/extensions/component_loader.cc
 @@ -12,13 +12,16 @@
@@ -19,17 +19,20 @@ index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..e6ad3ae062115a1fcca157bc625a694d
  #include "base/trace_event/trace_event.h"
  #include "base/values.h"
  #include "build/branding_buildflags.h"
-@@ -28,6 +31,9 @@
+@@ -28,6 +31,12 @@
  #include "chrome/browser/extensions/component_loader_factory.h"
  #include "chrome/browser/extensions/data_deleter.h"
  #include "chrome/browser/extensions/profile_util.h"
 +#include "chrome/browser/ocbot/browser_updater.h"
 +#include "chrome/browser/ocbot/extension_updater.h"
++<<<<<<< ours
++=======
 +#include "services/network/public/cpp/simple_url_loader.h"
++>>>>>>> theirs
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/common/channel_info.h"
  #include "chrome/common/chrome_paths.h"
-@@ -514,6 +519,93 @@ void ComponentLoader::AddDefaultComponentExtensions(
+@@ -514,6 +523,93 @@ void ComponentLoader::AddDefaultComponentExtensions(
      Add(pdf_extension_util::GetManifest(),
          base::FilePath(FILE_PATH_LITERAL("pdf")));
  #endif  // BUILDFLAG(ENABLE_PDF)

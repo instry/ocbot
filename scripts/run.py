@@ -16,7 +16,7 @@ def _sync_extension(logger, out_dir):
 
     if sys.platform == 'win32':
         # Windows: extension goes alongside the exe
-        dest = out_dir / 'ocbot_extension'
+        dest = out_dir / 'ocbot'
     else:
         # macOS: extension goes into Framework Resources
         app_dir = out_dir / 'Ocbot.app'
@@ -83,12 +83,7 @@ def run_chromium(args):
     # so hot-updated / bundled versions are skipped and OTA updater is disabled.
     extension_dev_path = get_agent_root() / '.output' / 'chrome-mv3'
     if extension_dev_path.exists():
-        if executable.name.lower() == 'chrome.exe':
-            # Vanilla Chromium uses standard flag
-            cmd.append(f'--load-extension={extension_dev_path}')
-        else:
-            # Ocbot uses custom flag
-            cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
+        cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
 
     # Pass through extra args
     if hasattr(args, 'args') and args.args:

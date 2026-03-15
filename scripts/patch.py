@@ -221,13 +221,31 @@ def reset_source(args):
     if (src_dir / '.git').exists():
         logger.info("Git repository detected. Using git to reset...")
         try:
+            # Determine the base ref (tag) to reset to
+            base_ref = getattr(args, 'base', None)
+            if not base_ref:
+                from common import get_chromium_version
+                version = get_chromium_version()
+                if version:
+                    # Try to resolve version tag
+                    for tag in [version, f"refs/tags/{version}", f"v{version}"]:
+                        result = subprocess.run(
+                            ['git', 'rev-parse', '--verify', tag],
+                            cwd=src_dir, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            base_ref = tag
+                            break
+
+            if base_ref:
+                logger.info(f"Resetting to base tag: {base_ref}")
+                subprocess.run(['git', 'reset', '--hard', base_ref], cwd=src_dir, check=True)
+            else:
+                logger.info("No base tag found. Resetting to HEAD...")
+                subprocess.run(['git', 'reset', '--hard'], cwd=src_dir, check=True)
+
             # git clean -fd (exclude ignored files like out/)
             logger.info("Cleaning untracked files (git clean -fd)...")
             subprocess.run(['git', 'clean', '-fd'], cwd=src_dir, check=True)
-
-            # git reset --hard
-            logger.info("Discarding changes (git reset --hard)...")
-            subprocess.run(['git', 'reset', '--hard'], cwd=src_dir, check=True)
 
             # Also reset sub-repos (third_party deps with their own .git)
             subrepo_dirs = _find_subrepo_dirs(src_dir)
