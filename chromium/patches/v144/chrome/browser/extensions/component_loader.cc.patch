@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/extensions/component_loader.cc b/chrome/browser/extensions/component_loader.cc
-index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..e0c9c0b88650a933d5a98e3d06249dc10576cb50 100644
+index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..4f299d03b9025b5b02742fd6185a05dcb2cb14d3 100644
 --- a/chrome/browser/extensions/component_loader.cc
 +++ b/chrome/browser/extensions/component_loader.cc
 @@ -12,13 +12,16 @@
