@@ -111,6 +111,34 @@ def apply_patches(args):
     if not src_dir:
         return
 
+    patches, patches_dir = _get_patches_list(logger)
+    if not patches:
+        return
+
+    # Quick check: are patches already applied?
+    # Sample a few .patch files with reverse-check to detect if source is already patched.
+    patch_files = [p for p in patches if p.endswith('.patch') or p.endswith('.diff')]
+    if patch_files:
+        sample = patch_files[:3] + patch_files[-2:]  # check first 3 and last 2
+        all_applied = True
+        for patch_name in sample:
+            patch_file = patches_dir / patch_name
+            if not patch_file.exists():
+                continue
+            # Determine apply directory
+            subrepo_prefix = '.subrepos' + os.sep
+            if patch_name.startswith(subrepo_prefix) or patch_name.startswith('.subrepos/'):
+                # Skip sub-repo patches for quick check
+                continue
+            cmd_check = ['git', 'apply', '--check', '--reverse', '--ignore-whitespace', '-p1', str(patch_file)]
+            result = subprocess.run(cmd_check, cwd=src_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                all_applied = False
+                break
+        if all_applied:
+            logger.info("Patches already applied. Skipping.")
+            return
+
     logger.info("Applying patches...")
 
     patches, patches_dir = _get_patches_list(logger)
