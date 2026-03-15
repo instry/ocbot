@@ -457,7 +457,7 @@ def update_patches(args):
         # Generate diff against BASE
         cmd_diff = ['git', 'diff', '--binary', '--full-index', base_ref, '--', file_path]
 
-        diff_result = subprocess.run(cmd_diff, cwd=src_dir, capture_output=True, text=True)
+        diff_result = subprocess.run(cmd_diff, cwd=src_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
 
         if diff_result.returncode != 0:
             logger.error(f"Failed to generate diff for {file_path}: {diff_result.stderr}")
