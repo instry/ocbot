@@ -1,3 +1,4 @@
+import json
 import subprocess
 import shutil
 import sys
@@ -236,6 +237,236 @@ def apply_patches(args):
              logger.debug(f"[{i+1}/{len(patches)}] {patch_name} (applied)")
 
     logger.info("All patches applied successfully.")
+
+    # Save manifest so repatch can detect future changes
+    src_dir = _get_src_dir(args)
+    if src_dir:
+        manifest = {}
+        for patch_name in patches:
+            patch_file = patches_dir / patch_name
+            h = _compute_file_hash(patch_file)
+            if h:
+                manifest[patch_name] = h
+        _save_manifest(src_dir, manifest)
+        logger.info("Patch manifest saved for incremental repatch.")
+
+def _get_base_ref(args, src_dir):
+    """Resolve the base git ref (tag) for the source directory."""
+    base_ref = getattr(args, 'base', None)
+    if base_ref:
+        return base_ref
+    from common import get_chromium_version
+    version = get_chromium_version()
+    if version:
+        for tag in [version, f"refs/tags/{version}", f"v{version}"]:
+            result = subprocess.run(
+                ['git', 'rev-parse', '--verify', tag],
+                cwd=src_dir, capture_output=True, text=True)
+            if result.returncode == 0:
+                return tag
+    return None
+
+
+def _extract_patch_targets(patch_file):
+    """Extract target file paths from a patch file's --- a/ and +++ b/ lines."""
+    targets = set()
+    try:
+        content = patch_file.read_text(encoding='utf-8', errors='replace')
+    except Exception:
+        return targets
+    for line in content.splitlines():
+        if line.startswith('+++ b/'):
+            rel = line[6:]
+            if rel != '/dev/null':
+                targets.add(rel)
+        elif line.startswith('--- a/'):
+            rel = line[6:]
+            if rel != '/dev/null':
+                targets.add(rel)
+    return targets
+
+
+def _compute_file_hash(path):
+    """Compute MD5 hash of a file."""
+    import hashlib
+    h = hashlib.md5()
+    try:
+        h.update(path.read_bytes())
+    except Exception:
+        return None
+    return h.hexdigest()
+
+
+def _manifest_path(src_dir):
+    return src_dir / '.ocbot_patch_manifest.json'
+
+
+def _load_manifest(src_dir):
+    mp = _manifest_path(src_dir)
+    if mp.exists():
+        try:
+            return json.loads(mp.read_text())
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_manifest(src_dir, manifest):
+    _manifest_path(src_dir).write_text(json.dumps(manifest, indent=2))
+
+
+def repatch_source(args):
+    """Incrementally re-apply only changed patches (avoids full recompilation)."""
+    logger = get_logger()
+    src_dir = _get_src_dir(args)
+    if not src_dir:
+        return
+
+    if not (src_dir / '.git').exists():
+        logger.error("No .git directory found. Cannot repatch.")
+        return
+
+    base_ref = _get_base_ref(args, src_dir)
+    if not base_ref:
+        logger.error("Could not determine base ref. Use --base <tag>.")
+        return
+
+    patches, patches_dir = _get_patches_list(logger)
+    if not patches_dir:
+        logger.error("Patches directory not found.")
+        return
+
+    old_manifest = _load_manifest(src_dir)
+    new_manifest = {}
+
+    # Build current patch hash map
+    for patch_name in patches:
+        patch_file = patches_dir / patch_name
+        h = _compute_file_hash(patch_file)
+        if h:
+            new_manifest[patch_name] = h
+
+    # Determine what changed
+    changed = []
+    added = []
+    removed = []
+
+    for name, h in new_manifest.items():
+        if name not in old_manifest:
+            added.append(name)
+        elif old_manifest[name] != h:
+            changed.append(name)
+
+    for name in old_manifest:
+        if name not in new_manifest:
+            removed.append(name)
+
+    if not changed and not added and not removed:
+        logger.info("All patches are up to date. Nothing to do.")
+        # Still save manifest in case it was missing
+        _save_manifest(src_dir, new_manifest)
+        return
+
+    logger.info(f"Patch changes: {len(added)} added, {len(changed)} modified, {len(removed)} removed")
+
+    # Collect files that need to be reset to base
+    files_to_reset = set()
+    patches_to_apply = []
+
+    for patch_name in removed:
+        patch_file = patches_dir / patch_name
+        is_patch = patch_name.endswith('.patch') or patch_name.endswith('.diff')
+        if is_patch:
+            # We need the old patch to know which files to reset.
+            # But the patch file is gone. Try to find the target from the source file path.
+            # The convention is: <source_path>.patch -> source_path
+            source_rel = patch_name
+            if source_rel.endswith('.patch'):
+                source_rel = source_rel[:-6]
+            elif source_rel.endswith('.diff'):
+                source_rel = source_rel[:-5]
+            files_to_reset.add(source_rel)
+        else:
+            # It was a copied file, delete it from source
+            target = src_dir / patch_name
+            if target.exists():
+                target.unlink()
+                logger.info(f"Removed: {patch_name}")
+
+    for patch_name in changed + added:
+        patch_file = patches_dir / patch_name
+        is_patch = patch_name.endswith('.patch') or patch_name.endswith('.diff')
+        if is_patch:
+            targets = _extract_patch_targets(patch_file)
+            files_to_reset.update(targets)
+            patches_to_apply.append(patch_name)
+        else:
+            # Source file copy - just overwrite
+            dest = src_dir / patch_name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(patch_file, dest)
+            logger.info(f"Copied: {patch_name}")
+
+    # Reset only the affected files to base
+    if files_to_reset:
+        logger.info(f"Resetting {len(files_to_reset)} source files to {base_ref}...")
+        # git checkout in batches to avoid argument length limits
+        file_list = sorted(files_to_reset)
+        batch_size = 50
+        for i in range(0, len(file_list), batch_size):
+            batch = file_list[i:i + batch_size]
+            cmd = ['git', 'checkout', base_ref, '--'] + batch
+            result = subprocess.run(cmd, cwd=src_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                # Some files may be new (not in base), that's OK
+                for f in batch:
+                    cmd_single = ['git', 'checkout', base_ref, '--', f]
+                    r = subprocess.run(cmd_single, cwd=src_dir, capture_output=True, text=True)
+                    if r.returncode != 0:
+                        # File doesn't exist in base - it's a new file from a patch, remove it
+                        target = src_dir / f
+                        if target.exists():
+                            target.unlink()
+
+    # Apply changed/added patches
+    applied = 0
+    for patch_name in patches_to_apply:
+        patch_file = patches_dir / patch_name
+        # Handle sub-repo patches
+        subrepo_prefix = '.subrepos' + os.sep
+        if patch_name.startswith(subrepo_prefix) or patch_name.startswith('.subrepos/'):
+            after_prefix = patch_name.split('.subrepos/', 1)[1] if '.subrepos/' in patch_name else patch_name.split(subrepo_prefix, 1)[1]
+            parts = Path(after_prefix).parts
+            subrepo_path = None
+            for j in range(1, len(parts)):
+                candidate = str(Path(*parts[:j]))
+                if (src_dir / candidate / '.git').exists():
+                    subrepo_path = candidate
+                    break
+            apply_dir = (src_dir / subrepo_path) if subrepo_path else src_dir
+        else:
+            apply_dir = src_dir
+
+        _normalize_crlf(patch_file, apply_dir)
+        cmd = ['git', 'apply', '--ignore-whitespace', '-p1', str(patch_file)]
+        result = subprocess.run(cmd, cwd=apply_dir, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            # Check if already applied
+            cmd_check = ['git', 'apply', '--check', '--reverse', '--ignore-whitespace', '-p1', str(patch_file)]
+            result_check = subprocess.run(cmd_check, cwd=apply_dir, capture_output=True, text=True)
+            if result_check.returncode == 0:
+                logger.info(f"  {patch_name} (already applied)")
+                applied += 1
+            else:
+                logger.error(f"Failed to apply {patch_name}: {result.stderr}")
+        else:
+            logger.info(f"  {patch_name} (applied)")
+            applied += 1
+
+    _save_manifest(src_dir, new_manifest)
+    logger.info(f"Repatch complete: {applied} patches applied, {len(files_to_reset)} files touched.")
+
 
 def reset_source(args):
     logger = get_logger()
