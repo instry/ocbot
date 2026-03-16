@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/browser_updater.cc b/chrome/browser/ocbot/browser_updater.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..574147a65b09635518ddce4dfb0cc163ffa8d443
+index 0000000000000000000000000000000000000000..8ae00613673870ba6e5f5810efa9c14b5a6212c0
 --- /dev/null
 +++ b/chrome/browser/ocbot/browser_updater.cc
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,19 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -14,8 +14,7 @@ index 0000000000000000000000000000000000000000..574147a65b09635518ddce4dfb0cc163
 +
 +namespace ocbot {
 +
-+OcbotBrowserUpdater::OcbotBrowserUpdater(Profile* profile)
-+    : profile_(profile) {}
++OcbotBrowserUpdater::OcbotBrowserUpdater() = default;
 +
 +OcbotBrowserUpdater::~OcbotBrowserUpdater() = default;
 +

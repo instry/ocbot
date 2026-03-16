@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/BUILD.gn b/chrome/browser/ocbot/BUILD.gn
 new file mode 100644
-index 0000000000000000000000000000000000000000..bbfaeb6c86d579bf49e57628eef3e2c991b7b7d6
+index 0000000000000000000000000000000000000000..d9fa337017a70ab7ca98cdcb34659b1436ebb17d
 --- /dev/null
 +++ b/chrome/browser/ocbot/BUILD.gn
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,29 @@
 +# Copyright 2025 The Ocbot Authors
 +# SPDX-License-Identifier: MIT
 +
@@ -22,7 +22,6 @@ index 0000000000000000000000000000000000000000..bbfaeb6c86d579bf49e57628eef3e2c9
 +
 +  deps = [
 +    "//base",
-+    "//chrome/browser/profiles:profile",
 +    "//chrome/common",
 +    "//components/version_info",
 +    "//content/public/browser",

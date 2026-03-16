@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/browser_updater.mm b/chrome/browser/ocbot/browser_updater.mm
 new file mode 100644
-index 0000000000000000000000000000000000000000..8870babe901bd94eef724bcf6321fd05c85eeea1
+index 0000000000000000000000000000000000000000..9e9b11d3bddbdecc8b309ebb1bde5748d239b1e9
 --- /dev/null
 +++ b/chrome/browser/ocbot/browser_updater.mm
-@@ -0,0 +1,413 @@
+@@ -0,0 +1,408 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -26,14 +26,12 @@ index 0000000000000000000000000000000000000000..8870babe901bd94eef724bcf6321fd05
 +#include "base/strings/sys_string_conversions.h"
 +#include "base/task/thread_pool.h"
 +#include "base/version.h"
-+#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/net/system_network_context_manager.h"
 +#include "components/version_info/version_info.h"
 +#include "content/public/browser/browser_thread.h"
-+#include "content/public/browser/storage_partition.h"
 +#include "net/base/load_flags.h"
 +#include "net/traffic_annotation/network_traffic_annotation.h"
 +#include "services/network/public/cpp/resource_request.h"
-+#include "services/network/public/cpp/shared_url_loader_factory.h"
 +#include "services/network/public/cpp/simple_url_loader.h"
 +#include "services/network/public/mojom/fetch_api.mojom.h"
 +#include "services/network/public/mojom/url_loader_factory.mojom.h"
@@ -227,8 +225,7 @@ index 0000000000000000000000000000000000000000..8870babe901bd94eef724bcf6321fd05
 +
 +}  // namespace
 +
-+OcbotBrowserUpdater::OcbotBrowserUpdater(Profile* profile)
-+    : profile_(profile) {}
++OcbotBrowserUpdater::OcbotBrowserUpdater() = default;
 +
 +OcbotBrowserUpdater::~OcbotBrowserUpdater() = default;
 +
@@ -411,9 +408,7 @@ index 0000000000000000000000000000000000000000..8870babe901bd94eef724bcf6321fd05
 +
 +network::mojom::URLLoaderFactory*
 +OcbotBrowserUpdater::GetURLLoaderFactory() {
-+  return profile_->GetDefaultStoragePartition()
-+      ->GetURLLoaderFactoryForBrowserProcess()
-+      .get();
++  return SystemNetworkContextManager::GetInstance()->GetURLLoaderFactory();
 +}
 +
 +}  // namespace ocbot
