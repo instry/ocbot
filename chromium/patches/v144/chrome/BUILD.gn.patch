@@ -1,0 +1,30 @@
+diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
+index fa036801ce974378c5fb586bcf0609da24dd8547..dff9b7f3a9f428ff23cd9dd5c3f4013808b429f8 100644
+--- a/chrome/BUILD.gn
++++ b/chrome/BUILD.gn
+@@ -86,12 +86,12 @@ if (is_win) {
+     # initialexe/ is used so that the we can reorder imports and write back to
+     # the final destination at $root_out_dir/.
+     inputs = [
+-      "$root_out_dir/initialexe/chrome.exe",
+-      "$root_out_dir/initialexe/chrome.exe.pdb",
++      "$root_out_dir/initialexe/ocbot.exe",
++      "$root_out_dir/initialexe/ocbot.exe.pdb",
+     ]
+     outputs = [
+-      "$root_out_dir/chrome.exe",
+-      "$root_out_dir/chrome.exe.pdb",
++      "$root_out_dir/ocbot.exe",
++      "$root_out_dir/ocbot.exe.pdb",
+     ]
+     args = [
+       "-i",
+@@ -149,7 +149,7 @@ if (!is_android && !is_mac) {
+   }
+ 
+   if (is_win) {
+-    _chrome_output_name = "initialexe/chrome"
++    _chrome_output_name = "initialexe/ocbot"
+   } else {
+     _chrome_output_name = "chrome"
+   }

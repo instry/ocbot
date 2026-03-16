@@ -1,0 +1,37 @@
+diff --git a/chrome/common/chrome_constants.cc b/chrome/common/chrome_constants.cc
+index 298138e77b9f6c5f86b404d8aa02993c09b0ae0f..322701666517fbc27a01c8312445f2385d823e69 100644
+--- a/chrome/common/chrome_constants.cc
++++ b/chrome/common/chrome_constants.cc
+@@ -33,9 +33,9 @@ const char kChromeVersion[] = CHROME_VERSION_STRING;
+ 
+ #if BUILDFLAG(IS_WIN)
+ const base::FilePath::CharType kBrowserProcessExecutableName[] =
+-    FPL("chrome.exe");
++    FPL("ocbot.exe");
+ const base::FilePath::CharType kHelperProcessExecutableName[] =
+-    FPL("chrome.exe");
++    FPL("ocbot.exe");
+ #elif BUILDFLAG(IS_MAC)
+ const base::FilePath::CharType kBrowserProcessExecutableName[] =
+     FPL(PRODUCT_FULLNAME_STRING);
+@@ -55,9 +55,9 @@ const base::FilePath::CharType kHelperProcessExecutableName[] = FPL("exe");
+ 
+ #if BUILDFLAG(IS_WIN)
+ const base::FilePath::CharType kBrowserProcessExecutablePath[] =
+-    FPL("chrome.exe");
++    FPL("ocbot.exe");
+ const base::FilePath::CharType kHelperProcessExecutablePath[] =
+-    FPL("chrome.exe");
++    FPL("ocbot.exe");
+ #elif BUILDFLAG(IS_MAC)
+ const base::FilePath::CharType kBrowserProcessExecutablePath[] =
+     FPL(PRODUCT_FULLNAME_STRING ".app/Contents/MacOS/" PRODUCT_FULLNAME_STRING);
+@@ -92,7 +92,7 @@ const char kMacHelperSuffixAlerts[] = " (Alerts)";
+ const base::FilePath::CharType kBrowserResourcesDll[] = FPL("chrome.dll");
+ const base::FilePath::CharType kElfDll[] = FPL("chrome_elf.dll");
+ const base::FilePath::CharType kStatusTrayWindowClass[] =
+-    FPL("Chrome_StatusTrayWindow");
++    FPL("Ocbot_StatusTrayWindow");
+ #endif  // BUILDFLAG(IS_WIN)
+ 
+ const char kInitialProfile[] = "Default";
