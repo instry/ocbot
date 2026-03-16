@@ -1,0 +1,13 @@
+diff --git a/chrome/installer/mini_installer/BUILD.gn b/chrome/installer/mini_installer/BUILD.gn
+index 5f9acdb7f355036ba23859ccbe26f7d2bce3b90d..17f5e39c1c052b1eda40aa8874ec6ba7c23e0e4f 100644
+--- a/chrome/installer/mini_installer/BUILD.gn
++++ b/chrome/installer/mini_installer/BUILD.gn
+@@ -147,7 +147,7 @@ action("mini_installer_archive") {
+   inputs = [
+     "$root_out_dir/chrome.dll",
+     "$root_out_dir/chrome_elf.dll",
+-    "$root_out_dir/chrome.exe",
++    "$root_out_dir/ocbot.exe",
+     "$root_out_dir/locales/en-US.pak",
+     "$root_out_dir/setup.exe",
+     "//chrome/tools/build/win/makecab.py",
