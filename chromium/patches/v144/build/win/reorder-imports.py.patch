@@ -1,0 +1,24 @@
+diff --git a/build/win/reorder-imports.py b/build/win/reorder-imports.py
+index 88851609d4be06eea3365bcef1191b4d285560f8..de3bf7f00e0fe410a2525dab1ddf5081c49af713 100755
+--- a/build/win/reorder-imports.py
++++ b/build/win/reorder-imports.py
+@@ -24,8 +24,8 @@ def reorder_imports(input_dir, output_dir, architecture):
+   # correct executable in the first place, so that this script
+   # only needs to verify that and not write a whole new exe.
+ 
+-  input_image = os.path.join(input_dir, 'chrome.exe')
+-  output_image = os.path.join(output_dir, 'chrome.exe')
++  input_image = os.path.join(input_dir, 'ocbot.exe')
++  output_image = os.path.join(output_dir, 'ocbot.exe')
+ 
+   # pefile mmap()s the whole executable, and then parses parts of
+   # it into python data structures for ease of processing.
+@@ -73,7 +73,7 @@ def reorder_imports(input_dir, output_dir, architecture):
+ 
+   pe.write(filename=output_image)
+ 
+-  for fname in glob.iglob(os.path.join(input_dir, 'chrome.exe.*')):
++  for fname in glob.iglob(os.path.join(input_dir, 'ocbot.exe.*')):
+     shutil.copy(fname, os.path.join(output_dir, os.path.basename(fname)))
+   return 0
+ 
