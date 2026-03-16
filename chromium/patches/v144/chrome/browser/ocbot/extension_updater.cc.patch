@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/extension_updater.cc b/chrome/browser/ocbot/extension_updater.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..0cd0f0360cfc05d446ee16d3f03a84fa3f5d1234
+index 0000000000000000000000000000000000000000..648c1c88467ccd2f737139770aaab45c9efcfc57
 --- /dev/null
 +++ b/chrome/browser/ocbot/extension_updater.cc
-@@ -0,0 +1,409 @@
+@@ -0,0 +1,406 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -21,16 +21,15 @@ index 0000000000000000000000000000000000000000..0cd0f0360cfc05d446ee16d3f03a84fa
 +#include "base/path_service.h"
 +#include "base/task/thread_pool.h"
 +#include "base/version.h"
-+#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/net/system_network_context_manager.h"
++#include "chrome/browser/profiles/profile_manager.h"
 +#include "chrome/common/chrome_paths.h"
 +#include "content/public/browser/browser_thread.h"
-+#include "content/public/browser/storage_partition.h"
 +#include "extensions/browser/extension_registry.h"
 +#include "extensions/common/extension.h"
 +#include "net/base/load_flags.h"
 +#include "net/traffic_annotation/network_traffic_annotation.h"
 +#include "services/network/public/cpp/resource_request.h"
-+#include "services/network/public/cpp/shared_url_loader_factory.h"
 +#include "services/network/public/cpp/simple_url_loader.h"
 +#include "services/network/public/mojom/fetch_api.mojom.h"
 +#include "services/network/public/mojom/url_loader_factory.mojom.h"
@@ -206,8 +205,7 @@ index 0000000000000000000000000000000000000000..0cd0f0360cfc05d446ee16d3f03a84fa
 +
 +}  // namespace
 +
-+OcbotExtensionUpdater::OcbotExtensionUpdater(Profile* profile)
-+    : profile_(profile) {}
++OcbotExtensionUpdater::OcbotExtensionUpdater() = default;
 +
 +OcbotExtensionUpdater::~OcbotExtensionUpdater() = default;
 +
@@ -379,11 +377,12 @@ index 0000000000000000000000000000000000000000..0cd0f0360cfc05d446ee16d3f03a84fa
 +}
 +
 +std::string OcbotExtensionUpdater::GetCurrentVersion() const {
-+  if (!profile_) {
++  Profile* profile = ProfileManager::GetLastUsedProfile();
++  if (!profile) {
 +    return std::string();
 +  }
 +
-+  auto* registry = extensions::ExtensionRegistry::Get(profile_);
++  auto* registry = extensions::ExtensionRegistry::Get(profile);
 +  if (!registry) {
 +    return std::string();
 +  }
@@ -407,9 +406,7 @@ index 0000000000000000000000000000000000000000..0cd0f0360cfc05d446ee16d3f03a84fa
 +
 +network::mojom::URLLoaderFactory*
 +OcbotExtensionUpdater::GetURLLoaderFactory() {
-+  return profile_->GetDefaultStoragePartition()
-+      ->GetURLLoaderFactoryForBrowserProcess()
-+      .get();
++  return SystemNetworkContextManager::GetInstance()->GetURLLoaderFactory();
 +}
 +
 +}  // namespace ocbot
