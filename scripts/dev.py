@@ -9,7 +9,7 @@ from pathlib import Path
 try:
     from common import get_logger
     from download import init_chromium, create_worktree, list_worktrees, remove_worktree, sync_worktree
-    from patch import apply_patches, reset_source, update_patches
+    from patch import apply_patches, reset_source, update_patches, repatch_source
     from build import build_chromium
     from run import run_chromium
     from check import check_environment
@@ -75,6 +75,10 @@ def main():
 
     # Patch
     parser_patch = subparsers.add_parser('patch', help='Apply patches', parents=[parent_parser])
+
+    # Repatch (incremental)
+    parser_repatch = subparsers.add_parser('repatch', help='Incrementally re-apply only changed patches (faster than reset+patch)', parents=[parent_parser])
+    parser_repatch.add_argument('--base', help='Base commit/ref to reset files to (default: auto-detect)')
 
     # Reset (Revert patches)
     parser_reset = subparsers.add_parser('reset', help='Revert all patches', parents=[parent_parser])
@@ -183,6 +187,8 @@ def main():
         check_environment(args)
     elif args.command == 'patch':
         apply_patches(args)
+    elif args.command == 'repatch':
+        repatch_source(args)
     elif args.command == 'reset':
         reset_source(args)
     elif args.command == 'update_patches':
