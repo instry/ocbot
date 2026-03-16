@@ -112,6 +112,7 @@ def main():
     parser_package.add_argument('--notarize', help="Notarization profile name (or set NOTARY_PROFILE)")
     parser_package.add_argument('--apple-id', help="Apple ID for notarization (or set APPLE_ID)")
     parser_package.add_argument('--team-id', help="Team ID for notarization (or set TEAM_ID)")
+    parser_package.add_argument('--password', help="App-specific password for notarization (or set NOTARY_PASSWORD)")
     parser_package.add_argument('--password-file', help="Path to file containing app-specific password", default=".apple.json")
     parser_package.add_argument('--extension-src', help="Path to extension build output to bundle in DMG (default: web/.output/chrome-mv3)")
 
@@ -126,6 +127,10 @@ def main():
     # Default extension source path
     if args.command == 'package' and not args.extension_src:
         args.extension_src = get_agent_root() / '.output' / 'chrome-mv3'
+
+    # Set NOTARY_PASSWORD from --password if provided directly
+    if hasattr(args, 'password') and args.password:
+        os.environ['NOTARY_PASSWORD'] = args.password
 
     # Read password from file if applicable
     # Only read if --official is set or if the user explicitly provided a password file
