@@ -350,7 +350,7 @@ def _stage_files(out_dir, staging_dir):
     portable_dirs = [
         'locales',
         'MEIPresto',
-        'ocbot_extension',
+        'resources',
     ]
     extra_files = ['icudtl.dat', 'v8_context_snapshot.bin', 'snapshot_blob.bin']
 
@@ -483,7 +483,7 @@ def package_windows(args):
     # Sync extension before packaging
     extension_src = get_agent_root() / '.output' / 'chrome-mv3'
     if extension_src.exists():
-        dest = out_dir / 'ocbot_extension'
+        dest = out_dir / 'resources' / 'ocbot'
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(extension_src, dest)

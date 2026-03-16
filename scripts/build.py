@@ -14,8 +14,8 @@ def _install_extension(logger, out_dir):
         return
 
     if sys.platform == 'win32':
-        # Windows: extension goes alongside the exe in out/Default/ocbot_extension/
-        dest = out_dir / 'ocbot'
+        # Windows: DIR_RESOURCES resolves to <exe_dir>/resources/
+        dest = out_dir / 'resources' / 'ocbot'
     else:
         # macOS: extension goes into Framework Resources inside the app bundle
         app_dir = out_dir / 'Ocbot.app'

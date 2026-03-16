@@ -7,7 +7,7 @@ export default defineConfig({
     key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjyF4io3NWj9xRXAkbp2QBis6A//utwRT/qQXsKKwrr4SdB61im3hdCpT2n7gh2Hx0Fbwdjeax+qWaxfuxU87uo69flseM7PXjTBGhxKa/e0YF3It+YM8YHkSDut6wO5CpFTXa2BSI0nnvvSxwJSpjw+n1WiLZINzYzWhiCLuxHxb1tPXahjMovmeDJykfZXZrMbLSZAizLpUMq4a2fzYpLxH67O+QSgApSXAq/TcuSxb22cYfKrqUNToz/DtmuhDLEHy2uuxuItJAIFUYB+68UFQ4Irs3lur2KbGFfKQNJW4F3pCEs9OckKlk64zKZDRnIl4xMaVcLXg2r3XvFQxkwIDAQAB",
     name: 'ocbot - AI Browser Assistant',
     description: 'Your personal AI assistant integrated into the browser',
-    version: '26.3.9',
+    version: '26.3.16',
     action: {
       default_title: 'ocbot',
       default_icon: {

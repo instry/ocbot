@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/extensions/component_loader.cc b/chrome/browser/extensions/component_loader.cc
-index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..429072629f6e75421c593a9bd5974ecd6bef4c5c 100644
+index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..a0992ce76e55e9fc42682e1927a5205e0e2e386f 100644
 --- a/chrome/browser/extensions/component_loader.cc
 +++ b/chrome/browser/extensions/component_loader.cc
 @@ -12,13 +12,16 @@
@@ -106,7 +106,7 @@ index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..429072629f6e75421c593a9bd5974ecd
 +        static base::NoDestructor<std::unique_ptr<ocbot::OcbotExtensionUpdater>> g_updater;
 +        if (!*g_updater) {
 +          *g_updater =
-+              std::make_unique<ocbot::OcbotExtensionUpdater>(profile_);
++              std::make_unique<ocbot::OcbotExtensionUpdater>();
 +          (*g_updater)->Start();
 +        }
 +

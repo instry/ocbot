@@ -1,4 +1,9 @@
 {
+  "26.3.16": {
+    "chromium": "144.0.7559.132",
+    "date": "2026-03-16",
+    "notes": "Fix startup and shutdown crashes in browser/extension updaters"
+  },
   "26.3.9": {
     "chromium": "144.0.7559.132",
     "date": "2026-03-09",
