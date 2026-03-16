@@ -228,10 +228,10 @@ def package_dmg(args):
     sign_identity = getattr(args, 'sign', None) or os.environ.get('CODESIGN_IDENTITY')
     
     # Entitlements
-    entitlements_file = project_root / 'ocbot' / 'app.entitlements'
+    entitlements_file = project_root / 'app.entitlements'
     if not entitlements_file.exists():
-        # Fallback to Chromium's entitlements if available, or just ignore
-        pass
+        logger.warning(f"Entitlements file not found: {entitlements_file}")
+        logger.warning("Signing without entitlements may cause crashes with hardened runtime.")
 
     if not sign_identity:
         # Check if NOTARY_PROFILE or apple-id/team-id/password is set, which implies official release intent
