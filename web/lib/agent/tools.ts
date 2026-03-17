@@ -8,6 +8,7 @@ import { fillForm } from './fillForm'
 import { capturePageSnapshot } from './snapshot'
 import { ensureAttached, sendCdp } from './cdp'
 import { substituteVariables } from './variables'
+import { sendMessage } from '../messaging'
 
 export const BROWSER_TOOLS: ToolDefinition[] = [
   {
@@ -127,6 +128,14 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
         },
       },
       required: ['fields'],
+    },
+  },
+  {
+    name: 'readPageContent',
+    description: 'Read the text content of the current page. Returns clean article text (stripped of navigation, ads, etc). Use for reading, summarizing, or analyzing page content.',
+    parameters: {
+      type: 'object',
+      properties: {},
     },
   },
 ]
@@ -329,6 +338,17 @@ export async function executeTool(
             success: f.success,
             error: f.error,
           })),
+        })
+      }
+      case 'readPageContent': {
+        const tabId = await getActiveTabId()
+        const article = await sendMessage('getArticleContent', undefined, tabId)
+        return JSON.stringify({
+          url: article.url,
+          title: article.title,
+          byline: article.byline,
+          content: article.content,
+          length: article.length,
         })
       }
       default: return `Error: Unknown tool "${name}"`
