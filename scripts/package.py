@@ -345,7 +345,7 @@ def _stage_files(out_dir, staging_dir):
     staging_dir.mkdir(parents=True, exist_ok=True)
     
     portable_patterns = [
-        '*.exe', '*.dll', '*.pak', '*.bin', '*.dat',
+        '*.exe', '*.dll', '*.pak', '*.bin', '*.dat','*.manifest'
     ]
     portable_dirs = [
         'locales',
