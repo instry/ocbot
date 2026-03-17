@@ -11,6 +11,7 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.98.0",
     "@webext-core/messaging": "^1.4.0",
     "lucide-react": "^0.476.0",

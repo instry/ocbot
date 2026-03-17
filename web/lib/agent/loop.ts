@@ -4,8 +4,8 @@ import type { Variables } from './variables'
 import { streamChat } from '../llm/client'
 import { BROWSER_TOOLS, executeTool } from './tools'
 import { buildSystemPrompt } from './systemPrompt'
-import { capturePageSnapshot } from './snapshot'
 import { ensureAttached, sendCdp } from './cdp'
+import { sendMessage } from '../messaging'
 import {
   type AgentReplayStep,
   toolCallToReplayStep,
@@ -58,26 +58,24 @@ export async function runAgentLoop(
   const t0 = performance.now()
   const pageContext = await getPageContext()
 
-  // Auto-capture ariaTree for the current page so the agent can act immediately
-  let initialAriaTree: string | undefined
+  // Pre-load page text content (lightweight) so the agent can answer reading tasks immediately
+  let initialPageContent: string | undefined
   if (pageContext?.url) {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       const tabId = tab?.id
       if (tabId) {
-        await ensureAttached(tabId)
-        const snapshot = await capturePageSnapshot(tabId)
-        const maxLen = 70000
-        initialAriaTree = snapshot.tree.length > maxLen
-          ? snapshot.tree.slice(0, maxLen) + '\n... (truncated)'
-          : snapshot.tree
+        const article = await sendMessage('getArticleContent', undefined, tabId)
+        if (article.content) {
+          initialPageContent = article.content
+        }
       }
     } catch { /* best effort */ }
   }
 
   const systemMessage: LlmRequestMessage = {
     role: 'system',
-    content: buildSystemPrompt(pageContext, variables, initialAriaTree),
+    content: buildSystemPrompt(pageContext, variables, initialPageContent),
   }
 
   // Extract the user instruction (last user message) for skill matching
