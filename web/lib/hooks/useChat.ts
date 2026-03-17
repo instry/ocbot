@@ -9,6 +9,7 @@ import { createSkillFromExecution } from '@/lib/skills/create'
 import { SkillStore } from '@/lib/skills/store'
 import { SkillRunner } from '@/lib/skills/runner'
 import { saveConversation, getConversations, deleteConversation } from '@/lib/storage'
+import { createT, detectSystemLocale } from '@/lib/i18n'
 
 export interface ToolStatus {
   id: string
@@ -19,10 +20,11 @@ export interface ToolStatus {
 }
 
 const actCache = new ActCache()
+const t = createT(detectSystemLocale())
 
 function generateTitle(messages: ChatMessage[]): string {
   const firstUserMsg = messages.find(m => m.role === 'user')
-  if (!firstUserMsg) return 'New Chat'
+  if (!firstUserMsg) return t('chat.newChat')
   const text = firstUserMsg.content.trim()
   return text.length > 30 ? text.slice(0, 30) + '…' : text
 }

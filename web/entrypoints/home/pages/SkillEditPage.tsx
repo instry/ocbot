@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ArrowLeft, Save, Check, Zap } from 'lucide-react'
 import { getRealSkill, saveRealSkill, type RealSkill } from '../data/skills'
 import { parseSkillMd } from '@/lib/skills/create'
+import { useI18n } from '@/lib/i18n/context'
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -23,6 +24,7 @@ export function SkillEditPage({ skillId, onBack }: {
   const [skill, setSkill] = useState<RealSkill | null>(null)
   const [saved, setSaved] = useState(false)
   const [skillMd, setSkillMd] = useState('')
+  const { t } = useI18n()
 
   useEffect(() => {
     getRealSkill(skillId).then((s) => {
@@ -71,7 +73,7 @@ export function SkillEditPage({ skillId, onBack }: {
         className="flex cursor-pointer items-center gap-1.5 border-b border-border/40 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Skill
+        {t('skills.backToSkill')}
       </button>
 
       <div className="flex flex-col gap-4 p-4">
@@ -96,14 +98,14 @@ export function SkillEditPage({ skillId, onBack }: {
             className="flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
           >
             {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-            {saved ? 'Saved' : 'Save'}
+            {saved ? t('skills.saved') : t('common.save')}
           </button>
           <button
             onClick={handleTest}
             className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
           >
             <Zap className="h-4 w-4" />
-            Test
+            {t('common.test')}
           </button>
         </div>
       </div>

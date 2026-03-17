@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Play, X } from 'lucide-react'
 import type { Skill, SkillParameter } from '@/lib/skills/types'
+import { useI18n } from '@/lib/i18n/context'
 
 interface SkillParamFormProps {
   skill: Skill
@@ -17,6 +18,7 @@ function defaultValue(param: SkillParameter): string {
 }
 
 export function SkillParamForm({ skill, prefill, onConfirm, onCancel }: SkillParamFormProps) {
+  const { t } = useI18n()
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {}
     for (const p of skill.parameters) {
@@ -84,7 +86,7 @@ export function SkillParamForm({ skill, prefill, onConfirm, onCancel }: SkillPar
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
           >
             <Play className="h-3 w-3" />
-            Run
+            {t('common.run')}
           </button>
           <button
             type="button"
@@ -92,7 +94,7 @@ export function SkillParamForm({ skill, prefill, onConfirm, onCancel }: SkillPar
             className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="h-3 w-3" />
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
       </form>

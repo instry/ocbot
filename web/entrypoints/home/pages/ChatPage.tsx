@@ -3,6 +3,7 @@ import { ChatInput } from '@/components/ChatInput'
 import { ChatList } from '@/components/ChatList'
 import { useChat } from '@/lib/hooks/useChat'
 import { useLlmProvider } from '@/lib/llm/useLlmProvider'
+import { useI18n } from '@/lib/i18n/context'
 import { useState } from 'react'
 import { PanelLeft, SquarePen } from 'lucide-react'
 
@@ -14,6 +15,7 @@ export function ChatPage() {
     loadConversation, removeConversation,
   } = useChat(selectedProvider)
   const [showChatList, setShowChatList] = useState(false)
+  const { t } = useI18n()
 
   if (showChatList) {
     return (
@@ -32,7 +34,7 @@ export function ChatPage() {
         <button
           onClick={() => setShowChatList(true)}
           className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-          title="Chat list"
+          title={t('chat.chatList')}
         >
           <PanelLeft className="h-4 w-4" />
         </button>
@@ -40,7 +42,7 @@ export function ChatPage() {
         <button
           onClick={newChat}
           className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-          title="New chat"
+          title={t('chat.newChat')}
         >
           <SquarePen className="h-4 w-4" />
         </button>
@@ -48,7 +50,7 @@ export function ChatPage() {
       
       {messages.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center p-4">
-          <h1 className="mb-8 text-2xl font-semibold text-foreground">What can I help you with?</h1>
+          <h1 className="mb-8 text-2xl font-semibold text-foreground">{t('chat.welcomeLg')}</h1>
           <ChatInput
             variant="centered"
             onSend={sendMessage}

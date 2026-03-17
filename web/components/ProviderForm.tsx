@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ExternalLink, Check } from 'lucide-react'
 import type { LlmProvider, ProviderType } from '@/lib/llm/types'
 import { PROVIDER_TEMPLATES, getTemplateByType, getRegionBaseUrl, getRegionApiKeyUrl } from '@/lib/llm/models'
+import { useI18n } from '@/lib/i18n/context'
 
 interface ProviderFormProps {
   initial?: LlmProvider
@@ -14,6 +15,7 @@ interface ProviderFormProps {
 }
 
 export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }: ProviderFormProps) {
+  const { t } = useI18n()
   const initTemplate = getTemplateByType(initial?.type ?? 'google')
   const [providerType, setProviderType] = useState<ProviderType>(initial?.type ?? 'google')
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? '')
@@ -119,7 +121,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
       {/* Provider Type */}
       {!initial && (
         <fieldset>
-          <label className="mb-2 block text-sm font-medium">Provider</label>
+          <label className="mb-2 block text-sm font-medium">{t('provider.provider')}</label>
           <div className={`grid ${gridCols} gap-2`}>
             {PROVIDER_TEMPLATES.map(t => (
               <button
@@ -141,7 +143,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
       {/* Region Selector — only shown for providers with regional variants */}
       {template?.regions && template.regions.length > 0 && (
         <fieldset>
-          <label className="mb-2 block text-sm font-medium">Region</label>
+          <label className="mb-2 block text-sm font-medium">{t('provider.region')}</label>
           <div className="flex gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
             {template.regions.map(r => (
               <button
@@ -164,7 +166,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
       {/* API Key */}
       <fieldset>
         <div className="mb-2 flex items-center justify-between">
-          <label className="text-sm font-medium">API Key</label>
+          <label className="text-sm font-medium">{t('provider.apiKey')}</label>
           {activeApiKeyUrl && (
             <a
               href={activeApiKeyUrl}
@@ -172,7 +174,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-xs text-primary hover:underline"
             >
-              Get key <ExternalLink className="h-3 w-3" />
+              {t('provider.getKey')} <ExternalLink className="h-3 w-3" />
             </a>
           )}
         </div>
@@ -180,14 +182,14 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
           type="password"
           value={apiKey}
           onChange={e => setApiKey(e.target.value)}
-          placeholder={template?.apiKeyPlaceholder ?? 'Enter API key'}
+          placeholder={template?.apiKeyPlaceholder ?? t('provider.enterApiKey')}
           className="w-full rounded-xl border border-border/50 bg-muted/50 px-4 py-2.5 text-sm outline-none transition-colors hover:border-border focus:border-primary"
         />
       </fieldset>
 
       {/* Base URL */}
       <fieldset>
-        <label className="mb-2 block text-sm font-medium text-muted-foreground">Base URL</label>
+        <label className="mb-2 block text-sm font-medium text-muted-foreground">{t('provider.baseUrl')}</label>
         <input
           type="text"
           value={baseUrl}
@@ -200,7 +202,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
       {/* Model Selection */}
       <fieldset>
         <label className="mb-2 block text-sm font-medium">
-          Model{!initial && template && template.models.length > 1 ? 's' : ''}
+          {!initial && template && template.models.length > 1 ? t('provider.models') : t('provider.model')}
         </label>
         {template && template.models.length > 0 ? (
           initial ? (
@@ -252,7 +254,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
             type="text"
             value={modelId}
             onChange={e => setModelId(e.target.value)}
-            placeholder="e.g. llama3.2:latest"
+            placeholder={t('provider.modelPlaceholder')}
             className="w-full rounded-xl border border-border/50 bg-muted/50 px-4 py-2.5 text-sm outline-none transition-colors hover:border-border focus:border-primary"
           />
         )}
@@ -265,7 +267,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
             onClick={onCancel}
             className="cursor-pointer rounded-xl border border-border/50 px-6 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/80"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         )}
         <button
@@ -273,7 +275,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
           disabled={saving || (!apiKey.trim() && !isCustom) || (!initial && template && template.models.length > 0 && modelIds.size === 0)}
           className="cursor-pointer rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50"
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common.saving') : t('common.save')}
         </button>
       </div>
     </div>

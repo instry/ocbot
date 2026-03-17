@@ -4,6 +4,7 @@ import type { LlmProvider } from '@/lib/llm/types'
 import { getTemplateByType } from '@/lib/llm/models'
 import type { ColorScheme, Language } from '@/lib/hooks/useSettings'
 import { ProviderForm } from './ProviderForm'
+import { useI18n } from '@/lib/i18n/context'
 
 // --- Types ---
 
@@ -28,13 +29,14 @@ export function Settings({
   providers, selectedProvider, onSaveProvider, onDeleteProvider, onSelectProvider,
   colorScheme, language, onColorSchemeChange, onLanguageChange,
 }: SettingsProps) {
+  const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<SettingsTab>('providers')
   const [providersView, setProvidersView] = useState<ProvidersView>('list')
   const [editingProvider, setEditingProvider] = useState<LlmProvider | null>(null)
 
   const tabs: { id: SettingsTab; label: string; icon: typeof Sliders }[] = [
-    { id: 'providers', label: 'Models', icon: Cpu },
-    { id: 'general', label: 'General', icon: Sliders },
+    { id: 'providers', label: t('models.title'), icon: Cpu },
+    { id: 'general', label: t('settings.general'), icon: Sliders },
   ]
 
   return (
@@ -42,7 +44,7 @@ export function Settings({
       {/* Left sidebar */}
       <div className="flex w-48 shrink-0 flex-col border-r border-border/40 bg-muted/20">
         <div className="flex flex-col gap-1 px-3 pt-6 pb-4">
-          <h2 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Settings</h2>
+          <h2 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">{t('settings.title')}</h2>
         </div>
         <nav className="flex flex-col gap-0.5 px-3">
           {tabs.map(({ id, label, icon: Icon }) => (
@@ -92,12 +94,6 @@ export function Settings({
 
 // --- General Tab ---
 
-const COLOR_SCHEME_OPTIONS: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
-  { value: 'system', label: 'System', icon: Monitor },
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-]
-
 const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
   { value: 'en', label: 'English' },
   { value: 'zh', label: '中文' },
@@ -111,18 +107,26 @@ function GeneralTab({
   onColorSchemeChange: (scheme: ColorScheme) => void
   onLanguageChange: (lang: Language) => void
 }) {
+  const { t } = useI18n()
+
+  const COLOR_SCHEME_OPTIONS: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
+    { value: 'system', label: t('settings.system'), icon: Monitor },
+    { value: 'light', label: t('settings.light'), icon: Sun },
+    { value: 'dark', label: t('settings.dark'), icon: Moon },
+  ]
+
   return (
     <div className="flex h-full flex-col px-8 pb-10">
       <div className="sticky top-0 z-10 bg-background pt-6 pb-6">
-        <h2 className="text-base font-semibold text-foreground">General</h2>
+        <h2 className="text-base font-semibold text-foreground">{t('settings.general')}</h2>
       </div>
 
       <div className="flex max-w-[640px] flex-col gap-8">
         {/* Appearance Section */}
-        <SettingsSection title="Appearance">
+        <SettingsSection title={t('settings.appearance')}>
           <SettingsRow
-            title="Color Scheme"
-            description="Choose between light, dark, or system theme."
+            title={t('settings.colorScheme')}
+            description={t('settings.colorSchemeDesc')}
           >
             <div className="flex gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
               {COLOR_SCHEME_OPTIONS.map(({ value, label, icon: Icon }) => (
@@ -144,10 +148,10 @@ function GeneralTab({
         </SettingsSection>
 
         {/* Language Section */}
-        <SettingsSection title="Language">
+        <SettingsSection title={t('settings.language')}>
           <SettingsRow
-            title="Display Language"
-            description="Set the language for the interface."
+            title={t('settings.displayLanguage')}
+            description={t('settings.displayLanguageDesc')}
           >
             <SelectDropdown
               options={LANGUAGE_OPTIONS}
@@ -177,6 +181,8 @@ function ProvidersTab({
   onDeleteProvider: (id: string) => Promise<void>
   onSelectProvider: (id: string) => Promise<void>
 }) {
+  const { t } = useI18n()
+
   if (view === 'add') {
     return (
       <div className="flex h-full flex-col px-8 pb-10">
@@ -186,9 +192,9 @@ function ProvidersTab({
             className="mb-3 flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Models
+            {t('models.backToModels')}
           </button>
-          <h2 className="text-base font-semibold text-foreground">Set Model</h2>
+          <h2 className="text-base font-semibold text-foreground">{t('models.set')}</h2>
         </div>
         <div className="max-w-[640px]">
           <ProviderForm
@@ -209,9 +215,9 @@ function ProvidersTab({
             className="mb-3 flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Models
+            {t('models.backToModels')}
           </button>
-          <h2 className="text-base font-semibold text-foreground">Edit Model</h2>
+          <h2 className="text-base font-semibold text-foreground">{t('models.edit')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{getTemplateByType(editingProvider.type)?.name ?? editingProvider.type}</p>
         </div>
         <div className="max-w-[640px]">
@@ -228,14 +234,14 @@ function ProvidersTab({
   return (
     <div className="flex h-full flex-col px-8 pb-10">
       <div className="sticky top-0 z-10 bg-background pt-6 pb-6">
-        <h2 className="text-base font-semibold text-foreground">Models</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Manage your LLM models.</p>
+        <h2 className="text-base font-semibold text-foreground">{t('models.title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('models.description')}</p>
       </div>
 
       <div className="max-w-[640px] space-y-3">
         {providers.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No models configured yet. Add one to get started.
+            {t('models.noModels')}
           </p>
         )}
 
@@ -266,7 +272,7 @@ function ProvidersTab({
                     {isDefault && (
                       <span className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                         <Star className="h-2.5 w-2.5" />
-                        Default
+                        {t('common.default')}
                       </span>
                     )}
                   </div>
@@ -282,7 +288,7 @@ function ProvidersTab({
                     onClick={() => onSelectProvider(p.id)}
                     className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
-                    Set default
+                    {t('models.setDefault')}
                   </button>
                 )}
                 <button
@@ -307,7 +313,7 @@ function ProvidersTab({
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
-          Add Model
+          {t('models.add')}
         </button>
       </div>
     </div>

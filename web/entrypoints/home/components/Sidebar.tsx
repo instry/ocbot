@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { SquarePen, Puzzle, Settings, Info } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/context'
 
 function ClawIcon({ className }: { className?: string }) {
   return (
@@ -22,16 +23,16 @@ interface SidebarProps {
   onSelectConversation: (id: string) => void
 }
 
-const bottomNavItems: { id: Page; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'skills', label: 'Skills', icon: Puzzle },
-  { id: 'claw', label: 'Claw', icon: ClawIcon },
-  { id: 'settings', label: 'Settings', icon: Settings },
-  { id: 'about', label: 'About', icon: Info },
+const bottomNavItems: { id: Page; labelKey: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'skills', labelKey: 'nav.skills', icon: Puzzle },
+  { id: 'claw', labelKey: 'nav.claw', icon: ClawIcon },
+  { id: 'settings', labelKey: 'nav.settings', icon: Settings },
+  { id: 'about', labelKey: 'nav.about', icon: Info },
 ]
 
 export function Sidebar({ activePage, onNavigate, onSelectConversation }: SidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
-
+  const { t } = useI18n()
   const refresh = useCallback(async () => {
     const convs = await getConversations()
     setConversations(convs)
@@ -57,7 +58,7 @@ export function Sidebar({ activePage, onNavigate, onSelectConversation }: Sideba
     <aside className="flex h-full w-56 flex-col border-r border-border/40 bg-muted/30">
       <div className="flex items-center gap-2.5 px-4 pt-5 pb-3">
         <BotAvatar size="sm" />
-        <span className="text-base font-semibold text-foreground tracking-tight">ocbot</span>
+        <span className="text-base font-semibold text-foreground tracking-tight">{t('app.name')}</span>
       </div>
 
       {/* New Session button */}
@@ -71,7 +72,7 @@ export function Sidebar({ activePage, onNavigate, onSelectConversation }: Sideba
           }`}
         >
           <SquarePen className="h-4 w-4" />
-          New Session
+          {t('nav.newSession')}
         </button>
       </div>
 
@@ -84,7 +85,7 @@ export function Sidebar({ activePage, onNavigate, onSelectConversation }: Sideba
 
       {/* Bottom nav */}
       <nav className="space-y-0.5 border-t border-border/40 px-2 py-2">
-        {bottomNavItems.map(({ id, label, icon: Icon }) => (
+        {bottomNavItems.map(({ id, labelKey, icon: Icon }) => (
           <button
             key={id}
             onClick={() => onNavigate(id)}
@@ -95,7 +96,7 @@ export function Sidebar({ activePage, onNavigate, onSelectConversation }: Sideba
             }`}
           >
             <Icon className="h-4 w-4" />
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </nav>
