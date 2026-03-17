@@ -6,7 +6,7 @@
 
 [中文文档](README_CN.md)
 
-**ocbot** is an open-source, AI-native browser with a built-in sovereign AI agent. It can autonomously browse, act, and earn on the open internet — powered by on-chain identity (ERC-8004), financial autonomy (USDC/x402), and an evolving self-description (SOUL.md). The browser is its body; the web is its world.
+**ocbot** is an AI-native browser for web4. It can autonomously browse, act, and earn on the open internet — powered by on-chain identity (ERC-8004), financial autonomy (USDC/x402), and an evolving self-description (SOUL.md). The browser is its body; the web is its world.
 
 ---
 
