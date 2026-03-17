@@ -4,7 +4,7 @@
 #endif
 #define MyAppPublisher "Ocbot Team"
 #define MyAppURL "https://github.com/instry/ocbot"
-#define MyAppExeName "chrome.exe"
+#define MyAppExeName "ocbot.exe"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
