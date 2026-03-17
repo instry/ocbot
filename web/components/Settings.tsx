@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { Sliders, Cpu, Plus, Trash2, Pencil, Star, ArrowLeft, ChevronDown, Sun, Moon, Monitor, Globe } from 'lucide-react'
+import { Sliders, Cpu, Wallet, Plus, Trash2, Pencil, Star, ArrowLeft, ChevronDown, Sun, Moon, Monitor, Globe } from 'lucide-react'
 import type { LlmProvider } from '@/lib/llm/types'
 import { getTemplateByType } from '@/lib/llm/models'
 import type { ColorScheme, Language } from '@/lib/hooks/useSettings'
+import type { WalletActions } from '@/lib/wallet/types'
 import { ProviderForm } from './ProviderForm'
+import { WalletTab } from './WalletTab'
 
 // --- Types ---
 
-type SettingsTab = 'general' | 'providers'
+type SettingsTab = 'general' | 'providers' | 'wallet'
 type ProvidersView = 'list' | 'add' | 'edit'
 
 interface SettingsProps {
@@ -20,13 +22,14 @@ interface SettingsProps {
   language: Language
   onColorSchemeChange: (scheme: ColorScheme) => void
   onLanguageChange: (lang: Language) => void
+  wallet: WalletActions
 }
 
 // --- Main Settings Component ---
 
 export function Settings({
   providers, selectedProvider, onSaveProvider, onDeleteProvider, onSelectProvider,
-  colorScheme, language, onColorSchemeChange, onLanguageChange,
+  colorScheme, language, onColorSchemeChange, onLanguageChange, wallet,
 }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('providers')
   const [providersView, setProvidersView] = useState<ProvidersView>('list')
@@ -34,6 +37,7 @@ export function Settings({
 
   const tabs: { id: SettingsTab; label: string; icon: typeof Sliders }[] = [
     { id: 'providers', label: 'Models', icon: Cpu },
+    { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'general', label: 'General', icon: Sliders },
   ]
 
@@ -71,6 +75,9 @@ export function Settings({
             onColorSchemeChange={onColorSchemeChange}
             onLanguageChange={onLanguageChange}
           />
+        )}
+        {activeTab === 'wallet' && (
+          <WalletTab wallet={wallet} />
         )}
         {activeTab === 'providers' && (
           <ProvidersTab
@@ -316,7 +323,7 @@ function ProvidersTab({
 
 // --- Shared UI Components ---
 
-function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
+export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
       <h3 className="pb-2 text-sm font-medium text-foreground">{title}</h3>
@@ -327,7 +334,7 @@ function SettingsSection({ title, children }: { title: string; children: ReactNo
   )
 }
 
-function SettingsRow({ title, description, children }: {
+export function SettingsRow({ title, description, children }: {
   title: string
   description: string
   children: ReactNode
