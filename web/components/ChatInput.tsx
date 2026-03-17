@@ -5,6 +5,7 @@ import { useInputHistory } from '@/lib/hooks/useInputHistory'
 import { getModelDisplayName, getTemplateByType } from '@/lib/llm/models'
 import type { LlmProvider } from '@/lib/llm/types'
 import { ProviderForm } from './ProviderForm'
+import { useI18n } from '@/lib/i18n/context'
 
 export interface ChatInputHandle {
   setInput: (text: string) => void
@@ -30,6 +31,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
   rows = 1, minHeight = 'min-h-[42px]',
   providers, selectedProvider, onSelectProvider, onSaveProvider, onDeleteProvider,
 }, ref) {
+  const { t } = useI18n()
   const [input, setInput] = useState('')
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [dialog, setDialog] = useState<'connect' | null>(null)
@@ -96,7 +98,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           <textarea
             className={`${minHeight} max-h-48 w-full resize-none rounded-t-2xl bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/70`}
             value={input} onChange={handleChange} onKeyDown={handleKeyDown}
-            placeholder="Ask me to complete a task..." rows={rows} disabled={disabled}
+            placeholder={t('chat.placeholder')} rows={rows} disabled={disabled}
           />
           <div className="flex items-center justify-between px-3 pb-2">
             <div>
@@ -111,7 +113,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                         {getModelDisplayName(selectedProvider)}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground">Select model</span>
+                      <span className="text-muted-foreground">{t('models.selectModel')}</span>
                     )}
                     <ChevronDown className="h-3 w-3 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" />
                   </button>
@@ -129,7 +131,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
             </div>
             <div className="flex items-center gap-2">
               {isLoading && onStop ? (
-                <button type="button" onClick={onStop} className="cursor-pointer rounded-full bg-destructive p-2 text-destructive-foreground shadow-sm transition-all hover:bg-destructive/80" title="Stop">
+                <button type="button" onClick={onStop} className="cursor-pointer rounded-full bg-destructive p-2 text-destructive-foreground shadow-sm transition-all hover:bg-destructive/80" title={t('common.stop')}>
                   <Square className="h-3.5 w-3.5" />
                 </button>
               ) : (
@@ -166,6 +168,7 @@ function ModelPopover({ providers, selectedProvider, onSelect, onClose, onConnec
 }) {
   const [search, setSearch] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+  const { t } = useI18n()
 
   useEffect(() => { requestAnimationFrame(() => searchRef.current?.focus()) }, [])
 
@@ -194,9 +197,9 @@ function ModelPopover({ providers, selectedProvider, onSelect, onClose, onConnec
       <div className="flex items-center gap-2 border-b border-border/40 px-3 py-2">
         <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
         <input ref={searchRef} type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search models..." className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50" />
+          placeholder={t('models.searchModels')} className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50" />
         {onConnect && (
-          <button type="button" onClick={onConnect} className="cursor-pointer rounded-md p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-muted-foreground" title="Add model">
+          <button type="button" onClick={onConnect} className="cursor-pointer rounded-md p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-muted-foreground" title={t('models.addModel')}>
             <Plus className="h-3.5 w-3.5" />
           </button>
         )}
@@ -206,10 +209,10 @@ function ModelPopover({ providers, selectedProvider, onSelect, onClose, onConnec
           <div className="px-3 py-6 text-center text-xs text-muted-foreground">
             {providers.length === 0 ? (
               <div className="flex flex-col items-center gap-2">
-                <span>No models configured</span>
-                {onConnect && <button type="button" onClick={onConnect} className="cursor-pointer text-primary hover:underline">Add a model</button>}
+                <span>{t('models.noModelsConfigured')}</span>
+                {onConnect && <button type="button" onClick={onConnect} className="cursor-pointer text-primary hover:underline">{t('models.addAModel')}</button>}
               </div>
-            ) : 'No models found'}
+            ) : t('models.noModelsFound')}
           </div>
         ) : (
           grouped.map(group => (
@@ -266,10 +269,11 @@ function ConnectProviderDialog({ onClose, onSave }: {
   onClose: () => void
   onSave: (provider: LlmProvider) => Promise<void>
 }) {
+  const { t } = useI18n()
   return (
     <DialogOverlay onClose={onClose}>
       <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
-        <h2 className="text-sm font-semibold text-foreground">Add Model</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t('models.add')}</h2>
         <button type="button" onClick={onClose} className="cursor-pointer rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
           <X className="h-4 w-4" />
         </button>

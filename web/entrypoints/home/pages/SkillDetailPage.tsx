@@ -3,6 +3,7 @@ import { ArrowLeft, BadgeCheck, Play, Copy, Trash2, Pencil, Check, Loader2, Chec
 import { getLocalSkillDetail, getMarketplaceSkillDetail, getSkillAbbr, skillStoreInstance, getRealSkill, type Skill, type SkillDetail } from '../data/skills'
 import { cloneSkill as apiCloneSkill, fetchMarketplaceSkill } from '@/lib/marketplace/api'
 import type { Skill as RealSkill } from '@/lib/skills/types'
+import { useI18n } from '@/lib/i18n/context'
 
 // ---------------------------------------------------------------------------
 // Lightweight Markdown renderer — handles headings, lists, bold, code, hr
@@ -299,6 +300,7 @@ function parseSkillMd(raw: string): SkillMdSections | null {
 // ---------------------------------------------------------------------------
 
 function StructuredAbout({ detail }: { detail: SkillDetail }) {
+  const { t } = useI18n()
   const text = detail.longDescription || detail.description || ''
   const sections = useMemo(() => parseSkillMd(text), [text])
 
@@ -312,7 +314,7 @@ function StructuredAbout({ detail }: { detail: SkillDetail }) {
       {/* Workflow timeline */}
       {sections.workflow.length > 0 && (
         <div>
-          <h3 className="mb-3 text-sm font-semibold text-foreground">Workflow</h3>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">{t('skills.workflow')}</h3>
           <div className="relative ml-1 flex flex-col gap-0">
             {/* Vertical line */}
             <div className="absolute left-3 top-3 bottom-3 w-px bg-border/60" />
@@ -333,7 +335,7 @@ function StructuredAbout({ detail }: { detail: SkillDetail }) {
       {/* Preconditions callout */}
       {sections.preconditions.length > 0 && (
         <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3">
-          <h3 className="mb-2 text-sm font-semibold text-blue-400">Preconditions</h3>
+          <h3 className="mb-2 text-sm font-semibold text-blue-400">{t('skills.preconditions')}</h3>
           <ul className="flex flex-col gap-1">
             {sections.preconditions.map((item, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -348,7 +350,7 @@ function StructuredAbout({ detail }: { detail: SkillDetail }) {
       {/* Notes callout */}
       {sections.notes.length > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-          <h3 className="mb-2 text-sm font-semibold text-amber-400">Notes</h3>
+          <h3 className="mb-2 text-sm font-semibold text-amber-400">{t('skills.notes')}</h3>
           <ul className="flex flex-col gap-1">
             {sections.notes.map((item, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -410,6 +412,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
   const [cloning, setCloning] = useState(false)
   const [cloneSuccess, setCloneSuccess] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const { t } = useI18n()
 
   const isMarketplaceSkill = !!skill.publishedId
   const isLocalSkill = !!onEdit // onEdit is only provided for my-skills tab
@@ -486,7 +489,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 {detail.official && (
                   <span className="flex shrink-0 items-center gap-1 rounded-md border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-500">
                     <BadgeCheck className="h-3.5 w-3.5" />
-                    Official
+                    {t('skills.official')}
                   </span>
                 )}
               </div>
@@ -513,19 +516,19 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className={`h-3.5 w-3.5 ${detail.successRate >= 80 ? 'text-green-500' : detail.successRate >= 50 ? 'text-amber-500' : 'text-muted-foreground'}`} />
               <span className="font-medium text-foreground">{detail.runCount > 0 ? `${detail.successRate}%` : '—'}</span>
-              <span className="text-muted-foreground">success</span>
+              <span className="text-muted-foreground">{t('skills.success')}</span>
             </div>
             <span className="text-border">·</span>
             <div className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-blue-500" />
               <span className="font-medium text-foreground">{formatDuration(detail.avgDurationMs)}</span>
-              <span className="text-muted-foreground">avg</span>
+              <span className="text-muted-foreground">{t('skills.avg')}</span>
             </div>
             <span className="text-border">·</span>
             <div className="flex items-center gap-1.5">
               <Zap className="h-3.5 w-3.5 text-amber-500" />
               <span className="font-medium text-foreground">{formatTokens(detail.avgTokens)}</span>
-              <span className="text-muted-foreground">tokens</span>
+              <span className="text-muted-foreground">{t('skills.tokens')}</span>
             </div>
           </div>
 
@@ -536,7 +539,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
               className="flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
             >
               <Play className="h-4 w-4" />
-              Run
+              {t('common.run')}
             </button>
             {isMarketplaceSkill && (
               <button
@@ -551,7 +554,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                {cloning ? 'Cloning…' : cloneSuccess ? 'Cloned!' : 'Clone'}
+                {cloning ? t('skills.cloning') : cloneSuccess ? t('skills.cloned') : t('skills.clone')}
               </button>
             )}
             {onEdit && (
@@ -560,7 +563,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
               >
                 <Pencil className="h-4 w-4" />
-                Edit
+                {t('common.edit')}
               </button>
             )}
             {onDelete && !confirmingDelete && (
@@ -569,24 +572,24 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                 className="flex cursor-pointer items-center gap-2 rounded-xl border border-red-500/30 px-5 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
               >
                 <Trash2 className="h-4 w-4" />
-                Delete
+                {t('common.delete')}
               </button>
             )}
             {onDelete && confirmingDelete && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-red-500">Delete this skill?</span>
+                <span className="text-sm text-red-500">{t('skills.deleteConfirm')}</span>
                 <button
                   onClick={() => { onDelete(skill.id); onBack() }}
                   className="flex cursor-pointer items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Confirm
+                  {t('common.confirm')}
                 </button>
                 <button
                   onClick={() => setConfirmingDelete(false)}
                   className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
             )}
@@ -598,7 +601,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
           <div className="flex flex-col gap-3 rounded-xl border border-border/40 bg-muted/30 px-5 py-4">
             {detail.compatibleSites.length > 0 && (
               <div className="flex items-start gap-3 text-sm">
-                <span className="shrink-0 font-medium text-muted-foreground">Compatible sites</span>
+                <span className="shrink-0 font-medium text-muted-foreground">{t('skills.compatibleSites')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {detail.compatibleSites.map((site) => (
                     <span key={site} className="rounded-md border border-border/60 bg-card px-2 py-0.5 text-xs text-foreground">{site}</span>
@@ -608,7 +611,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
             )}
             {detail.categories.length > 0 && (
               <div className="flex items-start gap-3 text-sm">
-                <span className="shrink-0 font-medium text-muted-foreground">Categories</span>
+                <span className="shrink-0 font-medium text-muted-foreground">{t('skills.categories')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {detail.categories.map((cat) => (
                     <span key={cat} className="rounded-md border border-border/60 bg-card px-2 py-0.5 text-xs text-foreground">{cat}</span>
@@ -621,23 +624,23 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
 
         {/* About */}
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-foreground">About</h2>
+          <h2 className="mb-3 text-lg font-semibold text-foreground">{t('skills.about')}</h2>
           <StructuredAbout detail={detail} />
         </section>
 
         {/* Parameters */}
         {detail.parameters.length > 0 && (
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">Parameters</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">{t('skills.parameters')}</h2>
             <div className="overflow-hidden rounded-xl border border-border/40">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/40 bg-muted/40">
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Name</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Type</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Required</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Default</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Description</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t('skills.paramName')}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t('skills.paramType')}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t('skills.paramRequired')}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t('skills.paramDefault')}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t('skills.paramDescription')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -647,7 +650,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
                       <td className="px-4 py-2.5">
                         <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{param.type}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{param.required ? 'Yes' : 'No'}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{param.required ? t('common.yes') : t('common.no')}</td>
                       <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
                         {param.default !== undefined ? String(param.default) : '—'}
                       </td>
@@ -663,7 +666,7 @@ export function SkillDetailPage({ skill, onBack, backLabel = 'Back to Marketplac
         {/* Changelog */}
         {detail.changelog.length > 0 && (
           <section className="pb-4">
-            <h2 className="mb-3 text-lg font-semibold text-foreground">Changelog</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">{t('skills.changelog')}</h2>
             <div className="flex flex-col gap-4">
               {detail.changelog.map((entry) => (
                 <div key={entry.version} className="relative pl-5 before:absolute before:left-0 before:top-[9px] before:h-2 before:w-2 before:rounded-full before:bg-primary/60">

@@ -3,25 +3,26 @@ import { Search, ChevronLeft, ChevronRight, BadgeCheck, GitFork, Loader2 } from 
 import { getSkillAbbr, getLocalSkills, getLocalSkillDetail, getMarketplaceSkillDetail, deleteLocalSkill, getMarketplaceSkills, type Skill } from '../data/skills'
 import { SkillDetailPage } from './SkillDetailPage'
 import { SkillEditPage } from './SkillEditPage'
+import { useI18n } from '@/lib/i18n/context'
 
 const CATEGORIES = [
-  'All',
-  'Search',
-  'E-Commerce',
-  'Financial',
-  'News',
-  'Real Estate',
-  'Social Media',
-  'Travel',
-  'Marketplace',
-  'Lead Generation',
-  'SEO',
-  'Jobs',
-  'Developer',
-  'Media',
-  'Automation',
-  'Integration',
-  'Other',
+  { id: 'All', labelKey: 'skills.cat.all' },
+  { id: 'Search', labelKey: 'skills.cat.search' },
+  { id: 'E-Commerce', labelKey: 'skills.cat.ecommerce' },
+  { id: 'Financial', labelKey: 'skills.cat.financial' },
+  { id: 'News', labelKey: 'skills.cat.news' },
+  { id: 'Real Estate', labelKey: 'skills.cat.realEstate' },
+  { id: 'Social Media', labelKey: 'skills.cat.socialMedia' },
+  { id: 'Travel', labelKey: 'skills.cat.travel' },
+  { id: 'Marketplace', labelKey: 'skills.cat.marketplace' },
+  { id: 'Lead Generation', labelKey: 'skills.cat.leadGen' },
+  { id: 'SEO', labelKey: 'skills.cat.seo' },
+  { id: 'Jobs', labelKey: 'skills.cat.jobs' },
+  { id: 'Developer', labelKey: 'skills.cat.developer' },
+  { id: 'Media', labelKey: 'skills.cat.media' },
+  { id: 'Automation', labelKey: 'skills.cat.automation' },
+  { id: 'Integration', labelKey: 'skills.cat.integration' },
+  { id: 'Other', labelKey: 'skills.cat.other' },
 ]
 
 function SkillIcon({ skill, className = "h-10 w-10" }: { skill: Skill, className?: string }) {
@@ -43,6 +44,7 @@ function SkillIcon({ skill, className = "h-10 w-10" }: { skill: Skill, className
 
 function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
   const isCreating = skill.creating
+  const { t } = useI18n()
   return (
     <div
       onClick={isCreating ? undefined : onClick}
@@ -58,13 +60,13 @@ function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
             {isCreating && (
               <span className="flex shrink-0 items-center gap-1 rounded-md border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
                 <Loader2 className="h-3 w-3 animate-spin" />
-                Creating…
+                {t('skills.creating')}
               </span>
             )}
             {skill.official && (
               <span className="flex shrink-0 items-center gap-1 rounded-md border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium text-orange-500">
                 <BadgeCheck className="h-3 w-3" />
-                Official
+                {t('skills.official')}
               </span>
             )}
           </div>
@@ -81,7 +83,7 @@ function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
         </div>
       </div>
       <p className="mt-3 line-clamp-2 flex-1 text-sm text-muted-foreground">
-        {isCreating ? 'AI is generating skill metadata…' : skill.description}
+        {isCreating ? t('skills.creatingMeta') : skill.description}
       </p>
       <div className="mt-3 flex items-center justify-between border-t border-border/30 pt-3 text-xs text-muted-foreground/80">
         <span className="font-mono">{skill.version}</span>
@@ -91,7 +93,7 @@ function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
             {skill.installs.toLocaleString()} clones
           </span>
         ) : (
-          <span>Recently Added</span>
+          <span>{t('skills.recentlyAdded')}</span>
         )}
       </div>
     </div>
@@ -101,6 +103,7 @@ function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
 const PAGE_SIZE = 30
 
 export function SkillsPage() {
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [page, setPage] = useState(1)
@@ -260,10 +263,10 @@ export function SkillsPage() {
     <div className="flex h-full flex-col overflow-y-auto p-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
-          Skills
+          {t('skills.title')}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Discover and clone skills. Complete a task in chat to save it as a skill.
+          {t('skills.description')}
         </p>
       </div>
 
@@ -277,7 +280,7 @@ export function SkillsPage() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          My Skills ({mySkills.length})
+          {t('skills.mySkills', { count: mySkills.length })}
         </button>
         <button
           onClick={() => handleTabChange('marketplace')}
@@ -287,7 +290,7 @@ export function SkillsPage() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Marketplace{marketplaceTotal > 0 ? ` (${marketplaceTotal})` : ''}
+          {t('skills.marketplace')}{marketplaceTotal > 0 ? ` (${marketplaceTotal})` : ''}
         </button>
       </div>
 
@@ -298,7 +301,7 @@ export function SkillsPage() {
             type="text"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setPage(1) }}
-            placeholder="Search skills..."
+            placeholder={t('skills.searchSkills')}
             className="w-full rounded-xl border border-border/50 bg-muted/50 py-2.5 pl-9 pr-4 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border focus:border-primary"
           />
         </div>
@@ -308,15 +311,15 @@ export function SkillsPage() {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {CATEGORIES.map((cat) => (
             <button
-              key={cat}
-              onClick={() => handleCategoryChange(cat)}
+              key={cat.id}
+              onClick={() => handleCategoryChange(cat.id)}
               className={`cursor-pointer rounded-full border px-3 py-1 text-xs transition-colors ${
-                selectedCategory === cat
+                selectedCategory === cat.id
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
               }`}
             >
-              {cat}
+              {t(cat.labelKey)}
             </button>
           ))}
         </div>
@@ -325,21 +328,21 @@ export function SkillsPage() {
       {activeTab === 'marketplace' && marketplaceLoading ? (
         <div className="mt-12 flex flex-col items-center gap-3 text-sm text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <p>Loading marketplace skills…</p>
+          <p>{t('skills.loadingMarketplace')}</p>
         </div>
       ) : activeTab === 'my-skills' && filteredMySkills.length === 0 ? (
         <div className="mt-8 flex flex-col items-center gap-3 text-sm text-muted-foreground">
-          <p>No skills yet. Complete a task in the sidepanel, then save it as a Skill.</p>
+          <p>{t('skills.noSkills')}</p>
           <button
             onClick={() => handleTabChange('marketplace')}
             className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
           >
-            Browse Marketplace
+            {t('skills.browseMarketplace')}
           </button>
         </div>
       ) : activeTab === 'marketplace' && displaySkills.length === 0 ? (
         <div className="mt-12 flex flex-col items-center gap-3 text-sm text-muted-foreground">
-          <p>No skills found. Try a different search or category.</p>
+          <p>{t('skills.noSkillsFound')}</p>
         </div>
       ) : (
         <>
@@ -361,7 +364,7 @@ export function SkillsPage() {
                   className="flex cursor-pointer items-center gap-1 rounded-lg border border-border/60 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground disabled:opacity-30"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
-                  Previous
+                  {t('common.previous')}
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                   <button
@@ -381,7 +384,7 @@ export function SkillsPage() {
                   disabled={page === totalPages}
                   className="flex cursor-pointer items-center gap-1 rounded-lg border border-border/60 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground disabled:opacity-30"
                 >
-                  Next
+                  {t('common.next')}
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>

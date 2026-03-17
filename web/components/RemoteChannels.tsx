@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Send, Plus, Trash2, Pencil, Power, PowerOff, ArrowLeft } from 'lucide-react'
 import type { ChannelConfig, ChannelStatus } from '@/lib/channels/types'
 import { getChannelConfigs, saveChannelConfig, deleteChannelConfig } from '@/lib/storage'
+import { useI18n } from '@/lib/i18n/context'
 
 // --- Types ---
 
@@ -16,12 +17,13 @@ interface RemoteChannelsProps {
 // --- Main Component ---
 
 export function RemoteChannels({ channelStatuses, onRefreshStatuses }: RemoteChannelsProps) {
+  const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<RemoteTab>('telegram')
   const [telegramView, setTelegramView] = useState<TelegramView>('list')
   const [editingChannel, setEditingChannel] = useState<ChannelConfig | null>(null)
 
   const tabs: { id: RemoteTab; label: string; icon: typeof Send }[] = [
-    { id: 'telegram', label: 'Telegram', icon: Send },
+    { id: 'telegram', label: t('telegram.title'), icon: Send },
   ]
 
   return (
@@ -29,7 +31,7 @@ export function RemoteChannels({ channelStatuses, onRefreshStatuses }: RemoteCha
       {/* Left sidebar */}
       <div className="flex w-48 shrink-0 flex-col border-r border-border/40 bg-muted/20">
         <div className="flex flex-col gap-1 px-3 pt-6 pb-4">
-          <h2 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Remote</h2>
+          <h2 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">{t('telegram.remote')}</h2>
         </div>
         <nav className="flex flex-col gap-0.5 px-3">
           {tabs.map(({ id, label, icon: Icon }) => (
@@ -78,6 +80,7 @@ function TelegramTab({
   channelStatuses: Record<string, ChannelStatus>
   onRefreshStatuses: () => void
 }) {
+  const { t } = useI18n()
   const [configs, setConfigs] = useState<ChannelConfig[]>([])
 
   useEffect(() => {
@@ -134,9 +137,9 @@ function TelegramTab({
             className="mb-3 flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Telegram
+            {t('telegram.backToTelegram')}
           </button>
-          <h2 className="text-base font-semibold text-foreground">Add Telegram Channel</h2>
+          <h2 className="text-base font-semibold text-foreground">{t('telegram.addTelegramChannel')}</h2>
         </div>
         <div className="max-w-[640px]">
           <TelegramForm
@@ -158,10 +161,10 @@ function TelegramTab({
             className="mb-3 flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Telegram
+            {t('telegram.backToTelegram')}
           </button>
           <div className="flex items-center gap-3">
-            <h2 className="text-base font-semibold text-foreground">Edit Channel</h2>
+            <h2 className="text-base font-semibold text-foreground">{t('telegram.editChannel')}</h2>
             <div className="flex items-center gap-1.5">
               <span className={`inline-block h-2 w-2 rounded-full ${statusColor(editingChannel.id)}`} />
               <span className="text-xs text-muted-foreground capitalize">{statusLabel(editingChannel.id)}</span>
@@ -183,14 +186,14 @@ function TelegramTab({
   return (
     <div className="flex h-full flex-col px-8 pb-10">
       <div className="sticky top-0 z-10 bg-background pt-6 pb-6">
-        <h2 className="text-base font-semibold text-foreground">Telegram</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Connect a Telegram bot to control your agent remotely.</p>
+        <h2 className="text-base font-semibold text-foreground">{t('telegram.title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('telegram.description')}</p>
       </div>
 
       <div className="max-w-[640px] space-y-3">
         {configs.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No channels configured yet. Add one to chat with your agent via Telegram.
+            {t('telegram.noChannels')}
           </p>
         )}
 
@@ -205,18 +208,18 @@ function TelegramTab({
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-foreground">Telegram</span>
+                <span className="text-sm font-semibold text-foreground">{t('telegram.title')}</span>
                 <div className="flex items-center gap-1.5">
                   <span className={`inline-block h-2 w-2 rounded-full ${statusColor(c.id)}`} />
                   <span className="text-[10px] text-muted-foreground capitalize">{statusLabel(c.id)}</span>
                 </div>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                {c.botToken ? `Token: ${c.botToken.slice(0, 8)}...` : 'No token set'}
+                {c.botToken ? `${t('telegram.tokenPrefix')}${c.botToken.slice(0, 8)}...` : t('telegram.noToken')}
               </p>
               {c.allowedChatIds && c.allowedChatIds.length > 0 && (
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  Allowed chats: {c.allowedChatIds.join(', ')}
+                  {t('telegram.allowedChatsPrefix')}{c.allowedChatIds.join(', ')}
                 </p>
               )}
             </div>
@@ -224,7 +227,7 @@ function TelegramTab({
               <button
                 onClick={() => handleToggle(c)}
                 className="cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                title={c.enabled ? 'Disable' : 'Enable'}
+                title={c.enabled ? t('telegram.disable') : t('telegram.enable')}
               >
                 {c.enabled ? <Power className="h-3.5 w-3.5 text-green-600" /> : <PowerOff className="h-3.5 w-3.5" />}
               </button>
@@ -249,7 +252,7 @@ function TelegramTab({
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
-          Add Channel
+          {t('telegram.addChannel')}
         </button>
       </div>
     </div>
@@ -263,6 +266,7 @@ function TelegramForm({ initial, onSave, onCancel }: {
   onSave: (config: ChannelConfig) => Promise<void>
   onCancel: () => void
 }) {
+  const { t } = useI18n()
   const [botToken, setBotToken] = useState(initial?.botToken ?? '')
   const [allowedChatIds, setAllowedChatIds] = useState(initial?.allowedChatIds?.join(', ') ?? '')
   const [enabled, setEnabled] = useState(initial?.enabled ?? true)
@@ -293,30 +297,30 @@ function TelegramForm({ initial, onSave, onCancel }: {
   return (
     <div className="space-y-5">
       <fieldset>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">Bot Token</label>
+        <label className="mb-1.5 block text-sm font-medium text-foreground">{t('telegram.botToken')}</label>
         <input
           type="password"
           value={botToken}
           onChange={e => setBotToken(e.target.value)}
-          placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+          placeholder={t('telegram.botTokenPlaceholder')}
           className="w-full rounded-xl border border-border/50 bg-muted/50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
         />
         <p className="mt-1.5 text-xs text-muted-foreground">
-          Get a token from @BotFather on Telegram
+          {t('telegram.botTokenHint')}
         </p>
       </fieldset>
 
       <fieldset>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">Allowed Chat IDs</label>
+        <label className="mb-1.5 block text-sm font-medium text-foreground">{t('telegram.allowedChatIds')}</label>
         <input
           type="text"
           value={allowedChatIds}
           onChange={e => setAllowedChatIds(e.target.value)}
-          placeholder="Leave empty to auto-capture first /start sender"
+          placeholder={t('telegram.allowedChatIdsPlaceholder')}
           className="w-full rounded-xl border border-border/50 bg-muted/50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
         />
         <p className="mt-1.5 text-xs text-muted-foreground">
-          Comma-separated. Empty = auto-bind first user who sends /start
+          {t('telegram.allowedChatIdsDesc')}
         </p>
       </fieldset>
 
@@ -328,7 +332,7 @@ function TelegramForm({ initial, onSave, onCancel }: {
             onChange={e => setEnabled(e.target.checked)}
             className="rounded"
           />
-          Enable on save
+          {t('telegram.enableOnSave')}
         </label>
       </fieldset>
 
@@ -337,14 +341,14 @@ function TelegramForm({ initial, onSave, onCancel }: {
           onClick={onCancel}
           className="flex-1 cursor-pointer rounded-xl border border-border/50 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/80"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           onClick={handleSubmit}
           disabled={saving || !botToken.trim()}
           className="flex-1 cursor-pointer rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {saving ? 'Saving...' : initial ? 'Update' : 'Add Channel'}
+          {saving ? t('common.saving') : initial ? t('telegram.update') : t('telegram.addChannel')}
         </button>
       </div>
     </div>

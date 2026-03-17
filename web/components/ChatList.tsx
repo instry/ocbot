@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Trash2, Loader2 } from 'lucide-react'
 import type { Conversation } from '@/lib/types'
+import { useI18n } from '@/lib/i18n/context'
 
 const PAGE_SIZE = 20
 
@@ -17,6 +18,7 @@ export function ChatList({
   onSelectChat,
   onDeleteChat,
 }: ChatListProps) {
+  const { t } = useI18n()
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE)
   const [loadingMore, setLoadingMore] = useState(false)
 
@@ -36,7 +38,7 @@ export function ChatList({
     return (
       <div className="flex-1 overflow-y-auto p-2">
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          No conversations yet
+          {t('chat.noConversations')}
         </div>
       </div>
     )
@@ -45,7 +47,7 @@ export function ChatList({
   return (
     <div className="flex-1 overflow-y-auto p-2">
       <div className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
-        History
+        {t('nav.history')}
       </div>
       {visible.map(conv => (
         <div
@@ -56,7 +58,7 @@ export function ChatList({
           onClick={() => onSelectChat(conv.id)}
         >
           <div className="min-w-0 flex-1 truncate text-foreground/80">
-            {conv.title || 'New Chat'}
+            {conv.title || t('chat.newChat')}
           </div>
           <button
             onClick={e => { e.stopPropagation(); onDeleteChat(conv.id) }}
@@ -72,7 +74,7 @@ export function ChatList({
           disabled={loadingMore}
           className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg py-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          {loadingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Load more'}
+          {loadingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : t('chat.loadMore')}
         </button>
       )}
     </div>

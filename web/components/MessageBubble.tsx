@@ -3,30 +3,31 @@ import { useState } from 'react'
 import { ChevronDown, Loader2, CheckCircle2 } from 'lucide-react'
 import { BotAvatar } from '@/components/BotAvatar'
 import type { ToolStatus } from '@/lib/hooks/useChat'
+import { useI18n } from '@/lib/i18n/context'
 
 interface MessageBubbleProps {
   message: ChatMessage
 }
 
-const TOOL_LABELS: Record<string, string> = {
-  navigate: 'Opening page',
-  act: 'Performing action',
-  scroll: 'Scrolling',
-  waitForNavigation: 'Waiting for page',
-  extract: 'Extracting data',
-  observe: 'Observing page',
-  think: 'Thinking',
-  ariaTree: 'Reading page structure',
-  screenshot: 'Capturing screenshot',
-  fillForm: 'Filling form',
+const TOOL_LABEL_KEYS: Record<string, string> = {
+  navigate: 'tool.navigate',
+  act: 'tool.act',
+  scroll: 'tool.scroll',
+  waitForNavigation: 'tool.waitForNavigation',
+  extract: 'tool.extract',
+  observe: 'tool.observe',
+  think: 'tool.think',
+  ariaTree: 'tool.ariaTree',
+  screenshot: 'tool.screenshot',
+  fillForm: 'tool.fillForm',
 }
 
-function formatToolLabel(name: string, description?: string): string {
+function formatToolLabel(name: string, t: (key: string) => string, description?: string): string {
+  const label = TOOL_LABEL_KEYS[name] ? t(TOOL_LABEL_KEYS[name]) : name
   if (description) {
-    const label = TOOL_LABELS[name] || name
     return `${label}: ${description}`
   }
-  return TOOL_LABELS[name] || name
+  return label
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
@@ -97,7 +98,8 @@ export interface ToolBatchProps {
 
 export function ToolBatch({ tools, isComplete }: ToolBatchProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const completedCount = tools.filter(t => t.status === 'done').length
+  const { t } = useI18n()
+  const completedCount = tools.filter(tool => tool.status === 'done').length
 
   return (
     <div className="px-3 py-1">
@@ -111,7 +113,7 @@ export function ToolBatch({ tools, isComplete }: ToolBatchProps) {
           <Loader2 className="h-3 w-3 animate-spin text-primary" />
         )}
         <span>
-          {completedCount} actions completed
+          {t('chat.actionsCompleted', { count: completedCount })}
         </span>
         <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -125,7 +127,7 @@ export function ToolBatch({ tools, isComplete }: ToolBatchProps) {
               ) : (
                 <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
               )}
-              <span className="truncate">{formatToolLabel(tool.name, tool.description)}</span>
+              <span className="truncate">{formatToolLabel(tool.name, t, tool.description)}</span>
             </div>
           ))}
         </div>
@@ -141,10 +143,11 @@ export interface LiveToolStatusProps {
 }
 
 export function LiveToolStatus({ statuses }: LiveToolStatusProps) {
+  const { t } = useI18n()
   if (statuses.length === 0) return null
 
-  const completedCount = statuses.filter(t => t.status === 'done').length
-  const currentTool = statuses.find(t => t.status === 'running')
+  const completedCount = statuses.filter(s => s.status === 'done').length
+  const currentTool = statuses.find(s => s.status === 'running')
 
   return (
     <div className="flex gap-2 px-3 py-1.5">
@@ -162,7 +165,7 @@ export function LiveToolStatus({ statuses }: LiveToolStatusProps) {
               )}
               <span className="text-muted-foreground/50 w-4 text-right shrink-0">{idx + 1}.</span>
               <span className="truncate">
-                {formatToolLabel(ts.name, ts.description)}
+                {formatToolLabel(ts.name, t, ts.description)}
                 {ts.status === 'running' ? '…' : ''}
               </span>
             </div>

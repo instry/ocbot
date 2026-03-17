@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { storage } from '../storage-backend'
+import { detectSystemLocale } from '../i18n'
 
 export type ColorScheme = 'system' | 'light' | 'dark'
 export type Language = 'en' | 'zh'
@@ -13,7 +14,7 @@ interface AppSettings {
 
 const DEFAULT_SETTINGS: AppSettings = {
   colorScheme: 'system',
-  language: 'en',
+  language: detectSystemLocale(),
 }
 
 function applyColorScheme(scheme: ColorScheme) {

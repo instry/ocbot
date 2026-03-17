@@ -1,4 +1,5 @@
 import { Menu, SquarePen, X, ArrowLeft } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/context'
 
 interface HeaderProps {
   view: 'chat' | 'history'
@@ -8,6 +9,7 @@ interface HeaderProps {
 }
 
 export function Header({ view, onNewChat, onToggleHistory, onClose }: HeaderProps) {
+  const { t } = useI18n()
   if (view === 'history') {
     return (
       <header className="flex items-center justify-between border-b border-border/40 px-3 py-2">
@@ -15,16 +17,16 @@ export function Header({ view, onNewChat, onToggleHistory, onClose }: HeaderProp
           <button
             onClick={onToggleHistory}
             className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-            title="Back"
+            title={t('common.back')}
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-semibold">History</span>
+          <span className="text-sm font-semibold">{t('nav.history')}</span>
         </div>
         <button
           onClick={onClose}
           className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-          title="Close"
+          title={t('common.close')}
         >
           <X className="h-4 w-4" />
         </button>
@@ -38,14 +40,14 @@ export function Header({ view, onNewChat, onToggleHistory, onClose }: HeaderProp
         <button
           onClick={onToggleHistory}
           className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-          title="History"
+          title={t('nav.history')}
         >
           <Menu className="h-4 w-4" />
         </button>
         <button
           onClick={onNewChat}
           className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-          title="New Session"
+          title={t('nav.newSession')}
         >
           <SquarePen className="h-4 w-4" />
         </button>
@@ -53,7 +55,7 @@ export function Header({ view, onNewChat, onToggleHistory, onClose }: HeaderProp
       <button
         onClick={onClose}
         className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-        title="Close"
+        title={t('common.close')}
       >
         <X className="h-4 w-4" />
       </button>

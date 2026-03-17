@@ -9,11 +9,23 @@ import { SkillParamForm } from '@/components/SkillParamForm'
 import { Header } from './components/Header'
 import { useLlmProvider } from '@/lib/llm/useLlmProvider'
 import { useChat } from '@/lib/hooks/useChat'
+import { useSettings } from '@/lib/hooks/useSettings'
+import { I18nProvider, useI18n } from '@/lib/i18n/context'
 import type { ChannelStatus } from '@/lib/channels/types'
 
 type View = 'chat' | 'chatList'
 
 export function App() {
+  const { language } = useSettings()
+  return (
+    <I18nProvider locale={language}>
+      <AppContent />
+    </I18nProvider>
+  )
+}
+
+function AppContent() {
+  const { t } = useI18n()
   const [view, setView] = useState<View>('chat')
   const { providers, selectedProvider, saveProvider, deleteProvider, selectProvider } = useLlmProvider()
   const {
@@ -164,7 +176,7 @@ export function App() {
           {pendingSkillSave && !skillSaved && !skillSaving && (
             <div className="mx-3 my-2 flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
               <Puzzle className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="flex-1 text-sm text-muted-foreground">Save this task as a Skill?</span>
+              <span className="flex-1 text-sm text-muted-foreground">{t('chat.saveSkillPrompt')}</span>
               <button
                 onClick={() => {
                   setSkillSaving(true)
@@ -175,7 +187,7 @@ export function App() {
                 }}
                 className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
               >
-                Save
+                {t('common.save')}
               </button>
               <button
                 onClick={() => dismissSkillSave()}
@@ -188,7 +200,7 @@ export function App() {
           {skillSaved && (
             <div className="mx-3 my-2 flex items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/5 px-3 py-2 text-sm text-green-600 dark:text-green-400">
               <Puzzle className="h-4 w-4 shrink-0" />
-              <span className="flex-1">Skill saved successfully!</span>
+              <span className="flex-1">{t('chat.skillSaved')}</span>
               {savedSkillId && (
                 <button
                   onClick={async () => {
@@ -203,7 +215,7 @@ export function App() {
                   className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium hover:bg-green-500/10"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  View
+                  {t('common.view')}
                 </button>
               )}
               <button
