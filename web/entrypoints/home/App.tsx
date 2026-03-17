@@ -10,6 +10,7 @@ import { AboutPage } from './pages/AboutPage'
 import { useLlmProvider } from '@/lib/llm/useLlmProvider'
 import { useSettings } from '@/lib/hooks/useSettings'
 import { I18nProvider, useI18n } from '@/lib/i18n/context'
+import { useWallet } from '@/lib/hooks/useWallet'
 import type { LlmProvider } from '@/lib/llm/types'
 
 type Page = 'new-session' | 'skills' | 'claw' | 'settings' | 'about'
@@ -83,6 +84,7 @@ export function App() {
   })
   const { providers, selectedProvider, saveProvider, deleteProvider, selectProvider } = useLlmProvider()
   const { colorScheme, language, setColorScheme, setLanguage } = useSettings()
+  const wallet = useWallet()
 
   const navigateTo = useCallback((p: Page) => {
     setPage(p)
@@ -140,6 +142,7 @@ export function App() {
               language={language}
               onColorSchemeChange={setColorScheme}
               onLanguageChange={setLanguage}
+              wallet={wallet}
             />
           )}
           {page === 'about' && <AboutPage />}
