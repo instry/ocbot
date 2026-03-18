@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ExternalLink, Check } from 'lucide-react'
 import type { LlmProvider, ProviderType } from '@/lib/llm/types'
-import { PROVIDER_TEMPLATES, getTemplateByType, getRegionBaseUrl, getRegionApiKeyUrl } from '@/lib/llm/models'
+import { getProviderTemplates, getTemplateByType, getRegionBaseUrl, getRegionApiKeyUrl } from '@/lib/llm/models'
 import { useI18n } from '@/lib/i18n/context'
 
 interface ProviderFormProps {
@@ -123,7 +123,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
         <fieldset>
           <label className="mb-2 block text-sm font-medium">{t('provider.provider')}</label>
           <div className={`grid ${gridCols} gap-2`}>
-            {PROVIDER_TEMPLATES.map(t => (
+            {getProviderTemplates().map(t => (
               <button
                 key={t.type}
                 onClick={() => handleTypeChange(t.type)}

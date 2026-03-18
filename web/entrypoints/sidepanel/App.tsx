@@ -8,6 +8,7 @@ import { ChatList } from '@/components/ChatList'
 import { SkillParamForm } from '@/components/SkillParamForm'
 import { Header } from './components/Header'
 import { useLlmProvider } from '@/lib/llm/useLlmProvider'
+import { refreshModels } from '@/lib/llm/models'
 import { useChat } from '@/lib/hooks/useChat'
 import { useSettings } from '@/lib/hooks/useSettings'
 import { I18nProvider, useI18n } from '@/lib/i18n/context'
@@ -36,6 +37,9 @@ function AppContent() {
     pendingSkillParams, prefillParams, confirmSkillParams, cancelSkillParams,
   } = useChat(selectedProvider)
   const [channelStatuses, setChannelStatuses] = useState<Record<string, ChannelStatus>>({})
+
+  // Fetch remote model definitions (non-blocking)
+  useEffect(() => { refreshModels() }, [])
   const [skillSaving, setSkillSaving] = useState(false)
   const [skillSaved, setSkillSaved] = useState(false)
   const [savedSkillId, setSavedSkillId] = useState<string | null>(null)

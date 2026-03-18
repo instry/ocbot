@@ -276,3 +276,28 @@ def release_browser(args):
 
     logger.info(f"Done! Ocbot v{version} released as {tag}")
     logger.info("Running instances will auto-update in the background.")
+
+
+def upload_config_to_r2():
+    """Upload web/models.json to R2 at config/models.json."""
+    models_path = get_agent_root() / 'models.json'
+    if not models_path.exists():
+        logger.error(f"models.json not found at {models_path}")
+        sys.exit(1)
+
+    client = get_r2_client()
+    if not client:
+        logger.error("R2 credentials not set. "
+                      "Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.")
+        sys.exit(1)
+
+    key = 'config/models.json'
+    logger.info(f"Uploading {models_path.name} to R2 ({key})...")
+    client.upload_file(
+        str(models_path), R2_BUCKET, key,
+        ExtraArgs={
+            'ContentType': 'application/json',
+            'CacheControl': 'public, max-age=3600',
+        },
+    )
+    logger.info(f"  → {R2_CDN_BASE}/{key}")

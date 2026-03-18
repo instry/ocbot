@@ -15,7 +15,7 @@ try:
     from check import check_environment
     from icons import install_icons
     from package import package_dmg, package_windows
-    from release import release_extension, release_browser
+    from release import release_extension, release_browser, upload_config_to_r2
     from common import get_source_dir, get_project_root, get_agent_root
 except ImportError as e:
     print(f"Error importing scripts: {e}")
@@ -128,6 +128,9 @@ def main():
     # Release Browser
     parser_release_browser = subparsers.add_parser('release-browser', help='Release ocbot browser DMG to GitHub', parents=[parent_parser])
 
+    # Sync Models
+    parser_sync_models = subparsers.add_parser('sync-models', help='Upload models.json to CDN', parents=[parent_parser])
+
     args = parser.parse_args()
 
     # Default extension source path
@@ -237,6 +240,8 @@ def main():
         release_extension(args)
     elif args.command == 'release-browser':
         release_browser(args)
+    elif args.command == 'sync-models':
+        upload_config_to_r2()
     else:
         parser.print_help()
 
