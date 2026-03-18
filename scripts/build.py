@@ -197,19 +197,18 @@ def _build_single_arch(args, arch=None):
             logger.error("'gn' command not found. Please install depot_tools and add to PATH.")
             return
 
-    # Check if args.gn exists and if use_siso needs to be added
+    # Check if args.gn exists and needs updating
     args_gn_path = out_dir / 'args.gn'
     needs_gen = False
-    needs_clean = False
+    expected_content = '\n'.join(flags)
 
     if args_gn_path.exists():
         with open(args_gn_path, 'r') as f:
             content = f.read()
-        if 'use_siso=true' not in content:
-            logger.info("Enabling siso in existing args.gn...")
-            with open(args_gn_path, 'a') as f:
-                f.write('\nuse_siso=true\n')
-            needs_clean = True
+        if content.strip() != expected_content.strip():
+            logger.info("Updating args.gn with current flags...")
+            with open(args_gn_path, 'w') as f:
+                f.write(expected_content)
             needs_gen = True
     else:
         logger.info("Generating build files with gn...")
@@ -218,13 +217,6 @@ def _build_single_arch(args, arch=None):
         with open(args_gn_path, 'w') as f:
             f.write('\n'.join(flags))
         needs_gen = True
-
-    if needs_clean:
-        logger.info(f"Cleaning output directory {out_dir} for siso migration...")
-        gn_cmd = 'gn'
-        if sys.platform == 'win32' and shutil.which('gn.bat'):
-            gn_cmd = 'gn.bat'
-        subprocess.run([gn_cmd, 'clean', str(out_dir)], cwd=src_dir, check=True)
 
     if needs_gen:
         gn_cmd = 'gn'
