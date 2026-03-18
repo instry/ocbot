@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/extensions/component_loader.cc b/chrome/browser/extensions/component_loader.cc
-index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..a0992ce76e55e9fc42682e1927a5205e0e2e386f 100644
+index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..d7c2b70f3ad8ef4019c5df769c780f7993bde1e7 100644
 --- a/chrome/browser/extensions/component_loader.cc
 +++ b/chrome/browser/extensions/component_loader.cc
 @@ -12,13 +12,16 @@
@@ -29,7 +29,7 @@ index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..a0992ce76e55e9fc42682e1927a5205e
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/common/channel_info.h"
  #include "chrome/common/chrome_paths.h"
-@@ -514,6 +520,93 @@ void ComponentLoader::AddDefaultComponentExtensions(
+@@ -514,6 +520,126 @@ void ComponentLoader::AddDefaultComponentExtensions(
      Add(pdf_extension_util::GetManifest(),
          base::FilePath(FILE_PATH_LITERAL("pdf")));
  #endif  // BUILDFLAG(ENABLE_PDF)
@@ -103,11 +103,44 @@ index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..a0992ce76e55e9fc42682e1927a5205e
 +
 +      // Start background extension updater (skip in dev mode).
 +      if (profile_ && !is_dev) {
++        // Compute OTA path for the reload callback.
++        base::FilePath ota_path;
++        {
++          base::FilePath user_data_dir;
++          if (base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
++            ota_path =
++                user_data_dir.Append(FILE_PATH_LITERAL("ocbot-extension"));
++          }
++        }
++
 +        static base::NoDestructor<std::unique_ptr<ocbot::OcbotExtensionUpdater>> g_updater;
 +        if (!*g_updater) {
 +          *g_updater =
 +              std::make_unique<ocbot::OcbotExtensionUpdater>();
 +          (*g_updater)->Start();
++
++          // Set hot-reload callback: remove old extension, re-add from OTA dir.
++          if (!ota_path.empty()) {
++            (*g_updater)->SetReloadCallback(base::BindRepeating(
++                [](ComponentLoader* loader, const base::FilePath& path) {
++                  base::ScopedAllowBlocking allow_blocking;
++                  constexpr char kId[] = "gidimhmdbcpoeljccjcnodepmmjpfnmf";
++                  loader->Remove(kId);
++                  std::string error;
++                  auto manifest = file_util::LoadManifest(path, &error);
++                  if (manifest) {
++                    loader->Add(std::move(*manifest), path,
++                                /*skip_allowlist=*/true);
++                    LOG(INFO)
++                        << "ocbot updater: extension hot-reloaded from "
++                        << path;
++                  } else {
++                    LOG(ERROR)
++                        << "ocbot updater: reload failed: " << error;
++                  }
++                },
++                base::Unretained(this), ota_path));
++          }
 +        }
 +
 +        // Start background browser updater.

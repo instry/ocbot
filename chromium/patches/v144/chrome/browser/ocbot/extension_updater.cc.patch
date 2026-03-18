@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/extension_updater.cc b/chrome/browser/ocbot/extension_updater.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..648c1c88467ccd2f737139770aaab45c9efcfc57
+index 0000000000000000000000000000000000000000..2b1f2b6325fbc4120d9131bae8d1ed839718c48c
 --- /dev/null
 +++ b/chrome/browser/ocbot/extension_updater.cc
-@@ -0,0 +1,406 @@
+@@ -0,0 +1,412 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -209,6 +209,10 @@ index 0000000000000000000000000000000000000000..648c1c88467ccd2f737139770aaab45c
 +
 +OcbotExtensionUpdater::~OcbotExtensionUpdater() = default;
 +
++void OcbotExtensionUpdater::SetReloadCallback(ReloadCallback callback) {
++  reload_callback_ = std::move(callback);
++}
++
 +void OcbotExtensionUpdater::Start() {
 +  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 +
@@ -369,11 +373,13 @@ index 0000000000000000000000000000000000000000..648c1c88467ccd2f737139770aaab45c
 +    return;
 +  }
 +
-+  // The updated extension will be loaded on next browser restart.
-+  // Live-reloading component extensions mid-session is risky, so we
-+  // just log that the update is ready.
-+  LOG(INFO) << "ocbot updater: update installed to " << update_dir
-+            << ". It will take effect on next browser restart.";
++  if (reload_callback_) {
++    LOG(INFO) << "ocbot updater: hot-reloading extension from " << update_dir;
++    reload_callback_.Run();
++  } else {
++    LOG(INFO) << "ocbot updater: update installed to " << update_dir
++              << ". It will take effect on next browser restart.";
++  }
 +}
 +
 +std::string OcbotExtensionUpdater::GetCurrentVersion() const {

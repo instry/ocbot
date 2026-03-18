@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/extension_updater.h b/chrome/browser/ocbot/extension_updater.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..0cfd1c33916c900f13a29290f8e13f14e94cfaee
+index 0000000000000000000000000000000000000000..0eaa53ca0fa7c828c9a69a6f46895dfa6008ee26
 --- /dev/null
 +++ b/chrome/browser/ocbot/extension_updater.h
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,72 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -15,6 +15,7 @@ index 0000000000000000000000000000000000000000..0cfd1c33916c900f13a29290f8e13f14
 +#include <string>
 +
 +#include "base/files/file_path.h"
++#include "base/functional/callback.h"
 +#include "base/memory/weak_ptr.h"
 +#include "base/timer/timer.h"
 +
@@ -47,6 +48,11 @@ index 0000000000000000000000000000000000000000..0cfd1c33916c900f13a29290f8e13f14
 +  // Starts the periodic update check. First check after |initial_delay|.
 +  void Start();
 +
++  // Sets a callback to hot-reload the extension after an OTA update.
++  // If not set, updates take effect on next browser restart.
++  using ReloadCallback = base::RepeatingClosure;
++  void SetReloadCallback(ReloadCallback callback);
++
 + private:
 +  void CheckForUpdate();
 +  void OnReleaseFetched(std::optional<std::string> response_body);
@@ -62,6 +68,7 @@ index 0000000000000000000000000000000000000000..0cfd1c33916c900f13a29290f8e13f14
 +
 +  base::RepeatingTimer check_timer_;
 +  std::unique_ptr<network::SimpleURLLoader> url_loader_;
++  ReloadCallback reload_callback_;
 +
 +  base::WeakPtrFactory<OcbotExtensionUpdater> weak_factory_{this};
 +};
