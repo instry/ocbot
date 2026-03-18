@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from common import get_logger, get_project_root, get_source_dir, get_product_version, get_agent_root
+from common import get_logger, get_project_root, get_source_dir, get_product_version, get_agent_root, get_out_dir_name
 
 if sys.platform == 'darwin':
     import plistlib
@@ -19,9 +19,9 @@ if sys.platform == 'darwin':
 logger = get_logger()
 
 
-def _find_app(src_dir, is_official=False):
+def _find_app(src_dir, is_official=False, arch=None):
     """Find the built .app bundle in out/Default or out/Official."""
-    out_dir_name = 'Official' if is_official else 'Default'
+    out_dir_name = get_out_dir_name(is_official, arch)
     out_dir = src_dir / 'src' / 'out' / out_dir_name
     if not out_dir.exists():
         out_dir = src_dir / 'out' / out_dir_name
@@ -207,7 +207,8 @@ def package_dmg(args):
             src_dir = Path(args.src_dir).resolve()
         else:
             src_dir = get_source_dir()
-        app_path = _find_app(src_dir, is_official=getattr(args, 'official', False))
+        arch = getattr(args, 'arch', None)
+        app_path = _find_app(src_dir, is_official=getattr(args, 'official', False), arch=arch)
     app_name, _plist_version = _read_plist(app_path)
     product_version = get_product_version()
     logger.info(f"Packaging {app_name} ({product_version}) from {app_path}")
@@ -219,7 +220,11 @@ def package_dmg(args):
     if getattr(args, 'output', None):
         final_dmg = Path(args.output).resolve()
     else:
-        final_dmg = dist_dir / f"{app_name}-{product_version}.dmg"
+        arch = getattr(args, 'arch', None)
+        if arch:
+            final_dmg = dist_dir / f"{app_name}-{product_version}-{arch}.dmg"
+        else:
+            final_dmg = dist_dir / f"{app_name}-{product_version}.dmg"
 
     vol_name = f"{app_name} {product_version}"
     icon_file = project_root / 'chromium' / 'icons' / 'app.icns'

@@ -85,6 +85,12 @@ def sync_extension_version():
     )
     config_path.write_text(updated)
 
+def get_out_dir_name(is_official, arch=None):
+    """Return output directory name, e.g. 'Official-arm64' or 'Default'."""
+    base = 'Official' if is_official else 'Default'
+    return f'{base}-{arch}' if arch else base
+
+
 def get_source_dir(version=None):
     """
     Returns the source directory for the active version.

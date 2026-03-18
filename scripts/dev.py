@@ -92,6 +92,9 @@ def main():
     parser_build.add_argument('--target', default='chrome', help='Build target')
     parser_build.add_argument('--official', action='store_true', help='Build official release (optimized)')
     parser_build.add_argument('--clean', action='store_true', help='Clean output directory before building')
+    parser_build.add_argument('--arch', default=None,
+        choices=['arm64', 'x64', 'universal'],
+        help='Target architecture (default: native)')
 
     # Run
     parser_run = subparsers.add_parser('run', help='Run Ocbot', parents=[parent_parser])
@@ -115,6 +118,9 @@ def main():
     parser_package.add_argument('--password', help="App-specific password for notarization (or set NOTARY_PASSWORD)")
     parser_package.add_argument('--password-file', help="Path to file containing app-specific password", default=".apple.json")
     parser_package.add_argument('--extension-src', help="Path to extension build output to bundle in DMG (default: web/.output/chrome-mv3)")
+    parser_package.add_argument('--arch', default=None,
+        choices=['arm64', 'x64', 'universal'],
+        help='Architecture to package (default: native)')
 
     # Release Extension
     parser_release = subparsers.add_parser('release-extension', help='Release ocbot extension to GitHub', parents=[parent_parser])
