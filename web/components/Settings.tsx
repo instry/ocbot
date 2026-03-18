@@ -39,7 +39,7 @@ export function Settings({
 
   const tabs: { id: SettingsTab; label: string; icon: typeof Sliders }[] = [
     { id: 'providers', label: t('models.title'), icon: Cpu },
-    { id: 'wallet', label: 'Wallet', icon: Wallet },
+    // { id: 'wallet', label: 'Wallet', icon: Wallet },  // TODO: re-enable when wallet is ready
     { id: 'general', label: t('settings.general'), icon: Sliders },
   ]
 
