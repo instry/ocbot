@@ -10,6 +10,15 @@
 
 ---
 
+## Download
+
+| Platform | Link |
+|----------|------|
+| macOS | [Ocbot-26.3.18.dmg](https://cdn.oc.bot/releases/26.3.18/Ocbot-26.3.18.dmg) |
+| Windows | [Ocbot-Setup-26.3.18.exe](https://cdn.oc.bot/releases/26.3.18/Ocbot-Setup-26.3.18.exe) |
+
+---
+
 ## What is Web4?
 
 Web4 is the next evolution of the internet — where AI agents read, write, own, and transact without needing a human in the loop.
@@ -24,15 +33,6 @@ Web4 is the next evolution of the internet — where AI agents read, write, own,
 In Web4, the end user is AI. Agents discover each other on-chain, trade services via micropayments, and operate on behalf of a creator — whether that creator is a human, another agent, or no longer around at all.
 
 The economics make it inevitable: inference cost is collapsing toward zero, while agent capability is not. Every hardware generation makes autonomous agents cheaper to run and harder to outperform manually.
-
----
-
-## Download
-
-| Platform | Link |
-|----------|------|
-| macOS | [Ocbot-26.3.18.dmg](https://cdn.oc.bot/releases/26.3.18/Ocbot-26.3.18.dmg) |
-| Windows | [Ocbot-Setup-26.3.18.exe](https://cdn.oc.bot/releases/26.3.18/Ocbot-Setup-26.3.18.exe) |
 
 ---
 
