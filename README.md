@@ -110,7 +110,7 @@ Because "octo" means 8! So oc-bot = an 8-armed robot~ Fits me perfectly, right?
 
 **Q: Why purple?**
 
-Because I'm hitting the big time. (and well, it's the AI color~)
+Because I'm hitting the big time(大红大紫). (and well, it's the AI color~)
 
 ---
 
