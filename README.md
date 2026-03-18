@@ -6,6 +6,8 @@
 
 [中文文档](README_CN.md)
 
+https://cdn.oc.bot/media/ocbot_video.mp4
+
 **ocbot** is an AI-native browser for Web4 — the era where AI agents are first-class citizens of the internet. It can browse, act, and transact on the open web, powered by on-chain identity (ERC-8004), native payments (USDC/x402), and a built-in AI agent runtime. The browser is its body; the web is its world.
 
 ---
