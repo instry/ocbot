@@ -155,6 +155,33 @@ gh release create "ext-v${VERSION}" ocbot-extension.zip
 - **Updater starts in component_loader.cc**: Simplest integration point, avoids modifying chrome_browser_main.cc
 - **Using `base::NoDestructor`**: Static singleton, only one updater instance for the entire browser lifetime
 - **Not using Chrome Web Store update mechanism**: Component extensions don't support the standard `update_url`
+- **Dual-source updates (R2 CDN + GitHub fallback)**: Both extension and browser updaters try R2 CDN (`https://cdn.oc.bot/latest.json`) first, falling back to GitHub Releases API on failure. R2 serves a simple `latest.json` with version and per-platform download URLs. This accelerates updates in China where GitHub is slow/unreliable. The download path is source-agnostic — `DownloadZip`/`DownloadDmg` work with URLs from either source.
+
+## Update Check Flow (dual-source)
+
+```
+CheckForUpdate()
+  → fetch https://cdn.oc.bot/latest.json
+  → OnR2MetadataFetched()
+     ├─ success → ParseR2Json() → version compare → Download(r2_url)
+     └─ failure → CheckForUpdateFromGitHub()
+                  → fetch GitHub API (existing flow)
+                  → OnReleaseFetched() → ParseReleaseJson() → Download(github_url)
+```
+
+R2 `latest.json` format:
+```json
+{
+  "version": "26.3.18",
+  "extension": { "url": "https://cdn.oc.bot/releases/26.3.18/ocbot-extension.zip" },
+  "browser": {
+    "macos": { "url": "https://cdn.oc.bot/releases/26.3.18/Ocbot-26.3.18.dmg" },
+    "windows": { "url": "https://cdn.oc.bot/releases/26.3.18/Ocbot-Setup-26.3.18.exe" }
+  }
+}
+```
+
+Release pipeline (`release.py`) uploads to both GitHub Releases and R2, then updates `latest.json` via read-merge-write (preserves other platform's URLs).
 
 ## Known Pitfalls
 

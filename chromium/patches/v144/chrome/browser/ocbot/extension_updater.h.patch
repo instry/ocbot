@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/extension_updater.h b/chrome/browser/ocbot/extension_updater.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..0eaa53ca0fa7c828c9a69a6f46895dfa6008ee26
+index 0000000000000000000000000000000000000000..e333ab91e6239f75a6a9da1cd66d5e438ab6e3a4
 --- /dev/null
 +++ b/chrome/browser/ocbot/extension_updater.h
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,75 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -28,13 +28,14 @@ index 0000000000000000000000000000000000000000..0eaa53ca0fa7c828c9a69a6f46895dfa
 +
 +namespace ocbot {
 +
-+// Downloads and installs ocbot extension updates from GitHub Releases.
++// Downloads and installs ocbot extension updates.
 +//
 +// Workflow:
-+//   1. After a startup delay, fetches the latest release info from GitHub API.
-+//   2. Compares the remote version against the currently loaded extension.
-+//   3. If newer, downloads the zip asset and extracts to <user-data-dir>/ocbot-extension/.
-+//   4. The update takes effect on next browser restart.
++//   1. After a startup delay, fetches latest.json from R2 CDN.
++//   2. On failure, falls back to GitHub Releases API.
++//   3. Compares the remote version against the currently loaded extension.
++//   4. If newer, downloads the zip asset and extracts to <user-data-dir>/ocbot-extension/.
++//   5. The update takes effect on next browser restart (or hot-reload if callback set).
 +//
 +// Subsequent checks run every 4 hours while the browser is open.
 +class OcbotExtensionUpdater {
@@ -55,6 +56,8 @@ index 0000000000000000000000000000000000000000..0eaa53ca0fa7c828c9a69a6f46895dfa
 +
 + private:
 +  void CheckForUpdate();
++  void OnR2MetadataFetched(std::optional<std::string> response_body);
++  void CheckForUpdateFromGitHub();
 +  void OnReleaseFetched(std::optional<std::string> response_body);
 +  void DownloadZip(const std::string& download_url,
 +                   const std::string& remote_version);

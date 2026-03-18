@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/extension_updater.cc b/chrome/browser/ocbot/extension_updater.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..2b1f2b6325fbc4120d9131bae8d1ed839718c48c
+index 0000000000000000000000000000000000000000..99300bf08648a095e6d5237634b74780dfb68dcd
 --- /dev/null
 +++ b/chrome/browser/ocbot/extension_updater.cc
-@@ -0,0 +1,412 @@
+@@ -0,0 +1,518 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -40,6 +40,7 @@ index 0000000000000000000000000000000000000000..2b1f2b6325fbc4120d9131bae8d1ed83
 +namespace {
 +
 +constexpr char kOcbotExtensionId[] = "gidimhmdbcpoeljccjcnodepmmjpfnmf";
++constexpr char kR2LatestUrl[] = "https://cdn.oc.bot/latest.json";
 +constexpr char kGitHubReleasesApiUrl[] =
 +    "https://api.github.com/repos/instry/ocbot/releases/latest";
 +constexpr char kZipAssetName[] = "ocbot-extension.zip";
@@ -141,6 +142,41 @@ index 0000000000000000000000000000000000000000..2b1f2b6325fbc4120d9131bae8d1ed83
 +  return false;
 +}
 +
++// Parses R2 CDN latest.json to extract version and extension download URL.
++bool ParseR2Json(const std::string& json,
++                 std::string* out_version,
++                 std::string* out_download_url) {
++  auto result = base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
++  if (!result) {
++    LOG(WARNING) << "ocbot updater: invalid R2 JSON";
++    return false;
++  }
++
++  const base::DictValue& dict = *result;
++
++  const std::string* version = dict.FindString("version");
++  if (!version || !base::Version(*version).IsValid()) {
++    LOG(WARNING) << "ocbot updater: invalid or missing version in R2 JSON";
++    return false;
++  }
++
++  const base::DictValue* extension = dict.FindDict("extension");
++  if (!extension) {
++    LOG(WARNING) << "ocbot updater: no extension entry in R2 JSON";
++    return false;
++  }
++
++  const std::string* url = extension->FindString("url");
++  if (!url || url->empty()) {
++    LOG(WARNING) << "ocbot updater: no extension URL in R2 JSON";
++    return false;
++  }
++
++  *out_version = *version;
++  *out_download_url = *url;
++  return true;
++}
++
 +// Blocking I/O: unzips and moves into place.
 +bool UnzipAndInstall(const base::FilePath& zip_path,
 +                     const base::FilePath& dest_dir) {
@@ -232,7 +268,77 @@ index 0000000000000000000000000000000000000000..2b1f2b6325fbc4120d9131bae8d1ed83
 +void OcbotExtensionUpdater::CheckForUpdate() {
 +  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 +
-+  LOG(INFO) << "ocbot updater: checking for extension updates...";
++  LOG(INFO) << "ocbot updater: checking for extension updates (R2)...";
++
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL(kR2LatestUrl);
++  request->method = "GET";
++  request->load_flags = net::LOAD_DISABLE_CACHE;
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++  url_loader_ =
++      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
++  url_loader_->SetRetryOptions(
++      1, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++  url_loader_->DownloadToString(
++      GetURLLoaderFactory(),
++      base::BindOnce(&OcbotExtensionUpdater::OnR2MetadataFetched,
++                     weak_factory_.GetWeakPtr()),
++      kMaxApiResponseSize);
++}
++
++void OcbotExtensionUpdater::OnR2MetadataFetched(
++    std::optional<std::string> response_body) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (!response_body) {
++    LOG(WARNING) << "ocbot updater: R2 fetch failed (net error: "
++                 << url_loader_->NetError() << "), falling back to GitHub";
++    url_loader_.reset();
++    CheckForUpdateFromGitHub();
++    return;
++  }
++
++  url_loader_.reset();
++
++  std::string remote_version;
++  std::string download_url;
++  if (!ParseR2Json(*response_body, &remote_version, &download_url)) {
++    LOG(WARNING) << "ocbot updater: R2 JSON parse failed, falling back to GitHub";
++    CheckForUpdateFromGitHub();
++    return;
++  }
++
++  std::string current_version = GetCurrentVersion();
++  LOG(INFO) << "ocbot updater: current=" << current_version
++            << " remote=" << remote_version << " (via R2)";
++
++  if (current_version.empty()) {
++    DownloadZip(download_url, remote_version);
++    return;
++  }
++
++  base::Version current(current_version);
++  base::Version remote(remote_version);
++  if (!remote.IsValid() || !current.IsValid()) {
++    LOG(WARNING) << "ocbot updater: invalid version comparison";
++    return;
++  }
++
++  if (remote.CompareTo(current) <= 0) {
++    LOG(INFO) << "ocbot updater: already up to date";
++    return;
++  }
++
++  LOG(INFO) << "ocbot updater: new version available, downloading from R2...";
++  DownloadZip(download_url, remote_version);
++}
++
++void OcbotExtensionUpdater::CheckForUpdateFromGitHub() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  LOG(INFO) << "ocbot updater: checking for extension updates (GitHub)...";
 +
 +  auto request = std::make_unique<network::ResourceRequest>();
 +  request->url = GURL(kGitHubReleasesApiUrl);

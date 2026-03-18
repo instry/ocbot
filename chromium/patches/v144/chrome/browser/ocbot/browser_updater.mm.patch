@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/browser_updater.mm b/chrome/browser/ocbot/browser_updater.mm
 new file mode 100644
-index 0000000000000000000000000000000000000000..9e9b11d3bddbdecc8b309ebb1bde5748d239b1e9
+index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72940aafa8
 --- /dev/null
 +++ b/chrome/browser/ocbot/browser_updater.mm
-@@ -0,0 +1,408 @@
+@@ -0,0 +1,517 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -40,6 +40,7 @@ index 0000000000000000000000000000000000000000..9e9b11d3bddbdecc8b309ebb1bde5748
 +
 +namespace {
 +
++constexpr char kR2LatestUrl[] = "https://cdn.oc.bot/latest.json";
 +constexpr char kGitHubReleasesApiUrl[] =
 +    "https://api.github.com/repos/instry/ocbot/releases/latest";
 +constexpr char kDmgAssetPrefix[] = "Ocbot-";
@@ -138,6 +139,47 @@ index 0000000000000000000000000000000000000000..9e9b11d3bddbdecc8b309ebb1bde5748
 +  LOG(WARNING) << "ocbot browser updater: no DMG asset found in release "
 +               << *tag;
 +  return false;
++}
++
++// Parses R2 CDN latest.json to extract version and browser download URL.
++bool ParseR2Json(const std::string& json,
++                 std::string* out_version,
++                 std::string* out_download_url) {
++  auto result = base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
++  if (!result) {
++    LOG(WARNING) << "ocbot browser updater: invalid R2 JSON";
++    return false;
++  }
++
++  const base::DictValue& dict = *result;
++
++  const std::string* version = dict.FindString("version");
++  if (!version || !base::Version(*version).IsValid()) {
++    LOG(WARNING) << "ocbot browser updater: invalid or missing version in R2 JSON";
++    return false;
++  }
++
++  const base::DictValue* browser = dict.FindDict("browser");
++  if (!browser) {
++    LOG(WARNING) << "ocbot browser updater: no browser entry in R2 JSON";
++    return false;
++  }
++
++  const base::DictValue* platform = browser->FindDict("macos");
++  if (!platform) {
++    LOG(WARNING) << "ocbot browser updater: no macos entry in R2 JSON";
++    return false;
++  }
++
++  const std::string* url = platform->FindString("url");
++  if (!url || url->empty()) {
++    LOG(WARNING) << "ocbot browser updater: no macOS URL in R2 JSON";
++    return false;
++  }
++
++  *out_version = *version;
++  *out_download_url = *url;
++  return true;
 +}
 +
 +// Runs on a background thread. Mounts DMG, rsyncs app, unmounts.
@@ -254,7 +296,74 @@ index 0000000000000000000000000000000000000000..9e9b11d3bddbdecc8b309ebb1bde5748
 +    return;
 +  }
 +
-+  LOG(INFO) << "ocbot browser updater: checking for browser updates...";
++  LOG(INFO) << "ocbot browser updater: checking for browser updates (R2)...";
++
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL(kR2LatestUrl);
++  request->method = "GET";
++  request->load_flags = net::LOAD_DISABLE_CACHE;
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++  url_loader_ =
++      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
++  url_loader_->SetRetryOptions(
++      1, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++  url_loader_->DownloadToString(
++      GetURLLoaderFactory(),
++      base::BindOnce(&OcbotBrowserUpdater::OnR2MetadataFetched,
++                     weak_factory_.GetWeakPtr()),
++      kMaxApiResponseSize);
++}
++
++void OcbotBrowserUpdater::OnR2MetadataFetched(
++    std::optional<std::string> response_body) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (!response_body) {
++    LOG(WARNING) << "ocbot browser updater: R2 fetch failed (net error: "
++                 << url_loader_->NetError() << "), falling back to GitHub";
++    url_loader_.reset();
++    CheckForUpdateFromGitHub();
++    return;
++  }
++
++  url_loader_.reset();
++
++  std::string remote_version;
++  std::string download_url;
++  if (!ParseR2Json(*response_body, &remote_version, &download_url)) {
++    LOG(WARNING) << "ocbot browser updater: R2 JSON parse failed, "
++                 << "falling back to GitHub";
++    CheckForUpdateFromGitHub();
++    return;
++  }
++
++  std::string running_version = GetRunningVersion();
++  LOG(INFO) << "ocbot browser updater: running=" << running_version
++            << " remote=" << remote_version << " (via R2)";
++
++  base::Version current(running_version);
++  base::Version remote(remote_version);
++  if (!remote.IsValid() || !current.IsValid()) {
++    LOG(WARNING) << "ocbot browser updater: invalid version comparison";
++    return;
++  }
++
++  if (remote.CompareTo(current) <= 0) {
++    LOG(INFO) << "ocbot browser updater: already up to date";
++    return;
++  }
++
++  LOG(INFO) << "ocbot browser updater: new version " << remote_version
++            << " available, downloading DMG from R2...";
++  DownloadDmg(download_url, remote_version);
++}
++
++void OcbotBrowserUpdater::CheckForUpdateFromGitHub() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  LOG(INFO) << "ocbot browser updater: checking for browser updates (GitHub)...";
 +
 +  auto request = std::make_unique<network::ResourceRequest>();
 +  request->url = GURL(kGitHubReleasesApiUrl);
