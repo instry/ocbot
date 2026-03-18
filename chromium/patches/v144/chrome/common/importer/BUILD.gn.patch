@@ -1,5 +1,5 @@
 diff --git a/chrome/common/importer/BUILD.gn b/chrome/common/importer/BUILD.gn
-index 6008173451433e11984bab847ec49d42c34426c4..0e04be0e5eebc4a1d2a6d9138c06183311e3ec4a 100644
+index 6008173451433e11984bab847ec49d42c34426c4..fdf1839cd9d1a4702e6d1afa8cca6f6f7d13dc35 100644
 --- a/chrome/common/importer/BUILD.gn
 +++ b/chrome/common/importer/BUILD.gn
 @@ -80,6 +80,8 @@ mojom("interfaces") {
@@ -11,3 +11,20 @@ index 6008173451433e11984bab847ec49d42c34426c4..0e04be0e5eebc4a1d2a6d9138c061833
      "firefox_importer_utils.cc",
      "firefox_importer_utils.h",
      "importer_autofill_form_data_entry.cc",
+@@ -92,6 +94,7 @@ source_set("importer") {
+     sources += [ "firefox_importer_utils_linux.cc" ]
+   } else if (is_mac) {
+     sources += [
++      "chrome_importer_utils_mac.mm",
+       "firefox_importer_utils_mac.mm",
+       "safari_importer_utils.h",
+       "safari_importer_utils.mm",
+@@ -114,6 +117,8 @@ source_set("importer") {
+     "//components/favicon_base",
+     "//components/user_data_importer/common",
+     "//content/public/common",
++    "//crypto",
++    "//third_party/boringssl",
+     "//ui/base",
+     "//url",
+   ]

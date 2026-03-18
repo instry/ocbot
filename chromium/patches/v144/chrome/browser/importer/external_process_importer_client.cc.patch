@@ -1,0 +1,14 @@
+diff --git a/chrome/browser/importer/external_process_importer_client.cc b/chrome/browser/importer/external_process_importer_client.cc
+index fd95043c8e82da2d14a6f7bfd1ed482d39233cec..196cc772611a84cd642c767a41f1fee1c6bd44f3 100644
+--- a/chrome/browser/importer/external_process_importer_client.cc
++++ b/chrome/browser/importer/external_process_importer_client.cc
+@@ -56,6 +56,9 @@ void ExternalProcessImporterClient::Start() {
+   localized_strings.try_emplace(
+       IDS_BOOKMARK_GROUP_FROM_SAFARI,
+       l10n_util::GetStringUTF8(IDS_BOOKMARK_GROUP_FROM_SAFARI));
++  localized_strings.try_emplace(
++      IDS_BOOKMARK_GROUP_FROM_CHROME,
++      l10n_util::GetStringUTF8(IDS_BOOKMARK_GROUP_FROM_CHROME));
+   localized_strings.try_emplace(
+       IDS_IMPORT_FROM_FIREFOX,
+       l10n_util::GetStringUTF8(IDS_IMPORT_FROM_FIREFOX));

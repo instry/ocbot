@@ -1,0 +1,123 @@
+diff --git a/chrome/common/importer/chrome_importer_utils_mac.mm b/chrome/common/importer/chrome_importer_utils_mac.mm
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ddd3248cc066989694faf9fbfc24171e7a83854
+--- /dev/null
++++ b/chrome/common/importer/chrome_importer_utils_mac.mm
+@@ -0,0 +1,117 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "chrome/common/importer/chrome_importer_utils.h"
++
++#import <Foundation/Foundation.h>
++#import <Security/Security.h>
++
++#include <string>
++
++#include "base/apple/scoped_cftyperef.h"
++#include "base/containers/span.h"
++#include "crypto/openssl_util.h"
++#include "third_party/boringssl/src/include/openssl/evp.h"
++
++namespace {
++
++// Chrome on macOS uses PBKDF2 with these parameters to derive the AES key.
++constexpr int kEncryptionIterations = 1003;
++constexpr int kDerivedKeyLengthBytes = 16;  // AES-128
++constexpr int kIVBlockSizeBytes = 16;
++const char kSalt[] = "saltysalt";
++const int kSaltLength = 9;  // strlen("saltysalt")
++
++}  // namespace
++
++std::optional<std::string> GetChromeEncryptionKey() {
++  NSDictionary* query = @{
++    (__bridge NSString*)kSecClass : (__bridge NSString*)kSecClassGenericPassword,
++    (__bridge NSString*)kSecAttrService : @"Chrome Safe Storage",
++    (__bridge NSString*)kSecAttrAccount : @"Chrome",
++    (__bridge NSString*)kSecReturnData : @YES,
++    (__bridge NSString*)kSecMatchLimit : (__bridge NSString*)kSecMatchLimitOne,
++  };
++
++  CFTypeRef result = nullptr;
++  OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query,
++                                        &result);
++  base::apple::ScopedCFTypeRef<CFTypeRef> scoped_result(result);
++
++  if (status != errSecSuccess || !result) {
++    return std::nullopt;
++  }
++
++  NSData* password_data = (__bridge NSData*)result;
++  return std::string(static_cast<const char*>(password_data.bytes),
++                     password_data.length);
++}
++
++std::string DecryptChromeValue(const std::string& encrypted_value,
++                               const std::string& encryption_key) {
++  // Chrome encrypted values start with "v10" (version prefix).
++  if (encrypted_value.size() <= 3 ||
++      encrypted_value.substr(0, 3) != "v10") {
++    return std::string();
++  }
++
++  // The actual ciphertext follows the 3-byte version prefix.
++  std::string ciphertext = encrypted_value.substr(3);
++  if (ciphertext.size() < kIVBlockSizeBytes) {
++    return std::string();
++  }
++
++  crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
++
++  // Derive the AES key using PBKDF2.
++  unsigned char derived_key[kDerivedKeyLengthBytes];
++  if (!PKCS5_PBKDF2_HMAC_SHA1(
++          encryption_key.c_str(),
++          encryption_key.size(),
++          reinterpret_cast<const unsigned char*>(kSalt),
++          kSaltLength,
++          kEncryptionIterations,
++          kDerivedKeyLengthBytes,
++          derived_key)) {
++    return std::string();
++  }
++
++  // Chrome uses a fixed IV of 16 space characters (0x20).
++  unsigned char iv[kIVBlockSizeBytes];
++  auto iv_span = base::span(iv);
++  std::ranges::fill(iv_span, ' ');
++
++  // Decrypt using AES-128-CBC.
++  bssl::ScopedEVP_CIPHER_CTX ctx;
++  if (!EVP_DecryptInit_ex(ctx.get(), EVP_aes_128_cbc(), nullptr,
++                          derived_key, iv)) {
++    return std::string();
++  }
++
++  std::string plaintext;
++  plaintext.resize(ciphertext.size() + kIVBlockSizeBytes);
++  auto plaintext_span = base::as_writable_byte_span(plaintext);
++  int output_len = 0;
++
++  if (!EVP_DecryptUpdate(
++          ctx.get(),
++          reinterpret_cast<unsigned char*>(plaintext_span.data()),
++          &output_len,
++          reinterpret_cast<const unsigned char*>(ciphertext.data()),
++          ciphertext.size())) {
++    return std::string();
++  }
++
++  int final_len = 0;
++  if (!EVP_DecryptFinal_ex(
++          ctx.get(),
++          reinterpret_cast<unsigned char*>(
++              plaintext_span.subspan(static_cast<size_t>(output_len)).data()),
++          &final_len)) {
++    return std::string();
++  }
++
++  plaintext.resize(output_len + final_len);
++  return plaintext;
++}

@@ -1,9 +1,9 @@
 diff --git a/chrome/utility/importer/chrome_importer.h b/chrome/utility/importer/chrome_importer.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..878d3e07235b42e2880de8d1d0c97605bf031997
+index 0000000000000000000000000000000000000000..83324c7b7aca7426cb9c5d1edd83ea938ae67881
 --- /dev/null
 +++ b/chrome/utility/importer/chrome_importer.h
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,58 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -43,6 +43,9 @@ index 0000000000000000000000000000000000000000..878d3e07235b42e2880de8d1d0c97605
 +
 +  void ImportBookmarks();
 +  void ImportHistory();
++  void ImportAutofillFormData();
++  void ImportSearchEngines();
++  void ImportPasswords();
 +
 +  // Recursively parses a Chrome bookmarks JSON node and appends entries.
 +  void RecursiveReadBookmarksFolder(

@@ -1,9 +1,9 @@
 diff --git a/chrome/common/importer/chrome_importer_utils.h b/chrome/common/importer/chrome_importer_utils.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..479f35cecf26a104c38ffbe7c8acfccfc00bd69c
+index 0000000000000000000000000000000000000000..5ed6832f339d7f555465191bcc172c72db144caa
 --- /dev/null
 +++ b/chrome/common/importer/chrome_importer_utils.h
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,51 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -13,8 +13,11 @@ index 0000000000000000000000000000000000000000..479f35cecf26a104c38ffbe7c8acfccf
 +
 +#include <stdint.h>
 +
++#include <optional>
 +#include <string>
 +#include <vector>
++
++#include "build/build_config.h"
 +
 +namespace base {
 +class FilePath;
@@ -37,5 +40,18 @@ index 0000000000000000000000000000000000000000..479f35cecf26a104c38ffbe7c8acfccf
 +// Sets |services_supported| bitmask. Returns true if any data can be imported.
 +bool ChromeImporterCanImport(const base::FilePath& profile_path,
 +                             uint16_t* services_supported);
++
++#if BUILDFLAG(IS_MAC)
++// Retrieves the Chrome Safe Storage encryption key from the macOS Keychain.
++// Returns the raw password string, or nullopt on failure.
++std::optional<std::string> GetChromeEncryptionKey();
++
++// Decrypts a Chrome encrypted blob (from Login Data or Cookies).
++// Chrome on macOS uses AES-128-CBC with a PBKDF2-derived key.
++// The blob starts with "v10" (3-byte version prefix).
++// Returns the decrypted plaintext, or empty string on failure.
++std::string DecryptChromeValue(const std::string& encrypted_value,
++                               const std::string& encryption_key);
++#endif  // BUILDFLAG(IS_MAC)
 +
 +#endif  // CHROME_COMMON_IMPORTER_CHROME_IMPORTER_UTILS_H_

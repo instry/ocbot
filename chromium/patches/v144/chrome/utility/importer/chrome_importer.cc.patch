@@ -1,9 +1,9 @@
 diff --git a/chrome/utility/importer/chrome_importer.cc b/chrome/utility/importer/chrome_importer.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..ed89738f78d0c28b6b602e6ef77d9ea8f9f164f6
+index 0000000000000000000000000000000000000000..b2b5ce049ec41c9dea15106f7b5e508b40914d51
 --- /dev/null
 +++ b/chrome/utility/importer/chrome_importer.cc
-@@ -0,0 +1,258 @@
+@@ -0,0 +1,415 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -17,7 +17,10 @@ index 0000000000000000000000000000000000000000..ed89738f78d0c28b6b602e6ef77d9ea8
 +#include "base/strings/string_number_conversions.h"
 +#include "base/strings/utf_string_conversions.h"
 +#include "base/time/time.h"
++#include "build/build_config.h"
++#include "chrome/common/importer/chrome_importer_utils.h"
 +#include "chrome/common/importer/importer_bridge.h"
++#include "chrome/common/importer/importer_autofill_form_data_entry.h"
 +#include "chrome/grit/generated_resources.h"
 +#include "components/user_data_importer/common/imported_bookmark_entry.h"
 +#include "components/user_data_importer/common/importer_data_types.h"
@@ -84,6 +87,24 @@ index 0000000000000000000000000000000000000000..ed89738f78d0c28b6b602e6ef77d9ea8
 +    bridge_->NotifyItemStarted(user_data_importer::FAVORITES);
 +    ImportBookmarks();
 +    bridge_->NotifyItemEnded(user_data_importer::FAVORITES);
++  }
++
++  if ((items & user_data_importer::SEARCH_ENGINES) && !cancelled()) {
++    bridge_->NotifyItemStarted(user_data_importer::SEARCH_ENGINES);
++    ImportSearchEngines();
++    bridge_->NotifyItemEnded(user_data_importer::SEARCH_ENGINES);
++  }
++
++  if ((items & user_data_importer::AUTOFILL_FORM_DATA) && !cancelled()) {
++    bridge_->NotifyItemStarted(user_data_importer::AUTOFILL_FORM_DATA);
++    ImportAutofillFormData();
++    bridge_->NotifyItemEnded(user_data_importer::AUTOFILL_FORM_DATA);
++  }
++
++  if ((items & user_data_importer::PASSWORDS) && !cancelled()) {
++    bridge_->NotifyItemStarted(user_data_importer::PASSWORDS);
++    ImportPasswords();
++    bridge_->NotifyItemEnded(user_data_importer::PASSWORDS);
 +  }
 +
 +  bridge_->NotifyEnded();
@@ -245,6 +266,142 @@ index 0000000000000000000000000000000000000000..ed89738f78d0c28b6b602e6ef77d9ea8
 +  if (!rows.empty() && !cancelled()) {
 +    bridge_->SetHistoryItems(rows,
 +                             user_data_importer::VISIT_SOURCE_CHROME_IMPORTED);
++  }
++}
++
++void ChromeImporter::ImportAutofillFormData() {
++  base::FilePath file = GetCopiedSourcePath("Web Data");
++  if (file.empty()) {
++    return;
++  }
++
++  sql::Database db(kDatabaseTag);
++  if (!db.Open(file)) {
++    return;
++  }
++
++  // Chrome's autofill table: name, value, value_lower, date_created,
++  // date_last_used, count.
++  const char query[] =
++      "SELECT name, value, count, date_created, date_last_used "
++      "FROM autofill";
++
++  sql::Statement s(db.GetUniqueStatement(query));
++  if (!s.is_valid()) {
++    return;
++  }
++
++  std::vector<ImporterAutofillFormDataEntry> form_entries;
++  while (s.Step() && !cancelled()) {
++    ImporterAutofillFormDataEntry entry;
++    entry.name = s.ColumnString16(0);
++    entry.value = s.ColumnString16(1);
++    entry.times_used = s.ColumnInt(2);
++    entry.first_used = base::Time::FromTimeT(s.ColumnInt64(3));
++    entry.last_used = base::Time::FromTimeT(s.ColumnInt64(4));
++
++    form_entries.push_back(entry);
++  }
++
++  if (!form_entries.empty() && !cancelled()) {
++    bridge_->SetAutofillFormData(form_entries);
++  }
++}
++
++void ChromeImporter::ImportSearchEngines() {
++  base::FilePath file = GetCopiedSourcePath("Web Data");
++  if (file.empty()) {
++    return;
++  }
++
++  sql::Database db(kDatabaseTag);
++  if (!db.Open(file)) {
++    return;
++  }
++
++  const char query[] =
++      "SELECT short_name, keyword, url FROM keywords "
++      "WHERE is_active != 0";
++
++  sql::Statement s(db.GetUniqueStatement(query));
++  if (!s.is_valid()) {
++    return;
++  }
++
++  std::vector<user_data_importer::SearchEngineInfo> search_engines;
++  while (s.Step() && !cancelled()) {
++    user_data_importer::SearchEngineInfo info;
++    info.display_name = s.ColumnString16(0);
++    info.keyword = s.ColumnString16(1);
++    info.url = s.ColumnString16(2);
++
++    search_engines.push_back(info);
++  }
++
++  if (!search_engines.empty() && !cancelled()) {
++    bridge_->SetKeywords(search_engines, true);
++  }
++}
++
++void ChromeImporter::ImportPasswords() {
++  base::FilePath file = GetCopiedSourcePath("Login Data");
++  if (file.empty()) {
++    return;
++  }
++
++#if BUILDFLAG(IS_MAC)
++  std::optional<std::string> encryption_key = GetChromeEncryptionKey();
++  if (!encryption_key.has_value()) {
++    return;
++  }
++#endif
++
++  sql::Database db(kDatabaseTag);
++  if (!db.Open(file)) {
++    return;
++  }
++
++  const char query[] =
++      "SELECT origin_url, action_url, username_element, username_value, "
++      "password_element, password_value, date_created, blacklisted_by_user "
++      "FROM logins";
++
++  sql::Statement s(db.GetUniqueStatement(query));
++  if (!s.is_valid()) {
++    return;
++  }
++
++  while (s.Step() && !cancelled()) {
++    user_data_importer::ImportedPasswordForm form;
++
++    std::string origin_url = s.ColumnString(0);
++    std::string action_url = s.ColumnString(1);
++
++    form.signon_realm = origin_url;
++    form.url = GURL(origin_url);
++    form.action = GURL(action_url);
++    form.username_element = s.ColumnString16(2);
++    form.username_value = s.ColumnString16(3);
++    form.password_element = s.ColumnString16(4);
++
++    // Decrypt the password.
++    std::string encrypted_password = s.ColumnBlobAsString(5);
++
++#if BUILDFLAG(IS_MAC)
++    std::string decrypted =
++        DecryptChromeValue(encrypted_password, encryption_key.value());
++    form.password_value = base::UTF8ToUTF16(decrypted);
++#else
++    // TODO: Implement DPAPI decryption for Windows, NSS for Linux.
++    form.password_value = u"";
++#endif
++
++    form.blocked_by_user = s.ColumnInt(7) != 0;
++
++    if (!form.username_value.empty() || !form.password_value.empty() ||
++        form.blocked_by_user) {
++      bridge_->SetPasswordForm(form);
++    }
 +  }
 +}
 +
