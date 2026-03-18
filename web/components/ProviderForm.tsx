@@ -15,17 +15,19 @@ interface ProviderFormProps {
 }
 
 export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }: ProviderFormProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const preferredRegion = locale === 'zh' ? 'cn' : 'global'
   const initTemplate = getTemplateByType(initial?.type ?? 'google')
   const [providerType, setProviderType] = useState<ProviderType>(initial?.type ?? 'google')
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? '')
-  const [baseUrl, setBaseUrl] = useState(initial?.baseUrl ?? initTemplate?.defaultBaseUrl ?? '')
+  const [baseUrl, setBaseUrl] = useState(initial?.baseUrl ?? initTemplate?.regions?.find(r => r.id === preferredRegion)?.baseUrl ?? initTemplate?.defaultBaseUrl ?? '')
   const [region, setRegion] = useState<string>(() => {
     if (initial?.baseUrl && initTemplate?.regions) {
       const match = initTemplate.regions.find(r => r.baseUrl === initial.baseUrl)
       if (match) return match.id
     }
-    return initTemplate?.regions?.[0]?.id ?? ''
+    const preferred = initTemplate?.regions?.find(r => r.id === preferredRegion)
+    return preferred?.id ?? initTemplate?.regions?.[0]?.id ?? ''
   })
   // For add: multi-select; for edit: single
   const [modelIds, setModelIds] = useState<Set<string>>(() => {
@@ -44,7 +46,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
     setProviderType(type)
     const tmpl = getTemplateByType(type)
     if (!initial) {
-      const defaultRegion = tmpl?.regions?.[0]
+      const defaultRegion = tmpl?.regions?.find(r => r.id === preferredRegion) ?? tmpl?.regions?.[0]
       setRegion(defaultRegion?.id ?? '')
       setBaseUrl(defaultRegion?.baseUrl ?? tmpl?.defaultBaseUrl ?? '')
       const defaultId = tmpl?.defaultModelId ?? ''
@@ -145,7 +147,7 @@ export function ProviderForm({ initial, onSave, onCancel, hideCancel, compact }:
         <fieldset>
           <label className="mb-2 block text-sm font-medium">{t('provider.region')}</label>
           <div className="flex gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
-            {template.regions.map(r => (
+            {[...template.regions].sort((a, b) => a.id === preferredRegion ? -1 : b.id === preferredRegion ? 1 : 0).map(r => (
               <button
                 key={r.id}
                 type="button"
