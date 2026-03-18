@@ -142,24 +142,44 @@ def _build_single_arch(args, arch=None):
 
     out_dir = src_dir / 'out' / get_out_dir_name(args.official, arch)
 
+    # Shared flags for all builds
+    common_flags = [
+        'use_siso=true',
+        'enable_update_notifications=true',
+
+        # Codecs & media
+        'proprietary_codecs=true',
+        'ffmpeg_branding="Chrome"',
+        'enable_widevine=true',
+        'enable_mse_mpeg2ts_stream_parser=true',
+
+        # Google services (disabled — we don't use them)
+        'google_api_key=""',
+        'google_default_client_id=""',
+        'google_default_client_secret=""',
+        'use_official_google_api_keys=false',
+        'enable_reporting=false',
+    ]
+
+    # Platform-specific flags
+    if sys.platform == 'darwin':
+        common_flags.append('enable_platform_hevc=true')
+    elif sys.platform == 'linux':
+        common_flags.append('use_vaapi=true')
+
     if args.official:
         logger.info(f"Building OFFICIAL release in {out_dir}")
-        flags = [
+        flags = common_flags + [
             'is_official_build=true',
             'is_debug=false',
             'symbol_level=0',
-            'use_siso=true',
             'chrome_pgo_phase=0',  # Skip PGO for simplicity
-            'enable_update_notifications=true',
         ]
     else:
         logger.info(f"Building DEV release in {out_dir}")
-        # Basic flags for ungoogled-chromium
-        flags = [
+        flags = common_flags + [
             'is_debug=false',
             'symbol_level=0',
-            'use_siso=true',
-            'enable_update_notifications=true',
         ]
 
     # Add target_cpu when cross-compiling

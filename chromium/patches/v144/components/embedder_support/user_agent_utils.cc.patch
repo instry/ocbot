@@ -1,8 +1,19 @@
 diff --git a/components/embedder_support/user_agent_utils.cc b/components/embedder_support/user_agent_utils.cc
-index 857d7806537545ba98aec06bc87340f29c3f512d..55053606c2ca3228f63213961c40eca49e241758 100644
+index 857d7806537545ba98aec06bc87340f29c3f512d..8374e5d7365a494d6c8395921beaafc4f52dd897 100644
 --- a/components/embedder_support/user_agent_utils.cc
 +++ b/components/embedder_support/user_agent_utils.cc
-@@ -474,11 +474,19 @@ std::string BuildOSCpuInfo(
+@@ -202,9 +202,7 @@ const blink::UserAgentBrandList GetUserAgentBrandList(
+   bool parse_result = base::StringToInt(major_version, &major_version_number);
+   DCHECK(parse_result);
+   std::optional<std::string> brand;
+-#if !BUILDFLAG(CHROMIUM_BRANDING)
+-  brand = version_info::GetProductName();
+-#endif
++  brand = "Google Chrome";
+ 
+   std::string brand_version =
+       output_version_type == blink::UserAgentBrandVersionType::kFullVersion
+@@ -474,11 +472,19 @@ std::string BuildOSCpuInfo(
  
  std::string GetProductAndVersion(
      UserAgentReductionEnterprisePolicyState user_agent_reduction) {
