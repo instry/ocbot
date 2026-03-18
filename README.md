@@ -27,6 +27,15 @@ The economics make it inevitable: inference cost is collapsing toward zero, whil
 
 ---
 
+## Download
+
+| Platform | Link |
+|----------|------|
+| macOS | [Ocbot-26.3.18.dmg](https://cdn.oc.bot/releases/26.3.18/Ocbot-26.3.18.dmg) |
+| Windows | [Ocbot-Setup-26.3.18.exe](https://cdn.oc.bot/releases/26.3.18/Ocbot-Setup-26.3.18.exe) |
+
+---
+
 ## Key Features
 
 *   **AI Agent Inside**: A built-in AI agent with its own Ethereum wallet and on-chain identity (ERC-8004). It doesn't just assist — it acts. Navigate, click, fill forms, extract data, take screenshots. The full web is its action space.

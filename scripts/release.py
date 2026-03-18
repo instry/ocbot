@@ -192,11 +192,11 @@ def release_extension(args):
     logger.info(f"Checking if release {tag} exists...")
     repo = "instry/ocbot"
 
-    try:
-        run_command(['gh', 'release', 'view', tag, '--repo', repo], check=True, capture_output=True)
-        exists = True
-    except subprocess.CalledProcessError:
-        exists = False
+    result = subprocess.run(
+        ['gh', 'release', 'view', tag, '--repo', repo],
+        capture_output=True, text=True
+    )
+    exists = result.returncode == 0
         
     if exists:
         logger.info(f"Release {tag} already exists. Updating...")
@@ -234,41 +234,33 @@ def release_browser(args):
     # Get version
     version = get_product_version()
     tag = f"v{version}"
-    dmg = dist_dir / f"Ocbot-{version}.dmg"
 
-    if sys.platform == 'win32':
-        # Match package.py output for Windows
-        artifacts = []
-        portable = dist_dir / f"Ocbot-{version}-win-x64-portable.zip"
-        installer = dist_dir / f"Ocbot-Setup-{version}.exe"
-        mini = dist_dir / f"Ocbot-{version}-win-x64-mini.exe"
-        
-        if portable.exists():
-            artifacts.append(portable)
-        if installer.exists():
-            artifacts.append(installer)
-        if mini.exists():
-            artifacts.append(mini)
-            
-        if not artifacts:
-             logger.error(f"No Windows artifacts found in {dist_dir}. Run 'dev.py package' first.")
-             sys.exit(1)
-    else:
-        if not dmg.exists():
-            logger.error(f"DMG not found: {dmg}. Run 'dev.py package' first.")
-            sys.exit(1)
-        artifacts = [dmg]
+    # Collect all browser artifacts that exist in dist/
+    artifacts = []
+    candidates = [
+        dist_dir / f"Ocbot-{version}.dmg",
+        dist_dir / f"Ocbot-Setup-{version}.exe",
+        dist_dir / f"Ocbot-{version}-win-x64-portable.zip",
+        dist_dir / f"Ocbot-{version}-win-x64-mini.exe",
+    ]
+    for c in candidates:
+        if c.exists():
+            artifacts.append(c)
+
+    if not artifacts:
+        logger.error(f"No browser artifacts found in {dist_dir}. Run 'dev.py package' first.")
+        sys.exit(1)
 
     logger.info(f"Preparing release for Ocbot v{version} (tag: {tag})...")
 
     repo = "instry/ocbot"
 
     # Check if release exists
-    try:
-        run_command(['gh', 'release', 'view', tag, '--repo', repo], check=True, capture_output=True)
-        exists = True
-    except subprocess.CalledProcessError:
-        exists = False
+    result = subprocess.run(
+        ['gh', 'release', 'view', tag, '--repo', repo],
+        capture_output=True, text=True
+    )
+    exists = result.returncode == 0
 
     if exists:
         logger.info(f"Release {tag} already exists. Uploading artifacts...")
