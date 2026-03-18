@@ -9,6 +9,7 @@ node_modules/
 backup/
 .apple.json
 dist/
+plans/
 scripts/.env
 scripts/installer/win/Output/
 scripts/installer/win/deps/
