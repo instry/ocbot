@@ -79,6 +79,11 @@ def build_chromium(args):
             'use_siso=true',
             'enable_update_notifications=true',
         ]
+
+    # Target CPU
+    target_cpu = getattr(args, 'target_cpu', 'x64')
+    flags.append(f'target_cpu="{target_cpu}"')
+    logger.info(f"Target CPU: {target_cpu}")
     
     # Clean output directory if requested
     if getattr(args, 'clean', False):

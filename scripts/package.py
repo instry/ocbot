@@ -377,37 +377,47 @@ def _stage_files(out_dir, staging_dir):
         if src.exists():
             shutil.copy2(src, staging_dir / extra)
 
-# VC++ Redistributable download URL (VS 2015-2022, x64)
-_VCREDIST_URL = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+# VC++ Redistributable download URLs (VS 2015-2022)
+_VCREDIST_URLS = {
+    'x64': "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+    'arm64': "https://aka.ms/vs/17/release/vc_redist.arm64.exe"
+}
 
-def _ensure_vcredist(staging_dir):
-    """Ensure vc_redist.x64.exe is available in deps/ alongside staging dir.
+def _ensure_vcredist(staging_dir, target_cpu='x64'):
+    """Ensure vc_redist.<arch>.exe is available in deps/ alongside staging dir.
 
-    The Inno Setup script references {#SourceDir}\\..\\deps\\vc_redist.x64.exe,
-    so we place it at <staging_parent>/deps/vc_redist.x64.exe.
+    The Inno Setup script references {#SourceDir}\\..\\deps\\vc_redist.<arch>.exe,
+    so we place it at <staging_parent>/deps/vc_redist.<arch>.exe.
     """
     deps_dir = Path(staging_dir).parent / 'deps'
     deps_dir.mkdir(exist_ok=True)
-    vcredist = deps_dir / 'vc_redist.x64.exe'
+    
+    filename = f'vc_redist.{target_cpu}.exe'
+    vcredist = deps_dir / filename
 
     if vcredist.exists():
         logger.info(f"VC++ Redistributable already present: {vcredist}")
         return
 
     # Check project-local cache first (scripts/installer/win/deps/)
-    cached = get_project_root() / 'scripts' / 'installer' / 'win' / 'deps' / 'vc_redist.x64.exe'
+    cached = get_project_root() / 'scripts' / 'installer' / 'win' / 'deps' / filename
     if cached.exists():
         logger.info(f"Using cached VC++ Redistributable: {cached}")
         shutil.copy2(cached, vcredist)
         return
 
     # Download from Microsoft
-    logger.info(f"Downloading VC++ Redistributable from {_VCREDIST_URL}...")
+    url = _VCREDIST_URLS.get(target_cpu)
+    if not url:
+        logger.error(f"Unsupported architecture for VC++ Redistributable: {target_cpu}")
+        return
+
+    logger.info(f"Downloading VC++ Redistributable from {url}...")
     try:
         import urllib.request
-        urllib.request.urlretrieve(_VCREDIST_URL, vcredist)
+        urllib.request.urlretrieve(url, vcredist)
         size_mb = vcredist.stat().st_size / (1024 * 1024)
-        logger.info(f"Downloaded vc_redist.x64.exe ({size_mb:.1f} MB)")
+        logger.info(f"Downloaded {filename} ({size_mb:.1f} MB)")
 
         # Cache for future builds
         cached.parent.mkdir(parents=True, exist_ok=True)
@@ -416,9 +426,9 @@ def _ensure_vcredist(staging_dir):
     except Exception as e:
         logger.warning(f"Failed to download VC++ Redistributable: {e}")
         logger.warning("Install may fail on systems without VC++ Runtime.")
-        logger.warning(f"Manually download from {_VCREDIST_URL} and place at {cached}")
+        logger.warning(f"Manually download from {url} and place at {cached}")
 
-def _create_inno_installer(staging_dir, dist_dir, version):
+def _create_inno_installer(staging_dir, dist_dir, version, target_cpu='x64'):
     """Create Inno Setup installer."""
     # Check for ISCC
     iscc = shutil.which('iscc')
@@ -438,18 +448,24 @@ def _create_inno_installer(staging_dir, dist_dir, version):
         return
 
     # Ensure VC++ Redistributable is available for bundling
-    _ensure_vcredist(staging_dir)
+    _ensure_vcredist(staging_dir, target_cpu)
 
     iss_file = get_project_root() / 'scripts' / 'installer' / 'win' / 'setup.iss'
     if not iss_file.exists():
          logger.warning(f"Installer script not found at {iss_file}")
          return
 
-    output_name = f"Ocbot-Setup-{version}"
+    output_name = f"Ocbot-Setup-{version}-{target_cpu}"
+    
+    # Map target_cpu to Inno Setup architecture
+    # Inno Setup uses "x64", "arm64", "x86"
+    inno_arch = target_cpu 
+    
     cmd = [
         iscc,
         f"/dMyAppVersion={version}",
         f"/dSourceDir={staging_dir}",
+        f"/dTargetArch={inno_arch}",
         f"/O{dist_dir}",
         f"/F{output_name}",
         str(iss_file)
@@ -516,4 +532,7 @@ def package_windows(args):
         shutil.make_archive(str(portable_zip_path), 'zip', staging_dir)
         
         # --- 4. Create Inno Setup Installer ---
-        _create_inno_installer(staging_dir, dist_dir, product_version)
+        target_cpu = getattr(args, 'target_cpu', 'x64')
+        _create_inno_installer(staging_dir, dist_dir, product_version, target_cpu)
+
+    logger.info("Packaging complete.")

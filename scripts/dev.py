@@ -92,6 +92,7 @@ def main():
     parser_build.add_argument('--target', default='chrome', help='Build target')
     parser_build.add_argument('--official', action='store_true', help='Build official release (optimized)')
     parser_build.add_argument('--clean', action='store_true', help='Clean output directory before building')
+    parser_build.add_argument('--target-cpu', default='x64', choices=['x64', 'arm64'], help='Target CPU architecture (default: x64)')
 
     # Run
     parser_run = subparsers.add_parser('run', help='Run Ocbot', parents=[parent_parser])
@@ -108,6 +109,7 @@ def main():
     parser_package.add_argument('--output', help='Output path (default: dist/<AppName>-<Version>.[dmg|zip])')
     parser_package.add_argument('--app-path', help='Path to pre-built .app bundle (skips search in out/)')
     parser_package.add_argument('--official', action='store_true', help='Package official build')
+    parser_package.add_argument('--target-cpu', default='x64', choices=['x64', 'arm64'], help='Target CPU architecture (default: x64)')
     parser_package.add_argument('--sign', help="Code signing identity (or set CODESIGN_IDENTITY)")
     parser_package.add_argument('--notarize', help="Notarization profile name (or set NOTARY_PROFILE)")
     parser_package.add_argument('--apple-id', help="Apple ID for notarization (or set APPLE_ID)")
