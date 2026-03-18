@@ -1,0 +1,41 @@
+diff --git a/chrome/common/importer/chrome_importer_utils.h b/chrome/common/importer/chrome_importer_utils.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..479f35cecf26a104c38ffbe7c8acfccfc00bd69c
+--- /dev/null
++++ b/chrome/common/importer/chrome_importer_utils.h
+@@ -0,0 +1,35 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_COMMON_IMPORTER_CHROME_IMPORTER_UTILS_H_
++#define CHROME_COMMON_IMPORTER_CHROME_IMPORTER_UTILS_H_
++
++#include <stdint.h>
++
++#include <string>
++#include <vector>
++
++namespace base {
++class FilePath;
++}
++
++struct ChromeProfileInfo {
++  std::string dir_name;     // e.g. "Default", "Profile 1"
++  std::string display_name; // e.g. "Person 1", from Local State
++};
++
++// Returns the platform-specific path to Chrome's user data directory.
++base::FilePath GetChromeUserDataPath();
++
++// Parses Chrome's "Local State" JSON file to enumerate profiles.
++// Returns a vector of profile info structs.
++std::vector<ChromeProfileInfo> GetChromeProfiles(
++    const base::FilePath& user_data_path);
++
++// Checks which data types can be imported from the given Chrome profile path.
++// Sets |services_supported| bitmask. Returns true if any data can be imported.
++bool ChromeImporterCanImport(const base::FilePath& profile_path,
++                             uint16_t* services_supported);
++
++#endif  // CHROME_COMMON_IMPORTER_CHROME_IMPORTER_UTILS_H_

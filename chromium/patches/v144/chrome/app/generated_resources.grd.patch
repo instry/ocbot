@@ -1,5 +1,5 @@
 diff --git a/chrome/app/generated_resources.grd b/chrome/app/generated_resources.grd
-index 25c2a9ad92d8dee55db7aaf093372aaec600bef4..ba0b829e259ef7ffb07de072decf8d71217a817a 100644
+index 25c2a9ad92d8dee55db7aaf093372aaec600bef4..e65dff0c5096879ca9b7bfda6406b15c73936a9d 100644
 --- a/chrome/app/generated_resources.grd
 +++ b/chrome/app/generated_resources.grd
 @@ -9370,6 +9370,15 @@ Keep your key file in a safe place. You will need it to create new versions of y
@@ -18,3 +18,13 @@ index 25c2a9ad92d8dee55db7aaf093372aaec600bef4..ba0b829e259ef7ffb07de072decf8d71
        <message name="IDS_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL" desc="The title of the menu item for showing the Customize Chrome side panel.">
          Customize Chrome
        </message>
+@@ -11426,6 +11435,9 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google
+         <message name="IDS_IMPORT_FROM_SAFARI" desc="browser combo box: Safari">
+           Safari
+         </message>
++        <message name="IDS_IMPORT_FROM_CHROME" desc="browser combo box: Google Chrome">
++          Google Chrome
++        </message>
+         <message name="IDS_IMPORT_FROM_BOOKMARKS_HTML_FILE" desc="browser combo box: Bookmarks HTML File">
+           Bookmarks HTML File
+         </message>

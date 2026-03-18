@@ -1,0 +1,14 @@
+diff --git a/chrome/app/bookmarks_strings.grdp b/chrome/app/bookmarks_strings.grdp
+index d8a5eccf31865ae3b58fdaa4595637050a8d4884..b6c11a3ce8eae94480c0d055daf99ce15714e7f7 100644
+--- a/chrome/app/bookmarks_strings.grdp
++++ b/chrome/app/bookmarks_strings.grdp
+@@ -18,6 +18,9 @@
+     <message name="IDS_BOOKMARK_GROUP_FROM_SAFARI" desc="The group name of bookmarks from Safari">
+       Imported From Safari
+     </message>
++    <message name="IDS_BOOKMARK_GROUP_FROM_CHROME" desc="The group name of bookmarks from Google Chrome">
++      Imported From Chrome
++    </message>
+     <message name="IDS_BOOKMARK_GROUP" desc="The group name of bookmarks imported from a file">
+       Imported
+     </message>

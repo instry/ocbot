@@ -1,0 +1,13 @@
+diff --git a/chrome/utility/BUILD.gn b/chrome/utility/BUILD.gn
+index 708d3db9a2b7dad11d7e1f094cdc4705ed9077db..8c1788e671ebefd844dc13f976334d2efb9903ec 100644
+--- a/chrome/utility/BUILD.gn
++++ b/chrome/utility/BUILD.gn
+@@ -90,6 +90,8 @@ static_library("utility") {
+     sources += [
+       "importer/bookmarks_file_importer.cc",
+       "importer/bookmarks_file_importer.h",
++      "importer/chrome_importer.cc",
++      "importer/chrome_importer.h",
+       "importer/external_process_importer_bridge.cc",
+       "importer/external_process_importer_bridge.h",
+       "importer/importer.cc",

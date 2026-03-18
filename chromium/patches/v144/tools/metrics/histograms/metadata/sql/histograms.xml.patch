@@ -1,0 +1,12 @@
+diff --git a/tools/metrics/histograms/metadata/sql/histograms.xml b/tools/metrics/histograms/metadata/sql/histograms.xml
+index 894e61094ca136046815d62a6d274fa1ce8c8560..c0c782e4e47df39dc7e0dfd9b03cb131865abf3e 100644
+--- a/tools/metrics/histograms/metadata/sql/histograms.xml
++++ b/tools/metrics/histograms/metadata/sql/histograms.xml
+@@ -41,6 +41,7 @@ chromium-metrics-reviews@google.com.
+       summary="DataSharingMigrationStateStorage"/>
+   <variant name="DBSCSessions" summary="DBSCSessions"/>
+   <variant name="DIPS" summary="DIPS"/>
++  <variant name="ChromeImporter" summary="ChromeImporter"/>
+   <variant name="DownloadRecord" summary="DownloadRecord"/>
+   <variant name="FileIndexService" summary="FileIndexService"/>
+   <variant name="FirefoxImporter" summary="FirefoxImporter"/>

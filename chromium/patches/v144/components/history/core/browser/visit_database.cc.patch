@@ -1,0 +1,12 @@
+diff --git a/components/history/core/browser/visit_database.cc b/components/history/core/browser/visit_database.cc
+index b9850087d9a977ce9a217351cf06213c9d031be8..e145bf46c299cc0489cebda484c289e2b96c7e8d 100644
+--- a/components/history/core/browser/visit_database.cc
++++ b/components/history/core/browser/visit_database.cc
+@@ -120,6 +120,7 @@ VisitSource VisitSourceFromInt(int value) {
+     case SOURCE_FIREFOX_IMPORTED:
+     case SOURCE_IE_IMPORTED:
+     case SOURCE_SAFARI_IMPORTED:
++    case SOURCE_CHROME_IMPORTED:
+     case SOURCE_ACTOR:
+     case SOURCE_OS_MIGRATION_IMPORTED:
+       return converted;

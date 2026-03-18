@@ -1,0 +1,61 @@
+diff --git a/chrome/utility/importer/chrome_importer.h b/chrome/utility/importer/chrome_importer.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..878d3e07235b42e2880de8d1d0c97605bf031997
+--- /dev/null
++++ b/chrome/utility/importer/chrome_importer.h
+@@ -0,0 +1,55 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_UTILITY_IMPORTER_CHROME_IMPORTER_H_
++#define CHROME_UTILITY_IMPORTER_CHROME_IMPORTER_H_
++
++#include <stdint.h>
++
++#include <string>
++#include <string_view>
++#include <vector>
++
++#include "base/files/file_path.h"
++#include "base/files/scoped_temp_dir.h"
++#include "base/values.h"
++#include "chrome/utility/importer/importer.h"
++#include "components/user_data_importer/common/imported_bookmark_entry.h"
++
++// Importer for Google Chrome.
++// Reads bookmarks from Chrome's JSON Bookmarks file and history from the
++// SQLite History database.
++class ChromeImporter : public Importer {
++ public:
++  ChromeImporter();
++
++  ChromeImporter(const ChromeImporter&) = delete;
++  ChromeImporter& operator=(const ChromeImporter&) = delete;
++
++  // Importer:
++  void StartImport(const user_data_importer::SourceProfile& source_profile,
++                   uint16_t items,
++                   ImporterBridge* bridge) override;
++
++ private:
++  ~ChromeImporter() override;
++
++  void ImportBookmarks();
++  void ImportHistory();
++
++  // Recursively parses a Chrome bookmarks JSON node and appends entries.
++  void RecursiveReadBookmarksFolder(
++      const base::Value::Dict& folder,
++      const std::vector<std::u16string>& parent_path,
++      bool is_in_toolbar,
++      std::vector<user_data_importer::ImportedBookmarkEntry>* bookmarks);
++
++  // Copies a file from source_path_ to a temp directory for safe reading.
++  base::FilePath GetCopiedSourcePath(std::string_view base_file_name);
++
++  base::FilePath source_path_;
++  base::ScopedTempDir source_path_copy_;
++};
++
++#endif  // CHROME_UTILITY_IMPORTER_CHROME_IMPORTER_H_

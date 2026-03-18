@@ -1,0 +1,21 @@
+diff --git a/chrome/utility/importer/importer_creator.cc b/chrome/utility/importer/importer_creator.cc
+index 5f8f27c70bafe3eb6377350bcab26b51aae1cc7f..8f9cd585cf9c85e421d3293081e0141af64b231c 100644
+--- a/chrome/utility/importer/importer_creator.cc
++++ b/chrome/utility/importer/importer_creator.cc
+@@ -7,6 +7,7 @@
+ #include "base/notreached.h"
+ #include "build/build_config.h"
+ #include "chrome/utility/importer/bookmarks_file_importer.h"
++#include "chrome/utility/importer/chrome_importer.h"
+ #include "chrome/utility/importer/firefox_importer.h"
+ 
+ #if BUILDFLAG(IS_WIN)
+@@ -36,6 +37,8 @@ scoped_refptr<Importer> CreateImporterByType(
+ #endif
+     case user_data_importer::TYPE_BOOKMARKS_FILE:
+       return new BookmarksFileImporter();
++    case user_data_importer::TYPE_CHROME:
++      return new ChromeImporter();
+ #if !BUILDFLAG(IS_CHROMEOS)
+     case user_data_importer::TYPE_FIREFOX:
+       return new FirefoxImporter();

@@ -1,0 +1,78 @@
+diff --git a/chrome/browser/importer/importer_list.cc b/chrome/browser/importer/importer_list.cc
+index 62546b572bab849b182fed62ad964d5cef136571..951473cbe03770fad097f2189370183cf7ea5f40 100644
+--- a/chrome/browser/importer/importer_list.cc
++++ b/chrome/browser/importer/importer_list.cc
+@@ -6,12 +6,15 @@
+ 
+ #include <stdint.h>
+ 
++#include "base/files/file_util.h"
+ #include "base/functional/bind.h"
++#include "base/strings/utf_string_conversions.h"
+ #include "base/task/task_traits.h"
+ #include "base/task/thread_pool.h"
+ #include "base/threading/scoped_blocking_call.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/shell_integration.h"
++#include "chrome/common/importer/chrome_importer_utils.h"
+ #include "chrome/common/importer/firefox_importer_utils.h"
+ #include "chrome/common/importer/importer_bridge.h"
+ #include "chrome/grit/generated_resources.h"
+@@ -90,6 +93,47 @@ void DetectSafariProfiles(
+ }
+ #endif  // BUILDFLAG(IS_MAC)
+ 
++void DetectChromeProfiles(
++    std::vector<user_data_importer::SourceProfile>* profiles) {
++  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
++                                                base::BlockingType::MAY_BLOCK);
++
++  base::FilePath user_data_path = GetChromeUserDataPath();
++  if (user_data_path.empty() || !base::DirectoryExists(user_data_path)) {
++    return;
++  }
++
++  std::vector<ChromeProfileInfo> chrome_profiles =
++      GetChromeProfiles(user_data_path);
++  if (chrome_profiles.empty()) {
++    return;
++  }
++
++  for (const auto& chrome_profile : chrome_profiles) {
++    base::FilePath profile_path = user_data_path.Append(
++        base::FilePath::FromUTF8Unsafe(chrome_profile.dir_name));
++
++    uint16_t items = user_data_importer::NONE;
++    if (!ChromeImporterCanImport(profile_path, &items)) {
++      continue;
++    }
++
++    user_data_importer::SourceProfile profile;
++    if (chrome_profiles.size() == 1) {
++      profile.importer_name =
++          l10n_util::GetStringUTF16(IDS_IMPORT_FROM_CHROME);
++    } else {
++      profile.importer_name =
++          l10n_util::GetStringUTF16(IDS_IMPORT_FROM_CHROME) + u" — " +
++          base::UTF8ToUTF16(chrome_profile.display_name);
++    }
++    profile.importer_type = user_data_importer::TYPE_CHROME;
++    profile.source_path = profile_path;
++    profile.services_supported = items;
++    profiles->push_back(profile);
++  }
++}
++
+ // |locale|: The application locale used for lookups in Firefox's
+ // locale-specific search engines feature (see firefox_importer.cc for
+ // details).
+@@ -165,6 +209,9 @@ std::vector<user_data_importer::SourceProfile> DetectSourceProfilesWorker(
+ 
+   std::vector<user_data_importer::SourceProfile> profiles;
+ 
++  // Chrome import is always detected first on all platforms.
++  DetectChromeProfiles(&profiles);
++
+   // The first run import will automatically take settings from the first
+   // profile detected, which should be the user's current default.
+ #if BUILDFLAG(IS_WIN)

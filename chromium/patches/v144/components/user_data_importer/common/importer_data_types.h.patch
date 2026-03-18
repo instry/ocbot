@@ -1,0 +1,12 @@
+diff --git a/components/user_data_importer/common/importer_data_types.h b/components/user_data_importer/common/importer_data_types.h
+index 3cac91f8d58380b688ad95177d0841cadeb5728c..6dfaad9e49f2efe17e70a833723d63b728abd3b5 100644
+--- a/components/user_data_importer/common/importer_data_types.h
++++ b/components/user_data_importer/common/importer_data_types.h
+@@ -111,6 +111,7 @@ enum VisitSource {
+   VISIT_SOURCE_FIREFOX_IMPORTED = 1,
+   VISIT_SOURCE_IE_IMPORTED = 2,
+   VISIT_SOURCE_SAFARI_IMPORTED = 3,
++  VISIT_SOURCE_CHROME_IMPORTED = 4,
+ };
+ 
+ }  // namespace user_data_importer

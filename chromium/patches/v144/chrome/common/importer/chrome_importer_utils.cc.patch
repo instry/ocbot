@@ -1,0 +1,138 @@
+diff --git a/chrome/common/importer/chrome_importer_utils.cc b/chrome/common/importer/chrome_importer_utils.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..bf14f676482460b83dfb4c443fd593454bd2b658
+--- /dev/null
++++ b/chrome/common/importer/chrome_importer_utils.cc
+@@ -0,0 +1,132 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "chrome/common/importer/chrome_importer_utils.h"
++
++#include "base/base_paths.h"
++#include "base/check.h"
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/json/json_file_value_serializer.h"
++#include "base/path_service.h"
++#include "base/values.h"
++#include "build/build_config.h"
++#include "components/user_data_importer/common/importer_data_types.h"
++
++base::FilePath GetChromeUserDataPath() {
++#if BUILDFLAG(IS_MAC)
++  base::FilePath home_dir;
++  base::PathService::Get(base::DIR_HOME, &home_dir);
++  return home_dir.Append("Library")
++      .Append("Application Support")
++      .Append("Google")
++      .Append("Chrome");
++#elif BUILDFLAG(IS_WIN)
++  base::FilePath local_app_data;
++  base::PathService::Get(base::DIR_LOCAL_APP_DATA, &local_app_data);
++  return local_app_data.Append(L"Google").Append(L"Chrome").Append(
++      L"User Data");
++#elif BUILDFLAG(IS_LINUX)
++  base::FilePath home_dir;
++  base::PathService::Get(base::DIR_HOME, &home_dir);
++  return home_dir.Append(".config").Append("google-chrome");
++#else
++  return base::FilePath();
++#endif
++}
++
++std::vector<ChromeProfileInfo> GetChromeProfiles(
++    const base::FilePath& user_data_path) {
++  std::vector<ChromeProfileInfo> profiles;
++
++  base::FilePath local_state_path = user_data_path.Append(
++      FILE_PATH_LITERAL("Local State"));
++  if (!base::PathExists(local_state_path)) {
++    // Fall back to "Default" profile if Local State doesn't exist.
++    base::FilePath default_path = user_data_path.Append(
++        FILE_PATH_LITERAL("Default"));
++    if (base::DirectoryExists(default_path)) {
++      profiles.push_back({"Default", "Default"});
++    }
++    return profiles;
++  }
++
++  JSONFileValueDeserializer deserializer(local_state_path);
++  int error_code = 0;
++  std::string error_message;
++  std::unique_ptr<base::Value> root =
++      deserializer.Deserialize(&error_code, &error_message);
++  if (!root || !root->is_dict()) {
++    return profiles;
++  }
++
++  const base::Value::Dict* profile_dict =
++      root->GetDict().FindDictByDottedPath("profile.info_cache");
++  if (!profile_dict) {
++    // Try without info_cache — just check for Default directory.
++    base::FilePath default_path = user_data_path.Append(
++        FILE_PATH_LITERAL("Default"));
++    if (base::DirectoryExists(default_path)) {
++      profiles.push_back({"Default", "Default"});
++    }
++    return profiles;
++  }
++
++  for (const auto [dir_name, value] : *profile_dict) {
++    if (!value.is_dict()) {
++      continue;
++    }
++    const std::string* name = value.GetDict().FindString("name");
++    std::string display_name = name ? *name : dir_name;
++
++    // Verify the profile directory actually exists.
++    base::FilePath profile_path = user_data_path.Append(
++        base::FilePath::FromUTF8Unsafe(dir_name));
++    if (!base::DirectoryExists(profile_path)) {
++      continue;
++    }
++
++    profiles.push_back({dir_name, display_name});
++  }
++
++  // If no profiles found in info_cache, try Default.
++  if (profiles.empty()) {
++    base::FilePath default_path = user_data_path.Append(
++        FILE_PATH_LITERAL("Default"));
++    if (base::DirectoryExists(default_path)) {
++      profiles.push_back({"Default", "Default"});
++    }
++  }
++
++  return profiles;
++}
++
++bool ChromeImporterCanImport(const base::FilePath& profile_path,
++                             uint16_t* services_supported) {
++  DCHECK(services_supported);
++  *services_supported = user_data_importer::NONE;
++
++  if (base::PathIsReadable(profile_path.Append(
++          FILE_PATH_LITERAL("Bookmarks")))) {
++    *services_supported |= user_data_importer::FAVORITES;
++  }
++
++  if (base::PathIsReadable(profile_path.Append(
++          FILE_PATH_LITERAL("History")))) {
++    *services_supported |= user_data_importer::HISTORY;
++  }
++
++  if (base::PathIsReadable(profile_path.Append(
++          FILE_PATH_LITERAL("Login Data")))) {
++    *services_supported |= user_data_importer::PASSWORDS;
++  }
++
++  if (base::PathIsReadable(profile_path.Append(
++          FILE_PATH_LITERAL("Web Data")))) {
++    *services_supported |= user_data_importer::AUTOFILL_FORM_DATA;
++    *services_supported |= user_data_importer::SEARCH_ENGINES;
++  }
++
++  return *services_supported != user_data_importer::NONE;
++}
