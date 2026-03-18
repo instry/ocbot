@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/browser_updater.h b/chrome/browser/ocbot/browser_updater.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..fb62916e17001fac7511a08c502156d6ddea82e3
+index 0000000000000000000000000000000000000000..e2b1c9f8709df2a55c650fd331beecef4e0b1b86
 --- /dev/null
 +++ b/chrome/browser/ocbot/browser_updater.h
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,68 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -27,14 +27,15 @@ index 0000000000000000000000000000000000000000..fb62916e17001fac7511a08c502156d6
 +
 +namespace ocbot {
 +
-+// Downloads and installs Ocbot browser updates from GitHub Releases.
++// Downloads and installs Ocbot browser updates.
 +//
 +// Workflow:
-+//   1. After a startup delay, fetches the latest release info from GitHub API.
-+//   2. Compares the remote version against the running browser version.
-+//   3. If newer, downloads the DMG asset.
-+//   4. Mounts DMG, rsyncs the new .app over the current one, unmounts.
-+//   5. Chromium's built-in UpgradeDetector picks up the disk version change
++//   1. After a startup delay, fetches latest.json from R2 CDN.
++//   2. On failure, falls back to GitHub Releases API.
++//   3. Compares the remote version against the running browser version.
++//   4. If newer, downloads the DMG asset.
++//   5. Mounts DMG, rsyncs the new .app over the current one, unmounts.
++//   6. Chromium's built-in UpgradeDetector picks up the disk version change
 +//      and shows the "Relaunch to update" UI.
 +//
 +// Subsequent checks run every 4 hours while the browser is open.
@@ -51,6 +52,8 @@ index 0000000000000000000000000000000000000000..fb62916e17001fac7511a08c502156d6
 +
 + private:
 +  void CheckForUpdate();
++  void OnR2MetadataFetched(std::optional<std::string> response_body);
++  void CheckForUpdateFromGitHub();
 +  void OnReleaseFetched(std::optional<std::string> response_body);
 +  void DownloadDmg(const std::string& url, const std::string& version);
 +  void OnDmgDownloaded(const std::string& version, base::FilePath tmp);
