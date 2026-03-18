@@ -82,7 +82,7 @@ export function AboutPage() {
               </a>
             ))}
           </div>
-          <span className="mt-1 text-xs text-muted-foreground/50">v0.1.0</span>
+          <span className="mt-1 text-xs text-muted-foreground/50">v{__OCBOT_VERSION__}</span>
         </div>
       </div>
     </div>

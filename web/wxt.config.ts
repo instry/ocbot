@@ -1,5 +1,9 @@
 import { defineConfig } from 'wxt'
 import tailwindcss from '@tailwindcss/postcss'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+const version = readFileSync(resolve(__dirname, '../VERSION'), 'utf-8').trim()
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
@@ -52,6 +56,7 @@ export default defineConfig({
   },
   vite: () => ({
     define: {
+      __OCBOT_VERSION__: JSON.stringify(version),
       __OCBOT_SUPABASE_URL__: JSON.stringify(process.env.OCBOT_SUPABASE_URL || ''),
       __OCBOT_SUPABASE_ANON_KEY__: JSON.stringify(process.env.OCBOT_SUPABASE_ANON_KEY || ''),
       __OCBOT_API_URL__: JSON.stringify(process.env.OCBOT_API_URL || 'http://localhost:8080'),
