@@ -217,6 +217,9 @@ def release_extension(args):
     # Upload to R2 CDN
     upload_to_r2([zip_path], version, 'extension')
 
+    # Sync models.json to CDN
+    upload_config_to_r2()
+
     logger.info(f"Done! Ocbot v{version} released as {tag}")
     logger.info("Users will receive the update automatically on next browser restart.")
 
