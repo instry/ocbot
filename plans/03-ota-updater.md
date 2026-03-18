@@ -11,7 +11,7 @@ Browser startup → Load extension (3-level fallback, see 02-component-extension
   → Delay 30s, background thread GET GitHub Releases API
   → Compare version numbers
   → New version available → Download zip → Extract to <user-data-dir>/ocbot-extension/
-  → Takes effect on next restart
+  → Hot-reloads extension immediately (Remove old → Add from OTA dir)
   → Check every 4 hours thereafter
 ```
 
@@ -31,12 +31,16 @@ class OcbotExtensionUpdater {
   ~OcbotExtensionUpdater();
   void Start();
 
+  // Hot-reload callback: set by component_loader to Remove+Add extension.
+  using ReloadCallback = base::RepeatingClosure;
+  void SetReloadCallback(ReloadCallback callback);
+
  private:
   void CheckForUpdate();
   void OnReleaseFetched(std::optional<std::string> response_body);
   void DownloadZip(const std::string& download_url, const std::string& remote_version);
   void OnZipDownloaded(const std::string& remote_version, base::FilePath temp_path);
-  void ReloadExtension();  // Log only, takes effect on next restart
+  void ReloadExtension();  // Calls reload_callback_ if set, else logs restart-needed
   std::string GetCurrentVersion() const;
   base::FilePath GetUpdateDir() const;
   network::mojom::URLLoaderFactory* GetURLLoaderFactory();
@@ -44,6 +48,7 @@ class OcbotExtensionUpdater {
   raw_ptr<Profile> profile_;
   base::RepeatingTimer check_timer_;
   std::unique_ptr<network::SimpleURLLoader> url_loader_;
+  ReloadCallback reload_callback_;
   base::WeakPtrFactory<OcbotExtensionUpdater> weak_factory_{this};
 };
 }
@@ -115,6 +120,16 @@ if (profile_ && !is_dev) {
   if (!*g_updater) {
     *g_updater = std::make_unique<ocbot::OcbotExtensionUpdater>(profile_);
     (*g_updater)->Start();
+
+    // Hot-reload callback: Remove old extension by ID, re-add from OTA dir.
+    base::FilePath ota_path = user_data_dir.Append("ocbot-extension");
+    (*g_updater)->SetReloadCallback(base::BindRepeating(
+        [](ComponentLoader* loader, const base::FilePath& path) {
+          loader->Remove("gidimhmdbcpoeljccjcnodepmmjpfnmf");
+          auto manifest = file_util::LoadManifest(path, &error);
+          if (manifest) loader->Add(std::move(*manifest), path, true);
+        },
+        base::Unretained(this), ota_path));
   }
 }
 ```
@@ -136,7 +151,7 @@ gh release create "ext-v${VERSION}" ocbot-extension.zip
 
 ## Key Decisions
 
-- **No live-reload**: Update takes effect on next restart. Component extension live-reload may cause state inconsistency
+- **Hot-reload via callback**: `component_loader.cc` sets a `ReloadCallback` on the updater that calls `Remove(old_id)` + `Add(new_manifest, ota_path)`. This avoids circular includes between `chrome/browser/extensions/` and `chrome/browser/ocbot/` — the updater doesn't need to know about `ComponentLoader`
 - **Updater starts in component_loader.cc**: Simplest integration point, avoids modifying chrome_browser_main.cc
 - **Using `base::NoDestructor`**: Static singleton, only one updater instance for the entire browser lifetime
 - **Not using Chrome Web Store update mechanism**: Component extensions don't support the standard `update_url`
@@ -148,7 +163,7 @@ gh release create "ext-v${VERSION}" ocbot-extension.zip
   - `base::JSONReader::Read(json)` requires two arguments in some versions: `ReadDict(json, options)`
   - `SimpleURLLoader::BodyAsStringCallback` changed from `std::unique_ptr<std::string>` to `std::optional<std::string>`
   - Need `#include "base/files/file_enumerator.h"` to use `base::FileEnumerator`
-- **Circular dependency**: `chrome/browser/ocbot` cannot include `chrome/browser/extensions/component_loader.h` (creates circular deps), so ReloadExtension doesn't do live-reload
+- **Circular dependency**: `chrome/browser/ocbot` cannot include `chrome/browser/extensions/component_loader.h` (creates circular deps), so hot-reload is implemented via a callback (`ReloadCallback`) set by `component_loader.cc` on the updater, rather than direct calls
 - **GitHub API rate limiting**: Unauthenticated requests limited to 60/hour, normal usage (once per 4 hours) won't trigger this
 - **Zip structure**: Build artifacts may have nested directories (`chrome-mv3/`), extraction must detect and handle this
 - **NetworkTrafficAnnotation**: Chromium requires all network requests to have traffic annotations, format is specific proto text
