@@ -4,7 +4,7 @@
 
 # ocbot - The Web4 Browser
 
-[中文文档](README_CN.md)
+[中文文档](README_CN.md) | [Official Website](https://oc.bot)
 
 **ocbot** is an AI-native browser for Web4 — the era where AI agents are first-class citizens of the internet. It can browse, act, and transact on the open web, powered by on-chain identity (ERC-8004), native payments (USDC/x402), and a built-in AI agent runtime. The browser is its body; the web is its world.
 
@@ -14,8 +14,8 @@
 
 | Platform | Link |
 |----------|------|
-| macOS | [Ocbot-26.3.18.dmg](https://cdn.oc.bot/releases/26.3.18/Ocbot-26.3.18.dmg) |
-| Windows | [Ocbot-Setup-26.3.18.exe](https://cdn.oc.bot/releases/26.3.18/Ocbot-Setup-26.3.18.exe) |
+| macOS | [Ocbot-26.3.19.dmg](https://cdn.oc.bot/releases/26.3.19/Ocbot-26.3.19.dmg) |
+| Windows | [Ocbot-Setup-26.3.19.exe](https://cdn.oc.bot/releases/26.3.19/Ocbot-Setup-26.3.19.exe) |
 
 ---
 

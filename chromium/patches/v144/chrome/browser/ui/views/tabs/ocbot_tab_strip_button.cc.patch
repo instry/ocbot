@@ -1,29 +1,52 @@
 diff --git a/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..839b94772951cfc72b7a389acbcd2063c6138c3f
+index 0000000000000000000000000000000000000000..79ef3b3a41c6de4d227fff72c5c0388baab02c69
 --- /dev/null
 +++ b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,90 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
 +
 +#include "chrome/browser/ui/views/tabs/ocbot_tab_strip_button.h"
 +
-+#include "chrome/browser/ui/ocbot/ocbot_constants.h"
 +#include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
++#include "chrome/grit/chrome_unscaled_resources.h"
 +#include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/base/models/image_model.h"
++#include "ui/base/resource/resource_bundle.h"
 +#include "ui/views/accessibility/view_accessibility.h"
 +#include "ui/views/animation/ink_drop.h"
 +#include "ui/views/animation/ink_drop_state.h"
++#include "ui/views/controls/label.h"
++#include "ui/views/style/typography.h"
++#include "ui/views/view_class_properties.h"
++
++namespace {
++constexpr int kLabelLeftMargin = 4;
++constexpr int kLabelRightMargin = 8;
++}  // namespace
 +
 +OcbotTabStripButton::OcbotTabStripButton(TabStripController* controller,
 +                                         PressedCallback callback)
 +    : TabStripControlButton(controller,
 +                            std::move(callback),
-+                            ocbot::GetOcbotToolbarIcon(),
++                            std::u16string(),
 +                            Edge::kNone,
 +                            Edge::kNone) {
++  // Use PNG product logo instead of vector icon.
++  const gfx::ImageSkia* logo =
++      ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
++          IDR_PRODUCT_LOGO_24_SHORTCUTS);
++  if (logo) {
++    SetImageModel(views::Button::STATE_NORMAL,
++                  ui::ImageModel::FromImageSkia(*logo));
++  }
++
++  // Style the label for when it becomes visible (panel open state).
++  SetLabelStyle(views::style::STYLE_BODY_3_EMPHASIS);
++  label()->SetElideBehavior(gfx::ElideBehavior::NO_ELIDE);
++
 +  SetTooltipText(u"Ocbot AI Assistant");
 +  GetViewAccessibility().SetName(u"Ocbot AI Assistant");
 +}
@@ -36,6 +59,18 @@ index 0000000000000000000000000000000000000000..839b94772951cfc72b7a389acbcd2063
 +  }
 +  panel_open_ = open;
 +
++  if (open) {
++    // Expand: show "Ocbot" label next to icon (pill shape).
++    SetText(u"Ocbot");
++    label()->SetProperty(
++        views::kMarginsKey,
++        gfx::Insets::TLBR(0, kLabelLeftMargin, 0, kLabelRightMargin));
++  } else {
++    // Collapse: icon only.
++    SetText(u"");
++    label()->SetProperty(views::kMarginsKey, gfx::Insets());
++  }
++
 +  // Show ink drop highlight when panel is open.
 +  auto* ink_drop = views::InkDrop::Get(this);
 +  if (ink_drop) {
@@ -43,6 +78,14 @@ index 0000000000000000000000000000000000000000..839b94772951cfc72b7a389acbcd2063
 +        open ? views::InkDropState::ACTIVATED
 +             : views::InkDropState::DEACTIVATED);
 +  }
++
++  PreferredSizeChanged();
++}
++
++void OcbotTabStripButton::NotifyClick(const ui::Event& event) {
++  // Toggle visual state on click. The callback will toggle the side panel.
++  SetPanelOpen(!panel_open_);
++  TabStripControlButton::NotifyClick(event);
 +}
 +
 +void OcbotTabStripButton::UpdateColors() {
