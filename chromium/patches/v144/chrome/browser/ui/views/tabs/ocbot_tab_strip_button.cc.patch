@@ -1,30 +1,41 @@
 diff --git a/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..79ef3b3a41c6de4d227fff72c5c0388baab02c69
+index 0000000000000000000000000000000000000000..51ab55a54242ed2ada3e40f60be974379c7dcfdc
 --- /dev/null
 +++ b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,143 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
 +
 +#include "chrome/browser/ui/views/tabs/ocbot_tab_strip_button.h"
 +
++#include "chrome/browser/ui/color/chrome_color_id.h"
 +#include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
 +#include "chrome/grit/chrome_unscaled_resources.h"
++#include "ui/base/cursor/cursor.h"
 +#include "ui/base/metadata/metadata_impl_macros.h"
 +#include "ui/base/models/image_model.h"
 +#include "ui/base/resource/resource_bundle.h"
++#include "ui/color/color_id.h"
++#include "ui/gfx/canvas.h"
++#include "ui/gfx/font_list.h"
++#include "ui/gfx/text_utils.h"
 +#include "ui/views/accessibility/view_accessibility.h"
 +#include "ui/views/animation/ink_drop.h"
-+#include "ui/views/animation/ink_drop_state.h"
++#include "ui/views/controls/image_view.h"
 +#include "ui/views/controls/label.h"
-+#include "ui/views/style/typography.h"
 +#include "ui/views/view_class_properties.h"
 +
 +namespace {
-+constexpr int kLabelLeftMargin = 4;
-+constexpr int kLabelRightMargin = 8;
++constexpr int kCapsuleHeight = 38;
++constexpr int kCapsuleCornerRadius = 19;
++constexpr int kLogoSize = 22;
++constexpr int kPaddingH = 26;
++constexpr int kImageLabelSpacing = 20;
++constexpr int kSeparatorHeight = 14;
++constexpr SkColor kLetterColor = SK_ColorWHITE;
++constexpr int kLetterFontSizeDelta = 4;
 +}  // namespace
 +
 +OcbotTabStripButton::OcbotTabStripButton(TabStripController* controller,
@@ -34,24 +45,68 @@ index 0000000000000000000000000000000000000000..79ef3b3a41c6de4d227fff72c5c0388b
 +                            std::u16string(),
 +                            Edge::kNone,
 +                            Edge::kNone) {
-+  // Use PNG product logo instead of vector icon.
++  // PNG product logo as the button image.
 +  const gfx::ImageSkia* logo =
 +      ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
 +          IDR_PRODUCT_LOGO_24_SHORTCUTS);
 +  if (logo) {
-+    SetImageModel(views::Button::STATE_NORMAL,
-+                  ui::ImageModel::FromImageSkia(*logo));
++    auto image_model = ui::ImageModel::FromImageSkia(*logo);
++    SetImageModel(views::Button::STATE_NORMAL, image_model);
++    SetImageModel(views::Button::STATE_HOVERED, image_model);
++    SetImageModel(views::Button::STATE_PRESSED, image_model);
 +  }
 +
-+  // Style the label for when it becomes visible (panel open state).
-+  SetLabelStyle(views::style::STYLE_BODY_3_EMPHASIS);
++  // Use the built-in label() for the letter.
++  SetText(u"O");
++  label()->SetFontList(
++      gfx::FontList().DeriveWithSizeDelta(kLetterFontSizeDelta));
++  label()->SetAutoColorReadabilityEnabled(false);
 +  label()->SetElideBehavior(gfx::ElideBehavior::NO_ELIDE);
++  SetEnabledTextColors(kLetterColor);
++  SetImageLabelSpacing(kImageLabelSpacing);
++
++  // Always show background.
++  set_paint_transparent_for_custom_image_theme(false);
++  SetBackgroundFrameActiveColorId(kColorNewTabButtonCRBackgroundFrameActive);
++  SetBackgroundFrameInactiveColorId(
++      kColorNewTabButtonCRBackgroundFrameInactive);
++
++  // Disable ink drop.
++  views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
 +
 +  SetTooltipText(u"Ocbot AI Assistant");
 +  GetViewAccessibility().SetName(u"Ocbot AI Assistant");
 +}
 +
 +OcbotTabStripButton::~OcbotTabStripButton() = default;
++
++int OcbotTabStripButton::GetCornerRadius() const {
++  return kCapsuleCornerRadius;
++}
++
++gfx::Size OcbotTabStripButton::CalculatePreferredSize(
++    const views::SizeBounds& available_size) const {
++  int text_width = gfx::GetStringWidth(label()->GetText(),
++                                        label()->font_list());
++  int width = kPaddingH + kLogoSize + kImageLabelSpacing +
++              text_width + kPaddingH;
++  return gfx::Size(width, kCapsuleHeight);
++}
++
++void OcbotTabStripButton::PaintButtonContents(gfx::Canvas* canvas) {
++  TabStripControlButton::PaintButtonContents(canvas);
++
++  // Draw separator line between logo and letter.
++  const auto* cp = GetColorProvider();
++  SkColor sep_color = cp ? cp->GetColor(ui::kColorSysOutline)
++                         : SkColorSetA(SK_ColorGRAY, 0x80);
++  int sep_x = kPaddingH + kLogoSize + kImageLabelSpacing / 2;
++  int sep_y = (height() - kSeparatorHeight) / 2;
++  cc::PaintFlags flags;
++  flags.setColor(sep_color);
++  flags.setAntiAlias(true);
++  canvas->DrawRect(gfx::RectF(sep_x, sep_y, 1, kSeparatorHeight), flags);
++}
 +
 +void OcbotTabStripButton::SetPanelOpen(bool open) {
 +  if (panel_open_ == open) {
@@ -60,36 +115,34 @@ index 0000000000000000000000000000000000000000..79ef3b3a41c6de4d227fff72c5c0388b
 +  panel_open_ = open;
 +
 +  if (open) {
-+    // Expand: show "Ocbot" label next to icon (pill shape).
-+    SetText(u"Ocbot");
-+    label()->SetProperty(
-+        views::kMarginsKey,
-+        gfx::Insets::TLBR(0, kLabelLeftMargin, 0, kLabelRightMargin));
++    SetBackgroundFrameActiveColorId(ui::kColorSysStateHeaderHover);
++    SetBackgroundFrameInactiveColorId(ui::kColorSysStateHeaderHover);
++    SetText(u"C");
 +  } else {
-+    // Collapse: icon only.
-+    SetText(u"");
-+    label()->SetProperty(views::kMarginsKey, gfx::Insets());
++    SetBackgroundFrameActiveColorId(kColorNewTabButtonCRBackgroundFrameActive);
++    SetBackgroundFrameInactiveColorId(
++        kColorNewTabButtonCRBackgroundFrameInactive);
++    SetText(u"O");
 +  }
 +
-+  // Show ink drop highlight when panel is open.
-+  auto* ink_drop = views::InkDrop::Get(this);
-+  if (ink_drop) {
-+    ink_drop->GetInkDrop()->AnimateToState(
-+        open ? views::InkDropState::ACTIVATED
-+             : views::InkDropState::DEACTIVATED);
-+  }
-+
++  SetEnabledTextColors(kLetterColor);
 +  PreferredSizeChanged();
 +}
 +
 +void OcbotTabStripButton::NotifyClick(const ui::Event& event) {
-+  // Toggle visual state on click. The callback will toggle the side panel.
 +  SetPanelOpen(!panel_open_);
-+  TabStripControlButton::NotifyClick(event);
++  views::LabelButton::NotifyClick(event);
++}
++
++ui::Cursor OcbotTabStripButton::GetCursor(const ui::MouseEvent& event) {
++  return ui::Cursor(ui::mojom::CursorType::kHand);
 +}
 +
 +void OcbotTabStripButton::UpdateColors() {
 +  TabStripControlButton::UpdateColors();
++  views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
++  // Override text color back to brand purple.
++  SetEnabledTextColors(kLetterColor);
 +}
 +
 +BEGIN_METADATA(OcbotTabStripButton)
