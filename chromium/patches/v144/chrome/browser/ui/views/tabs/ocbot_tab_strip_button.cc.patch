@@ -1,0 +1,53 @@
+diff --git a/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..839b94772951cfc72b7a389acbcd2063c6138c3f
+--- /dev/null
++++ b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc
+@@ -0,0 +1,47 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "chrome/browser/ui/views/tabs/ocbot_tab_strip_button.h"
++
++#include "chrome/browser/ui/ocbot/ocbot_constants.h"
++#include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
++#include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/views/accessibility/view_accessibility.h"
++#include "ui/views/animation/ink_drop.h"
++#include "ui/views/animation/ink_drop_state.h"
++
++OcbotTabStripButton::OcbotTabStripButton(TabStripController* controller,
++                                         PressedCallback callback)
++    : TabStripControlButton(controller,
++                            std::move(callback),
++                            ocbot::GetOcbotToolbarIcon(),
++                            Edge::kNone,
++                            Edge::kNone) {
++  SetTooltipText(u"Ocbot AI Assistant");
++  GetViewAccessibility().SetName(u"Ocbot AI Assistant");
++}
++
++OcbotTabStripButton::~OcbotTabStripButton() = default;
++
++void OcbotTabStripButton::SetPanelOpen(bool open) {
++  if (panel_open_ == open) {
++    return;
++  }
++  panel_open_ = open;
++
++  // Show ink drop highlight when panel is open.
++  auto* ink_drop = views::InkDrop::Get(this);
++  if (ink_drop) {
++    ink_drop->GetInkDrop()->AnimateToState(
++        open ? views::InkDropState::ACTIVATED
++             : views::InkDropState::DEACTIVATED);
++  }
++}
++
++void OcbotTabStripButton::UpdateColors() {
++  TabStripControlButton::UpdateColors();
++}
++
++BEGIN_METADATA(OcbotTabStripButton)
++END_METADATA

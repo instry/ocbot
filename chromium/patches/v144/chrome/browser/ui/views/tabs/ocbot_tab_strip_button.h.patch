@@ -1,0 +1,44 @@
+diff --git a/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.h b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..10b511f8969a2486bd9b1cb240f44e01a7dbe746
+--- /dev/null
++++ b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.h
+@@ -0,0 +1,38 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_UI_VIEWS_TABS_OCBOT_TAB_STRIP_BUTTON_H_
++#define CHROME_BROWSER_UI_VIEWS_TABS_OCBOT_TAB_STRIP_BUTTON_H_
++
++#include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
++#include "ui/base/metadata/metadata_header_macros.h"
++
++class TabStripController;
++
++// Button in the tab strip region that toggles the Ocbot side panel.
++// Positioned after the tab strip, before the new tab button.
++// Similar to Chrome's Gemini button placement.
++class OcbotTabStripButton : public TabStripControlButton {
++  METADATA_HEADER(OcbotTabStripButton, TabStripControlButton)
++
++ public:
++  OcbotTabStripButton(TabStripController* controller,
++                      PressedCallback callback);
++  OcbotTabStripButton(const OcbotTabStripButton&) = delete;
++  OcbotTabStripButton& operator=(const OcbotTabStripButton&) = delete;
++  ~OcbotTabStripButton() override;
++
++  // Update visual state when side panel opens/closes.
++  void SetPanelOpen(bool open);
++  bool IsPanelOpen() const { return panel_open_; }
++
++ protected:
++  // TabStripControlButton:
++  void UpdateColors() override;
++
++ private:
++  bool panel_open_ = false;
++};
++
++#endif  // CHROME_BROWSER_UI_VIEWS_TABS_OCBOT_TAB_STRIP_BUTTON_H_

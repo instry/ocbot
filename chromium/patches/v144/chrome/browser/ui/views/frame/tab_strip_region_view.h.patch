@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/ui/views/frame/tab_strip_region_view.h b/chrome/browser/ui/views/frame/tab_strip_region_view.h
+index 6f949815850e95b5c492207c1f2cf75595e88eee..2175cfb7ed29f67875d2bf719d311e235651d131 100644
+--- a/chrome/browser/ui/views/frame/tab_strip_region_view.h
++++ b/chrome/browser/ui/views/frame/tab_strip_region_view.h
+@@ -22,6 +22,7 @@ class NewTabButton;
+ class TabStripActionContainer;
+ class TabSearchButton;
+ class TabStrip;
++class OcbotTabStripButton;
+ class TabStripScrollContainer;
+ class ProductSpecificationsButton;
+ class TabSearchPositionMetricsLogger;
+@@ -144,6 +145,7 @@ class TabStripRegionView final : public TabStripViewInterface {
+   raw_ptr<views::Button> new_tab_button_ = nullptr;
+   raw_ptr<TabSearchContainer> tab_search_container_ = nullptr;
+   raw_ptr<ProductSpecificationsButton> product_specifications_button_ = nullptr;
++  raw_ptr<OcbotTabStripButton> ocbot_button_ = nullptr;
+ 
+   // On some platforms for Chrome Refresh, the TabSearchButton should be
+   // laid out before the TabStrip. Storing this configuration prevents

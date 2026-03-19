@@ -1,0 +1,67 @@
+diff --git a/chrome/browser/ui/views/frame/tab_strip_region_view.cc b/chrome/browser/ui/views/frame/tab_strip_region_view.cc
+index 582855d6a992251477841ca35ee40c92d0e052ca..afc61f99ee6e7e1492f251afb06b620702cf2f2e 100644
+--- a/chrome/browser/ui/views/frame/tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/tab_strip_region_view.cc
+@@ -11,6 +11,8 @@
+ #include "chrome/browser/glic/public/glic_enabling.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
++#include "chrome/browser/ui/ocbot/ocbot_constants.h"
++#include "chrome/browser/ui/ocbot/ocbot_side_panel_manager.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/frame/window_frame_util.h"
+@@ -30,6 +32,7 @@
+ #include "chrome/browser/ui/views/tabs/new_tab_button.h"
+ #include "chrome/browser/ui/views/tabs/tab_search_button.h"
+ #include "chrome/browser/ui/views/tabs/tab_search_container.h"
++#include "chrome/browser/ui/views/tabs/ocbot_tab_strip_button.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
+ #include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
+@@ -275,6 +278,24 @@ TabStripRegionView::TabStripRegionView(std::unique_ptr<TabStrip> tab_strip)
+   tab_strip_container_->SetProperty(views::kFlexBehaviorKey,
+                                     tab_strip_container_flex_spec);
+ 
++  // ocbot: Add Ocbot button after tab strip, before new tab button.
++  if (browser &&
++      browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL) {
++    auto ocbot_btn = std::make_unique<OcbotTabStripButton>(
++        tab_strip_->controller(),
++        base::BindRepeating(
++            [](base::WeakPtr<BrowserWindowInterface> bwi,
++               const ui::Event&) {
++              if (bwi) {
++                ocbot::ToggleSidePanel(bwi.get());
++              }
++            },
++            browser->GetWeakPtr()));
++    ocbot_btn->SetProperty(views::kCrossAxisAlignmentKey,
++                           views::LayoutAlignment::kCenter);
++    ocbot_button_ = AddChildView(std::move(ocbot_btn));
++  }
++
+   if (ShouldShowNewTabButton(browser)) {
+     std::unique_ptr<TabStripControlButton> tab_strip_control_button =
+         std::make_unique<NewTabButton>(
+@@ -332,6 +353,9 @@ TabStripRegionView::~TabStripRegionView() {
+   if (product_specifications_button_) {
+     RemoveChildViewT(std::exchange(product_specifications_button_, nullptr));
+   }
++  if (ocbot_button_) {
++    RemoveChildViewT(std::exchange(ocbot_button_, nullptr));
++  }
+ }
+ 
+ bool TabStripRegionView::IsRectInWindowCaption(const gfx::Rect& rect) {
+@@ -409,6 +433,10 @@ views::View::Views TabStripRegionView::GetChildrenInZOrder() {
+       children.emplace_back(new_tab_button_.get());
+     }
+ 
++    if (ocbot_button_) {
++      children.emplace_back(ocbot_button_.get());
++    }
++
+     if (tab_search_container_) {
+       children.emplace_back(tab_search_container_.get());
+     }
