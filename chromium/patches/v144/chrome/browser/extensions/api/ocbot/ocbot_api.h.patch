@@ -1,0 +1,318 @@
+diff --git a/chrome/browser/extensions/api/ocbot/ocbot_api.h b/chrome/browser/extensions/api/ocbot/ocbot_api.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..fc9cebb1d12d3fc95208a3268bbd2e639ff77e55
+--- /dev/null
++++ b/chrome/browser/extensions/api/ocbot/ocbot_api.h
+@@ -0,0 +1,312 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_EXTENSIONS_API_OCBOT_OCBOT_API_H_
++#define CHROME_BROWSER_EXTENSIONS_API_OCBOT_OCBOT_API_H_
++
++#include "extensions/browser/extension_function.h"
++
++namespace extensions {
++
++// --- Permissions ---
++
++class OcbotCheckPermissionsFunction : public ExtensionFunction {
++ public:
++  OcbotCheckPermissionsFunction() = default;
++  OcbotCheckPermissionsFunction(const OcbotCheckPermissionsFunction&) = delete;
++  OcbotCheckPermissionsFunction& operator=(
++      const OcbotCheckPermissionsFunction&) = delete;
++
++ protected:
++  ~OcbotCheckPermissionsFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.checkPermissions",
++                             OCBOT_CHECKPERMISSIONS)
++};
++
++class OcbotRequestPermissionFunction : public ExtensionFunction {
++ public:
++  OcbotRequestPermissionFunction() = default;
++  OcbotRequestPermissionFunction(const OcbotRequestPermissionFunction&) =
++      delete;
++  OcbotRequestPermissionFunction& operator=(
++      const OcbotRequestPermissionFunction&) = delete;
++
++ protected:
++  ~OcbotRequestPermissionFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.requestPermission",
++                             OCBOT_REQUESTPERMISSION)
++};
++
++// --- Screenshots ---
++
++class OcbotCaptureScreenFunction : public ExtensionFunction {
++ public:
++  OcbotCaptureScreenFunction() = default;
++  OcbotCaptureScreenFunction(const OcbotCaptureScreenFunction&) = delete;
++  OcbotCaptureScreenFunction& operator=(const OcbotCaptureScreenFunction&) =
++      delete;
++
++ protected:
++  ~OcbotCaptureScreenFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.captureScreen", OCBOT_CAPTURESCREEN)
++};
++
++class OcbotCaptureWindowFunction : public ExtensionFunction {
++ public:
++  OcbotCaptureWindowFunction() = default;
++  OcbotCaptureWindowFunction(const OcbotCaptureWindowFunction&) = delete;
++  OcbotCaptureWindowFunction& operator=(const OcbotCaptureWindowFunction&) =
++      delete;
++
++ protected:
++  ~OcbotCaptureWindowFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.captureWindow", OCBOT_CAPTUREWINDOW)
++};
++
++// --- Mouse ---
++
++class OcbotClickFunction : public ExtensionFunction {
++ public:
++  OcbotClickFunction() = default;
++  OcbotClickFunction(const OcbotClickFunction&) = delete;
++  OcbotClickFunction& operator=(const OcbotClickFunction&) = delete;
++
++ protected:
++  ~OcbotClickFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.click", OCBOT_CLICK)
++};
++
++class OcbotDoubleClickFunction : public ExtensionFunction {
++ public:
++  OcbotDoubleClickFunction() = default;
++  OcbotDoubleClickFunction(const OcbotDoubleClickFunction&) = delete;
++  OcbotDoubleClickFunction& operator=(const OcbotDoubleClickFunction&) =
++      delete;
++
++ protected:
++  ~OcbotDoubleClickFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.doubleClick", OCBOT_DOUBLECLICK)
++};
++
++class OcbotRightClickFunction : public ExtensionFunction {
++ public:
++  OcbotRightClickFunction() = default;
++  OcbotRightClickFunction(const OcbotRightClickFunction&) = delete;
++  OcbotRightClickFunction& operator=(const OcbotRightClickFunction&) = delete;
++
++ protected:
++  ~OcbotRightClickFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.rightClick", OCBOT_RIGHTCLICK)
++};
++
++class OcbotMouseMoveFunction : public ExtensionFunction {
++ public:
++  OcbotMouseMoveFunction() = default;
++  OcbotMouseMoveFunction(const OcbotMouseMoveFunction&) = delete;
++  OcbotMouseMoveFunction& operator=(const OcbotMouseMoveFunction&) = delete;
++
++ protected:
++  ~OcbotMouseMoveFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.mouseMove", OCBOT_MOUSEMOVE)
++};
++
++class OcbotScrollFunction : public ExtensionFunction {
++ public:
++  OcbotScrollFunction() = default;
++  OcbotScrollFunction(const OcbotScrollFunction&) = delete;
++  OcbotScrollFunction& operator=(const OcbotScrollFunction&) = delete;
++
++ protected:
++  ~OcbotScrollFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.scroll", OCBOT_SCROLL)
++};
++
++// --- Keyboard ---
++
++class OcbotTypeFunction : public ExtensionFunction {
++ public:
++  OcbotTypeFunction() = default;
++  OcbotTypeFunction(const OcbotTypeFunction&) = delete;
++  OcbotTypeFunction& operator=(const OcbotTypeFunction&) = delete;
++
++ protected:
++  ~OcbotTypeFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.type", OCBOT_TYPE)
++};
++
++class OcbotPressKeyFunction : public ExtensionFunction {
++ public:
++  OcbotPressKeyFunction() = default;
++  OcbotPressKeyFunction(const OcbotPressKeyFunction&) = delete;
++  OcbotPressKeyFunction& operator=(const OcbotPressKeyFunction&) = delete;
++
++ protected:
++  ~OcbotPressKeyFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.pressKey", OCBOT_PRESSKEY)
++};
++
++// --- Shell / AppleScript ---
++
++class OcbotRunCommandFunction : public ExtensionFunction {
++ public:
++  OcbotRunCommandFunction() = default;
++  OcbotRunCommandFunction(const OcbotRunCommandFunction&) = delete;
++  OcbotRunCommandFunction& operator=(const OcbotRunCommandFunction&) = delete;
++
++ protected:
++  ~OcbotRunCommandFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.runCommand", OCBOT_RUNCOMMAND)
++
++ private:
++  void RunCommandOnThreadPool(std::string command,
++                              std::string cwd,
++                              int timeout_ms);
++};
++
++class OcbotRunAppleScriptFunction : public ExtensionFunction {
++ public:
++  OcbotRunAppleScriptFunction() = default;
++  OcbotRunAppleScriptFunction(const OcbotRunAppleScriptFunction&) = delete;
++  OcbotRunAppleScriptFunction& operator=(
++      const OcbotRunAppleScriptFunction&) = delete;
++
++ protected:
++  ~OcbotRunAppleScriptFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.runAppleScript", OCBOT_RUNAPPLESCRIPT)
++};
++
++// --- Desktop tree / Apps ---
++
++class OcbotGetDesktopTreeFunction : public ExtensionFunction {
++ public:
++  OcbotGetDesktopTreeFunction() = default;
++  OcbotGetDesktopTreeFunction(const OcbotGetDesktopTreeFunction&) = delete;
++  OcbotGetDesktopTreeFunction& operator=(
++      const OcbotGetDesktopTreeFunction&) = delete;
++
++ protected:
++  ~OcbotGetDesktopTreeFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.getDesktopTree", OCBOT_GETDESKTOPTREE)
++};
++
++class OcbotListAppsFunction : public ExtensionFunction {
++ public:
++  OcbotListAppsFunction() = default;
++  OcbotListAppsFunction(const OcbotListAppsFunction&) = delete;
++  OcbotListAppsFunction& operator=(const OcbotListAppsFunction&) = delete;
++
++ protected:
++  ~OcbotListAppsFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.listApps", OCBOT_LISTAPPS)
++};
++
++class OcbotGetActiveAppFunction : public ExtensionFunction {
++ public:
++  OcbotGetActiveAppFunction() = default;
++  OcbotGetActiveAppFunction(const OcbotGetActiveAppFunction&) = delete;
++  OcbotGetActiveAppFunction& operator=(const OcbotGetActiveAppFunction&) =
++      delete;
++
++ protected:
++  ~OcbotGetActiveAppFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.getActiveApp", OCBOT_GETACTIVEAPP)
++};
++
++class OcbotLaunchAppFunction : public ExtensionFunction {
++ public:
++  OcbotLaunchAppFunction() = default;
++  OcbotLaunchAppFunction(const OcbotLaunchAppFunction&) = delete;
++  OcbotLaunchAppFunction& operator=(const OcbotLaunchAppFunction&) = delete;
++
++ protected:
++  ~OcbotLaunchAppFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.launchApp", OCBOT_LAUNCHAPP)
++};
++
++// --- Clipboard ---
++
++class OcbotGetClipboardFunction : public ExtensionFunction {
++ public:
++  OcbotGetClipboardFunction() = default;
++  OcbotGetClipboardFunction(const OcbotGetClipboardFunction&) = delete;
++  OcbotGetClipboardFunction& operator=(const OcbotGetClipboardFunction&) =
++      delete;
++
++ protected:
++  ~OcbotGetClipboardFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.getClipboard", OCBOT_GETCLIPBOARD)
++};
++
++class OcbotSetClipboardFunction : public ExtensionFunction {
++ public:
++  OcbotSetClipboardFunction() = default;
++  OcbotSetClipboardFunction(const OcbotSetClipboardFunction&) = delete;
++  OcbotSetClipboardFunction& operator=(const OcbotSetClipboardFunction&) =
++      delete;
++
++ protected:
++  ~OcbotSetClipboardFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.setClipboard", OCBOT_SETCLIPBOARD)
++};
++
++// --- File operations ---
++
++class OcbotReadFileFunction : public ExtensionFunction {
++ public:
++  OcbotReadFileFunction() = default;
++  OcbotReadFileFunction(const OcbotReadFileFunction&) = delete;
++  OcbotReadFileFunction& operator=(const OcbotReadFileFunction&) = delete;
++
++ protected:
++  ~OcbotReadFileFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.readFile", OCBOT_READFILE)
++};
++
++class OcbotWriteFileFunction : public ExtensionFunction {
++ public:
++  OcbotWriteFileFunction() = default;
++  OcbotWriteFileFunction(const OcbotWriteFileFunction&) = delete;
++  OcbotWriteFileFunction& operator=(const OcbotWriteFileFunction&) = delete;
++
++ protected:
++  ~OcbotWriteFileFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.writeFile", OCBOT_WRITEFILE)
++};
++
++class OcbotListDirFunction : public ExtensionFunction {
++ public:
++  OcbotListDirFunction() = default;
++  OcbotListDirFunction(const OcbotListDirFunction&) = delete;
++  OcbotListDirFunction& operator=(const OcbotListDirFunction&) = delete;
++
++ protected:
++  ~OcbotListDirFunction() override = default;
++  ResponseAction Run() override;
++  DECLARE_EXTENSION_FUNCTION("ocbot.listDir", OCBOT_LISTDIR)
++};
++
++}  // namespace extensions
++
++#endif  // CHROME_BROWSER_EXTENSIONS_API_OCBOT_OCBOT_API_H_

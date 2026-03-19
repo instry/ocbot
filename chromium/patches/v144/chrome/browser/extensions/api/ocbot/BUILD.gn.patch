@@ -1,0 +1,43 @@
+diff --git a/chrome/browser/extensions/api/ocbot/BUILD.gn b/chrome/browser/extensions/api/ocbot/BUILD.gn
+new file mode 100644
+index 0000000000000000000000000000000000000000..a05dd5c8214b41a434cee7007f839b471db0ce4e
+--- /dev/null
++++ b/chrome/browser/extensions/api/ocbot/BUILD.gn
+@@ -0,0 +1,37 @@
++# Copyright 2025 The Chromium Authors
++# Use of this source code is governed by a BSD-style license that can be
++# found in the LICENSE file.
++
++import("//build/config/features.gni")
++import("//extensions/buildflags/buildflags.gni")
++
++assert(enable_extensions,
++       "Cannot depend on extensions because enable_extensions=false.")
++
++source_set("ocbot") {
++  sources = [ "ocbot_api.h" ]
++
++  if (is_mac) {
++    sources += [ "ocbot_api.mm" ]
++  } else {
++    sources += [ "ocbot_api_stub.cc" ]
++  }
++
++  configs += [ "//build/config/compiler:wexit_time_destructors" ]
++
++  deps = [
++    "//base",
++    "//chrome/browser/extensions",
++    "//chrome/common/extensions/api",
++    "//extensions/browser",
++  ]
++
++  if (is_mac) {
++    frameworks = [
++      "AppKit.framework",
++      "ApplicationServices.framework",
++      "Carbon.framework",
++      "Foundation.framework",
++    ]
++  }
++}

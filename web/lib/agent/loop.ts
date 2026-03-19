@@ -3,9 +3,11 @@ import type { ActCache } from './cache'
 import type { Variables } from './variables'
 import { streamChat } from '../llm/client'
 import { BROWSER_TOOLS, executeTool } from './tools'
+import { DESKTOP_TOOLS } from '../desktop/tools'
 import { buildSystemPrompt } from './systemPrompt'
 import { ensureAttached, sendCdp } from './cdp'
 import { sendMessage } from '../messaging'
+import { getDesktopEnabled } from '../storage'
 import {
   type AgentReplayStep,
   toolCallToReplayStep,
@@ -73,9 +75,15 @@ export async function runAgentLoop(
     } catch { /* best effort */ }
   }
 
+  // Desktop mode — merge desktop tools if enabled
+  const desktopEnabled = await getDesktopEnabled()
+  const activeTools = desktopEnabled
+    ? [...BROWSER_TOOLS, ...DESKTOP_TOOLS]
+    : BROWSER_TOOLS
+
   const systemMessage: LlmRequestMessage = {
     role: 'system',
-    content: buildSystemPrompt(pageContext, variables, initialPageContent),
+    content: buildSystemPrompt(pageContext, variables, initialPageContent, desktopEnabled),
   }
 
   // Extract the user instruction (last user message) for skill matching
@@ -240,7 +248,7 @@ export async function runAgentLoop(
     const toolCalls: Map<string, { id: string; name: string; arguments: string }> = new Map()
 
     try {
-      for await (const event of streamChat(provider, allMessages, BROWSER_TOOLS, signal)) {
+      for await (const event of streamChat(provider, allMessages, activeTools, signal)) {
         if (signal?.aborted) return
 
         switch (event.type) {
@@ -377,7 +385,7 @@ export async function runAgentLoop(
       }
 
       // Screenshot tool returns image data — inject as multimodal user message
-      if (tc.name === 'screenshot') {
+      if (tc.name === 'screenshot' || tc.name === 'desktop_screenshot') {
         try {
           const parsed = JSON.parse(result)
           if (parsed.__screenshot__ && parsed.data) {
@@ -395,7 +403,7 @@ export async function runAgentLoop(
                 { type: 'text', text: 'Here is the current page screenshot.' },
               ],
             })
-            console.log(`${TAG} 📸 Screenshot captured (${parsed.sizeKB}KB)`)
+            console.log(`${TAG} 📸 Screenshot captured (${parsed.sizeKB}KB${tc.name === 'desktop_screenshot' ? ', desktop' : ''})`)
             continue // skip the default tool message push below
           }
         } catch { /* fall through to normal handling */ }

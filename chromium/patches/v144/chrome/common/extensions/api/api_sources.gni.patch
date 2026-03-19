@@ -1,0 +1,12 @@
+diff --git a/chrome/common/extensions/api/api_sources.gni b/chrome/common/extensions/api/api_sources.gni
+index 9a041705164b257ed12bf70797b905506b5a28d7..4c70228dec30a19a7bc192d757bd5815b1b52844 100644
+--- a/chrome/common/extensions/api/api_sources.gni
++++ b/chrome/common/extensions/api/api_sources.gni
+@@ -68,6 +68,7 @@ if (enable_extensions) {
+   schema_sources_ += [
+     "accessibility_features.json",
+     "experimental_actor.idl",
++    "ocbot.idl",
+     "experimental_ai_data.idl",
+     "autofill_private.idl",
+     "autotest_private.idl",

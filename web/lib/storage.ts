@@ -117,3 +117,16 @@ export async function deleteChannelConfig(id: string): Promise<void> {
   const filtered = all.filter(c => c.id !== id)
   await storage.set({ [STORAGE_KEYS.channelConfigs]: filtered })
 }
+
+// --- Desktop Control ---
+
+const DESKTOP_ENABLED_KEY = 'ocbot_desktop_enabled'
+
+export async function getDesktopEnabled(): Promise<boolean> {
+  const result = await storage.get(DESKTOP_ENABLED_KEY)
+  return (result[DESKTOP_ENABLED_KEY] as boolean) ?? false
+}
+
+export async function setDesktopEnabled(enabled: boolean): Promise<void> {
+  await storage.set({ [DESKTOP_ENABLED_KEY]: enabled })
+}

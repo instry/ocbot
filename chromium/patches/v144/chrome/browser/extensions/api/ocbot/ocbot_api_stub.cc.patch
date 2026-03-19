@@ -1,0 +1,50 @@
+diff --git a/chrome/browser/extensions/api/ocbot/ocbot_api_stub.cc b/chrome/browser/extensions/api/ocbot/ocbot_api_stub.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d6f512ef411ada0cf2c3f56de07e349b9ebf18b
+--- /dev/null
++++ b/chrome/browser/extensions/api/ocbot/ocbot_api_stub.cc
+@@ -0,0 +1,44 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++// Stub implementation for non-macOS platforms. All functions return
++// "not supported" errors.
++
++#include "chrome/browser/extensions/api/ocbot/ocbot_api.h"
++
++#include "base/values.h"
++
++namespace extensions {
++
++#define OCBOT_STUB(ClassName)                                    \
++  ExtensionFunction::ResponseAction ClassName::Run() {           \
++    return RespondNow(Error("ocbot: not supported on this platform")); \
++  }
++
++OCBOT_STUB(OcbotCheckPermissionsFunction)
++OCBOT_STUB(OcbotRequestPermissionFunction)
++OCBOT_STUB(OcbotCaptureScreenFunction)
++OCBOT_STUB(OcbotCaptureWindowFunction)
++OCBOT_STUB(OcbotClickFunction)
++OCBOT_STUB(OcbotDoubleClickFunction)
++OCBOT_STUB(OcbotRightClickFunction)
++OCBOT_STUB(OcbotMouseMoveFunction)
++OCBOT_STUB(OcbotScrollFunction)
++OCBOT_STUB(OcbotTypeFunction)
++OCBOT_STUB(OcbotPressKeyFunction)
++OCBOT_STUB(OcbotRunCommandFunction)
++OCBOT_STUB(OcbotRunAppleScriptFunction)
++OCBOT_STUB(OcbotGetDesktopTreeFunction)
++OCBOT_STUB(OcbotListAppsFunction)
++OCBOT_STUB(OcbotGetActiveAppFunction)
++OCBOT_STUB(OcbotLaunchAppFunction)
++OCBOT_STUB(OcbotGetClipboardFunction)
++OCBOT_STUB(OcbotSetClipboardFunction)
++OCBOT_STUB(OcbotReadFileFunction)
++OCBOT_STUB(OcbotWriteFileFunction)
++OCBOT_STUB(OcbotListDirFunction)
++
++#undef OCBOT_STUB
++
++}  // namespace extensions

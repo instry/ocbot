@@ -1,0 +1,33 @@
+diff --git a/extensions/browser/extension_function_histogram_value.h b/extensions/browser/extension_function_histogram_value.h
+index 3ba90bcfdb2d56d7d080dd8e77b6375b525f9939..3334985889cf0e00bf3ba6b5c4b3e11b80c68977 100644
+--- a/extensions/browser/extension_function_histogram_value.h
++++ b/extensions/browser/extension_function_histogram_value.h
+@@ -2014,6 +2014,28 @@ enum HistogramValue {
+   AUTOFILLPRIVATE_GETWALLETABLEPASSDETECTIONOPTINSTATUS = 1951,
+   AUTOFILLPRIVATE_SETWALLETABLEPASSDETECTIONOPTINSTATUS = 1952,
+   METRICSPRIVATE_RECORDEXTENSIONUSAGEUKM = 1953,
++  OCBOT_CHECKPERMISSIONS = 1954,
++  OCBOT_REQUESTPERMISSION = 1955,
++  OCBOT_CAPTURESCREEN = 1956,
++  OCBOT_CAPTUREWINDOW = 1957,
++  OCBOT_CLICK = 1958,
++  OCBOT_DOUBLECLICK = 1959,
++  OCBOT_RIGHTCLICK = 1960,
++  OCBOT_MOUSEMOVE = 1961,
++  OCBOT_SCROLL = 1962,
++  OCBOT_TYPE = 1963,
++  OCBOT_PRESSKEY = 1964,
++  OCBOT_RUNCOMMAND = 1965,
++  OCBOT_RUNAPPLESCRIPT = 1966,
++  OCBOT_GETDESKTOPTREE = 1967,
++  OCBOT_LISTAPPS = 1968,
++  OCBOT_GETACTIVEAPP = 1969,
++  OCBOT_LAUNCHAPP = 1970,
++  OCBOT_GETCLIPBOARD = 1971,
++  OCBOT_SETCLIPBOARD = 1972,
++  OCBOT_READFILE = 1973,
++  OCBOT_WRITEFILE = 1974,
++  OCBOT_LISTDIR = 1975,
+   // Last entry: Add new entries above, then run:
+   // tools/metrics/histograms/update_extension_histograms.py
+   ENUM_BOUNDARY

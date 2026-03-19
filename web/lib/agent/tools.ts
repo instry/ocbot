@@ -9,6 +9,7 @@ import { capturePageSnapshot } from './snapshot'
 import { ensureAttached, sendCdp } from './cdp'
 import { substituteVariables } from './variables'
 import { sendMessage } from '../messaging'
+import { isDesktopTool, executeDesktopTool } from '../desktop/tools'
 
 export const BROWSER_TOOLS: ToolDefinition[] = [
   {
@@ -351,7 +352,11 @@ export async function executeTool(
           length: article.length,
         })
       }
-      default: return `Error: Unknown tool "${name}"`
+      default:
+        if (isDesktopTool(name)) {
+          return await executeDesktopTool(name, argsJson)
+        }
+        return `Error: Unknown tool "${name}"`
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
