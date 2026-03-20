@@ -4,6 +4,8 @@ import sys
 import subprocess
 import os
 import json
+import time
+import urllib.request
 from pathlib import Path
 
 try:
@@ -39,6 +41,67 @@ def _build_extension(logger, zip=True):
     except FileNotFoundError:
         logger.error("npm not found. Please install nodejs and npm.")
         sys.exit(1)
+
+
+def _wait_for_cdp(logger, url='http://127.0.0.1:9222/json/version', timeout=15):
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1) as response:
+                if response.status == 200:
+                    logger.info(f"CDP is ready: {url}")
+                    return True
+        except Exception as e:
+            last_error = e
+        time.sleep(0.5)
+
+    logger.error(f"Timed out waiting for CDP at {url}: {last_error}")
+    return False
+
+
+def _run_full(args, logger):
+    script_path = Path(__file__).resolve()
+    run_cmd = [sys.executable, str(script_path), 'run']
+    if getattr(args, 'official', False):
+        run_cmd.append('--official')
+    if getattr(args, 'update_web', False):
+        run_cmd.append('--update-web')
+    if args.src_dir:
+        run_cmd.extend(['--src-dir', args.src_dir])
+    if getattr(args, 'args', None):
+        run_cmd.extend(args.args)
+
+    logger.info('Starting Ocbot...')
+    ocbot_proc = subprocess.Popen(run_cmd)
+
+    try:
+        if not _wait_for_cdp(logger):
+            ocbot_proc.terminate()
+            sys.exit(1)
+
+        openclaw_dir = get_project_root().parent / 'openclaw'
+        if not openclaw_dir.exists():
+            logger.error(f"OpenClaw directory not found: {openclaw_dir}")
+            ocbot_proc.terminate()
+            sys.exit(1)
+
+        gateway_cmd = ['pnpm', 'gateway:dev']
+        logger.info('Starting OpenClaw gateway...')
+        logger.info(f"Command: {' '.join(gateway_cmd)}")
+        gateway_proc = subprocess.Popen(gateway_cmd, cwd=openclaw_dir)
+
+        logger.info('Ocbot + OpenClaw are running. Press Ctrl+C to stop both.')
+        gateway_proc.wait()
+    except KeyboardInterrupt:
+        logger.info('Stopping Ocbot + OpenClaw...')
+    finally:
+        if ocbot_proc.poll() is None:
+            ocbot_proc.terminate()
+            try:
+                ocbot_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                ocbot_proc.kill()
 
 def main():
     parser = argparse.ArgumentParser(description='ocbot development utility')
@@ -101,6 +164,12 @@ def main():
     parser_run.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Ocbot')
     parser_run.add_argument('--official', action='store_true', help='Run official build')
     parser_run.add_argument('--update-web', action='store_true', help='Build extension before running')
+
+    # Run full stack
+    parser_run_full = subparsers.add_parser('run_full', help='Run Ocbot with OpenClaw gateway', parents=[parent_parser])
+    parser_run_full.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Ocbot')
+    parser_run_full.add_argument('--official', action='store_true', help='Run official build')
+    parser_run_full.add_argument('--update-web', action='store_true', help='Build extension before running')
 
     # Update Web (build extension only)
     parser_update_web = subparsers.add_parser('update-web', help='Build ocbot extension only', parents=[parent_parser])
@@ -229,6 +298,10 @@ def main():
         if getattr(args, 'update_web', False):
              _build_extension(logger, zip=False)
         run_chromium(args)
+    elif args.command == 'run_full':
+        if getattr(args, 'update_web', False):
+             _build_extension(logger, zip=False)
+        _run_full(args, logger)
     elif args.command == 'update-web':
         _build_extension(logger, zip=getattr(args, 'zip', False))
     elif args.command == 'package':

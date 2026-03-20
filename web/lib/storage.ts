@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   defaultProviderId: 'ocbot_default_provider_id',
   inputHistory: 'ocbot_input_history',
   channelConfigs: 'ocbot_channel_configs',
+  openClawConfig: 'ocbot_openclaw_config',
 } as const
 
 const MAX_INPUT_HISTORY = 100
@@ -118,15 +119,24 @@ export async function deleteChannelConfig(id: string): Promise<void> {
   await storage.set({ [STORAGE_KEYS.channelConfigs]: filtered })
 }
 
-// --- Desktop Control ---
+// --- OpenClaw Config ---
 
-const DESKTOP_ENABLED_KEY = 'ocbot_desktop_enabled'
-
-export async function getDesktopEnabled(): Promise<boolean> {
-  const result = await storage.get(DESKTOP_ENABLED_KEY)
-  return (result[DESKTOP_ENABLED_KEY] as boolean) ?? false
+export interface OpenClawConfig {
+  gatewayUrl: string
 }
 
-export async function setDesktopEnabled(enabled: boolean): Promise<void> {
-  await storage.set({ [DESKTOP_ENABLED_KEY]: enabled })
+const DEFAULT_OPENCLAW_CONFIG: OpenClawConfig = {
+  gatewayUrl: 'http://127.0.0.1:18790',
+}
+
+export async function getOpenClawConfig(): Promise<OpenClawConfig> {
+  const result = await storage.get(STORAGE_KEYS.openClawConfig)
+  return {
+    ...DEFAULT_OPENCLAW_CONFIG,
+    ...((result[STORAGE_KEYS.openClawConfig] as Partial<OpenClawConfig>) || {}),
+  }
+}
+
+export async function setOpenClawConfig(config: OpenClawConfig): Promise<void> {
+  await storage.set({ [STORAGE_KEYS.openClawConfig]: config })
 }

@@ -85,6 +85,8 @@ def run_chromium(args):
     if extension_dev_path.exists():
         cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
 
+    cmd.append('--remote-debugging-port=9222')
+
     # Pass through extra args
     if hasattr(args, 'args') and args.args:
         cmd.extend(args.args)

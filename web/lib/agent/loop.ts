@@ -3,11 +3,9 @@ import type { ActCache } from './cache'
 import type { Variables } from './variables'
 import { streamChat } from '../llm/client'
 import { BROWSER_TOOLS, executeTool } from './tools'
-import { DESKTOP_TOOLS } from '../desktop/tools'
 import { buildSystemPrompt } from './systemPrompt'
 import { ensureAttached, sendCdp } from './cdp'
 import { sendMessage } from '../messaging'
-import { getDesktopEnabled } from '../storage'
 import {
   type AgentReplayStep,
   toolCallToReplayStep,
@@ -75,15 +73,11 @@ export async function runAgentLoop(
     } catch { /* best effort */ }
   }
 
-  // Desktop mode — merge desktop tools if enabled
-  const desktopEnabled = await getDesktopEnabled()
-  const activeTools = desktopEnabled
-    ? [...BROWSER_TOOLS, ...DESKTOP_TOOLS]
-    : BROWSER_TOOLS
+  const activeTools = BROWSER_TOOLS
 
   const systemMessage: LlmRequestMessage = {
     role: 'system',
-    content: buildSystemPrompt(pageContext, variables, initialPageContent, desktopEnabled),
+    content: buildSystemPrompt(pageContext, variables, initialPageContent),
   }
 
   // Extract the user instruction (last user message) for skill matching
@@ -105,7 +99,7 @@ export async function runAgentLoop(
   console.log(`${TAG} instruction: "${userInstruction}"`)
   console.log(`${TAG} page: ${startUrl || '(no page)'}`)
   console.log(`${TAG} provider: ${provider.name} / ${provider.modelId}`)
-  console.log(`${TAG} desktop: ${desktopEnabled ? 'ON' : 'OFF'} (${activeTools.length} tools)`)
+  console.log(`${TAG} tools: ${activeTools.length}`)
 
   // --- Skill matching (user skills) ---
   if (userInstruction) {
@@ -386,7 +380,7 @@ export async function runAgentLoop(
       }
 
       // Screenshot tool returns image data — inject as multimodal user message
-      if (tc.name === 'screenshot' || tc.name === 'desktop_screenshot') {
+      if (tc.name === 'screenshot') {
         try {
           const parsed = JSON.parse(result)
           if (parsed.__screenshot__ && parsed.data) {
@@ -404,7 +398,7 @@ export async function runAgentLoop(
                 { type: 'text', text: 'Here is the current page screenshot.' },
               ],
             })
-            console.log(`${TAG} 📸 Screenshot captured (${parsed.sizeKB}KB${tc.name === 'desktop_screenshot' ? ', desktop' : ''})`)
+            console.log(`${TAG} 📸 Screenshot captured (${parsed.sizeKB}KB)`)
             continue // skip the default tool message push below
           }
         } catch { /* fall through to normal handling */ }

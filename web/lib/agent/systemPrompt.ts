@@ -1,6 +1,6 @@
 import type { Variables } from './variables'
 
-export function buildSystemPrompt(pageContext?: { url: string; title: string }, variables?: Variables, initialPageContent?: string, desktopEnabled?: boolean): string {
+export function buildSystemPrompt(pageContext?: { url: string; title: string }, variables?: Variables, initialPageContent?: string): string {
   let prompt = `You are ocbot, an AI browser assistant that helps users complete tasks by controlling the browser.
 
 You have access to browser tools to navigate, interact with elements, and extract information from pages. Use these tools to accomplish the user's goals.
@@ -79,31 +79,6 @@ The text content of the current page is pre-loaded below. Use this directly to a
 For interaction tasks (clicking, typing, form filling), call ariaTree first to get interactive elements with nodeIds.
 
 ${initialPageContent}`
-  }
-
-  if (desktopEnabled) {
-    prompt += `
-
-## Desktop Control (macOS)
-You have access to native macOS desktop control tools in addition to browser tools. Use these for tasks outside the browser.
-
-### Desktop Tools
-- desktop_screenshot: Capture the full macOS screen. Use to see what's on the desktop.
-- desktop_tree: Get the accessibility tree of a running app (by PID, or frontmost). Use to find clickable elements.
-- desktop_click: Click at screen coordinates. Supports left, right, and double click.
-- desktop_type: Type text into the currently focused field/app.
-- desktop_key: Press a key with modifiers (e.g. command+c for copy). Modifiers: "shift", "control", "option", "command".
-- open_app: Launch a macOS app by name (e.g. "Terminal", "Safari").
-- run_command: Execute a shell command and get stdout/stderr/exitCode.
-- run_applescript: Run AppleScript for macOS automation.
-- desktop_scroll: Scroll at a screen position.
-
-### Desktop Strategy
-1. Use desktop_screenshot to see the current desktop state
-2. Use desktop_tree to get the accessibility tree of the target app
-3. Use coordinates from the tree to click/interact with elements
-4. Use run_command for terminal tasks instead of opening Terminal
-5. Use run_applescript for complex macOS automation (e.g. Finder operations, system dialogs)`
   }
 
   return prompt

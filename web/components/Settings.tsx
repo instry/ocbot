@@ -1,18 +1,17 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { Sliders, Cpu, Wallet, Plus, Trash2, Pencil, Star, ArrowLeft, ChevronDown, Sun, Moon, Monitor, Globe, Check } from 'lucide-react'
+import { Sliders, Cpu, Wallet, Plus, Trash2, Pencil, Star, ArrowLeft, ChevronDown, Sun, Moon, Monitor, Globe, Check, Circle, Loader2 } from 'lucide-react'
 import type { LlmProvider } from '@/lib/llm/types'
 import { getTemplateByType } from '@/lib/llm/models'
 import type { ColorScheme, Language } from '@/lib/hooks/useSettings'
 import type { WalletActions } from '@/lib/wallet/types'
 import { ProviderForm } from './ProviderForm'
 import { useI18n } from '@/lib/i18n/context'
-import { useDesktopControl } from '@/lib/hooks/useDesktopControl'
+import { getOpenClawConfig, setOpenClawConfig } from '@/lib/storage'
 import { WalletTab } from './WalletTab'
-
-// --- Types ---
 
 type SettingsTab = 'general' | 'providers' | 'wallet'
 type ProvidersView = 'list' | 'add' | 'edit'
+type OpenClawStatus = 'idle' | 'connected' | 'disconnected' | 'testing'
 
 interface SettingsProps {
   providers: LlmProvider[]
@@ -27,8 +26,6 @@ interface SettingsProps {
   wallet: WalletActions
 }
 
-// --- Main Settings Component ---
-
 export function Settings({
   providers, selectedProvider, onSaveProvider, onDeleteProvider, onSelectProvider,
   colorScheme, language, onColorSchemeChange, onLanguageChange, wallet,
@@ -40,13 +37,11 @@ export function Settings({
 
   const tabs: { id: SettingsTab; label: string; icon: typeof Sliders }[] = [
     { id: 'providers', label: t('models.title'), icon: Cpu },
-    // { id: 'wallet', label: 'Wallet', icon: Wallet },  // TODO: re-enable when wallet is ready
     { id: 'general', label: t('settings.general'), icon: Sliders },
   ]
 
   return (
     <div className="flex h-full">
-      {/* Left sidebar */}
       <div className="flex w-48 shrink-0 flex-col border-r border-border/40 bg-muted/20">
         <div className="flex flex-col gap-1 px-3 pt-6 pb-4">
           <h2 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">{t('settings.title')}</h2>
@@ -69,7 +64,6 @@ export function Settings({
         </nav>
       </div>
 
-      {/* Right content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'general' && (
           <GeneralTab
@@ -100,8 +94,6 @@ export function Settings({
   )
 }
 
-// --- General Tab ---
-
 const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
   { value: 'en', label: 'English' },
   { value: 'zh', label: '中文' },
@@ -116,7 +108,38 @@ function GeneralTab({
   onLanguageChange: (lang: Language) => void
 }) {
   const { t } = useI18n()
-  const desktop = useDesktopControl()
+  const [gatewayUrl, setGatewayUrl] = useState('http://127.0.0.1:18790')
+  const [status, setStatus] = useState<OpenClawStatus>('idle')
+
+  useEffect(() => {
+    getOpenClawConfig().then((config) => {
+      setGatewayUrl(config.gatewayUrl)
+    })
+  }, [])
+
+  const testConnection = async (urlOverride?: string) => {
+    const url = (urlOverride ?? gatewayUrl).trim()
+    if (!url) {
+      setStatus('disconnected')
+      return false
+    }
+
+    setStatus('testing')
+    try {
+      await fetch(url, { method: 'GET' })
+      setStatus('connected')
+      return true
+    } catch {
+      setStatus('disconnected')
+      return false
+    }
+  }
+
+  const handleGatewayUrlChange = async (value: string) => {
+    setGatewayUrl(value)
+    await setOpenClawConfig({ gatewayUrl: value })
+    setStatus('idle')
+  }
 
   const COLOR_SCHEME_OPTIONS: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
     { value: 'system', label: t('settings.system'), icon: Monitor },
@@ -131,7 +154,6 @@ function GeneralTab({
       </div>
 
       <div className="flex max-w-[640px] flex-col gap-8">
-        {/* Appearance Section */}
         <SettingsSection title={t('settings.appearance')}>
           <SettingsRow
             title={t('settings.colorScheme')}
@@ -156,7 +178,6 @@ function GeneralTab({
           </SettingsRow>
         </SettingsSection>
 
-        {/* Language Section */}
         <SettingsSection title={t('settings.language')}>
           <SettingsRow
             title={t('settings.displayLanguage')}
@@ -170,56 +191,62 @@ function GeneralTab({
           </SettingsRow>
         </SettingsSection>
 
-        {/* Desktop Control Section — only show on supported platforms */}
-        {desktop.permissions !== null && desktop.permissions.supported !== false && (
-          <SettingsSection title={t('settings.desktopControl')}>
-            <SettingsRow
-              title={t('settings.desktopControlTitle')}
-              description={t('settings.desktopControlDesc')}
-            >
-              <div className="flex gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
-                {([false, true] as const).map((value) => (
-                  <button
-                    key={String(value)}
-                    onClick={() => desktop.toggle(value)}
-                    className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors ${
-                      desktop.enabled === value
-                        ? 'bg-background font-medium text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {value ? t('settings.desktopOn') : t('settings.desktopOff')}
-                  </button>
-                ))}
-              </div>
-            </SettingsRow>
-            {desktop.enabled && desktop.permissions && (
-              <SettingsRow
-                title={t('settings.desktopPermissions')}
-                description={t('settings.desktopPermissionsDesc')}
+        <SettingsSection title={t('settings.openclaw')}>
+          <SettingsRow
+            title={t('settings.openclawGatewayUrl')}
+            description={t('settings.openclawGatewayUrlDesc')}
+          >
+            <input
+              type="text"
+              value={gatewayUrl}
+              onChange={(e) => void handleGatewayUrlChange(e.target.value)}
+              className="w-[260px] rounded-lg border border-border/50 bg-muted/30 px-3 py-1.5 text-sm outline-none transition-colors focus:border-primary"
+              placeholder="http://127.0.0.1:18790"
+            />
+          </SettingsRow>
+          <SettingsRow
+            title={t('settings.openclawConnectionStatus')}
+            description={t('settings.openclawConnectionStatusDesc')}
+          >
+            <div className="flex items-center gap-3">
+              <OpenClawStatusBadge status={status} />
+              <button
+                onClick={() => void testConnection()}
+                className="cursor-pointer rounded-lg border border-border/50 bg-muted/30 px-3 py-1.5 text-xs transition-colors hover:bg-muted/60"
               >
-                <div className="flex flex-col gap-2">
-                  <PermissionIndicator
-                    label={t('settings.accessibility')}
-                    granted={desktop.permissions.accessibility ?? false}
-                    onGrant={() => desktop.openPermissionSettings('accessibility')}
-                  />
-                  <PermissionIndicator
-                    label={t('settings.screenRecording')}
-                    granted={desktop.permissions.screenRecording ?? false}
-                    onGrant={() => desktop.openPermissionSettings('screenRecording')}
-                  />
-                </div>
-              </SettingsRow>
-            )}
-          </SettingsSection>
-        )}
+                {t('settings.openclawTestConnection')}
+              </button>
+            </div>
+          </SettingsRow>
+        </SettingsSection>
       </div>
     </div>
   )
 }
 
-// --- Providers Tab ---
+function OpenClawStatusBadge({ status }: { status: OpenClawStatus }) {
+  const { t } = useI18n()
+  const color = status === 'connected'
+    ? 'text-green-600 dark:text-green-400'
+    : status === 'disconnected'
+      ? 'text-red-600 dark:text-red-400'
+      : 'text-muted-foreground'
+
+  const label = status === 'connected'
+    ? t('settings.openclawConnected')
+    : status === 'disconnected'
+      ? t('settings.openclawDisconnected')
+      : status === 'testing'
+        ? t('settings.openclawTesting')
+        : t('settings.openclawNotTested')
+
+  return (
+    <span className={`flex items-center gap-1.5 text-xs ${color}`}>
+      {status === 'testing' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Circle className="h-3 w-3 fill-current" />}
+      {label}
+    </span>
+  )
+}
 
 function ProvidersTab({
   view, setView, providers, selectedProvider, editingProvider, setEditingProvider,
@@ -374,8 +401,6 @@ function ProvidersTab({
   )
 }
 
-// --- Shared UI Components ---
-
 export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
@@ -399,32 +424,6 @@ export function SettingsRow({ title, description, children }: {
         <span className="text-xs text-muted-foreground">{description}</span>
       </div>
       <div className="shrink-0">{children}</div>
-    </div>
-  )
-}
-
-function PermissionIndicator({ label, granted, onGrant }: {
-  label: string
-  granted: boolean
-  onGrant: () => void
-}) {
-  const { t } = useI18n()
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      {granted ? (
-        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-          <Check className="h-3 w-3" />
-          {t('settings.permissionGranted')}
-        </span>
-      ) : (
-        <button
-          onClick={onGrant}
-          className="cursor-pointer rounded-md px-2 py-0.5 text-xs text-primary transition-colors hover:bg-primary/10"
-        >
-          {t('settings.grant')}
-        </button>
-      )}
     </div>
   )
 }
