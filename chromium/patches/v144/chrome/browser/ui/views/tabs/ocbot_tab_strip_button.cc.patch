@@ -1,6 +1,6 @@
 diff --git a/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..51ab55a54242ed2ada3e40f60be974379c7dcfdc
+index 0000000000000000000000000000000000000000..e5f09f2590874379391a01049ae8d80ccb10c3d0
 --- /dev/null
 +++ b/chrome/browser/ui/views/tabs/ocbot_tab_strip_button.cc
 @@ -0,0 +1,143 @@
@@ -34,7 +34,7 @@ index 0000000000000000000000000000000000000000..51ab55a54242ed2ada3e40f60be97437
 +constexpr int kPaddingH = 26;
 +constexpr int kImageLabelSpacing = 20;
 +constexpr int kSeparatorHeight = 14;
-+constexpr SkColor kLetterColor = SK_ColorWHITE;
++constexpr SkColor kLetterColor = SkColorSetRGB(0xD3, 0x38, 0xFF);
 +constexpr int kLetterFontSizeDelta = 4;
 +}  // namespace
 +
