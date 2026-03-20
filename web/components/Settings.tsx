@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { Sliders, Cpu, Wallet, Plus, Trash2, Pencil, Star, ArrowLeft, ChevronDown, Sun, Moon, Monitor, Globe } from 'lucide-react'
+import { Sliders, Cpu, Wallet, Plus, Trash2, Pencil, Star, ArrowLeft, ChevronDown, Sun, Moon, Monitor, Globe, Check } from 'lucide-react'
 import type { LlmProvider } from '@/lib/llm/types'
 import { getTemplateByType } from '@/lib/llm/models'
 import type { ColorScheme, Language } from '@/lib/hooks/useSettings'
 import type { WalletActions } from '@/lib/wallet/types'
 import { ProviderForm } from './ProviderForm'
 import { useI18n } from '@/lib/i18n/context'
+import { useDesktopControl } from '@/lib/hooks/useDesktopControl'
 import { WalletTab } from './WalletTab'
 
 // --- Types ---
@@ -115,6 +116,7 @@ function GeneralTab({
   onLanguageChange: (lang: Language) => void
 }) {
   const { t } = useI18n()
+  const desktop = useDesktopControl()
 
   const COLOR_SCHEME_OPTIONS: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
     { value: 'system', label: t('settings.system'), icon: Monitor },
@@ -167,6 +169,51 @@ function GeneralTab({
             />
           </SettingsRow>
         </SettingsSection>
+
+        {/* Desktop Control Section — only show on supported platforms */}
+        {desktop.permissions !== null && desktop.permissions.supported !== false && (
+          <SettingsSection title={t('settings.desktopControl')}>
+            <SettingsRow
+              title={t('settings.desktopControlTitle')}
+              description={t('settings.desktopControlDesc')}
+            >
+              <div className="flex gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
+                {([false, true] as const).map((value) => (
+                  <button
+                    key={String(value)}
+                    onClick={() => desktop.toggle(value)}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors ${
+                      desktop.enabled === value
+                        ? 'bg-background font-medium text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {value ? t('settings.desktopOn') : t('settings.desktopOff')}
+                  </button>
+                ))}
+              </div>
+            </SettingsRow>
+            {desktop.enabled && desktop.permissions && (
+              <SettingsRow
+                title={t('settings.desktopPermissions')}
+                description={t('settings.desktopPermissionsDesc')}
+              >
+                <div className="flex flex-col gap-2">
+                  <PermissionIndicator
+                    label={t('settings.accessibility')}
+                    granted={desktop.permissions.accessibility ?? false}
+                    onGrant={() => desktop.openPermissionSettings('accessibility')}
+                  />
+                  <PermissionIndicator
+                    label={t('settings.screenRecording')}
+                    granted={desktop.permissions.screenRecording ?? false}
+                    onGrant={() => desktop.openPermissionSettings('screenRecording')}
+                  />
+                </div>
+              </SettingsRow>
+            )}
+          </SettingsSection>
+        )}
       </div>
     </div>
   )
@@ -352,6 +399,32 @@ export function SettingsRow({ title, description, children }: {
         <span className="text-xs text-muted-foreground">{description}</span>
       </div>
       <div className="shrink-0">{children}</div>
+    </div>
+  )
+}
+
+function PermissionIndicator({ label, granted, onGrant }: {
+  label: string
+  granted: boolean
+  onGrant: () => void
+}) {
+  const { t } = useI18n()
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {granted ? (
+        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+          <Check className="h-3 w-3" />
+          {t('settings.permissionGranted')}
+        </span>
+      ) : (
+        <button
+          onClick={onGrant}
+          className="cursor-pointer rounded-md px-2 py-0.5 text-xs text-primary transition-colors hover:bg-primary/10"
+        >
+          {t('settings.grant')}
+        </button>
+      )}
     </div>
   )
 }
