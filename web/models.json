@@ -106,8 +106,8 @@
       { "id": "kimi-k2.5", "name": "Kimi K2.5", "contextWindow": 262000 }
     ],
     "regions": [
-      { "id": "cn", "label": "China", "baseUrl": "https://api.moonshot.cn/v1", "apiKeyUrl": "https://platform.moonshot.cn/console/api-keys" },
-      { "id": "global", "label": "Global", "baseUrl": "https://api.moonshot.ai/v1", "apiKeyUrl": "https://platform.moonshot.ai/console/api-keys" }
+      { "id": "global", "label": "Global", "baseUrl": "https://api.moonshot.ai/v1", "apiKeyUrl": "https://platform.moonshot.ai/console/api-keys" },
+      { "id": "cn", "label": "China", "baseUrl": "https://api.moonshot.cn/v1", "apiKeyUrl": "https://platform.moonshot.cn/console/api-keys" }
     ]
   },
   {
@@ -137,8 +137,8 @@
       { "id": "qwen3-coder-flash", "name": "Qwen3 Coder Flash", "contextWindow": 1000000 }
     ],
     "regions": [
-      { "id": "cn", "label": "China", "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1", "apiKeyUrl": "https://bailian.console.aliyun.com/?apiKey=1" },
-      { "id": "global", "label": "Global (Singapore)", "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "apiKeyUrl": "https://bailian.console.aliyun.com/?apiKey=1" }
+      { "id": "global", "label": "Global", "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "apiKeyUrl": "https://bailian.console.aliyun.com/?apiKey=1" },
+      { "id": "cn", "label": "China", "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1", "apiKeyUrl": "https://bailian.console.aliyun.com/?apiKey=1" }
     ]
   },
   {

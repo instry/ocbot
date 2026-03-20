@@ -105,6 +105,7 @@ export async function runAgentLoop(
   console.log(`${TAG} instruction: "${userInstruction}"`)
   console.log(`${TAG} page: ${startUrl || '(no page)'}`)
   console.log(`${TAG} provider: ${provider.name} / ${provider.modelId}`)
+  console.log(`${TAG} desktop: ${desktopEnabled ? 'ON' : 'OFF'} (${activeTools.length} tools)`)
 
   // --- Skill matching (user skills) ---
   if (userInstruction) {
