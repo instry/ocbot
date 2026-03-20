@@ -156,11 +156,34 @@ function serializeTree(node: chrome.ocbot.TreeNode, indent = 0): string {
   return lines.join('\n')
 }
 
+async function checkDesktopPermissions(): Promise<string | null> {
+  try {
+    const status = await promisify<chrome.ocbot.PermissionStatus>(
+      chrome.ocbot.checkPermissions,
+    )
+    if (!status.supported) {
+      return 'Error: Desktop control is not supported on this platform.'
+    }
+    const missing: string[] = []
+    if (!status.accessibility) missing.push('Accessibility')
+    if (!status.screenRecording) missing.push('Screen Recording')
+    if (missing.length > 0) {
+      return `Error: Missing macOS permissions: ${missing.join(', ')}. Please grant them in System Settings > Privacy & Security, then try again.`
+    }
+    return null
+  } catch (e) {
+    return `Error: Failed to check desktop permissions: ${e instanceof Error ? e.message : String(e)}`
+  }
+}
+
 export async function executeDesktopTool(
   name: string,
   argsJson: string,
 ): Promise<string> {
   try {
+    const permError = await checkDesktopPermissions()
+    if (permError) return permError
+
     const args = JSON.parse(argsJson || '{}')
 
     switch (name) {
