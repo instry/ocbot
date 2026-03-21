@@ -82,6 +82,8 @@ def upload_to_r2(artifacts, version, category):
             content_type = 'application/x-msdownload'
         elif artifact.suffix == '.json':
             content_type = 'application/json'
+        elif artifact.suffix == '.gz' and artifact.name.endswith('.tar.gz'):
+            content_type = 'application/gzip'
 
         client.upload_file(
             str(artifact), R2_BUCKET, key,
@@ -279,6 +281,100 @@ def release_browser(args):
 
     logger.info(f"Done! Ocbot v{version} released as {tag}")
     logger.info("Running instances will auto-update in the background.")
+
+
+def release_runtime(args):
+    """Build and upload OpenClaw runtime layers to R2 CDN."""
+    from build_runtime import (
+        build_base_layer,
+        build_app_layer,
+        get_openclaw_dir,
+        get_runtime_version,
+        get_platform_tag,
+    )
+
+    openclaw_dir = get_openclaw_dir()
+    if not openclaw_dir.exists():
+        logger.error(f"OpenClaw source not found: {openclaw_dir}")
+        sys.exit(1)
+
+    dist_dir = get_project_root() / 'dist'
+    platform_tag = get_platform_tag()
+    version = get_runtime_version(openclaw_dir)
+
+    # Build both layers
+    base_path, base_sha, base_size, base_version = build_base_layer(
+        openclaw_dir, dist_dir, platform_tag
+    )
+    app_path, app_sha, app_size, app_version = build_app_layer(
+        openclaw_dir, dist_dir
+    )
+
+    # Upload to R2
+    client = get_r2_client()
+    if not client:
+        logger.error("R2 credentials not set. "
+                     "Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.")
+        sys.exit(1)
+
+    uploaded = {}
+    for artifact in [base_path, app_path]:
+        key = f'releases/{version}/{artifact.name}'
+        logger.info(f"Uploading {artifact.name} to R2 ({key})...")
+        client.upload_file(
+            str(artifact), R2_BUCKET, key,
+            ExtraArgs={'ContentType': 'application/gzip'},
+        )
+        uploaded[artifact.name] = f'{R2_CDN_BASE}/{key}'
+        logger.info(f"  → {uploaded[artifact.name]}")
+
+    # Read-merge-write latest.json with runtime section
+    latest = {}
+    try:
+        resp = client.get_object(Bucket=R2_BUCKET, Key='latest.json')
+        latest = json.loads(resp['Body'].read())
+    except client.exceptions.NoSuchKey:
+        pass
+    except Exception as e:
+        logger.warning(f"Could not read existing latest.json: {e}")
+
+    runtime = latest.get('runtime', {})
+    runtime['version'] = version
+
+    # Base layer (per-platform)
+    base_layer = runtime.get('baseLayer', {})
+    base_layer['version'] = base_version
+    base_layer[platform_tag] = {
+        'url': uploaded[base_path.name],
+        'sha256': base_sha,
+        'size': base_size,
+    }
+    runtime['baseLayer'] = base_layer
+
+    # App layer (platform-independent)
+    runtime['appLayer'] = {
+        'version': app_version,
+        'url': uploaded[app_path.name],
+        'sha256': app_sha,
+        'size': app_size,
+    }
+
+    # Shell compatibility
+    runtime['minShellVersion'] = get_product_version()
+    runtime['node'] = 'v22.14.0'
+
+    latest['runtime'] = runtime
+
+    logger.info("Updating latest.json on R2...")
+    client.put_object(
+        Bucket=R2_BUCKET,
+        Key='latest.json',
+        Body=json.dumps(latest, indent=2),
+        ContentType='application/json',
+    )
+    logger.info(f"  → {R2_CDN_BASE}/latest.json")
+
+    logger.info(f"Done! Runtime {version} released (base={base_version}, app={app_version})")
 
 
 def upload_config_to_r2():

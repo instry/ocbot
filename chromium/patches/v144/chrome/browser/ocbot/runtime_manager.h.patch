@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.h b/chrome/browser/ocbot/runtime_manager.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..1bfde06d354029e399500cc59b677ba854103410
+index 0000000000000000000000000000000000000000..65c3a5a177222fbc351220cd199fb5e1d97b4a1a
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.h
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,106 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -22,12 +22,14 @@ index 0000000000000000000000000000000000000000..1bfde06d354029e399500cc59b677ba8
 +// Manages the embedded OpenClaw runtime subprocess lifecycle.
 +//
 +// Responsibilities:
-+//   1. Locate embedded Node.js and OpenClaw in the app bundle (Resources/).
++//   1. Locate Node.js and OpenClaw (OTA runtime or embedded Resources/).
 +//   2. Ensure a default OpenClaw config exists for Ocbot.
-+//   3. Spawn `node openclaw.mjs gateway run` as a child process.
-+//   4. Periodically health-check the gateway (every 30s).
-+//   5. Auto-restart if the subprocess dies unexpectedly.
-+//   6. Gracefully terminate the subprocess on browser shutdown.
++//   3. On startup, apply pending OTA updates (symlink swap).
++//   4. Spawn `node openclaw.mjs gateway run` as a child process.
++//   5. Periodically health-check the gateway (every 30s).
++//   6. Auto-restart if the subprocess dies unexpectedly.
++//   7. Rollback to previous version or embedded fallback on failure.
++//   8. Gracefully terminate the subprocess on browser shutdown.
 +//
 +// The RuntimeManager is a singleton created during browser startup.
 +// It is skipped in dev mode (--ocbot-extension-dir present).
@@ -55,6 +57,9 @@ index 0000000000000000000000000000000000000000..1bfde06d354029e399500cc59b677ba8
 + private:
 +  static constexpr int kGatewayPort = 18789;
 +
++  // Locate runtime: try OTA first, then embedded Resources/.
++  bool LocateRuntime();
++
 +  // Locate embedded node and openclaw in Resources/.
 +  bool LocateEmbeddedRuntime();
 +
@@ -70,11 +75,24 @@ index 0000000000000000000000000000000000000000..1bfde06d354029e399500cc59b677ba8
 +  // Called after health check HTTP request completes on the thread pool.
 +  void OnHealthCheckComplete(bool alive);
 +
++  // OTA update management.
++  bool ApplyPendingUpdate();
++  void RevertToPrevious();
++  void CleanupOldVersions();
++
++  // Get the OTA runtime root directory.
++  base::FilePath GetOtaRuntimeDir() const;
++
 +  // Paths resolved at startup.
 +  base::FilePath node_path_;
 +  base::FilePath openclaw_dir_;
 +  base::FilePath config_dir_;
 +  base::FilePath config_file_;
++
++  // OTA runtime state.
++  base::FilePath ota_runtime_dir_;  // <app-support>/Ocbot/runtime/
++  bool using_ota_runtime_ = false;
++  bool just_applied_update_ = false;
 +
 +  // The gateway child process.
 +  base::Process gateway_process_;

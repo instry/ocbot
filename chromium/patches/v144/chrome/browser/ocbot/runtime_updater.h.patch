@@ -1,0 +1,117 @@
+diff --git a/chrome/browser/ocbot/runtime_updater.h b/chrome/browser/ocbot/runtime_updater.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..46afd631468080c4190635eb423620b23fccc9e6
+--- /dev/null
++++ b/chrome/browser/ocbot/runtime_updater.h
+@@ -0,0 +1,111 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#ifndef CHROME_BROWSER_OCBOT_RUNTIME_UPDATER_H_
++#define CHROME_BROWSER_OCBOT_RUNTIME_UPDATER_H_
++
++#include <memory>
++#include <optional>
++#include <string>
++
++#include "base/files/file_path.h"
++#include "base/memory/weak_ptr.h"
++#include "base/timer/timer.h"
++
++namespace network {
++class SimpleURLLoader;
++namespace mojom {
++class URLLoaderFactory;
++}
++}  // namespace network
++
++namespace ocbot {
++
++// Downloads and stages OpenClaw runtime updates for next-startup application.
++//
++// Workflow:
++//   1. Periodically fetches latest.json from R2 CDN.
++//   2. Compares runtime.appLayer.version and runtime.baseLayer.version
++//      against current versions from update-manifest.json.
++//   3. If newer, downloads tar.gz archives to staging/.
++//   4. Verifies SHA256, extracts to runtime/{base,app}/versions/<version>/.
++//   5. Writes pending-update.json for RuntimeManager to apply on next start.
++//
++// First check: 60s after startup. Subsequent checks: every 4 hours.
++class RuntimeUpdater {
++ public:
++  RuntimeUpdater();
++  ~RuntimeUpdater();
++
++  RuntimeUpdater(const RuntimeUpdater&) = delete;
++  RuntimeUpdater& operator=(const RuntimeUpdater&) = delete;
++
++  // Start periodic update checks.
++  void Start();
++
++ private:
++  struct RuntimeMetadata {
++    RuntimeMetadata();
++    ~RuntimeMetadata();
++    RuntimeMetadata(const RuntimeMetadata&);
++    RuntimeMetadata& operator=(const RuntimeMetadata&);
++    RuntimeMetadata(RuntimeMetadata&&);
++    RuntimeMetadata& operator=(RuntimeMetadata&&);
++
++    std::string version;
++    std::string base_version;
++    std::string base_url;
++    std::string base_sha256;
++    int64_t base_size = 0;
++    std::string app_version;
++    std::string app_url;
++    std::string app_sha256;
++    int64_t app_size = 0;
++    std::string min_shell_version;
++  };
++
++  void CheckForUpdate();
++  void OnMetadataFetched(std::optional<std::string> response_body);
++  bool ParseRuntimeMetadata(const std::string& json, RuntimeMetadata* out);
++
++  void StartDownload(const RuntimeMetadata& metadata);
++  void OnBaseLayerDownloaded(RuntimeMetadata metadata,
++                             base::FilePath temp_path);
++  void OnAppLayerDownloaded(RuntimeMetadata metadata,
++                            base::FilePath temp_path);
++  void OnLayersReady(RuntimeMetadata metadata);
++
++  // Background-thread helpers.
++  static bool VerifySha256(const base::FilePath& file,
++                           const std::string& expected);
++  static bool ExtractTarGz(const base::FilePath& archive,
++                           const base::FilePath& dest);
++
++  void WritePendingUpdate(const RuntimeMetadata& metadata);
++
++  // Version management.
++  std::string GetCurrentAppVersion() const;
++  std::string GetCurrentBaseVersion() const;
++  bool IsShellCompatible(const std::string& min_version) const;
++
++  // Paths.
++  base::FilePath GetRuntimeDir() const;
++  base::FilePath GetStagingDir() const;
++
++  std::string GetPlatformTag() const;
++
++  network::mojom::URLLoaderFactory* GetURLLoaderFactory();
++
++  base::RepeatingTimer check_timer_;
++  std::unique_ptr<network::SimpleURLLoader> url_loader_;
++
++  // Temp paths for downloaded layers (set after download, before extraction).
++  base::FilePath staged_base_path_;
++  base::FilePath staged_app_path_;
++
++  base::WeakPtrFactory<RuntimeUpdater> weak_factory_{this};
++};
++
++}  // namespace ocbot
++
++#endif  // CHROME_BROWSER_OCBOT_RUNTIME_UPDATER_H_

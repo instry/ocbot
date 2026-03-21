@@ -1,0 +1,684 @@
+diff --git a/chrome/browser/ocbot/runtime_updater.cc b/chrome/browser/ocbot/runtime_updater.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..cde70deda2fde36f414ae48f69868789edd06ec8
+--- /dev/null
++++ b/chrome/browser/ocbot/runtime_updater.cc
+@@ -0,0 +1,678 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#include "chrome/browser/ocbot/runtime_updater.h"
++
++#include <optional>
++#include <utility>
++
++#include "base/containers/span.h"
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/functional/bind.h"
++#include "base/json/json_reader.h"
++#include "base/json/json_writer.h"
++#include "base/logging.h"
++#include "base/path_service.h"
++#include "base/process/launch.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/task/thread_pool.h"
++#include "base/values.h"
++#include "base/version.h"
++#include "build/build_config.h"
++#include "chrome/browser/net/system_network_context_manager.h"
++#include "chrome/common/chrome_paths.h"
++#include "components/version_info/version_info.h"
++#include "content/public/browser/browser_thread.h"
++#include "crypto/secure_hash.h"
++#include "crypto/sha2.h"
++#include "net/base/load_flags.h"
++#include "net/traffic_annotation/network_traffic_annotation.h"
++#include "services/network/public/cpp/resource_request.h"
++#include "services/network/public/cpp/simple_url_loader.h"
++#include "services/network/public/mojom/fetch_api.mojom.h"
++#include "services/network/public/mojom/url_loader_factory.mojom.h"
++
++namespace ocbot {
++
++namespace {
++
++constexpr char kR2LatestUrl[] = "https://cdn.oc.bot/latest.json";
++
++// First check 60 seconds after startup.
++constexpr base::TimeDelta kInitialDelay = base::Seconds(60);
++// Subsequent checks every 4 hours.
++constexpr base::TimeDelta kCheckInterval = base::Hours(4);
++// Max response size for latest.json (256 KB).
++constexpr int kMaxApiResponseSize = 256 * 1024;
++// Max download sizes.
++constexpr int64_t kMaxBaseLayerSize = 500LL * 1024 * 1024;  // 500 MB
++constexpr int64_t kMaxAppLayerSize = 100LL * 1024 * 1024;   // 100 MB
++
++const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
++    net::DefineNetworkTrafficAnnotation("ocbot_runtime_updater", R"(
++        semantics {
++          sender: "Ocbot Runtime Updater"
++          description:
++            "Checks for OpenClaw runtime updates and downloads new versions "
++            "for application on next browser restart."
++          trigger:
++            "Periodically after browser startup (every 4 hours)."
++          data: "No user data is sent. Only fetches public release metadata."
++          destination: OTHER
++          internal {
++            contacts {
++              email: "niceboybao@gmail.com"
++            }
++          }
++          user_data {
++            type: NONE
++          }
++          last_reviewed: "2025-01-01"
++        }
++        policy {
++          cookies_allowed: NO
++          setting: "Not configurable."
++          policy_exception_justification:
++            "Essential for keeping the OpenClaw runtime up to date."
++        })");
++
++// Read a JSON file and return as dict. Returns nullopt on failure.
++std::optional<base::Value::Dict> ReadJsonFile(const base::FilePath& path) {
++  std::string content;
++  if (!base::ReadFileToString(path, &content)) {
++    return std::nullopt;
++  }
++  auto result = base::JSONReader::ReadDict(content, base::JSON_PARSE_RFC);
++  return result;
++}
++
++// Write a dict as JSON to a file.
++bool WriteJsonFile(const base::FilePath& path, const base::Value::Dict& dict) {
++  std::string json;
++  if (!base::JSONWriter::WriteWithOptions(
++          dict, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json)) {
++    return false;
++  }
++  return base::WriteFile(path, json);
++}
++
++}  // namespace
++
++RuntimeUpdater::RuntimeMetadata::RuntimeMetadata() = default;
++RuntimeUpdater::RuntimeMetadata::~RuntimeMetadata() = default;
++RuntimeUpdater::RuntimeMetadata::RuntimeMetadata(const RuntimeMetadata&) = default;
++RuntimeUpdater::RuntimeMetadata& RuntimeUpdater::RuntimeMetadata::operator=(const RuntimeMetadata&) = default;
++RuntimeUpdater::RuntimeMetadata::RuntimeMetadata(RuntimeMetadata&&) = default;
++RuntimeUpdater::RuntimeMetadata& RuntimeUpdater::RuntimeMetadata::operator=(RuntimeMetadata&&) = default;
++
++RuntimeUpdater::RuntimeUpdater() = default;
++
++RuntimeUpdater::~RuntimeUpdater() = default;
++
++void RuntimeUpdater::Start() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Clean up any leftover staging dir from a prior interrupted download.
++  base::FilePath staging = GetStagingDir();
++  if (!staging.empty() && base::PathExists(staging)) {
++    base::ThreadPool::PostTask(
++        FROM_HERE,
++        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
++         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
++        base::BindOnce(
++            [](base::FilePath dir) { base::DeletePathRecursively(dir); },
++            staging));
++  }
++
++  // Start repeating timer.
++  check_timer_.Start(FROM_HERE, kCheckInterval,
++                     base::BindRepeating(&RuntimeUpdater::CheckForUpdate,
++                                         weak_factory_.GetWeakPtr()));
++  // Faster first check.
++  content::GetUIThreadTaskRunner({})->PostDelayedTask(
++      FROM_HERE,
++      base::BindOnce(&RuntimeUpdater::CheckForUpdate,
++                     weak_factory_.GetWeakPtr()),
++      kInitialDelay);
++}
++
++void RuntimeUpdater::CheckForUpdate() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  LOG(INFO) << "ocbot runtime updater: checking for updates...";
++
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL(kR2LatestUrl);
++  request->method = "GET";
++  request->load_flags = net::LOAD_DISABLE_CACHE;
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++  url_loader_ =
++      network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
++  url_loader_->SetRetryOptions(
++      1, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++  url_loader_->DownloadToString(
++      GetURLLoaderFactory(),
++      base::BindOnce(&RuntimeUpdater::OnMetadataFetched,
++                     weak_factory_.GetWeakPtr()),
++      kMaxApiResponseSize);
++}
++
++void RuntimeUpdater::OnMetadataFetched(
++    std::optional<std::string> response_body) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (!response_body) {
++    LOG(WARNING) << "ocbot runtime updater: fetch failed (net error: "
++                 << url_loader_->NetError() << ")";
++    url_loader_.reset();
++    return;
++  }
++
++  url_loader_.reset();
++
++  RuntimeMetadata metadata;
++  if (!ParseRuntimeMetadata(*response_body, &metadata)) {
++    LOG(WARNING) << "ocbot runtime updater: failed to parse runtime metadata";
++    return;
++  }
++
++  // Check shell compatibility.
++  if (!IsShellCompatible(metadata.min_shell_version)) {
++    LOG(INFO) << "ocbot runtime updater: runtime requires shell "
++              << metadata.min_shell_version << ", skipping";
++    return;
++  }
++
++  // Compare versions.
++  std::string current_app = GetCurrentAppVersion();
++  bool need_app_update = false;
++  bool need_base_update = false;
++
++  if (current_app.empty() || current_app != metadata.app_version) {
++    need_app_update = true;
++  }
++
++  std::string current_base = GetCurrentBaseVersion();
++  if (current_base.empty() || current_base != metadata.base_version) {
++    need_base_update = true;
++  }
++
++  if (!need_app_update && !need_base_update) {
++    LOG(INFO) << "ocbot runtime updater: already up to date (app="
++              << current_app << ", base=" << current_base << ")";
++    return;
++  }
++
++  LOG(INFO) << "ocbot runtime updater: update available"
++            << " (app: " << current_app << " → " << metadata.app_version
++            << ", base: " << current_base << " → " << metadata.base_version
++            << ")";
++
++  // Check if layers already extracted from a previous download.
++  base::FilePath runtime_dir = GetRuntimeDir();
++  bool base_ready =
++      !need_base_update ||
++      base::PathExists(runtime_dir.Append(FILE_PATH_LITERAL("base"))
++                           .Append(FILE_PATH_LITERAL("versions"))
++                           .AppendASCII(metadata.base_version));
++  bool app_ready =
++      !need_app_update ||
++      base::PathExists(runtime_dir.Append(FILE_PATH_LITERAL("app"))
++                           .Append(FILE_PATH_LITERAL("versions"))
++                           .AppendASCII(metadata.app_version));
++
++  if (base_ready && app_ready) {
++    // Already downloaded and extracted, just write pending marker.
++    WritePendingUpdate(metadata);
++    return;
++  }
++
++  StartDownload(metadata);
++}
++
++bool RuntimeUpdater::ParseRuntimeMetadata(const std::string& json,
++                                          RuntimeMetadata* out) {
++  auto result = base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
++  if (!result) {
++    return false;
++  }
++
++  const base::Value::Dict* runtime = result->FindDict("runtime");
++  if (!runtime) {
++    return false;
++  }
++
++  const std::string* version = runtime->FindString("version");
++  if (!version) {
++    return false;
++  }
++  out->version = *version;
++
++  const std::string* min_shell = runtime->FindString("minShellVersion");
++  if (min_shell) {
++    out->min_shell_version = *min_shell;
++  }
++
++  // Parse base layer.
++  const base::Value::Dict* base_layer = runtime->FindDict("baseLayer");
++  if (!base_layer) {
++    return false;
++  }
++
++  const std::string* base_version = base_layer->FindString("version");
++  if (!base_version) {
++    return false;
++  }
++  out->base_version = *base_version;
++
++  std::string tag = GetPlatformTag();
++  const base::Value::Dict* platform_base = base_layer->FindDict(tag);
++  if (!platform_base) {
++    LOG(WARNING) << "ocbot runtime updater: no base layer for platform " << tag;
++    return false;
++  }
++
++  const std::string* base_url = platform_base->FindString("url");
++  const std::string* base_sha = platform_base->FindString("sha256");
++  auto base_size = platform_base->FindInt("size");
++  if (!base_url || !base_sha) {
++    return false;
++  }
++  out->base_url = *base_url;
++  out->base_sha256 = *base_sha;
++  out->base_size = base_size.value_or(0);
++
++  // Parse app layer.
++  const base::Value::Dict* app_layer = runtime->FindDict("appLayer");
++  if (!app_layer) {
++    return false;
++  }
++
++  const std::string* app_version = app_layer->FindString("version");
++  const std::string* app_url = app_layer->FindString("url");
++  const std::string* app_sha = app_layer->FindString("sha256");
++  auto app_size = app_layer->FindInt("size");
++  if (!app_version || !app_url || !app_sha) {
++    return false;
++  }
++  out->app_version = *app_version;
++  out->app_url = *app_url;
++  out->app_sha256 = *app_sha;
++  out->app_size = app_size.value_or(0);
++
++  return true;
++}
++
++void RuntimeUpdater::StartDownload(const RuntimeMetadata& metadata) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Ensure staging dir exists.
++  base::FilePath staging = GetStagingDir();
++  if (staging.empty()) {
++    LOG(ERROR) << "ocbot runtime updater: cannot determine staging dir";
++    return;
++  }
++
++  base::ThreadPool::PostTask(
++      FROM_HERE,
++      {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
++      base::BindOnce(
++          [](base::FilePath dir) { base::CreateDirectory(dir); }, staging));
++
++  // Check if base layer needs downloading.
++  std::string current_base = GetCurrentBaseVersion();
++  if (current_base != metadata.base_version) {
++    LOG(INFO) << "ocbot runtime updater: downloading base layer "
++              << metadata.base_version << "...";
++
++    auto request = std::make_unique<network::ResourceRequest>();
++    request->url = GURL(metadata.base_url);
++    request->method = "GET";
++    request->load_flags = net::LOAD_DISABLE_CACHE;
++    request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++    url_loader_ = network::SimpleURLLoader::Create(std::move(request),
++                                                    kTrafficAnnotation);
++    url_loader_->SetRetryOptions(
++        2, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++    url_loader_->DownloadToTempFile(
++        GetURLLoaderFactory(),
++        base::BindOnce(&RuntimeUpdater::OnBaseLayerDownloaded,
++                       weak_factory_.GetWeakPtr(), metadata),
++        kMaxBaseLayerSize);
++  } else {
++    // Base already current, just download app layer.
++    LOG(INFO) << "ocbot runtime updater: downloading app layer "
++              << metadata.app_version << "...";
++
++    auto request = std::make_unique<network::ResourceRequest>();
++    request->url = GURL(metadata.app_url);
++    request->method = "GET";
++    request->load_flags = net::LOAD_DISABLE_CACHE;
++    request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++    url_loader_ = network::SimpleURLLoader::Create(std::move(request),
++                                                    kTrafficAnnotation);
++    url_loader_->SetRetryOptions(
++        2, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++    url_loader_->DownloadToTempFile(
++        GetURLLoaderFactory(),
++        base::BindOnce(&RuntimeUpdater::OnAppLayerDownloaded,
++                       weak_factory_.GetWeakPtr(), metadata),
++        kMaxAppLayerSize);
++  }
++}
++
++void RuntimeUpdater::OnBaseLayerDownloaded(RuntimeMetadata metadata,
++                                           base::FilePath temp_path) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (temp_path.empty()) {
++    LOG(ERROR) << "ocbot runtime updater: base layer download failed (net "
++               << url_loader_->NetError() << ")";
++    url_loader_.reset();
++    return;
++  }
++  url_loader_.reset();
++
++  LOG(INFO) << "ocbot runtime updater: base layer downloaded, verifying...";
++
++  // Verify and extract on background thread.
++  base::FilePath runtime_dir = GetRuntimeDir();
++  base::FilePath dest = runtime_dir.Append(FILE_PATH_LITERAL("base"))
++                            .Append(FILE_PATH_LITERAL("versions"))
++                            .AppendASCII(metadata.base_version);
++
++  base::ThreadPool::PostTaskAndReply(
++      FROM_HERE,
++      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
++       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
++      base::BindOnce(
++          [](base::FilePath archive, base::FilePath dest_dir,
++             std::string expected_sha) {
++            if (!RuntimeUpdater::VerifySha256(archive, expected_sha)) {
++              LOG(ERROR) << "ocbot runtime updater: base layer SHA256 mismatch";
++              base::DeleteFile(archive);
++              return;
++            }
++            base::CreateDirectory(dest_dir);
++            if (!RuntimeUpdater::ExtractTarGz(archive, dest_dir)) {
++              LOG(ERROR)
++                  << "ocbot runtime updater: base layer extraction failed";
++              base::DeletePathRecursively(dest_dir);
++            }
++            base::DeleteFile(archive);
++          },
++          temp_path, dest, metadata.base_sha256),
++      base::BindOnce(
++          [](base::WeakPtr<RuntimeUpdater> self, RuntimeMetadata md,
++             base::FilePath dest) {
++            if (!self) return;
++            if (!base::PathExists(dest)) {
++              LOG(ERROR) << "ocbot runtime updater: base layer not extracted";
++              return;
++            }
++            // Now download app layer.
++            LOG(INFO) << "ocbot runtime updater: downloading app layer "
++                      << md.app_version << "...";
++
++            auto request = std::make_unique<network::ResourceRequest>();
++            request->url = GURL(md.app_url);
++            request->method = "GET";
++            request->load_flags = net::LOAD_DISABLE_CACHE;
++            request->credentials_mode =
++                network::mojom::CredentialsMode::kOmit;
++
++            self->url_loader_ = network::SimpleURLLoader::Create(
++                std::move(request), kTrafficAnnotation);
++            self->url_loader_->SetRetryOptions(
++                2, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
++
++            self->url_loader_->DownloadToTempFile(
++                self->GetURLLoaderFactory(),
++                base::BindOnce(&RuntimeUpdater::OnAppLayerDownloaded,
++                               self->weak_factory_.GetWeakPtr(), md),
++                kMaxAppLayerSize);
++          },
++          weak_factory_.GetWeakPtr(), metadata, dest));
++}
++
++void RuntimeUpdater::OnAppLayerDownloaded(RuntimeMetadata metadata,
++                                          base::FilePath temp_path) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (temp_path.empty()) {
++    LOG(ERROR) << "ocbot runtime updater: app layer download failed (net "
++               << url_loader_->NetError() << ")";
++    url_loader_.reset();
++    return;
++  }
++  url_loader_.reset();
++
++  LOG(INFO) << "ocbot runtime updater: app layer downloaded, verifying...";
++
++  base::FilePath runtime_dir = GetRuntimeDir();
++  base::FilePath dest = runtime_dir.Append(FILE_PATH_LITERAL("app"))
++                            .Append(FILE_PATH_LITERAL("versions"))
++                            .AppendASCII(metadata.app_version);
++
++  base::ThreadPool::PostTaskAndReply(
++      FROM_HERE,
++      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
++       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
++      base::BindOnce(
++          [](base::FilePath archive, base::FilePath dest_dir,
++             std::string expected_sha) {
++            if (!RuntimeUpdater::VerifySha256(archive, expected_sha)) {
++              LOG(ERROR) << "ocbot runtime updater: app layer SHA256 mismatch";
++              base::DeleteFile(archive);
++              return;
++            }
++            base::CreateDirectory(dest_dir);
++            if (!RuntimeUpdater::ExtractTarGz(archive, dest_dir)) {
++              LOG(ERROR)
++                  << "ocbot runtime updater: app layer extraction failed";
++              base::DeletePathRecursively(dest_dir);
++            }
++            base::DeleteFile(archive);
++          },
++          temp_path, dest, metadata.app_sha256),
++      base::BindOnce(&RuntimeUpdater::OnLayersReady,
++                     weak_factory_.GetWeakPtr(), metadata));
++}
++
++void RuntimeUpdater::OnLayersReady(RuntimeMetadata metadata) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  base::FilePath runtime_dir = GetRuntimeDir();
++
++  // Verify both layers are in place.
++  base::FilePath app_dir = runtime_dir.Append(FILE_PATH_LITERAL("app"))
++                               .Append(FILE_PATH_LITERAL("versions"))
++                               .AppendASCII(metadata.app_version);
++  base::FilePath base_dir = runtime_dir.Append(FILE_PATH_LITERAL("base"))
++                                .Append(FILE_PATH_LITERAL("versions"))
++                                .AppendASCII(metadata.base_version);
++
++  if (!base::PathExists(app_dir) || !base::PathExists(base_dir)) {
++    LOG(ERROR)
++        << "ocbot runtime updater: layer extraction incomplete, aborting";
++    return;
++  }
++
++  WritePendingUpdate(metadata);
++}
++
++// static
++bool RuntimeUpdater::VerifySha256(const base::FilePath& file,
++                                  const std::string& expected) {
++  auto hash = crypto::SecureHash::Create(crypto::SecureHash::SHA256);
++
++  std::string contents;
++  if (!base::ReadFileToString(file, &contents)) {
++    return false;
++  }
++
++  hash->Update(base::as_byte_span(contents));
++
++  uint8_t digest[crypto::kSHA256Length];
++  hash->Finish(base::span(digest));
++
++  std::string hex = base::HexEncode(digest);
++  // HexEncode returns uppercase; expected may be lowercase.
++  return base::EqualsCaseInsensitiveASCII(hex, expected);
++}
++
++// static
++bool RuntimeUpdater::ExtractTarGz(const base::FilePath& archive,
++                                  const base::FilePath& dest) {
++  // macOS and Windows 10+ both have tar built in.
++  std::vector<std::string> argv = {
++      "tar", "xzf", archive.value(), "-C", dest.value()};
++
++  base::LaunchOptions options;
++#if BUILDFLAG(IS_WIN)
++  options.start_hidden = true;
++#endif
++
++  base::Process process = base::LaunchProcess(argv, options);
++  if (!process.IsValid()) {
++    LOG(ERROR) << "ocbot runtime updater: failed to launch tar";
++    return false;
++  }
++
++  int exit_code = -1;
++  if (!process.WaitForExit(&exit_code) || exit_code != 0) {
++    LOG(ERROR) << "ocbot runtime updater: tar exited with " << exit_code;
++    return false;
++  }
++
++  return true;
++}
++
++void RuntimeUpdater::WritePendingUpdate(const RuntimeMetadata& metadata) {
++  base::FilePath runtime_dir = GetRuntimeDir();
++  if (runtime_dir.empty()) {
++    return;
++  }
++
++  base::Value::Dict pending;
++  pending.Set("appVersion", metadata.app_version);
++  pending.Set("baseVersion", metadata.base_version);
++  pending.Set("version", metadata.version);
++
++  base::FilePath pending_path =
++      runtime_dir.Append(FILE_PATH_LITERAL("pending-update.json"));
++
++  base::ThreadPool::PostTask(
++      FROM_HERE,
++      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
++       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
++      base::BindOnce(
++          [](base::FilePath path, base::Value::Dict dict) {
++            base::CreateDirectory(path.DirName());
++            if (WriteJsonFile(path, dict)) {
++              LOG(INFO) << "ocbot runtime updater: pending update written to "
++                        << path;
++            } else {
++              LOG(ERROR)
++                  << "ocbot runtime updater: failed to write pending update";
++            }
++          },
++          pending_path, std::move(pending)));
++}
++
++std::string RuntimeUpdater::GetCurrentAppVersion() const {
++  base::FilePath manifest =
++      GetRuntimeDir().Append(FILE_PATH_LITERAL("update-manifest.json"));
++  auto dict = ReadJsonFile(manifest);
++  if (!dict) {
++    return std::string();
++  }
++  const std::string* v = dict->FindString("appVersion");
++  return v ? *v : std::string();
++}
++
++std::string RuntimeUpdater::GetCurrentBaseVersion() const {
++  base::FilePath manifest =
++      GetRuntimeDir().Append(FILE_PATH_LITERAL("update-manifest.json"));
++  auto dict = ReadJsonFile(manifest);
++  if (!dict) {
++    return std::string();
++  }
++  const std::string* v = dict->FindString("baseVersion");
++  return v ? *v : std::string();
++}
++
++bool RuntimeUpdater::IsShellCompatible(const std::string& min_version) const {
++  if (min_version.empty()) {
++    return true;
++  }
++  base::Version min_ver(min_version);
++  base::Version shell_ver(version_info::GetVersionNumber());
++  if (!min_ver.IsValid() || !shell_ver.IsValid()) {
++    return true;  // Can't compare, assume compatible.
++  }
++  return shell_ver.CompareTo(min_ver) >= 0;
++}
++
++base::FilePath RuntimeUpdater::GetRuntimeDir() const {
++#if BUILDFLAG(IS_MAC)
++  base::FilePath home_dir;
++  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++    return base::FilePath();
++  }
++  return home_dir.Append(FILE_PATH_LITERAL("Library"))
++      .Append(FILE_PATH_LITERAL("Application Support"))
++      .Append(FILE_PATH_LITERAL("Ocbot"))
++      .Append(FILE_PATH_LITERAL("runtime"));
++#elif BUILDFLAG(IS_WIN)
++  base::FilePath appdata_dir;
++  if (!base::PathService::Get(base::DIR_ROAMING_APP_DATA, &appdata_dir)) {
++    return base::FilePath();
++  }
++  return appdata_dir.Append(FILE_PATH_LITERAL("Ocbot"))
++      .Append(FILE_PATH_LITERAL("runtime"));
++#else
++  base::FilePath home_dir;
++  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++    return base::FilePath();
++  }
++  return home_dir.Append(FILE_PATH_LITERAL(".config"))
++      .Append(FILE_PATH_LITERAL("ocbot"))
++      .Append(FILE_PATH_LITERAL("runtime"));
++#endif
++}
++
++base::FilePath RuntimeUpdater::GetStagingDir() const {
++  base::FilePath runtime = GetRuntimeDir();
++  if (runtime.empty()) {
++    return base::FilePath();
++  }
++  return runtime.Append(FILE_PATH_LITERAL("staging"));
++}
++
++std::string RuntimeUpdater::GetPlatformTag() const {
++#if BUILDFLAG(IS_MAC)
++#if defined(ARCH_CPU_ARM64)
++  return "macos-arm64";
++#else
++  return "macos-x64";
++#endif
++#elif BUILDFLAG(IS_WIN)
++  return "win-x64";
++#else
++  return "linux-x64";
++#endif
++}
++
++network::mojom::URLLoaderFactory* RuntimeUpdater::GetURLLoaderFactory() {
++  return SystemNetworkContextManager::GetInstance()->GetURLLoaderFactory();
++}
++
++}  // namespace ocbot

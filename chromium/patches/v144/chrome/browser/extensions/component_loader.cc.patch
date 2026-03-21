@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/extensions/component_loader.cc b/chrome/browser/extensions/component_loader.cc
-index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..6ad60a42c482d91c3f11a2f5bbde0dee75c310e5 100644
+index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..822f0a34c65df373f19a34b49b44f82b937aade9 100644
 --- a/chrome/browser/extensions/component_loader.cc
 +++ b/chrome/browser/extensions/component_loader.cc
 @@ -12,13 +12,16 @@
@@ -19,18 +19,19 @@ index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..6ad60a42c482d91c3f11a2f5bbde0dee
  #include "base/trace_event/trace_event.h"
  #include "base/values.h"
  #include "build/branding_buildflags.h"
-@@ -28,6 +31,10 @@
+@@ -28,6 +31,11 @@
  #include "chrome/browser/extensions/component_loader_factory.h"
  #include "chrome/browser/extensions/data_deleter.h"
  #include "chrome/browser/extensions/profile_util.h"
 +#include "chrome/browser/ocbot/browser_updater.h"
 +#include "chrome/browser/ocbot/extension_updater.h"
 +#include "chrome/browser/ocbot/runtime_manager.h"
++#include "chrome/browser/ocbot/runtime_updater.h"
 +#include "services/network/public/cpp/simple_url_loader.h"
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/common/channel_info.h"
  #include "chrome/common/chrome_paths.h"
-@@ -514,6 +521,134 @@ void ComponentLoader::AddDefaultComponentExtensions(
+@@ -514,6 +522,142 @@ void ComponentLoader::AddDefaultComponentExtensions(
      Add(pdf_extension_util::GetManifest(),
          base::FilePath(FILE_PATH_LITERAL("pdf")));
  #endif  // BUILDFLAG(ENABLE_PDF)
@@ -159,6 +160,14 @@ index ba347da2a2d2ebcc40e90ab57fe483e6b6b33eb7..6ad60a42c482d91c3f11a2f5bbde0dee
 +        if (!*g_runtime_manager) {
 +          *g_runtime_manager = std::make_unique<ocbot::RuntimeManager>();
 +          (*g_runtime_manager)->Start();
++        }
++
++        // Start background runtime updater (OTA for OpenClaw runtime).
++        static base::NoDestructor<std::unique_ptr<ocbot::RuntimeUpdater>>
++            g_runtime_updater;
++        if (!*g_runtime_updater) {
++          *g_runtime_updater = std::make_unique<ocbot::RuntimeUpdater>();
++          (*g_runtime_updater)->Start();
 +        }
 +      }
 +    }

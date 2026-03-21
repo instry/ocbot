@@ -1,17 +1,19 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.cc b/chrome/browser/ocbot/runtime_manager.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908696f21ca
+index 0000000000000000000000000000000000000000..95646601cc09d009898f55f04c9ac834a3e42704
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.cc
-@@ -0,0 +1,350 @@
+@@ -0,0 +1,744 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
 +#include "chrome/browser/ocbot/runtime_manager.h"
 +
 +#include "base/command_line.h"
++#include "base/files/file_enumerator.h"
 +#include "base/files/file_path.h"
 +#include "base/files/file_util.h"
++#include "base/json/json_reader.h"
 +#include "base/json/json_writer.h"
 +#include "base/logging.h"
 +#include "base/path_service.h"
@@ -65,8 +67,7 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +  timeout.tv_usec = (kHealthCheckTimeoutMs % 1000) * 1000;
 +  setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 +
-+  struct sockaddr_in addr;
-+  memset(&addr, 0, sizeof(addr));
++  struct sockaddr_in addr = {};
 +  addr.sin_family = AF_INET;
 +  addr.sin_port = htons(port);
 +  inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
@@ -109,6 +110,56 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +  return json;
 +}
 +
++// Read a JSON file into a dict.
++std::optional<base::Value::Dict> ReadJsonFile(const base::FilePath& path) {
++  std::string content;
++  if (!base::ReadFileToString(path, &content)) {
++    return std::nullopt;
++  }
++  return base::JSONReader::ReadDict(content, base::JSON_PARSE_RFC);
++}
++
++// Write a dict as JSON to a file.
++bool WriteJsonFile(const base::FilePath& path, const base::Value::Dict& dict) {
++  std::string json;
++  if (!base::JSONWriter::WriteWithOptions(
++          dict, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json)) {
++    return false;
++  }
++  return base::WriteFile(path, json);
++}
++
++#if BUILDFLAG(IS_POSIX)
++// Atomically swap a symlink: create tmp link, then rename over target.
++bool AtomicSymlinkSwap(const base::FilePath& link_path,
++                       const base::FilePath& target) {
++  base::FilePath tmp_link =
++      link_path.DirName().Append(link_path.BaseName().value() + ".tmp");
++  // Remove stale tmp if exists.
++  base::DeleteFile(tmp_link);
++
++  if (symlink(target.value().c_str(), tmp_link.value().c_str()) != 0) {
++    LOG(ERROR) << "ocbot runtime: symlink create failed for " << tmp_link;
++    return false;
++  }
++  if (rename(tmp_link.value().c_str(), link_path.value().c_str()) != 0) {
++    LOG(ERROR) << "ocbot runtime: rename failed for " << link_path;
++    base::DeleteFile(tmp_link);
++    return false;
++  }
++  return true;
++}
++
++// Read symlink target.
++base::FilePath ReadSymlink(const base::FilePath& path) {
++  base::FilePath target;
++  if (!base::ReadSymbolicLink(path, &target)) {
++    return base::FilePath();
++  }
++  return target;
++}
++#endif
++
 +}  // namespace
 +
 +RuntimeManager::RuntimeManager() = default;
@@ -123,8 +174,8 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +  // Note: Start() is called from ComponentLoader::AddDefaultComponentExtensions
 +  // which already holds a base::ScopedAllowBlocking, so file I/O here is fine.
 +
-+  if (!LocateEmbeddedRuntime()) {
-+    LOG(INFO) << "ocbot runtime: no embedded runtime found, skipping";
++  if (!LocateRuntime()) {
++    LOG(INFO) << "ocbot runtime: no runtime found, skipping";
 +    return;
 +  }
 +
@@ -133,7 +184,8 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +    return;
 +  }
 +
-+  LOG(INFO) << "ocbot runtime: starting embedded OpenClaw gateway...";
++  LOG(INFO) << "ocbot runtime: starting OpenClaw gateway"
++            << (using_ota_runtime_ ? " (OTA)" : " (embedded)") << "...";
 +
 +  // Delay the initial spawn slightly to let the browser finish startup.
 +  content::GetUIThreadTaskRunner({})->PostDelayedTask(
@@ -162,8 +214,44 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +    return false;
 +  }
 +  // WaitForExitWithTimeout with zero timeout is a non-blocking check.
-+  // Returns true if the process has exited, false if still running.
 +  return !gateway_process_.WaitForExitWithTimeout(base::TimeDelta(), nullptr);
++}
++
++bool RuntimeManager::LocateRuntime() {
++  // Initialize OTA runtime directory.
++  ota_runtime_dir_ = GetOtaRuntimeDir();
++
++  // 1. Apply any pending update first.
++  if (!ota_runtime_dir_.empty()) {
++    ApplyPendingUpdate();
++  }
++
++  // 2. Check OTA runtime: runtime/app/current/openclaw.mjs
++  if (!ota_runtime_dir_.empty()) {
++    base::FilePath app_current =
++        ota_runtime_dir_.Append(FILE_PATH_LITERAL("app"))
++            .Append(FILE_PATH_LITERAL("current"));
++    base::FilePath openclaw_entry =
++        app_current.Append(FILE_PATH_LITERAL("openclaw.mjs"));
++
++    if (base::PathExists(openclaw_entry)) {
++      openclaw_dir_ = app_current;
++      using_ota_runtime_ = true;
++      LOG(INFO) << "ocbot runtime: using OTA runtime at " << openclaw_dir_;
++
++      // Node binary still comes from embedded Resources/.
++      if (!LocateEmbeddedRuntime()) {
++        // Can't find node — fall through to full embedded check.
++        using_ota_runtime_ = false;
++        openclaw_dir_ = base::FilePath();
++      } else {
++        return true;
++      }
++    }
++  }
++
++  // 3. Fallback to embedded Resources/openclaw/.
++  return LocateEmbeddedRuntime();
 +}
 +
 +bool RuntimeManager::LocateEmbeddedRuntime() {
@@ -174,7 +262,6 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +  }
 +
 +  node_path_ = resources_dir.Append(FILE_PATH_LITERAL("node"));
-+  openclaw_dir_ = resources_dir.Append(FILE_PATH_LITERAL("openclaw"));
 +
 +#if BUILDFLAG(IS_WIN)
 +  node_path_ = resources_dir.Append(FILE_PATH_LITERAL("node.exe"));
@@ -185,6 +272,15 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +    return false;
 +  }
 +
++  LOG(INFO) << "ocbot runtime: found node at " << node_path_;
++
++  // If OTA runtime is already set, don't override openclaw_dir_.
++  if (using_ota_runtime_) {
++    return true;
++  }
++
++  openclaw_dir_ = resources_dir.Append(FILE_PATH_LITERAL("openclaw"));
++
 +  base::FilePath openclaw_entry =
 +      openclaw_dir_.Append(FILE_PATH_LITERAL("openclaw.mjs"));
 +  if (!base::PathExists(openclaw_entry)) {
@@ -192,7 +288,6 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +    return false;
 +  }
 +
-+  LOG(INFO) << "ocbot runtime: found node at " << node_path_;
 +  LOG(INFO) << "ocbot runtime: found openclaw at " << openclaw_dir_;
 +  return true;
 +}
@@ -261,6 +356,18 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +  // Set environment variables for OpenClaw.
 +  options.environment["OPENCLAW_CONFIG_PATH"] = config_file_.value();
 +  options.environment["OPENCLAW_STATE_DIR"] = config_dir_.value();
++
++  // OTA mode: set NODE_PATH so node can find modules in base layer.
++  if (using_ota_runtime_ && !ota_runtime_dir_.empty()) {
++    base::FilePath base_current =
++        ota_runtime_dir_.Append(FILE_PATH_LITERAL("base"))
++            .Append(FILE_PATH_LITERAL("current"))
++            .Append(FILE_PATH_LITERAL("node_modules"));
++    if (base::PathExists(base_current)) {
++      options.environment["NODE_PATH"] = base_current.value();
++      LOG(INFO) << "ocbot runtime: NODE_PATH=" << base_current;
++    }
++  }
 +
 +#if BUILDFLAG(IS_WIN)
 +  // Hide the console window on Windows.
@@ -331,6 +438,19 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +      LOG(INFO) << "ocbot runtime: gateway recovered";
 +    }
 +    consecutive_failures_ = 0;
++
++    // If we just applied an update and health check passes, clean up.
++    if (just_applied_update_) {
++      just_applied_update_ = false;
++      LOG(INFO) << "ocbot runtime: OTA update verified, cleaning up old versions";
++      base::ThreadPool::PostTask(
++          FROM_HERE,
++          {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
++           base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
++          base::BindOnce(
++              [](RuntimeManager* mgr) { mgr->CleanupOldVersions(); },
++              base::Unretained(this)));
++    }
 +    return;
 +  }
 +
@@ -340,6 +460,14 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +               << ")";
 +
 +  if (consecutive_failures_ >= kMaxFailuresBeforeRestart) {
++    // If we just applied an update, rollback first.
++    if (just_applied_update_) {
++      LOG(WARNING) << "ocbot runtime: new OTA version failed, rolling back...";
++      just_applied_update_ = false;
++      RevertToPrevious();
++      return;
++    }
++
 +    LOG(INFO) << "ocbot runtime: restarting gateway...";
 +
 +    // Clean up old process if still lingering.
@@ -351,6 +479,272 @@ index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908
 +    consecutive_failures_ = 0;
 +    SpawnGateway();
 +  }
++}
++
++bool RuntimeManager::ApplyPendingUpdate() {
++  if (ota_runtime_dir_.empty()) {
++    return false;
++  }
++
++  base::FilePath pending_path =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("pending-update.json"));
++
++  if (!base::PathExists(pending_path)) {
++    return false;
++  }
++
++  auto pending = ReadJsonFile(pending_path);
++  if (!pending) {
++    LOG(WARNING) << "ocbot runtime: invalid pending-update.json, removing";
++    base::DeleteFile(pending_path);
++    return false;
++  }
++
++  const std::string* app_version = pending->FindString("appVersion");
++  const std::string* base_version = pending->FindString("baseVersion");
++
++  if (!app_version || !base_version) {
++    LOG(WARNING) << "ocbot runtime: pending-update.json missing versions";
++    base::DeleteFile(pending_path);
++    return false;
++  }
++
++  LOG(INFO) << "ocbot runtime: applying pending update (app="
++            << *app_version << ", base=" << *base_version << ")";
++
++  // Verify version directories exist.
++  base::FilePath app_versions =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("app"))
++          .Append(FILE_PATH_LITERAL("versions"));
++  base::FilePath base_versions =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("base"))
++          .Append(FILE_PATH_LITERAL("versions"));
++
++  base::FilePath new_app_dir = app_versions.AppendASCII(*app_version);
++  base::FilePath new_base_dir = base_versions.AppendASCII(*base_version);
++
++  if (!base::PathExists(new_app_dir)) {
++    LOG(ERROR) << "ocbot runtime: app version dir missing: " << new_app_dir;
++    base::DeleteFile(pending_path);
++    return false;
++  }
++
++  if (!base::PathExists(new_base_dir)) {
++    LOG(ERROR) << "ocbot runtime: base version dir missing: " << new_base_dir;
++    base::DeleteFile(pending_path);
++    return false;
++  }
++
++#if BUILDFLAG(IS_POSIX)
++  // Swap symlinks.
++  base::FilePath app_current =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("app"))
++          .Append(FILE_PATH_LITERAL("current"));
++  base::FilePath app_previous =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("app"))
++          .Append(FILE_PATH_LITERAL("previous"));
++  base::FilePath base_current =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("base"))
++          .Append(FILE_PATH_LITERAL("current"));
++
++  // Save current as previous (for rollback).
++  base::FilePath old_app_target = ReadSymlink(app_current);
++  if (!old_app_target.empty()) {
++    AtomicSymlinkSwap(app_previous, old_app_target);
++  }
++
++  // Point current to new version.
++  if (!AtomicSymlinkSwap(app_current, new_app_dir)) {
++    LOG(ERROR) << "ocbot runtime: failed to swap app symlink";
++    base::DeleteFile(pending_path);
++    return false;
++  }
++
++  if (!AtomicSymlinkSwap(base_current, new_base_dir)) {
++    LOG(ERROR) << "ocbot runtime: failed to swap base symlink";
++    base::DeleteFile(pending_path);
++    return false;
++  }
++#else
++  // Windows: no symlinks, use a "current-version" marker file instead.
++  // Write version pointers as text files.
++  base::FilePath app_marker =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("app"))
++          .Append(FILE_PATH_LITERAL("current-version"));
++  base::FilePath base_marker =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("base"))
++          .Append(FILE_PATH_LITERAL("current-version"));
++
++  // Save previous for rollback.
++  std::string old_app_ver;
++  base::ReadFileToString(app_marker, &old_app_ver);
++  if (!old_app_ver.empty()) {
++    base::FilePath prev_marker =
++        ota_runtime_dir_.Append(FILE_PATH_LITERAL("app"))
++            .Append(FILE_PATH_LITERAL("previous-version"));
++    base::WriteFile(prev_marker, old_app_ver);
++  }
++
++  base::WriteFile(app_marker, *app_version);
++  base::WriteFile(base_marker, *base_version);
++#endif
++
++  // Delete pending marker.
++  base::DeleteFile(pending_path);
++
++  // Write update-manifest.json.
++  base::Value::Dict manifest;
++  manifest.Set("appVersion", *app_version);
++  manifest.Set("baseVersion", *base_version);
++  const std::string* version = pending->FindString("version");
++  if (version) {
++    manifest.Set("version", *version);
++  }
++
++  base::FilePath manifest_path =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("update-manifest.json"));
++  WriteJsonFile(manifest_path, manifest);
++
++  just_applied_update_ = true;
++
++  LOG(INFO) << "ocbot runtime: update applied (app=" << *app_version
++            << ", base=" << *base_version << ")";
++  return true;
++}
++
++void RuntimeManager::RevertToPrevious() {
++  // Stop current gateway.
++  if (gateway_process_.IsValid()) {
++    gateway_process_.Terminate(/*exit_code=*/0, /*wait=*/false);
++    gateway_process_.WaitForExitWithTimeout(base::Seconds(3), nullptr);
++    gateway_process_.Close();
++  }
++
++#if BUILDFLAG(IS_POSIX)
++  base::FilePath app_current =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("app"))
++          .Append(FILE_PATH_LITERAL("current"));
++  base::FilePath app_previous =
++      ota_runtime_dir_.Append(FILE_PATH_LITERAL("app"))
++          .Append(FILE_PATH_LITERAL("previous"));
++
++  base::FilePath prev_target = ReadSymlink(app_previous);
++  if (!prev_target.empty() && base::PathExists(prev_target)) {
++    LOG(INFO) << "ocbot runtime: reverting to previous: " << prev_target;
++    AtomicSymlinkSwap(app_current, prev_target);
++
++    // Try restarting with previous version.
++    openclaw_dir_ = app_current;
++    consecutive_failures_ = 0;
++    SpawnGateway();
++    return;
++  }
++#endif
++
++  // No previous version available — fall back to embedded.
++  LOG(WARNING) << "ocbot runtime: no previous version, falling back to embedded";
++  using_ota_runtime_ = false;
++  openclaw_dir_ = base::FilePath();
++
++  if (LocateEmbeddedRuntime()) {
++    consecutive_failures_ = 0;
++    SpawnGateway();
++  } else {
++    LOG(ERROR) << "ocbot runtime: embedded runtime also unavailable";
++  }
++}
++
++void RuntimeManager::CleanupOldVersions() {
++  if (ota_runtime_dir_.empty()) {
++    return;
++  }
++
++  // For each layer (app, base), keep only current + previous.
++  for (const char* layer : {"app", "base"}) {
++    base::FilePath versions_dir =
++        ota_runtime_dir_.Append(FILE_PATH_LITERAL(layer))
++            .Append(FILE_PATH_LITERAL("versions"));
++
++    if (!base::PathExists(versions_dir)) {
++      continue;
++    }
++
++    // Read current and previous targets.
++    std::set<std::string> keep;
++
++#if BUILDFLAG(IS_POSIX)
++    base::FilePath current_link =
++        ota_runtime_dir_.Append(FILE_PATH_LITERAL(layer))
++            .Append(FILE_PATH_LITERAL("current"));
++    base::FilePath previous_link =
++        ota_runtime_dir_.Append(FILE_PATH_LITERAL(layer))
++            .Append(FILE_PATH_LITERAL("previous"));
++
++    base::FilePath current_target = ReadSymlink(current_link);
++    base::FilePath previous_target = ReadSymlink(previous_link);
++
++    if (!current_target.empty()) {
++      keep.insert(current_target.BaseName().value());
++    }
++    if (!previous_target.empty()) {
++      keep.insert(previous_target.BaseName().value());
++    }
++#else
++    // Windows: read version marker files.
++    base::FilePath current_marker =
++        ota_runtime_dir_.Append(FILE_PATH_LITERAL(layer))
++            .Append(FILE_PATH_LITERAL("current-version"));
++    base::FilePath previous_marker =
++        ota_runtime_dir_.Append(FILE_PATH_LITERAL(layer))
++            .Append(FILE_PATH_LITERAL("previous-version"));
++
++    std::string cur_ver, prev_ver;
++    base::ReadFileToString(current_marker, &cur_ver);
++    base::ReadFileToString(previous_marker, &prev_ver);
++    if (!cur_ver.empty()) keep.insert(cur_ver);
++    if (!prev_ver.empty()) keep.insert(prev_ver);
++#endif
++
++    // Enumerate version directories and delete old ones.
++    base::FileEnumerator enumerator(versions_dir, /*recursive=*/false,
++                                    base::FileEnumerator::DIRECTORIES);
++    for (base::FilePath dir = enumerator.Next(); !dir.empty();
++         dir = enumerator.Next()) {
++      std::string name = dir.BaseName().value();
++      if (keep.find(name) == keep.end()) {
++        LOG(INFO) << "ocbot runtime: removing old version: " << dir;
++        base::DeletePathRecursively(dir);
++      }
++    }
++  }
++}
++
++base::FilePath RuntimeManager::GetOtaRuntimeDir() const {
++#if BUILDFLAG(IS_MAC)
++  base::FilePath home_dir;
++  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++    return base::FilePath();
++  }
++  return home_dir.Append(FILE_PATH_LITERAL("Library"))
++      .Append(FILE_PATH_LITERAL("Application Support"))
++      .Append(FILE_PATH_LITERAL("Ocbot"))
++      .Append(FILE_PATH_LITERAL("runtime"));
++#elif BUILDFLAG(IS_WIN)
++  base::FilePath appdata_dir;
++  if (!base::PathService::Get(base::DIR_ROAMING_APP_DATA, &appdata_dir)) {
++    return base::FilePath();
++  }
++  return appdata_dir.Append(FILE_PATH_LITERAL("Ocbot"))
++      .Append(FILE_PATH_LITERAL("runtime"));
++#else
++  base::FilePath home_dir;
++  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++    return base::FilePath();
++  }
++  return home_dir.Append(FILE_PATH_LITERAL(".config"))
++      .Append(FILE_PATH_LITERAL("ocbot"))
++      .Append(FILE_PATH_LITERAL("runtime"));
++#endif
 +}
 +
 +}  // namespace ocbot
