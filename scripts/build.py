@@ -2,8 +2,209 @@ import subprocess
 import os
 import shutil
 import sys
+import platform
+import tarfile
+import zipfile
+import urllib.request
+import hashlib
 from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root, get_agent_root, sync_extension_version, get_out_dir_name
+
+# Node.js version to embed
+NODE_VERSION = 'v22.14.0'
+# Cache downloaded Node.js archives here
+NODE_CACHE_DIR = Path.home() / '.cache' / 'ocbot' / 'node'
+
+
+def _get_resources_dir(logger, out_dir):
+    """Locate the Resources directory inside the app bundle (macOS) or resources/ (Windows)."""
+    if sys.platform == 'win32':
+        return out_dir / 'resources'
+
+    app_dir = out_dir / 'Ocbot.app'
+    if not app_dir.exists():
+        logger.warning(f"App bundle not found: {app_dir}")
+        return None
+
+    frameworks_dir = app_dir / 'Contents' / 'Frameworks'
+    if not frameworks_dir.exists():
+        logger.warning("Frameworks directory not found in app bundle")
+        return None
+
+    for item in frameworks_dir.iterdir():
+        if item.name.endswith('.framework'):
+            return item / 'Resources'
+
+    logger.warning("Framework bundle not found in app bundle")
+    return None
+
+
+def _install_node(logger, out_dir):
+    """Download Node.js binary and install into app bundle Resources/node."""
+    resources_dir = _get_resources_dir(logger, out_dir)
+    if not resources_dir:
+        return
+
+    if sys.platform == 'win32':
+        node_dest = resources_dir / 'node.exe'
+    else:
+        node_dest = resources_dir / 'node'
+
+    # Determine platform and architecture for download URL
+    if sys.platform == 'darwin':
+        arch = platform.machine()  # 'arm64' or 'x86_64'
+        if arch == 'x86_64':
+            arch = 'x64'
+        node_platform = f'darwin-{arch}'
+        archive_name = f'node-{NODE_VERSION}-{node_platform}.tar.gz'
+        node_bin_path = f'node-{NODE_VERSION}-{node_platform}/bin/node'
+    elif sys.platform == 'win32':
+        node_platform = 'win-x64'
+        archive_name = f'node-{NODE_VERSION}-{node_platform}.zip'
+        node_bin_path = f'node-{NODE_VERSION}-{node_platform}/node.exe'
+    else:
+        logger.warning(f"Unsupported platform for Node.js embedding: {sys.platform}")
+        return
+
+    download_url = f'https://nodejs.org/dist/{NODE_VERSION}/{archive_name}'
+
+    # Cache the download
+    NODE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cached_archive = NODE_CACHE_DIR / archive_name
+
+    if not cached_archive.exists():
+        logger.info(f"Downloading Node.js {NODE_VERSION} for {node_platform}...")
+        logger.info(f"  URL: {download_url}")
+        try:
+            urllib.request.urlretrieve(download_url, cached_archive)
+        except Exception as e:
+            logger.error(f"Failed to download Node.js: {e}")
+            if cached_archive.exists():
+                cached_archive.unlink()
+            return
+        logger.info(f"  Cached to {cached_archive}")
+    else:
+        logger.info(f"Using cached Node.js archive: {cached_archive}")
+
+    # Extract the node binary
+    logger.info(f"Extracting node binary to {node_dest}...")
+    try:
+        if archive_name.endswith('.tar.gz'):
+            with tarfile.open(cached_archive, 'r:gz') as tar:
+                member = tar.getmember(node_bin_path)
+                f = tar.extractfile(member)
+                if f is None:
+                    logger.error(f"Could not extract {node_bin_path} from archive")
+                    return
+                node_dest.parent.mkdir(parents=True, exist_ok=True)
+                with open(node_dest, 'wb') as out:
+                    out.write(f.read())
+        elif archive_name.endswith('.zip'):
+            with zipfile.ZipFile(cached_archive, 'r') as zf:
+                with zf.open(node_bin_path) as f:
+                    node_dest.parent.mkdir(parents=True, exist_ok=True)
+                    with open(node_dest, 'wb') as out:
+                        out.write(f.read())
+    except Exception as e:
+        logger.error(f"Failed to extract Node.js binary: {e}")
+        return
+
+    # Ensure executable permission on Unix
+    if sys.platform != 'win32':
+        os.chmod(node_dest, 0o755)
+
+    size_mb = node_dest.stat().st_size / (1024 * 1024)
+    logger.info(f"Node.js installed to {node_dest} ({size_mb:.1f} MB)")
+
+
+def _install_openclaw_runtime(logger, out_dir):
+    """Package OpenClaw runtime and install into app bundle Resources/openclaw/."""
+    resources_dir = _get_resources_dir(logger, out_dir)
+    if not resources_dir:
+        return
+
+    openclaw_src = get_project_root().parent / 'openclaw'
+    if not openclaw_src.exists():
+        logger.warning(f"OpenClaw source not found: {openclaw_src}")
+        return
+
+    # Ensure OpenClaw is built
+    dist_dir = openclaw_src / 'dist'
+    if not dist_dir.exists():
+        logger.info("OpenClaw dist/ not found, building...")
+        _shell = sys.platform == 'win32'
+        try:
+            subprocess.run(['pnpm', 'install'], cwd=openclaw_src, check=True, shell=_shell)
+            subprocess.run(['pnpm', 'build'], cwd=openclaw_src, check=True, shell=_shell)
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            logger.error(f"Failed to build OpenClaw: {e}")
+            return
+
+    dest = resources_dir / 'openclaw'
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
+
+    # Copy essential files
+    items_to_copy = [
+        ('openclaw.mjs', False),
+        ('package.json', False),
+        ('dist', True),
+        ('extensions', True),
+        ('skills', True),
+    ]
+
+    # Also copy scripts/run-node.mjs if it exists
+    run_node = openclaw_src / 'scripts' / 'run-node.mjs'
+    if run_node.exists():
+        (dest / 'scripts').mkdir(parents=True, exist_ok=True)
+        shutil.copy2(run_node, dest / 'scripts' / 'run-node.mjs')
+
+    for item_name, is_dir in items_to_copy:
+        src_item = openclaw_src / item_name
+        if not src_item.exists():
+            logger.warning(f"OpenClaw item not found, skipping: {src_item}")
+            continue
+        dest_item = dest / item_name
+        if is_dir:
+            shutil.copytree(src_item, dest_item, symlinks=True)
+        else:
+            shutil.copy2(src_item, dest_item)
+
+    # Install production dependencies
+    logger.info("Installing OpenClaw production dependencies...")
+    _shell = sys.platform == 'win32'
+    try:
+        subprocess.run(
+            ['npm', 'install', '--production', '--prefix', str(dest)],
+            check=True, shell=_shell,
+            capture_output=True, text=True
+        )
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"npm install --production failed: {e.stderr}")
+        # Try pnpm deploy as fallback
+        try:
+            import tempfile
+            with tempfile.TemporaryDirectory() as tmp:
+                subprocess.run(
+                    ['pnpm', 'deploy', '--prod', str(dest)],
+                    cwd=openclaw_src, check=True, shell=_shell,
+                    capture_output=True, text=True
+                )
+        except (subprocess.CalledProcessError, FileNotFoundError) as e2:
+            logger.warning(f"pnpm deploy fallback also failed: {e2}")
+    except FileNotFoundError:
+        logger.warning("npm not found, trying pnpm deploy...")
+        try:
+            subprocess.run(
+                ['pnpm', 'deploy', '--prod', str(dest)],
+                cwd=openclaw_src, check=True, shell=_shell,
+                capture_output=True, text=True
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError) as e2:
+            logger.warning(f"pnpm deploy also failed: {e2}")
+
+    logger.info(f"OpenClaw runtime installed to {dest}")
 
 
 def _install_extension(logger, out_dir):
@@ -120,6 +321,8 @@ def _create_universal_binary(args):
     # Sync extension version and install into universal app
     sync_extension_version()
     _install_extension(logger, universal_dir)
+    _install_node(logger, universal_dir)
+    _install_openclaw_runtime(logger, universal_dir)
 
     logger.info(f"Universal binary created: {universal_app}")
 
@@ -266,3 +469,5 @@ def build_chromium(args):
         src_dir = get_source_dir()
     out_dir = src_dir / 'out' / get_out_dir_name(args.official, arch)
     _install_extension(logger, out_dir)
+    _install_node(logger, out_dir)
+    _install_openclaw_runtime(logger, out_dir)

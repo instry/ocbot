@@ -72,6 +72,50 @@ def _run_full(args, logger):
     if getattr(args, 'args', None):
         run_cmd.extend(args.args)
 
+    # Determine if we should use embedded runtime
+    use_embedded = getattr(args, 'embedded', False)
+    if not use_embedded:
+        # Auto-detect: check if app bundle has embedded runtime
+        src_dir = Path(args.src_dir) if args.src_dir else get_source_dir()
+        if src_dir:
+            out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
+            out_dir = src_dir / 'out' / out_dir_name
+            from run import _find_embedded_runtime
+            node_path, openclaw_dir = _find_embedded_runtime(out_dir)
+            if node_path:
+                use_embedded = True
+                logger.info("Detected embedded runtime in app bundle")
+
+    if use_embedded:
+        # Embedded mode: start gateway via Python, then launch browser.
+        # (In production, the C++ RuntimeManager handles this. This path
+        # is for testing the embedded runtime without a full C++ build.)
+        from run import _start_embedded_runtime
+        logger.info('Starting Ocbot with embedded OpenClaw runtime...')
+
+        gateway_proc = _start_embedded_runtime(logger, out_dir)
+        ocbot_proc = subprocess.Popen(run_cmd)
+        try:
+            ocbot_proc.wait()
+        except KeyboardInterrupt:
+            logger.info('Stopping Ocbot...')
+        finally:
+            if ocbot_proc.poll() is None:
+                ocbot_proc.terminate()
+                try:
+                    ocbot_proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    ocbot_proc.kill()
+            if gateway_proc and gateway_proc.poll() is None:
+                logger.info('Stopping embedded OpenClaw gateway...')
+                gateway_proc.terminate()
+                try:
+                    gateway_proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    gateway_proc.kill()
+        return
+
+    # Non-embedded mode: spawn OpenClaw from sibling directory
     logger.info('Starting Ocbot...')
     ocbot_proc = subprocess.Popen(run_cmd)
 
@@ -170,6 +214,7 @@ def main():
     parser_run_full.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Ocbot')
     parser_run_full.add_argument('--official', action='store_true', help='Run official build')
     parser_run_full.add_argument('--update-web', action='store_true', help='Build extension before running')
+    parser_run_full.add_argument('--embedded', action='store_true', help='Force use of embedded OpenClaw runtime from app bundle')
 
     # Update Web (build extension only)
     parser_update_web = subparsers.add_parser('update-web', help='Build ocbot extension only', parents=[parent_parser])

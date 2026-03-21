@@ -1,10 +1,14 @@
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.request
 from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root, get_agent_root
+from openclaw_config import ensure_ocbot_openclaw_config, get_ocbot_config_dir
 
 
 def _sync_extension(logger, out_dir):
@@ -39,6 +43,106 @@ def _sync_extension(logger, out_dir):
         shutil.rmtree(dest)
     shutil.copytree(extension_src, dest)
     logger.info(f"Extension synced to {dest}")
+
+
+def _find_embedded_runtime(out_dir):
+    """Locate embedded Node.js and OpenClaw in app bundle. Returns (node_path, openclaw_dir) or (None, None)."""
+    if sys.platform == 'win32':
+        resources = out_dir / 'resources'
+        node_path = resources / 'node.exe'
+        openclaw_dir = resources / 'openclaw'
+    else:
+        app_dir = out_dir / 'Ocbot.app'
+        frameworks_dir = app_dir / 'Contents' / 'Frameworks'
+        if not frameworks_dir.exists():
+            return None, None
+
+        framework = None
+        for item in frameworks_dir.iterdir():
+            if item.name.endswith('.framework'):
+                framework = item
+                break
+        if not framework:
+            return None, None
+
+        resources = framework / 'Resources'
+        node_path = resources / 'node'
+        openclaw_dir = resources / 'openclaw'
+
+    if node_path.exists() and openclaw_dir.exists():
+        return node_path, openclaw_dir
+    return None, None
+
+
+def _wait_for_gateway(logger, port=18789, timeout=15):
+    """Wait for OpenClaw gateway to become ready on the given port."""
+    url = f'http://127.0.0.1:{port}/'
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1) as response:
+                # Any response means the server is up
+                logger.info(f"OpenClaw gateway ready on port {port}")
+                return True
+        except Exception as e:
+            last_error = e
+        time.sleep(0.5)
+    # Gateway may return errors but still be listening - check with socket
+    try:
+        with socket.create_connection(('127.0.0.1', port), timeout=1):
+            logger.info(f"OpenClaw gateway ready on port {port} (socket check)")
+            return True
+    except Exception:
+        pass
+    logger.error(f"Timed out waiting for OpenClaw gateway on port {port}: {last_error}")
+    return False
+
+
+def _start_embedded_runtime(logger, out_dir):
+    """Start embedded OpenClaw gateway if available. Returns subprocess or None."""
+    node_path, openclaw_dir = _find_embedded_runtime(out_dir)
+    if not node_path:
+        return None
+
+    logger.info("Found embedded runtime, starting OpenClaw gateway...")
+
+    # Ensure config exists
+    config_dir = get_ocbot_config_dir()
+    config_file = ensure_ocbot_openclaw_config(config_dir)
+
+    env = os.environ.copy()
+    env['OPENCLAW_CONFIG_PATH'] = str(config_file)
+    env['OPENCLAW_STATE_DIR'] = str(config_dir)
+
+    gateway_cmd = [
+        str(node_path),
+        str(openclaw_dir / 'openclaw.mjs'),
+        'gateway', 'run',
+        '--port', '18789',
+        '--bind', 'loopback',
+        '--force',
+    ]
+
+    logger.info(f"Gateway command: {' '.join(gateway_cmd)}")
+
+    try:
+        proc = subprocess.Popen(
+            gateway_cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except Exception as e:
+        logger.error(f"Failed to start embedded OpenClaw: {e}")
+        return None
+
+    # Wait for gateway to be ready
+    if not _wait_for_gateway(logger):
+        logger.warning("OpenClaw gateway did not become ready, continuing anyway")
+
+    return proc
+
 
 def run_chromium(args):
     logger = get_logger()
@@ -107,6 +211,12 @@ def run_chromium(args):
 
     logger.info(f"Launching Ocbot...")
     logger.info(f"Command: {' '.join(cmd)}")
+
+    # Note: In production builds, the C++ RuntimeManager (runtime_manager.cc)
+    # handles starting/stopping the embedded OpenClaw gateway automatically.
+    # The Python-layer embedded runtime spawn is only used by dev.py run_full
+    # with --embedded flag for testing the embedded path without a C++ build.
+
     try:
         subprocess.run(cmd)
     except KeyboardInterrupt:
