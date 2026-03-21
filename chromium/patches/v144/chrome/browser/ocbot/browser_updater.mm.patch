@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/browser_updater.mm b/chrome/browser/ocbot/browser_updater.mm
 new file mode 100644
-index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72940aafa8
+index 0000000000000000000000000000000000000000..5f5b0ff1b10c3302db5277d0394c7ead51a3b8a2
 --- /dev/null
 +++ b/chrome/browser/ocbot/browser_updater.mm
-@@ -0,0 +1,517 @@
+@@ -0,0 +1,538 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -296,6 +296,11 @@ index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72
 +    return;
 +  }
 +
++  auto* loader_factory = GetURLLoaderFactory();
++  if (!loader_factory) {
++    return;
++  }
++
 +  LOG(INFO) << "ocbot browser updater: checking for browser updates (R2)...";
 +
 +  auto request = std::make_unique<network::ResourceRequest>();
@@ -310,7 +315,7 @@ index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72
 +      1, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
 +
 +  url_loader_->DownloadToString(
-+      GetURLLoaderFactory(),
++      loader_factory,
 +      base::BindOnce(&OcbotBrowserUpdater::OnR2MetadataFetched,
 +                     weak_factory_.GetWeakPtr()),
 +      kMaxApiResponseSize);
@@ -363,6 +368,11 @@ index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72
 +void OcbotBrowserUpdater::CheckForUpdateFromGitHub() {
 +  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 +
++  auto* loader_factory = GetURLLoaderFactory();
++  if (!loader_factory) {
++    return;
++  }
++
 +  LOG(INFO) << "ocbot browser updater: checking for browser updates (GitHub)...";
 +
 +  auto request = std::make_unique<network::ResourceRequest>();
@@ -378,7 +388,7 @@ index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72
 +      1, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
 +
 +  url_loader_->DownloadToString(
-+      GetURLLoaderFactory(),
++      loader_factory,
 +      base::BindOnce(&OcbotBrowserUpdater::OnReleaseFetched,
 +                     weak_factory_.GetWeakPtr()),
 +      kMaxApiResponseSize);
@@ -428,6 +438,11 @@ index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72
 +                                       const std::string& version) {
 +  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 +
++  auto* loader_factory = GetURLLoaderFactory();
++  if (!loader_factory) {
++    return;
++  }
++
 +  auto request = std::make_unique<network::ResourceRequest>();
 +  request->url = GURL(url);
 +  request->method = "GET";
@@ -440,7 +455,7 @@ index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72
 +      2, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
 +
 +  url_loader_->DownloadToTempFile(
-+      GetURLLoaderFactory(),
++      loader_factory,
 +      base::BindOnce(&OcbotBrowserUpdater::OnDmgDownloaded,
 +                     weak_factory_.GetWeakPtr(), version),
 +      kMaxDmgSize);
@@ -517,7 +532,13 @@ index 0000000000000000000000000000000000000000..4843a6b9ecd5debab3deab4b3ef07b72
 +
 +network::mojom::URLLoaderFactory*
 +OcbotBrowserUpdater::GetURLLoaderFactory() {
-+  return SystemNetworkContextManager::GetInstance()->GetURLLoaderFactory();
++  auto* manager = SystemNetworkContextManager::GetInstance();
++  if (!manager) {
++    LOG(WARNING) << "ocbot browser updater: SystemNetworkContextManager not "
++                 << "available yet, skipping update check";
++    return nullptr;
++  }
++  return manager->GetURLLoaderFactory();
 +}
 +
 +}  // namespace ocbot

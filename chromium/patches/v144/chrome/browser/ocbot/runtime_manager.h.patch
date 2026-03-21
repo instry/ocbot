@@ -1,0 +1,94 @@
+diff --git a/chrome/browser/ocbot/runtime_manager.h b/chrome/browser/ocbot/runtime_manager.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..1bfde06d354029e399500cc59b677ba854103410
+--- /dev/null
++++ b/chrome/browser/ocbot/runtime_manager.h
+@@ -0,0 +1,88 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#ifndef CHROME_BROWSER_OCBOT_RUNTIME_MANAGER_H_
++#define CHROME_BROWSER_OCBOT_RUNTIME_MANAGER_H_
++
++#include <string>
++
++#include "base/files/file_path.h"
++#include "base/memory/weak_ptr.h"
++#include "base/process/process.h"
++#include "base/timer/timer.h"
++
++namespace ocbot {
++
++// Manages the embedded OpenClaw runtime subprocess lifecycle.
++//
++// Responsibilities:
++//   1. Locate embedded Node.js and OpenClaw in the app bundle (Resources/).
++//   2. Ensure a default OpenClaw config exists for Ocbot.
++//   3. Spawn `node openclaw.mjs gateway run` as a child process.
++//   4. Periodically health-check the gateway (every 30s).
++//   5. Auto-restart if the subprocess dies unexpectedly.
++//   6. Gracefully terminate the subprocess on browser shutdown.
++//
++// The RuntimeManager is a singleton created during browser startup.
++// It is skipped in dev mode (--ocbot-extension-dir present).
++class RuntimeManager {
++ public:
++  RuntimeManager();
++  ~RuntimeManager();
++
++  RuntimeManager(const RuntimeManager&) = delete;
++  RuntimeManager& operator=(const RuntimeManager&) = delete;
++
++  // Starts the runtime manager. Locates binaries, generates config,
++  // spawns the gateway subprocess, and begins health checks.
++  void Start();
++
++  // Stops the gateway subprocess gracefully.
++  void Stop();
++
++  // Returns true if the gateway subprocess is currently running.
++  bool IsRunning() const;
++
++  // Returns the gateway port.
++  int GetGatewayPort() const { return kGatewayPort; }
++
++ private:
++  static constexpr int kGatewayPort = 18789;
++
++  // Locate embedded node and openclaw in Resources/.
++  bool LocateEmbeddedRuntime();
++
++  // Ensure OpenClaw config directory and default config file exist.
++  bool EnsureConfig();
++
++  // Spawn the gateway subprocess.
++  void SpawnGateway();
++
++  // Called by health_check_timer_ periodically.
++  void HealthCheck();
++
++  // Called after health check HTTP request completes on the thread pool.
++  void OnHealthCheckComplete(bool alive);
++
++  // Paths resolved at startup.
++  base::FilePath node_path_;
++  base::FilePath openclaw_dir_;
++  base::FilePath config_dir_;
++  base::FilePath config_file_;
++
++  // The gateway child process.
++  base::Process gateway_process_;
++
++  // Health check timer (every 30 seconds).
++  base::RepeatingTimer health_check_timer_;
++
++  // Tracks consecutive health check failures for restart logic.
++  int consecutive_failures_ = 0;
++  static constexpr int kMaxFailuresBeforeRestart = 3;
++
++  base::WeakPtrFactory<RuntimeManager> weak_factory_{this};
++};
++
++}  // namespace ocbot
++
++#endif  // CHROME_BROWSER_OCBOT_RUNTIME_MANAGER_H_

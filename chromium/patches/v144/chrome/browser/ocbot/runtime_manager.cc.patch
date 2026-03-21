@@ -1,0 +1,356 @@
+diff --git a/chrome/browser/ocbot/runtime_manager.cc b/chrome/browser/ocbot/runtime_manager.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..1f2167ed07fe487ca7c338d90d8f9908696f21ca
+--- /dev/null
++++ b/chrome/browser/ocbot/runtime_manager.cc
+@@ -0,0 +1,350 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#include "chrome/browser/ocbot/runtime_manager.h"
++
++#include "base/command_line.h"
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/json/json_writer.h"
++#include "base/logging.h"
++#include "base/path_service.h"
++#include "base/process/launch.h"
++#include "base/process/process.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/task/thread_pool.h"
++#include "base/values.h"
++#include "build/build_config.h"
++#include "chrome/common/chrome_paths.h"
++#include "content/public/browser/browser_thread.h"
++
++#if BUILDFLAG(IS_WIN)
++#include "base/base_paths_win.h"
++#endif
++
++#if BUILDFLAG(IS_POSIX)
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <arpa/inet.h>
++#include <unistd.h>
++#elif BUILDFLAG(IS_WIN)
++#include <winsock2.h>
++#include <ws2tcpip.h>
++#pragma comment(lib, "ws2_32.lib")
++#endif
++
++namespace ocbot {
++
++namespace {
++
++// Health check interval: 30 seconds.
++constexpr base::TimeDelta kHealthCheckInterval = base::Seconds(30);
++
++// Initial delay before first gateway spawn attempt.
++constexpr base::TimeDelta kStartDelay = base::Seconds(5);
++
++// Timeout for TCP connect health check (milliseconds).
++constexpr int kHealthCheckTimeoutMs = 2000;
++
++// Check if a TCP port is listening by attempting a connection.
++bool IsPortListening(int port) {
++  int sock = socket(AF_INET, SOCK_STREAM, 0);
++  if (sock < 0) {
++    return false;
++  }
++
++  // Set timeout
++  struct timeval timeout;
++  timeout.tv_sec = kHealthCheckTimeoutMs / 1000;
++  timeout.tv_usec = (kHealthCheckTimeoutMs % 1000) * 1000;
++  setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
++
++  struct sockaddr_in addr;
++  memset(&addr, 0, sizeof(addr));
++  addr.sin_family = AF_INET;
++  addr.sin_port = htons(port);
++  inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
++
++  int result = connect(sock, (struct sockaddr*)&addr, sizeof(addr));
++#if BUILDFLAG(IS_WIN)
++  closesocket(sock);
++#else
++  close(sock);
++#endif
++  return result == 0;
++}
++
++// Generate default OpenClaw config JSON for Ocbot.
++std::string GenerateDefaultConfig() {
++  base::Value::Dict browser_profile;
++  browser_profile.Set("cdpUrl", "http://127.0.0.1:9222");
++  browser_profile.Set("attachOnly", true);
++  browser_profile.Set("driver", "openclaw");
++
++  base::Value::Dict profiles;
++  profiles.Set("ocbot", std::move(browser_profile));
++
++  base::Value::Dict browser;
++  browser.Set("profiles", std::move(profiles));
++  browser.Set("defaultProfile", "ocbot");
++
++  base::Value::Dict gateway;
++  gateway.Set("port", 18789);
++  gateway.Set("mode", "local");
++  gateway.Set("bind", "loopback");
++
++  base::Value::Dict root;
++  root.Set("browser", std::move(browser));
++  root.Set("gateway", std::move(gateway));
++
++  std::string json;
++  base::JSONWriter::WriteWithOptions(
++      root, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json);
++  return json;
++}
++
++}  // namespace
++
++RuntimeManager::RuntimeManager() = default;
++
++RuntimeManager::~RuntimeManager() {
++  Stop();
++}
++
++void RuntimeManager::Start() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Note: Start() is called from ComponentLoader::AddDefaultComponentExtensions
++  // which already holds a base::ScopedAllowBlocking, so file I/O here is fine.
++
++  if (!LocateEmbeddedRuntime()) {
++    LOG(INFO) << "ocbot runtime: no embedded runtime found, skipping";
++    return;
++  }
++
++  if (!EnsureConfig()) {
++    LOG(ERROR) << "ocbot runtime: failed to set up config";
++    return;
++  }
++
++  LOG(INFO) << "ocbot runtime: starting embedded OpenClaw gateway...";
++
++  // Delay the initial spawn slightly to let the browser finish startup.
++  content::GetUIThreadTaskRunner({})->PostDelayedTask(
++      FROM_HERE,
++      base::BindOnce(&RuntimeManager::SpawnGateway,
++                      weak_factory_.GetWeakPtr()),
++      kStartDelay);
++}
++
++void RuntimeManager::Stop() {
++  health_check_timer_.Stop();
++  weak_factory_.InvalidateWeakPtrs();
++
++  if (gateway_process_.IsValid()) {
++    LOG(INFO) << "ocbot runtime: stopping OpenClaw gateway (pid="
++              << gateway_process_.Pid() << ")...";
++    gateway_process_.Terminate(/*exit_code=*/0, /*wait=*/false);
++    // Give it a moment to exit gracefully.
++    gateway_process_.WaitForExitWithTimeout(base::Seconds(5), nullptr);
++    gateway_process_.Close();
++  }
++}
++
++bool RuntimeManager::IsRunning() const {
++  if (!gateway_process_.IsValid()) {
++    return false;
++  }
++  // WaitForExitWithTimeout with zero timeout is a non-blocking check.
++  // Returns true if the process has exited, false if still running.
++  return !gateway_process_.WaitForExitWithTimeout(base::TimeDelta(), nullptr);
++}
++
++bool RuntimeManager::LocateEmbeddedRuntime() {
++  base::FilePath resources_dir;
++  if (!base::PathService::Get(chrome::DIR_RESOURCES, &resources_dir)) {
++    LOG(WARNING) << "ocbot runtime: cannot resolve DIR_RESOURCES";
++    return false;
++  }
++
++  node_path_ = resources_dir.Append(FILE_PATH_LITERAL("node"));
++  openclaw_dir_ = resources_dir.Append(FILE_PATH_LITERAL("openclaw"));
++
++#if BUILDFLAG(IS_WIN)
++  node_path_ = resources_dir.Append(FILE_PATH_LITERAL("node.exe"));
++#endif
++
++  if (!base::PathExists(node_path_)) {
++    LOG(INFO) << "ocbot runtime: node binary not found at " << node_path_;
++    return false;
++  }
++
++  base::FilePath openclaw_entry =
++      openclaw_dir_.Append(FILE_PATH_LITERAL("openclaw.mjs"));
++  if (!base::PathExists(openclaw_entry)) {
++    LOG(INFO) << "ocbot runtime: openclaw.mjs not found at " << openclaw_entry;
++    return false;
++  }
++
++  LOG(INFO) << "ocbot runtime: found node at " << node_path_;
++  LOG(INFO) << "ocbot runtime: found openclaw at " << openclaw_dir_;
++  return true;
++}
++
++bool RuntimeManager::EnsureConfig() {
++  // Determine config directory.
++#if BUILDFLAG(IS_MAC)
++  base::FilePath home_dir;
++  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++    return false;
++  }
++  config_dir_ = home_dir.Append(FILE_PATH_LITERAL("Library"))
++                    .Append(FILE_PATH_LITERAL("Application Support"))
++                    .Append(FILE_PATH_LITERAL("Ocbot"))
++                    .Append(FILE_PATH_LITERAL("openclaw-config"));
++#elif BUILDFLAG(IS_WIN)
++  base::FilePath appdata_dir;
++  if (!base::PathService::Get(base::DIR_ROAMING_APP_DATA, &appdata_dir)) {
++    return false;
++  }
++  config_dir_ = appdata_dir.Append(FILE_PATH_LITERAL("Ocbot"))
++                    .Append(FILE_PATH_LITERAL("openclaw-config"));
++#else
++  base::FilePath home_dir;
++  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++    return false;
++  }
++  config_dir_ = home_dir.Append(FILE_PATH_LITERAL(".config"))
++                    .Append(FILE_PATH_LITERAL("ocbot"))
++                    .Append(FILE_PATH_LITERAL("openclaw-config"));
++#endif
++
++  if (!base::CreateDirectory(config_dir_)) {
++    LOG(ERROR) << "ocbot runtime: failed to create config dir: " << config_dir_;
++    return false;
++  }
++
++  config_file_ = config_dir_.Append(FILE_PATH_LITERAL("openclaw.json"));
++
++  // Only generate default config if it doesn't exist.
++  if (!base::PathExists(config_file_)) {
++    std::string config_json = GenerateDefaultConfig();
++    if (!base::WriteFile(config_file_, config_json)) {
++      LOG(ERROR) << "ocbot runtime: failed to write config: " << config_file_;
++      return false;
++    }
++    LOG(INFO) << "ocbot runtime: generated default config at " << config_file_;
++  }
++
++  return true;
++}
++
++void RuntimeManager::SpawnGateway() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (IsRunning()) {
++    LOG(INFO) << "ocbot runtime: gateway already running";
++    return;
++  }
++
++  base::FilePath openclaw_entry =
++      openclaw_dir_.Append(FILE_PATH_LITERAL("openclaw.mjs"));
++
++  base::LaunchOptions options;
++
++  // Set environment variables for OpenClaw.
++  options.environment["OPENCLAW_CONFIG_PATH"] = config_file_.value();
++  options.environment["OPENCLAW_STATE_DIR"] = config_dir_.value();
++
++#if BUILDFLAG(IS_WIN)
++  // Hide the console window on Windows.
++  options.start_hidden = true;
++#endif
++
++  std::vector<std::string> argv = {
++      node_path_.value(),
++      openclaw_entry.value(),
++      "gateway",
++      "run",
++      "--port",
++      base::NumberToString(kGatewayPort),
++      "--bind",
++      "loopback",
++      "--force",
++  };
++
++  LOG(INFO) << "ocbot runtime: spawning gateway: " << node_path_ << " "
++            << openclaw_entry << " gateway run --port " << kGatewayPort;
++
++  gateway_process_ = base::LaunchProcess(argv, options);
++
++  if (!gateway_process_.IsValid()) {
++    LOG(ERROR) << "ocbot runtime: failed to spawn gateway process";
++    return;
++  }
++
++  LOG(INFO) << "ocbot runtime: gateway started (pid="
++            << gateway_process_.Pid() << ")";
++
++  // Start periodic health checks.
++  consecutive_failures_ = 0;
++  health_check_timer_.Start(
++      FROM_HERE, kHealthCheckInterval,
++      base::BindRepeating(&RuntimeManager::HealthCheck,
++                          weak_factory_.GetWeakPtr()));
++}
++
++void RuntimeManager::HealthCheck() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Check if process is still alive first.
++  if (gateway_process_.IsValid() &&
++      gateway_process_.WaitForExitWithTimeout(base::TimeDelta(), nullptr)) {
++    LOG(WARNING) << "ocbot runtime: gateway process exited unexpectedly";
++    gateway_process_.Close();
++    consecutive_failures_ = kMaxFailuresBeforeRestart;
++    OnHealthCheckComplete(false);
++    return;
++  }
++
++  // Do TCP port check on background thread.
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE,
++      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
++       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
++      base::BindOnce(&IsPortListening, kGatewayPort),
++      base::BindOnce(&RuntimeManager::OnHealthCheckComplete,
++                      weak_factory_.GetWeakPtr()));
++}
++
++void RuntimeManager::OnHealthCheckComplete(bool alive) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (alive) {
++    if (consecutive_failures_ > 0) {
++      LOG(INFO) << "ocbot runtime: gateway recovered";
++    }
++    consecutive_failures_ = 0;
++    return;
++  }
++
++  consecutive_failures_++;
++  LOG(WARNING) << "ocbot runtime: health check failed ("
++               << consecutive_failures_ << "/" << kMaxFailuresBeforeRestart
++               << ")";
++
++  if (consecutive_failures_ >= kMaxFailuresBeforeRestart) {
++    LOG(INFO) << "ocbot runtime: restarting gateway...";
++
++    // Clean up old process if still lingering.
++    if (gateway_process_.IsValid()) {
++      gateway_process_.Terminate(/*exit_code=*/0, /*wait=*/false);
++      gateway_process_.Close();
++    }
++
++    consecutive_failures_ = 0;
++    SpawnGateway();
++  }
++}
++
++}  // namespace ocbot
