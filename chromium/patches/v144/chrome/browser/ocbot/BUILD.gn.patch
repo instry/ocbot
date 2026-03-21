@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/BUILD.gn b/chrome/browser/ocbot/BUILD.gn
 new file mode 100644
-index 0000000000000000000000000000000000000000..eae2cfcd09a92e03a838650cd7336a470e2abcac
+index 0000000000000000000000000000000000000000..dd8340a060f4954b95915315aa212e920f4d3ecf
 --- /dev/null
 +++ b/chrome/browser/ocbot/BUILD.gn
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,43 @@
 +# Copyright 2025 The Ocbot Authors
 +# SPDX-License-Identifier: MIT
 +
@@ -19,7 +19,11 @@ index 0000000000000000000000000000000000000000..eae2cfcd09a92e03a838650cd7336a47
 +  ]
 +
 +  if (is_mac) {
-+    sources += [ "browser_updater.mm" ]
++    sources += [
++      "browser_updater.mm",
++      "ocbot_status_icon_mac.h",
++      "ocbot_status_icon_mac.mm",
++    ]
 +  } else {
 +    sources += [ "browser_updater.cc" ]
 +  }
@@ -27,6 +31,7 @@ index 0000000000000000000000000000000000000000..eae2cfcd09a92e03a838650cd7336a47
 +  deps = [
 +    "//base",
 +    "//chrome/common",
++    "//components/keep_alive_registry",
 +    "//components/version_info",
 +    "//content/public/browser",
 +    "//crypto",
@@ -37,4 +42,8 @@ index 0000000000000000000000000000000000000000..eae2cfcd09a92e03a838650cd7336a47
 +    "//services/network/public/mojom",
 +    "//third_party/zlib/google:zip",
 +  ]
++
++  if (is_mac) {
++    frameworks = [ "UserNotifications.framework" ]
++  }
 +}

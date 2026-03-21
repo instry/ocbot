@@ -244,6 +244,14 @@ def _install_extension(logger, out_dir):
     shutil.copytree(extension_src, dest)
     logger.info(f"Extension installed to {dest}")
 
+    # Copy menu bar icon to Framework Resources (macOS only).
+    if sys.platform != 'win32':
+        icon_src = get_source_dir() / 'chrome' / 'app' / 'theme' / 'chromium' / 'ocbot_toolbar_icon.png'
+        if icon_src.exists():
+            icon_dest = framework / 'Resources' / 'ocbot_toolbar_icon.png'
+            shutil.copy2(icon_src, icon_dest)
+            logger.info(f"Status bar icon installed to {icon_dest}")
+
 
 def _is_macho(path):
     """Check if a file is a Mach-O binary."""

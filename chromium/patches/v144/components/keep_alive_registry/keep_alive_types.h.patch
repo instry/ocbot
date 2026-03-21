@@ -1,0 +1,14 @@
+diff --git a/components/keep_alive_registry/keep_alive_types.h b/components/keep_alive_registry/keep_alive_types.h
+index 3bc7d30f06e2ff33181c7b22925d6887bae84831..fc0069b1fb2ed8ec566a7eac5cde4226480b04f0 100644
+--- a/components/keep_alive_registry/keep_alive_types.h
++++ b/components/keep_alive_registry/keep_alive_types.h
+@@ -87,6 +87,9 @@ enum class KeepAliveOrigin {
+ 
+   // components/metrics
+   UMA_LOG,
++
++  // c/b/ocbot
++  OCBOT_RUNTIME,
+ };
+ 
+ // Restart: Allow Chrome to restart when all the registered KeepAlives allow

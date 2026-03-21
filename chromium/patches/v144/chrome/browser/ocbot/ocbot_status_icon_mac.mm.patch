@@ -1,0 +1,250 @@
+diff --git a/chrome/browser/ocbot/ocbot_status_icon_mac.mm b/chrome/browser/ocbot/ocbot_status_icon_mac.mm
+new file mode 100644
+index 0000000000000000000000000000000000000000..b5041d6c4270875e6b2a886624bdad24e18bbcba
+--- /dev/null
++++ b/chrome/browser/ocbot/ocbot_status_icon_mac.mm
+@@ -0,0 +1,244 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#include "chrome/browser/ocbot/ocbot_status_icon_mac.h"
++
++#import <Cocoa/Cocoa.h>
++#import <UserNotifications/UserNotifications.h>
++
++#include "base/logging.h"
++#include "base/memory/raw_ptr.h"
++#include "base/path_service.h"
++#include "chrome/browser/app_controller_mac.h"
++#include "chrome/browser/browser_process.h"
++#include "chrome/browser/lifetime/application_lifetime.h"
++#include "chrome/browser/profiles/profile_manager.h"
++#include "chrome/browser/ui/browser_commands.h"
++#include "chrome/browser/ui/browser_list.h"
++#include "chrome/common/chrome_paths.h"
++#include "content/public/browser/browser_thread.h"
++
++// C callbacks invoked by the ObjC delegate — defined after Impl.
++static void OcbotStatusIconOpenCallback(void* impl_ptr);
++static void OcbotStatusIconQuitCallback(void* impl_ptr);
++
++@interface OcbotStatusIconMenuDelegate : NSObject
++@property(nonatomic, assign) void* implPtr;
++- (void)openOcbot:(id)sender;
++- (void)quitOcbot:(id)sender;
++@end
++
++@implementation OcbotStatusIconMenuDelegate
++
++@synthesize implPtr = _implPtr;
++
++- (void)openOcbot:(id)sender {
++  if (_implPtr) {
++    OcbotStatusIconOpenCallback(_implPtr);
++  }
++}
++
++- (void)quitOcbot:(id)sender {
++  if (_implPtr) {
++    OcbotStatusIconQuitCallback(_implPtr);
++  }
++}
++
++@end
++
++namespace ocbot {
++
++// Private Objective-C / Cocoa implementation details.
++class OcbotStatusIcon::Impl {
++ public:
++  explicit Impl(OcbotStatusIcon* owner) : owner_(owner) {
++    CreateStatusItem();
++  }
++
++  ~Impl() {
++    if (menu_delegate_) {
++      menu_delegate_.implPtr = nullptr;
++    }
++    if (status_item_) {
++      [[NSStatusBar systemStatusBar] removeStatusItem:status_item_];
++      status_item_ = nil;
++    }
++    menu_delegate_ = nil;
++  }
++
++  void RebuildMenu() {
++    NSMenu* menu = [[NSMenu alloc] init];
++    [menu setAutoenablesItems:NO];
++
++    // Status line.
++    NSString* status_text = nil;
++    switch (owner_->status_) {
++      case Status::kHealthy:
++        status_text = @"\u25CF Ocbot is running";
++        break;
++      case Status::kUpdating:
++        status_text = @"\u25D0 Ocbot is updating...";
++        break;
++      case Status::kError:
++        status_text = @"\u25CB Ocbot runtime error";
++        break;
++    }
++    NSMenuItem* status_item = [[NSMenuItem alloc] initWithTitle:status_text
++                                                         action:nil
++                                                  keyEquivalent:@""];
++    [status_item setEnabled:NO];
++    [menu addItem:status_item];
++
++    [menu addItem:[NSMenuItem separatorItem]];
++
++    // Open Ocbot.
++    NSMenuItem* open_item = [[NSMenuItem alloc] initWithTitle:@"Open Ocbot"
++                                                       action:@selector(openOcbot:)
++                                                keyEquivalent:@""];
++    [open_item setTarget:menu_delegate_];
++    [menu addItem:open_item];
++
++    [menu addItem:[NSMenuItem separatorItem]];
++
++    // Runtime version (info, disabled).
++    if (!owner_->runtime_version_.empty()) {
++      NSString* version_text =
++          [NSString stringWithFormat:@"Runtime: %s",
++                                     owner_->runtime_version_.c_str()];
++      NSMenuItem* version_item =
++          [[NSMenuItem alloc] initWithTitle:version_text
++                                     action:nil
++                              keyEquivalent:@""];
++      [version_item setEnabled:NO];
++      [menu addItem:version_item];
++      [menu addItem:[NSMenuItem separatorItem]];
++    }
++
++    // Quit Ocbot.
++    NSMenuItem* quit_item = [[NSMenuItem alloc] initWithTitle:@"Quit Ocbot"
++                                                       action:@selector(quitOcbot:)
++                                                keyEquivalent:@""];
++    [quit_item setTarget:menu_delegate_];
++    [menu addItem:quit_item];
++
++    [status_item_ setMenu:menu];
++  }
++
++  void OpenOcbot() {
++    DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++    app_controller_mac::RunInLastProfileSafely(
++        base::BindOnce([](Profile* profile) {
++          if (profile) {
++            chrome::NewEmptyWindow(profile);
++          }
++        }),
++        app_controller_mac::kShowProfilePickerOnFailure);
++  }
++
++  void QuitOcbot() {
++    DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++    chrome::AttemptExit();
++  }
++
++  void ShowBackgroundNotice() {
++    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
++    if ([defaults boolForKey:@"OcbotDidShowBackgroundNotice"]) {
++      return;
++    }
++
++    UNUserNotificationCenter* center =
++        [UNUserNotificationCenter currentNotificationCenter];
++
++    UNMutableNotificationContent* content =
++        [[UNMutableNotificationContent alloc] init];
++    content.title = @"Ocbot";
++    content.body = @"Ocbot is still running in the background. "
++                    "Click the menu bar icon to reopen.";
++
++    UNNotificationRequest* request =
++        [UNNotificationRequest requestWithIdentifier:@"ocbot-background-notice"
++                                             content:content
++                                             trigger:nil];
++    [center addNotificationRequest:request
++             withCompletionHandler:^(NSError* _Nullable error) {
++               if (error) {
++                 LOG(WARNING) << "ocbot: failed to show background notice: "
++                              << error.localizedDescription.UTF8String;
++               }
++             }];
++
++    [defaults setBool:YES forKey:@"OcbotDidShowBackgroundNotice"];
++  }
++
++ private:
++  void CreateStatusItem() {
++    status_item_ = [[NSStatusBar systemStatusBar]
++        statusItemWithLength:NSSquareStatusItemLength];
++
++    // Load the octopus icon from Framework Resources.
++    base::FilePath resources_dir;
++    if (base::PathService::Get(chrome::DIR_RESOURCES, &resources_dir)) {
++      base::FilePath icon_path = resources_dir.Append(
++          FILE_PATH_LITERAL("ocbot_toolbar_icon.png"));
++      NSString* path =
++          [NSString stringWithUTF8String:icon_path.value().c_str()];
++      NSImage* icon = [[NSImage alloc] initWithContentsOfFile:path];
++      if (icon) {
++        [icon setSize:NSMakeSize(22, 22)];
++        [[status_item_ button] setImage:icon];
++      } else {
++        [[status_item_ button] setTitle:@"OC"];
++      }
++    } else {
++      [[status_item_ button] setTitle:@"OC"];
++    }
++
++    // Create the Objective-C delegate.
++    menu_delegate_ = [[OcbotStatusIconMenuDelegate alloc] init];
++    menu_delegate_.implPtr = this;
++
++    RebuildMenu();
++  }
++
++  raw_ptr<OcbotStatusIcon> owner_;
++  NSStatusItem* __strong status_item_;
++  OcbotStatusIconMenuDelegate* __strong menu_delegate_;
++};
++
++// -- OcbotStatusIcon --
++
++OcbotStatusIcon::OcbotStatusIcon() {
++  impl_ = std::make_unique<Impl>(this);
++  BrowserList::AddObserver(this);
++}
++
++OcbotStatusIcon::~OcbotStatusIcon() {
++  BrowserList::RemoveObserver(this);
++}
++
++void OcbotStatusIcon::SetStatus(Status status) {
++  status_ = status;
++  impl_->RebuildMenu();
++}
++
++void OcbotStatusIcon::SetRuntimeVersion(const std::string& version) {
++  runtime_version_ = version;
++  impl_->RebuildMenu();
++}
++
++void OcbotStatusIcon::OnBrowserRemoved(Browser* browser) {
++  if (BrowserList::GetInstance()->empty()) {
++    impl_->ShowBackgroundNotice();
++  }
++}
++
++}  // namespace ocbot
++
++// C callback implementations — Impl is fully defined above.
++static void OcbotStatusIconOpenCallback(void* impl_ptr) {
++  static_cast<ocbot::OcbotStatusIcon::Impl*>(impl_ptr)->OpenOcbot();
++}
++
++static void OcbotStatusIconQuitCallback(void* impl_ptr) {
++  static_cast<ocbot::OcbotStatusIcon::Impl*>(impl_ptr)->QuitOcbot();
++}

@@ -1,0 +1,51 @@
+diff --git a/chrome/browser/ocbot/ocbot_status_icon_mac.h b/chrome/browser/ocbot/ocbot_status_icon_mac.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..e0caeb6bbe3b6063da9ebe4a002cbd4bcbdf8888
+--- /dev/null
++++ b/chrome/browser/ocbot/ocbot_status_icon_mac.h
+@@ -0,0 +1,45 @@
++// Copyright 2025 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#ifndef CHROME_BROWSER_OCBOT_OCBOT_STATUS_ICON_MAC_H_
++#define CHROME_BROWSER_OCBOT_OCBOT_STATUS_ICON_MAC_H_
++
++#include <memory>
++#include <string>
++
++#include "chrome/browser/ui/browser_list_observer.h"
++
++namespace ocbot {
++
++// macOS menu bar status icon for Ocbot.
++// Shows runtime status and provides Open/Quit actions.
++// Also observes BrowserList to show a one-time notification when all
++// windows close (informing the user that Ocbot is still running).
++class OcbotStatusIcon : public BrowserListObserver {
++ public:
++  OcbotStatusIcon();
++  ~OcbotStatusIcon() override;
++
++  OcbotStatusIcon(const OcbotStatusIcon&) = delete;
++  OcbotStatusIcon& operator=(const OcbotStatusIcon&) = delete;
++
++  enum class Status { kHealthy, kUpdating, kError };
++  void SetStatus(Status status);
++  void SetRuntimeVersion(const std::string& version);
++
++  // BrowserListObserver:
++  void OnBrowserRemoved(Browser* browser) override;
++
++  // Forward-declared; defined in .mm.
++  class Impl;
++
++ private:
++  std::unique_ptr<Impl> impl_;
++
++  Status status_ = Status::kHealthy;
++  std::string runtime_version_;
++};
++
++}  // namespace ocbot
++
++#endif  // CHROME_BROWSER_OCBOT_OCBOT_STATUS_ICON_MAC_H_

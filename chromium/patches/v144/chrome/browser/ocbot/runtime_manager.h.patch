@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.h b/chrome/browser/ocbot/runtime_manager.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..65c3a5a177222fbc351220cd199fb5e1d97b4a1a
+index 0000000000000000000000000000000000000000..81a4daaf160157f153033c1c0bdd910d6b7b14b2
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.h
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,110 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -16,6 +16,7 @@ index 0000000000000000000000000000000000000000..65c3a5a177222fbc351220cd199fb5e1
 +#include "base/memory/weak_ptr.h"
 +#include "base/process/process.h"
 +#include "base/timer/timer.h"
++#include "components/keep_alive_registry/scoped_keep_alive.h"
 +
 +namespace ocbot {
 +
@@ -103,6 +104,9 @@ index 0000000000000000000000000000000000000000..65c3a5a177222fbc351220cd199fb5e1
 +  // Tracks consecutive health check failures for restart logic.
 +  int consecutive_failures_ = 0;
 +  static constexpr int kMaxFailuresBeforeRestart = 3;
++
++  // Keeps the browser process alive while the runtime is running.
++  std::unique_ptr<ScopedKeepAlive> keep_alive_;
 +
 +  base::WeakPtrFactory<RuntimeManager> weak_factory_{this};
 +};

@@ -1,0 +1,13 @@
+diff --git a/components/keep_alive_registry/keep_alive_types.cc b/components/keep_alive_registry/keep_alive_types.cc
+index 15e96dd5c76c5e39e90e28f19256dca116f76319..90d313d585e8c24ffc25bac70e2a4898b6097c84 100644
+--- a/components/keep_alive_registry/keep_alive_types.cc
++++ b/components/keep_alive_registry/keep_alive_types.cc
+@@ -92,6 +92,8 @@ std::ostream& operator<<(std::ostream& out, const KeepAliveOrigin& origin) {
+       return out << "SESSION_DATA_DELETER";
+     case KeepAliveOrigin::UMA_LOG:
+       return out << "UMA_LOG";
++    case KeepAliveOrigin::OCBOT_RUNTIME:
++      return out << "OCBOT_RUNTIME";
+   }
+ 
+   NOTREACHED() << static_cast<int>(origin);
