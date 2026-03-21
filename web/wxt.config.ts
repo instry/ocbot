@@ -35,7 +35,8 @@ export default defineConfig({
       'scripting',
       'debugger',
       'identity',
-      'alarms'
+      'alarms',
+      'ocbot'
     ],
     host_permissions: [
       '<all_urls>',

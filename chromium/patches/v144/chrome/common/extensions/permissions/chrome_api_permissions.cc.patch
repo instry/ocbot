@@ -1,0 +1,12 @@
+diff --git a/chrome/common/extensions/permissions/chrome_api_permissions.cc b/chrome/common/extensions/permissions/chrome_api_permissions.cc
+index d23585714d945b80646674235cd599847a886066..d703f5545fda9d9d390dd653e237d2c58ed1ca87 100644
+--- a/chrome/common/extensions/permissions/chrome_api_permissions.cc
++++ b/chrome/common/extensions/permissions/chrome_api_permissions.cc
+@@ -45,6 +45,7 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
+      APIPermissionInfo::kFlagCannotBeOptional},
+     {APIPermissionID::kExperimentalActor, "experimentalActor"},
+     {APIPermissionID::kExperimentalAiData, "experimentalAiData"},
++    {APIPermissionID::kOcbot, "ocbot"},
+     {APIPermissionID::kGcm, "gcm",
+      APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
+     {APIPermissionID::kGeolocation, "geolocation",

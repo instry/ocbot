@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   inputHistory: 'ocbot_input_history',
   channelConfigs: 'ocbot_channel_configs',
   openClawConfig: 'ocbot_openclaw_config',
+  onboardingComplete: 'ocbot_onboarding_complete',
 } as const
 
 const MAX_INPUT_HISTORY = 100
@@ -139,4 +140,15 @@ export async function getOpenClawConfig(): Promise<OpenClawConfig> {
 
 export async function setOpenClawConfig(config: OpenClawConfig): Promise<void> {
   await storage.set({ [STORAGE_KEYS.openClawConfig]: config })
+}
+
+// --- Onboarding ---
+
+export async function isOnboardingComplete(): Promise<boolean> {
+  const result = await storage.get(STORAGE_KEYS.onboardingComplete)
+  return !!result[STORAGE_KEYS.onboardingComplete]
+}
+
+export async function setOnboardingComplete(): Promise<void> {
+  await storage.set({ [STORAGE_KEYS.onboardingComplete]: true })
 }

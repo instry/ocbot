@@ -291,5 +291,8 @@
   "cron.preset.1min": "1 min",
   "cron.preset.5min": "5 min",
   "cron.preset.30min": "30 min",
-  "cron.preset.1hour": "1 hour"
+  "cron.preset.1hour": "1 hour",
+  "onboarding.title": "Welcome to OpenClaw",
+  "onboarding.description": "Configure an AI model to get started. You can change this later in Settings.",
+  "onboarding.skip": "Skip for now"
 }
