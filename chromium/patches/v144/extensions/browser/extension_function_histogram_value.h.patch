@@ -1,5 +1,5 @@
 diff --git a/extensions/browser/extension_function_histogram_value.h b/extensions/browser/extension_function_histogram_value.h
-index 3ba90bcfdb2d56d7d080dd8e77b6375b525f9939..5a9641870174986981f570abf1e25a1d8c980825 100644
+index 3ba90bcfdb2d56d7d080dd8e77b6375b525f9939..1d4dd5b62ab8b613bec5e9e092865da248440acd 100644
 --- a/extensions/browser/extension_function_histogram_value.h
 +++ b/extensions/browser/extension_function_histogram_value.h
 @@ -2014,6 +2014,30 @@ enum HistogramValue {
@@ -28,8 +28,8 @@ index 3ba90bcfdb2d56d7d080dd8e77b6375b525f9939..5a9641870174986981f570abf1e25a1d
 +  DELETED_OCBOT_READFILE = 1973,
 +  DELETED_OCBOT_WRITEFILE = 1974,
 +  DELETED_OCBOT_LISTDIR = 1975,
-+  OCBOT_SETPROVIDER = 1976,
-+  OCBOT_GETCONFIG = 1977,
++  DELETED_OCBOT_SETPROVIDER = 1976,
++  DELETED_OCBOT_GETCONFIG = 1977,
    // Last entry: Add new entries above, then run:
    // tools/metrics/histograms/update_extension_histograms.py
    ENUM_BOUNDARY
