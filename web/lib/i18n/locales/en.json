@@ -292,7 +292,7 @@
   "cron.preset.5min": "5 min",
   "cron.preset.30min": "30 min",
   "cron.preset.1hour": "1 hour",
-  "onboarding.title": "Welcome to OpenClaw",
+  "onboarding.title": "Welcome to Ocbot",
   "onboarding.description": "Configure an AI model to get started. You can change this later in Settings.",
   "onboarding.skip": "Skip for now"
 }

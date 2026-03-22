@@ -1,8 +1,8 @@
 // lib/skills/create.ts — Skill creation from agent execution or manual input
 import type { AgentReplayStep } from '@/lib/agent/agentCache'
-import type { LlmProvider, LlmRequestMessage } from '@/lib/llm/types'
+import type { LlmRequestMessage } from '@/lib/llm/types'
 import type { Skill, SkillParameter, SkillPrecondition } from './types'
-import { streamChat } from '@/lib/llm/client'
+import { streamChat } from '@/lib/gateway/client'
 import { deriveUrlPattern } from './urlPattern'
 
 // ---------------------------------------------------------------------------
@@ -56,12 +56,13 @@ function deriveNameFromInstruction(instruction: string): string {
 
 /** Collect the full text response from the LLM stream. */
 async function collectStreamText(
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   messages: LlmRequestMessage[],
   signal?: AbortSignal,
 ): Promise<string> {
   let text = ''
-  for await (const event of streamChat(provider, messages, undefined, signal)) {
+  for await (const event of streamChat(gatewayUrl, model, messages, undefined, signal)) {
     if (event.type === 'text_delta') {
       text += event.text
     } else if (event.type === 'error') {
@@ -401,7 +402,8 @@ export async function createSkillFromExecution(
   instruction: string,
   steps: AgentReplayStep[],
   startUrl: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<Skill> {
   const summary = summariseSteps(steps)
@@ -409,7 +411,7 @@ export async function createSkillFromExecution(
   const now = Date.now()
 
   try {
-    const raw = await collectStreamText(provider, [{ role: 'user', content: prompt }], signal)
+    const raw = await collectStreamText(gatewayUrl, model, [{ role: 'user', content: prompt }], signal)
     const parsed = parseSkillMd(stripCodeFences(raw))
 
     if (parsed) {

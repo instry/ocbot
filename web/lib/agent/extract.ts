@@ -1,4 +1,3 @@
-import type { LlmProvider } from '../llm/types'
 import { capturePageSnapshot } from './snapshot'
 import { inferExtraction, type ExtractedData } from './inference'
 
@@ -16,7 +15,8 @@ async function getActiveTabId(): Promise<number> {
 
 export async function extract(
   instruction: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<ExtractResult> {
   try {
@@ -24,7 +24,7 @@ export async function extract(
     const snapshot = await capturePageSnapshot(tabId)
     if (signal?.aborted) throw new Error('Aborted')
 
-    const result: ExtractedData = await inferExtraction(instruction, snapshot, provider, signal)
+    const result: ExtractedData = await inferExtraction(instruction, snapshot, gatewayUrl, model, signal)
     return { success: true, data: result.data }
   } catch (err: unknown) {
     return {

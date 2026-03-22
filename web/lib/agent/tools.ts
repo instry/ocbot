@@ -1,4 +1,4 @@
-import type { ToolDefinition, LlmProvider } from '../llm/types'
+import type { ToolDefinition } from '../llm/types'
 import type { ActCache } from './cache'
 import type { Variables } from './variables'
 import { act, actDirect, type ActOptions } from './act'
@@ -219,7 +219,8 @@ async function toolWaitForNavigation(args: { timeout?: string }): Promise<string
 export async function executeTool(
   name: string,
   argsJson: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   cache: ActCache,
   signal?: AbortSignal,
   variables?: Variables,
@@ -275,7 +276,7 @@ export async function executeTool(
         const instruction = variables
           ? substituteVariables(args.instruction, variables)
           : args.instruction
-        const result = await act(instruction, provider, cache, signal, options)
+        const result = await act(instruction, gatewayUrl, model, cache, signal, options)
         const status = result.cacheHit ? '(cache hit)' : result.selfHealed ? '(self-healed)' : '(new)'
         return JSON.stringify({
           success: result.success,
@@ -287,12 +288,12 @@ export async function executeTool(
         })
       }
       case 'extract': {
-        const result = await extract(args.instruction, provider, signal)
+        const result = await extract(args.instruction, gatewayUrl, model, signal)
         if (!result.success) return `Error extracting: ${result.error}`
         return JSON.stringify(result.data)
       }
       case 'observe': {
-        const result = await observe(args.instruction, provider, signal)
+        const result = await observe(args.instruction, gatewayUrl, model, signal)
         if (!result.success) return `Error observing: ${result.error}`
         return JSON.stringify(result.actions)
       }
@@ -330,7 +331,7 @@ export async function executeTool(
         return JSON.stringify({ __screenshot__: true, data, sizeKB: Math.round(data.length / 1024) })
       }
       case 'fillForm': {
-        const result = await fillForm(args.fields || [], provider, cache, signal, variables)
+        const result = await fillForm(args.fields || [], gatewayUrl, model, cache, signal, variables)
         return JSON.stringify({
           success: result.success,
           fields: result.fields.map(f => ({

@@ -1,4 +1,3 @@
-import type { LlmProvider } from '../llm/types'
 import type { ActCache, ActionStep } from './cache'
 import type { Variables } from './variables'
 import { act, type ActResult } from './act'
@@ -24,7 +23,8 @@ export interface FillFormResult {
 
 export async function fillForm(
   fields: FormField[],
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   cache: ActCache,
   signal?: AbortSignal,
   variables?: Variables,
@@ -44,7 +44,7 @@ export async function fillForm(
 
     let result: ActResult
     try {
-      result = await act(instruction, provider, cache, signal)
+      result = await act(instruction, gatewayUrl, model, cache, signal)
     } catch (err: unknown) {
       const error = err instanceof Error ? err.message : String(err)
       fieldResults.push({ field, success: false, error, actions: [] })

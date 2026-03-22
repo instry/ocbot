@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { ChatMessage, Conversation } from '@/lib/types'
-import type { LlmProvider, LlmRequestMessage } from '@/lib/llm/types'
+import type { LlmRequestMessage } from '@/lib/llm/types'
 import type { AgentReplayStep } from '@/lib/agent/agentCache'
 import type { Skill, SkillParameter } from '@/lib/skills/types'
 import { runAgentLoop } from '@/lib/agent/loop'
@@ -29,7 +29,7 @@ function generateTitle(messages: ChatMessage[]): string {
   return text.length > 30 ? text.slice(0, 30) + '…' : text
 }
 
-export function useChat(provider: LlmProvider | null) {
+export function useChat(gatewayUrl: string, model: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [conversationId, setConversationId] = useState(() => `conv_${Date.now()}`)
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -114,7 +114,7 @@ export function useChat(provider: LlmProvider | null) {
   }, [conversationId, refreshConversations])
 
   const sendMessage = useCallback(async (text: string) => {
-    if (!provider || !text.trim() || isLoading) return
+    if (!model || !text.trim() || isLoading) return
 
     setError(null)
     setIsLoading(true)
@@ -160,7 +160,8 @@ export function useChat(provider: LlmProvider | null) {
 
     try {
       await runAgentLoop(
-        provider,
+        gatewayUrl,
+        model,
         llmMessages,
         {
           onTextDelta: (text) => {
@@ -288,10 +289,10 @@ export function useChat(provider: LlmProvider | null) {
       setStreamingText('')
       abortRef.current = null
     }
-  }, [provider, messages, isLoading])
+  }, [model, messages, isLoading])
 
   const executeSkill = useCallback(async (skill: Skill, params: Record<string, string>) => {
-    if (!provider) return
+    if (!model) return
 
     setError(null)
     setIsLoading(true)
@@ -319,7 +320,8 @@ export function useChat(provider: LlmProvider | null) {
       const result = await runner.execute(
         skill,
         params,
-        provider,
+        gatewayUrl,
+        model,
         actCache,
         {
           onStepStart: (i, step) => {
@@ -441,10 +443,10 @@ export function useChat(provider: LlmProvider | null) {
       setStreamingText('')
       abortRef.current = null
     }
-  }, [provider])
+  }, [model])
 
   const runSkill = useCallback(async (skillId: string) => {
-    if (!provider || isLoading) return
+    if (!model || isLoading) return
 
     const store = new SkillStore()
     const skill = await store.get(skillId)
@@ -467,7 +469,7 @@ export function useChat(provider: LlmProvider | null) {
       if (p.default != null) params[p.name] = String(p.default)
     }
     await executeSkill(skill, params)
-  }, [provider, isLoading, executeSkill])
+  }, [model, isLoading, executeSkill])
 
   const confirmSkillParams = useCallback(async (params: Record<string, string>) => {
     const skill = pendingSkillParams
@@ -513,7 +515,7 @@ export function useChat(provider: LlmProvider | null) {
   }, [])
 
   const saveAsSkill = useCallback(async () => {
-    if (!pendingSkillSave || !provider) return
+    if (!pendingSkillSave || !model) return
     const { steps, instruction, startUrl } = pendingSkillSave
     setPendingSkillSave(null)
 
@@ -548,7 +550,7 @@ export function useChat(provider: LlmProvider | null) {
 
     // Run LLM creation in background, then update the placeholder
     try {
-      const skill = await createSkillFromExecution(instruction, steps, startUrl, provider)
+      const skill = await createSkillFromExecution(instruction, steps, startUrl, gatewayUrl, model)
       skill.id = placeholderId
       await store.save(skill)
     } catch {
@@ -556,7 +558,7 @@ export function useChat(provider: LlmProvider | null) {
       await store.delete(placeholderId)
     }
     return { id: placeholderId } as { id: string }
-  }, [pendingSkillSave, provider])
+  }, [pendingSkillSave, model])
 
   const dismissSkillSave = useCallback(() => {
     setPendingSkillSave(null)

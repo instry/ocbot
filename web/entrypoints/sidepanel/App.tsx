@@ -7,8 +7,7 @@ import { SuggestionChips } from '@/components/SuggestionChips'
 import { ChatList } from '@/components/ChatList'
 import { SkillParamForm } from '@/components/SkillParamForm'
 import { Header } from './components/Header'
-import { useLlmProvider } from '@/lib/llm/useLlmProvider'
-import { refreshModels } from '@/lib/llm/models'
+import { useGatewayModels } from '@/lib/hooks/useGatewayModels'
 import { useChat } from '@/lib/hooks/useChat'
 import { useSettings } from '@/lib/hooks/useSettings'
 import { I18nProvider, useI18n } from '@/lib/i18n/context'
@@ -28,27 +27,25 @@ export function App() {
 function AppContent() {
   const { t } = useI18n()
   const [view, setView] = useState<View>('chat')
-  const { providers, selectedProvider, saveProvider, deleteProvider, selectProvider } = useLlmProvider()
+  const { gatewayUrl, models, selectedModel, selectModel } = useGatewayModels()
   const {
     messages, conversationId, conversations, streamingText, isLoading,
     toolStatuses, error, sendMessage, runSkill, stopAgent, newChat,
     loadConversation, removeConversation,
     pendingSkillSave, saveAsSkill, dismissSkillSave,
     pendingSkillParams, prefillParams, confirmSkillParams, cancelSkillParams,
-  } = useChat(selectedProvider)
+  } = useChat(gatewayUrl, selectedModel)
   const [channelStatuses, setChannelStatuses] = useState<Record<string, ChannelStatus>>({})
 
-  // Fetch remote model definitions (non-blocking)
-  useEffect(() => { refreshModels() }, [])
   const [skillSaving, setSkillSaving] = useState(false)
   const [skillSaved, setSkillSaved] = useState(false)
   const [savedSkillId, setSavedSkillId] = useState<string | null>(null)
   const pendingMessageRef = useRef<string | null>(null)
   const chatInputRef = useRef<ChatInputHandle>(null)
 
-  // Process pending message once provider is ready
+  // Process pending message once model is ready
   useEffect(() => {
-    if (pendingMessageRef.current && selectedProvider && !isLoading) {
+    if (pendingMessageRef.current && selectedModel && !isLoading) {
       const text = pendingMessageRef.current
       pendingMessageRef.current = null
       // Skill run uses dedicated path (bypasses LLM agent loop)
@@ -59,7 +56,7 @@ function AppContent() {
         sendMessage(text)
       }
     }
-  }, [selectedProvider, isLoading, sendMessage, runSkill])
+  }, [selectedModel, isLoading, sendMessage, runSkill])
 
   // Pick up pending message from home page (on mount)
   useEffect(() => {
@@ -162,7 +159,7 @@ function AppContent() {
       {view === 'chat' && (
         <>
           <ChatArea
-            hasProvider={!!selectedProvider}
+            hasProvider={!!selectedModel}
             messages={messages}
             streamingText={streamingText}
             isLoading={isLoading}
@@ -242,12 +239,10 @@ function AppContent() {
             onSend={sendMessage}
             onStop={stopAgent}
             isLoading={isLoading}
-            disabled={!selectedProvider}
-            providers={providers}
-            selectedProvider={selectedProvider}
-            onSelectProvider={selectProvider}
-            onSaveProvider={saveProvider}
-            onDeleteProvider={deleteProvider}
+            disabled={!selectedModel}
+            models={models}
+            selectedModel={selectedModel}
+            onSelectModel={selectModel}
           />
         </>
       )}

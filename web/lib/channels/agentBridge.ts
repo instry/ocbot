@@ -3,7 +3,7 @@ import type { ChannelAdapter, InboundMessage } from './types'
 import { runAgentLoop } from '../agent/loop'
 import type { AgentCallbacks } from '../agent/loop'
 import { ActCache } from '../agent/cache'
-import { getProviders, getDefaultProviderId } from '../storage'
+import { getOpenClawConfig, getSelectedModel } from '../storage'
 import { TelegramAdapter } from './telegram'
 
 type ConversationMap = Map<string, LlmRequestMessage[]>
@@ -46,13 +46,12 @@ export async function handleInboundMessage(adapter: ChannelAdapter, msg: Inbound
 }
 
 async function executeAgentRun(adapter: ChannelAdapter, msg: InboundMessage): Promise<void> {
-  // Get default provider
-  const providers = await getProviders()
-  const defaultId = await getDefaultProviderId()
-  const provider = providers.find(p => p.id === defaultId) ?? providers[0]
+  // Get gateway config and selected model
+  const { gatewayUrl } = await getOpenClawConfig()
+  const model = await getSelectedModel()
 
-  if (!provider) {
-    await adapter.send({ chatId: msg.chatId, text: 'No LLM provider configured. Set one up in the extension settings.', replyToMessageId: msg.messageId })
+  if (!model) {
+    await adapter.send({ chatId: msg.chatId, text: 'No model selected. Set one up in the extension settings.', replyToMessageId: msg.messageId })
     return
   }
 
@@ -104,7 +103,7 @@ async function executeAgentRun(adapter: ChannelAdapter, msg: InboundMessage): Pr
   }
 
   try {
-    await runAgentLoop(provider, [...history.slice(0, -1)], callbacks, undefined, actCache)
+    await runAgentLoop(gatewayUrl, model, [...history.slice(0, -1)], callbacks, undefined, actCache)
 
     // Only send the final text response (not intermediate tool-use messages)
     if (responseText.trim()) {

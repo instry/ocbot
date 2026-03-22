@@ -1,40 +1,3 @@
-export type ProviderType = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'deepseek' | 'qwen' | 'kimi' | 'glm' | 'minimax' | 'xai' | 'arcee' | 'local' | 'openai-compatible'
-
-export interface ModelInfo {
-  id: string
-  name: string
-  contextWindow: number
-}
-
-export interface ProviderRegion {
-  id: string
-  label: string
-  baseUrl: string
-  apiKeyUrl?: string
-}
-
-export interface ProviderTemplate {
-  type: ProviderType
-  name: string
-  defaultBaseUrl?: string
-  models: ModelInfo[]
-  defaultModelId: string
-  apiKeyUrl?: string
-  apiKeyPlaceholder?: string
-  regions?: ProviderRegion[]
-}
-
-export interface LlmProvider {
-  id: string
-  type: ProviderType
-  name: string
-  apiKey: string
-  baseUrl?: string
-  modelId: string
-  createdAt: number
-  updatedAt: number
-}
-
 // --- Tool definitions for function calling ---
 
 export interface ToolParameter {
@@ -98,33 +61,3 @@ export type LlmStreamEvent =
   | { type: 'tool_call_delta'; id: string; arguments: string }
   | { type: 'done' }
   | { type: 'error'; error: string }
-
-// --- Provider adapter interface ---
-
-export interface ProviderAdapter {
-  buildRequest(
-    provider: LlmProvider,
-    messages: LlmRequestMessage[],
-    tools?: ToolDefinition[],
-  ): { url: string; headers: Record<string, string>; body: string }
-
-  parseSSELine(
-    line: string,
-    eventType?: string,
-  ): LlmStreamEvent[]
-}
-
-// --- Provider family mapping ---
-
-export type ProviderFamily = 'openai' | 'anthropic' | 'google'
-
-export function getProviderFamily(type: ProviderType): ProviderFamily {
-  switch (type) {
-    case 'anthropic':
-      return 'anthropic'
-    case 'google':
-      return 'google'
-    default:
-      return 'openai'
-  }
-}

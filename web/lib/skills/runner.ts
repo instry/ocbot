@@ -1,6 +1,6 @@
 // lib/skills/runner.ts
 import type { AgentReplayStep, HealEvent, ReplayCallbacks } from '@/lib/agent/agentCache'
-import type { LlmProvider, LlmRequestMessage } from '@/lib/llm/types'
+import type { LlmRequestMessage } from '@/lib/llm/types'
 import type { ActCache } from '@/lib/agent/cache'
 import type { Variables } from '@/lib/agent/variables'
 import type { AgentCallbacks } from '@/lib/agent/loop'
@@ -103,7 +103,8 @@ export class SkillRunner {
   async executeFastTrackOnly(
     skill: Skill,
     parameters: Record<string, string>,
-    provider: LlmProvider,
+    gatewayUrl: string,
+    model: string,
     cache: ActCache,
     callbacks: SkillRunCallbacks,
     signal?: AbortSignal,
@@ -111,7 +112,7 @@ export class SkillRunner {
     depth: number = 0,
     skillCallStack: string[] = [],
   ): Promise<SkillRunResult> {
-    const result = await this.runFastTrack(skill, parameters, provider, cache, callbacks, signal, variables, depth, skillCallStack)
+    const result = await this.runFastTrack(skill, parameters, gatewayUrl, model, cache, callbacks, signal, variables, depth, skillCallStack)
     await this.recordExecution(skill, parameters, result)
     return result
   }
@@ -124,7 +125,8 @@ export class SkillRunner {
   async execute(
     skill: Skill,
     parameters: Record<string, string>,
-    provider: LlmProvider,
+    gatewayUrl: string,
+    model: string,
     cache: ActCache,
     callbacks: SkillRunCallbacks,
     signal?: AbortSignal,
@@ -139,7 +141,7 @@ export class SkillRunner {
     // --- Fast Track ---
     if (skill.steps.length > 0) {
       logDebug('execution', 'Track: fast')
-      result = await this.runFastTrack(skill, parameters, provider, cache, callbacks, signal, variables, depth, skillCallStack)
+      result = await this.runFastTrack(skill, parameters, gatewayUrl, model, cache, callbacks, signal, variables, depth, skillCallStack)
 
       if (result.success) {
         await this.recordExecution(skill, parameters, result)
@@ -158,7 +160,7 @@ export class SkillRunner {
         completedContext = `The following steps were already completed:\n${descs}`
       }
 
-      const agentResult = await this.runAgentTrack(skill, parameters, provider, cache, callbacks, signal, variables, completedContext)
+      const agentResult = await this.runAgentTrack(skill, parameters, gatewayUrl, model, cache, callbacks, signal, variables, completedContext)
       // Mark as hybrid since we attempted fast first
       agentResult.track = 'hybrid'
       agentResult.durationMs = Date.now() - startTime
@@ -182,7 +184,7 @@ export class SkillRunner {
 
     // --- Agent Track (no steps available) ---
     logDebug('execution', 'Track: agent')
-    result = await this.runAgentTrack(skill, parameters, provider, cache, callbacks, signal, variables)
+    result = await this.runAgentTrack(skill, parameters, gatewayUrl, model, cache, callbacks, signal, variables)
     result.durationMs = Date.now() - startTime
 
     // Evolve skill: save agent-track recorded steps as the skill's first steps
@@ -201,7 +203,8 @@ export class SkillRunner {
   private async runFastTrack(
     skill: Skill,
     parameters: Record<string, string>,
-    provider: LlmProvider,
+    gatewayUrl: string,
+    model: string,
     cache: ActCache,
     callbacks: SkillRunCallbacks,
     signal?: AbortSignal,
@@ -218,10 +221,10 @@ export class SkillRunner {
     const executeForReplay = (name: string, argsJson: string) => {
       if (name === 'skill') {
         return this.executeSubSkill(
-          argsJson, provider, cache, callbacks, signal, variables, depth, skillCallStack,
+          argsJson, gatewayUrl, model, cache, callbacks, signal, variables, depth, skillCallStack,
         )
       }
-      return executeTool(name, argsJson, provider, cache, signal, variables, { skillReplay: true })
+      return executeTool(name, argsJson, gatewayUrl, model, cache, signal, variables, { skillReplay: true })
     }
 
     const replayCallbacks: ReplayCallbacks = {
@@ -232,7 +235,7 @@ export class SkillRunner {
 
     // L2 heal function: re-infer a single failed step via LLM
     const healFn = async (failedStep: AgentReplayStep, _stepIndex: number) => {
-      return healStep(failedStep, provider)
+      return healStep(failedStep, gatewayUrl, model)
     }
 
     const replayResult = await replayAgentSteps(steps, executeForReplay, replayCallbacks, signal, healFn)
@@ -245,7 +248,7 @@ export class SkillRunner {
     // L3: If replay failed (L2 already tried via healFn), attempt segment repair
     if (!replayResult.success) {
       logDebug('L3', 'Attempting segment repair', { failedIndex: replayResult.failedIndex })
-      const l3Steps = await healSegment(steps, replayResult.failedIndex, skill.skillMd, provider)
+      const l3Steps = await healSegment(steps, replayResult.failedIndex, skill.skillMd, gatewayUrl, model)
 
       if (l3Steps && l3Steps.length > 0) {
         // Execute L3 re-planned steps via replay (with L2 heal enabled)
@@ -334,7 +337,8 @@ export class SkillRunner {
   private async runAgentTrack(
     skill: Skill,
     parameters: Record<string, string>,
-    provider: LlmProvider,
+    gatewayUrl: string,
+    model: string,
     cache: ActCache,
     callbacks: SkillRunCallbacks,
     signal?: AbortSignal,
@@ -387,7 +391,7 @@ export class SkillRunner {
 
     let success = true
     try {
-      await runAgentLoop(provider, messages, agentCallbacks, signal, cache, variables)
+      await runAgentLoop(gatewayUrl, model, messages, agentCallbacks, signal, cache, variables)
     } catch {
       success = false
     }
@@ -409,7 +413,8 @@ export class SkillRunner {
    */
   private async executeSubSkill(
     argsJson: string,
-    provider: LlmProvider,
+    gatewayUrl: string,
+    model: string,
     cache: ActCache,
     callbacks: SkillRunCallbacks,
     signal?: AbortSignal,
@@ -451,7 +456,7 @@ export class SkillRunner {
     // Recursive execute
     const runner = new SkillRunner(this.store)
     const result = await runner.execute(
-      childSkill, childParams, provider, cache, callbacks,
+      childSkill, childParams, gatewayUrl, model, cache, callbacks,
       signal, variables, nextDepth, [...skillCallStack, skillId],
     )
 

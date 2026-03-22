@@ -1,24 +1,19 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { Sliders, Cpu, Wallet, Plus, Trash2, Pencil, Star, ArrowLeft, ChevronDown, Sun, Moon, Monitor, Globe, Check, Circle, Loader2 } from 'lucide-react'
-import type { LlmProvider } from '@/lib/llm/types'
-import { getTemplateByType } from '@/lib/llm/models'
+import { useState, useRef, useEffect, useMemo, type ReactNode } from 'react'
+import { Sliders, Cpu, ChevronDown, Sun, Moon, Monitor, Globe, Check, Circle, Loader2 } from 'lucide-react'
+import type { GatewayModel } from '@/lib/gateway/models'
 import type { ColorScheme, Language } from '@/lib/hooks/useSettings'
 import type { WalletActions } from '@/lib/wallet/types'
-import { ProviderForm } from './ProviderForm'
 import { useI18n } from '@/lib/i18n/context'
 import { getOpenClawConfig, setOpenClawConfig } from '@/lib/storage'
 import { WalletTab } from './WalletTab'
 
-type SettingsTab = 'general' | 'providers' | 'wallet'
-type ProvidersView = 'list' | 'add' | 'edit'
+type SettingsTab = 'general' | 'models' | 'wallet'
 type OpenClawStatus = 'idle' | 'connected' | 'disconnected' | 'testing'
 
 interface SettingsProps {
-  providers: LlmProvider[]
-  selectedProvider: LlmProvider | null
-  onSaveProvider: (provider: LlmProvider) => Promise<void>
-  onDeleteProvider: (id: string) => Promise<void>
-  onSelectProvider: (id: string) => Promise<void>
+  models: GatewayModel[]
+  selectedModel: string | null
+  onSelectModel: (modelId: string) => void
   colorScheme: ColorScheme
   language: Language
   onColorSchemeChange: (scheme: ColorScheme) => void
@@ -27,16 +22,14 @@ interface SettingsProps {
 }
 
 export function Settings({
-  providers, selectedProvider, onSaveProvider, onDeleteProvider, onSelectProvider,
+  models, selectedModel, onSelectModel,
   colorScheme, language, onColorSchemeChange, onLanguageChange, wallet,
 }: SettingsProps) {
   const { t } = useI18n()
-  const [activeTab, setActiveTab] = useState<SettingsTab>('providers')
-  const [providersView, setProvidersView] = useState<ProvidersView>('list')
-  const [editingProvider, setEditingProvider] = useState<LlmProvider | null>(null)
+  const [activeTab, setActiveTab] = useState<SettingsTab>('models')
 
   const tabs: { id: SettingsTab; label: string; icon: typeof Sliders }[] = [
-    { id: 'providers', label: t('models.title'), icon: Cpu },
+    { id: 'models', label: t('models.title'), icon: Cpu },
     { id: 'general', label: t('settings.general'), icon: Sliders },
   ]
 
@@ -50,7 +43,7 @@ export function Settings({
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => { setActiveTab(id); if (id === 'providers') setProvidersView('list') }}
+              onClick={() => setActiveTab(id)}
               className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                 activeTab === id
                   ? 'bg-accent text-accent-foreground font-medium'
@@ -76,17 +69,11 @@ export function Settings({
         {activeTab === 'wallet' && (
           <WalletTab wallet={wallet} />
         )}
-        {activeTab === 'providers' && (
-          <ProvidersTab
-            view={providersView}
-            setView={setProvidersView}
-            providers={providers}
-            selectedProvider={selectedProvider}
-            editingProvider={editingProvider}
-            setEditingProvider={setEditingProvider}
-            onSaveProvider={onSaveProvider}
-            onDeleteProvider={onDeleteProvider}
-            onSelectProvider={onSelectProvider}
+        {activeTab === 'models' && (
+          <ModelsTab
+            models={models}
+            selectedModel={selectedModel}
+            onSelectModel={onSelectModel}
           />
         )}
       </div>
@@ -248,69 +235,24 @@ function OpenClawStatusBadge({ status }: { status: OpenClawStatus }) {
   )
 }
 
-function ProvidersTab({
-  view, setView, providers, selectedProvider, editingProvider, setEditingProvider,
-  onSaveProvider, onDeleteProvider, onSelectProvider,
+function ModelsTab({
+  models, selectedModel, onSelectModel,
 }: {
-  view: ProvidersView
-  setView: (v: ProvidersView) => void
-  providers: LlmProvider[]
-  selectedProvider: LlmProvider | null
-  editingProvider: LlmProvider | null
-  setEditingProvider: (p: LlmProvider | null) => void
-  onSaveProvider: (provider: LlmProvider) => Promise<void>
-  onDeleteProvider: (id: string) => Promise<void>
-  onSelectProvider: (id: string) => Promise<void>
+  models: GatewayModel[]
+  selectedModel: string | null
+  onSelectModel: (modelId: string) => void
 }) {
   const { t } = useI18n()
 
-  if (view === 'add') {
-    return (
-      <div className="flex h-full flex-col px-8 pb-10">
-        <div className="sticky top-0 z-10 bg-background pt-6 pb-6">
-          <button
-            onClick={() => setView('list')}
-            className="mb-3 flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t('models.backToModels')}
-          </button>
-          <h2 className="text-base font-semibold text-foreground">{t('models.set')}</h2>
-        </div>
-        <div className="max-w-[640px]">
-          <ProviderForm
-            onSave={async (p) => { await onSaveProvider(p); setView('list') }}
-            onCancel={() => setView('list')}
-          />
-        </div>
-      </div>
-    )
-  }
-
-  if (view === 'edit' && editingProvider) {
-    return (
-      <div className="flex h-full flex-col px-8 pb-10">
-        <div className="sticky top-0 z-10 bg-background pt-6 pb-6">
-          <button
-            onClick={() => setView('list')}
-            className="mb-3 flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t('models.backToModels')}
-          </button>
-          <h2 className="text-base font-semibold text-foreground">{t('models.edit')}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{getTemplateByType(editingProvider.type)?.name ?? editingProvider.type}</p>
-        </div>
-        <div className="max-w-[640px]">
-          <ProviderForm
-            initial={editingProvider}
-            onSave={async (p) => { await onSaveProvider(p); setView('list') }}
-            onCancel={() => setView('list')}
-          />
-        </div>
-      </div>
-    )
-  }
+  const grouped = useMemo(() => {
+    const groups: { provider: string; models: GatewayModel[] }[] = []
+    for (const m of models) {
+      let group = groups.find(g => g.provider === m.provider)
+      if (!group) { group = { provider: m.provider, models: [] }; groups.push(group) }
+      group.models.push(m)
+    }
+    return groups
+  }, [models])
 
   return (
     <div className="flex h-full flex-col px-8 pb-10">
@@ -320,82 +262,69 @@ function ProvidersTab({
       </div>
 
       <div className="max-w-[640px] space-y-3">
-        {providers.length === 0 && (
+        {models.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {t('models.noModels')}
           </p>
         )}
 
-        {providers.map(p => {
-          const template = getTemplateByType(p.type)
-          const model = template?.models.find(m => m.id === p.modelId)
-          const isDefault = p.id === selectedProvider?.id
+        {grouped.map(group => (
+          <div key={group.provider}>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+              {group.provider}
+            </div>
+            {group.models.map(m => {
+              const isSelected = m.id === selectedModel
+              return (
+                <div
+                  key={m.id}
+                  className={`mb-2 flex items-center justify-between rounded-xl border p-4 transition-colors ${
+                    isSelected
+                      ? 'border-primary/40 bg-primary/5'
+                      : 'border-border/40 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-sm font-semibold text-muted-foreground">
+                      {m.provider.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">{m.name}</span>
+                        {m.reasoning && (
+                          <span className="rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+                            reasoning
+                          </span>
+                        )}
+                        {isSelected && (
+                          <span className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                            <Check className="h-2.5 w-2.5" />
+                            {t('common.default')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {m.id}
+                        {m.contextWindow ? ` \u00b7 ${m.contextWindow >= 1000000 ? `${(m.contextWindow / 1000000).toFixed(0)}M` : `${(m.contextWindow / 1000).toFixed(0)}k`} ctx` : ''}
+                      </p>
+                    </div>
+                  </div>
 
-          return (
-            <div
-              key={p.id}
-              className={`flex items-center justify-between rounded-xl border p-4 transition-colors ${
-                isDefault
-                  ? 'border-primary/40 bg-primary/5'
-                  : 'border-border/40 bg-card'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-sm font-semibold text-muted-foreground">
-                  {(template?.name ?? p.type).slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{p.name}</span>
-                    <span className="rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                      {template?.name ?? p.type}
-                    </span>
-                    {isDefault && (
-                      <span className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        <Star className="h-2.5 w-2.5" />
-                        {t('common.default')}
-                      </span>
+                  <div className="flex items-center gap-1">
+                    {!isSelected && (
+                      <button
+                        onClick={() => onSelectModel(m.id)}
+                        className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      >
+                        {t('models.setDefault')}
+                      </button>
                     )}
                   </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {model?.name ?? p.modelId}
-                  </p>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-1">
-                {!isDefault && (
-                  <button
-                    onClick={() => onSelectProvider(p.id)}
-                    className="cursor-pointer rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  >
-                    {t('models.setDefault')}
-                  </button>
-                )}
-                <button
-                  onClick={() => { setEditingProvider(p); setView('edit') }}
-                  className="cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => onDeleteProvider(p.id)}
-                  className="cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          )
-        })}
-
-        <button
-          onClick={() => setView('add')}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4" />
-          {t('models.add')}
-        </button>
+              )
+            })}
+          </div>
+        ))}
       </div>
     </div>
   )

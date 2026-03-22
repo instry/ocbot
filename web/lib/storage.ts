@@ -1,60 +1,16 @@
 import type { Conversation } from './types'
-import type { LlmProvider } from './llm/types'
 import type { ChannelConfig } from './channels/types'
 import { storage } from './storage-backend'
 
 const STORAGE_KEYS = {
-  providers: 'ocbot_providers',
-  defaultProviderId: 'ocbot_default_provider_id',
   inputHistory: 'ocbot_input_history',
   channelConfigs: 'ocbot_channel_configs',
   openClawConfig: 'ocbot_openclaw_config',
   onboardingComplete: 'ocbot_onboarding_complete',
+  selectedModel: 'ocbot_selected_model',
 } as const
 
 const MAX_INPUT_HISTORY = 100
-
-// --- Provider CRUD ---
-
-export async function getProviders(): Promise<LlmProvider[]> {
-  const result = await storage.get(STORAGE_KEYS.providers)
-  return (result[STORAGE_KEYS.providers] as LlmProvider[]) || []
-}
-
-export async function saveProvider(provider: LlmProvider): Promise<void> {
-  const all = await getProviders()
-  const idx = all.findIndex(p => p.id === provider.id)
-  if (idx >= 0) {
-    all[idx] = { ...provider, updatedAt: Date.now() }
-  } else {
-    all.push(provider)
-  }
-  await storage.set({ [STORAGE_KEYS.providers]: all })
-}
-
-export async function deleteProvider(id: string): Promise<void> {
-  const all = await getProviders()
-  const filtered = all.filter(p => p.id !== id)
-  await storage.set({ [STORAGE_KEYS.providers]: filtered })
-
-  // If deleted provider was the default, clear it
-  const defaultId = await getDefaultProviderId()
-  if (defaultId === id) {
-    const newDefault = filtered.length > 0 ? filtered[0].id : null
-    await setDefaultProviderId(newDefault)
-  }
-}
-
-// --- Default Provider ---
-
-export async function getDefaultProviderId(): Promise<string | null> {
-  const result = await storage.get(STORAGE_KEYS.defaultProviderId)
-  return (result[STORAGE_KEYS.defaultProviderId] as string) || null
-}
-
-export async function setDefaultProviderId(id: string | null): Promise<void> {
-  await storage.set({ [STORAGE_KEYS.defaultProviderId]: id ?? '' })
-}
 
 // --- Conversation persistence ---
 
@@ -127,7 +83,7 @@ export interface OpenClawConfig {
 }
 
 const DEFAULT_OPENCLAW_CONFIG: OpenClawConfig = {
-  gatewayUrl: 'http://127.0.0.1:18790',
+  gatewayUrl: 'http://127.0.0.1:18789',
 }
 
 export async function getOpenClawConfig(): Promise<OpenClawConfig> {
@@ -151,4 +107,15 @@ export async function isOnboardingComplete(): Promise<boolean> {
 
 export async function setOnboardingComplete(): Promise<void> {
   await storage.set({ [STORAGE_KEYS.onboardingComplete]: true })
+}
+
+// --- Selected Model ---
+
+export async function getSelectedModel(): Promise<string | null> {
+  const result = await storage.get(STORAGE_KEYS.selectedModel)
+  return (result[STORAGE_KEYS.selectedModel] as string) || null
+}
+
+export async function setSelectedModel(model: string | null): Promise<void> {
+  await storage.set({ [STORAGE_KEYS.selectedModel]: model ?? '' })
 }

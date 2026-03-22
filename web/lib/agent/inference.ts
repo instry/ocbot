@@ -1,8 +1,8 @@
-import type { LlmProvider, LlmRequestMessage, ContentPart } from '../llm/types'
+import type { LlmRequestMessage, ContentPart } from '../llm/types'
 import type { PageSnapshot } from './snapshot'
 import type { ActionStep } from './cache'
 import { buildRoleName } from './cache'
-import { streamChat } from '../llm/client'
+import { streamChat } from '../gateway/client'
 
 // --- Types ---
 
@@ -105,7 +105,8 @@ Respond with ONLY valid JSON, no markdown fences:
 // --- LLM call helpers ---
 
 async function callLlm(
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   systemPrompt: string,
   userContent: string | ContentPart[],
   signal?: AbortSignal,
@@ -116,7 +117,7 @@ async function callLlm(
   ]
 
   let result = ''
-  for await (const event of streamChat(provider, messages, undefined, signal)) {
+  for await (const event of streamChat(gatewayUrl, model, messages, undefined, signal)) {
     if (event.type === 'text_delta') {
       result += event.text
     } else if (event.type === 'error') {
@@ -150,13 +151,14 @@ function parseEncodedId(encodedId: string): number {
 export async function inferActions(
   instruction: string,
   snapshot: PageSnapshot,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<InferredActions> {
   const snapshotText = formatSnapshotForPrompt(snapshot)
   const userContent = `## Page Snapshot\n${snapshotText}\n\n## Instruction\n${instruction}`
 
-  const raw = await callLlm(provider, ACT_SYSTEM, userContent, signal)
+  const raw = await callLlm(gatewayUrl, model, ACT_SYSTEM, userContent, signal)
   console.log(`[ocbot:act] LLM raw response (${raw.length} chars):`, raw.slice(0, 300))
   const parsed = parseJsonResponse<{
     actions: Array<{
@@ -196,14 +198,15 @@ export async function inferActions(
 export async function inferStepTwo(
   snapshot: PageSnapshot,
   firstStepDescription: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<InferredActions> {
   const snapshotText = formatSnapshotForPrompt(snapshot)
   const systemPrompt = STEP_TWO_SYSTEM.replace('{firstStepDescription}', firstStepDescription)
   const userContent = `## Page Snapshot (after first step)\n${snapshotText}`
 
-  const raw = await callLlm(provider, systemPrompt, userContent, signal)
+  const raw = await callLlm(gatewayUrl, model, systemPrompt, userContent, signal)
   console.log(`[ocbot:act] StepTwo LLM response (${raw.length} chars):`, raw.slice(0, 300))
   const parsed = parseJsonResponse<{
     actions: Array<{
@@ -237,26 +240,28 @@ export async function inferStepTwo(
 export async function inferExtraction(
   instruction: string,
   snapshot: PageSnapshot,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<ExtractedData> {
   const snapshotText = formatSnapshotForPrompt(snapshot)
   const userPrompt = `## Page Snapshot\n${snapshotText}\n\n## Instruction\n${instruction}`
 
-  const raw = await callLlm(provider, EXTRACT_SYSTEM, userPrompt, signal)
+  const raw = await callLlm(gatewayUrl, model, EXTRACT_SYSTEM, userPrompt, signal)
   return parseJsonResponse<ExtractedData>(raw)
 }
 
 export async function inferObservation(
   instruction: string,
   snapshot: PageSnapshot,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<ObservedAction[]> {
   const snapshotText = formatSnapshotForPrompt(snapshot)
   const userPrompt = `## Page Snapshot\n${snapshotText}\n\n## Instruction\n${instruction}`
 
-  const raw = await callLlm(provider, OBSERVE_SYSTEM, userPrompt, signal)
+  const raw = await callLlm(gatewayUrl, model, OBSERVE_SYSTEM, userPrompt, signal)
   const parsed = parseJsonResponse<{ actions: Array<{ description: string; nodeId: string | number; method: string }> }>(raw)
 
   // Enrich with roleName from snapshot

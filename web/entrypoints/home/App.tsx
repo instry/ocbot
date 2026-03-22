@@ -8,28 +8,22 @@ import { Sidebar } from './components/Sidebar'
 import { SkillsPage } from './pages/SkillsPage'
 import { AboutPage } from './pages/AboutPage'
 import { CronPage } from './pages/CronPage'
-import { Onboarding } from '@/components/Onboarding'
-import { useLlmProvider } from '@/lib/llm/useLlmProvider'
+import { useGatewayModels } from '@/lib/hooks/useGatewayModels'
 import { useSettings } from '@/lib/hooks/useSettings'
 import { I18nProvider, useI18n } from '@/lib/i18n/context'
 import { useWallet } from '@/lib/hooks/useWallet'
-import { isOnboardingComplete } from '@/lib/storage'
-import type { LlmProvider } from '@/lib/llm/types'
+import type { GatewayModel } from '@/lib/gateway/models'
 
 type Page = 'new-session' | 'skills' | 'mobile' | 'cron' | 'settings' | 'about'
 
 function NewSessionPage({
-  providers,
-  selectedProvider,
-  selectProvider,
-  saveProvider,
-  deleteProvider,
+  models,
+  selectedModel,
+  onSelectModel,
 }: {
-  providers: LlmProvider[]
-  selectedProvider: LlmProvider | null
-  selectProvider: (id: string) => Promise<void>
-  saveProvider: (provider: LlmProvider) => Promise<void>
-  deleteProvider: (id: string) => Promise<void>
+  models: GatewayModel[]
+  selectedModel: string | null
+  onSelectModel: (model: string | null) => void
 }) {
   const chatInputRef = useRef<ChatInputHandle>(null)
 
@@ -49,11 +43,9 @@ function NewSessionPage({
           variant="standalone"
           rows={4}
           minHeight="min-h-[100px]"
-          providers={providers}
-          selectedProvider={selectedProvider}
-          onSelectProvider={selectProvider}
-          onSaveProvider={saveProvider}
-          onDeleteProvider={deleteProvider}
+          models={models}
+          selectedModel={selectedModel}
+          onSelectModel={onSelectModel}
         />
         <SuggestionChips onSelect={(skill) => {
           window.location.hash = `#/skills/detail?id=${skill.id}&source=marketplace`
@@ -80,28 +72,15 @@ function MobilePage() {
 }
 
 export function App() {
-  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null)
   const [page, setPage] = useState<Page>(() => {
     const hash = window.location.hash.replace('#/', '').split('?')[0]
     const base = hash.split('/')[0]
     if (['skills', 'mobile', 'cron', 'settings', 'about'].includes(base)) return base as Page
     return 'new-session'
   })
-  const { providers, selectedProvider, saveProvider, deleteProvider, selectProvider } = useLlmProvider()
+  const { models, selectedModel, selectModel } = useGatewayModels()
   const { colorScheme, language, setColorScheme, setLanguage } = useSettings()
   const wallet = useWallet()
-
-  // Check if onboarding is needed
-  useEffect(() => {
-    isOnboardingComplete().then(complete => {
-      if (complete) {
-        setShowOnboarding(false)
-      } else {
-        // Also check if providers already exist
-        setShowOnboarding(providers.length === 0)
-      }
-    })
-  }, [providers.length])
 
   const navigateTo = useCallback((p: Page) => {
     setPage(p)
@@ -126,12 +105,6 @@ export function App() {
 
   return (
     <I18nProvider locale={language}>
-      {showOnboarding ? (
-        <Onboarding onComplete={() => setShowOnboarding(false)} />
-      ) : showOnboarding === null ? (
-        // Loading state while checking onboarding status
-        <div className="flex h-screen w-screen items-center justify-center bg-background" />
-      ) : (
       <div className="flex h-screen w-screen bg-background text-foreground">
         <Sidebar
           activePage={page}
@@ -145,11 +118,9 @@ export function App() {
         <main className="flex-1 overflow-hidden">
           {page === 'new-session' && (
             <NewSessionPage
-              providers={providers}
-              selectedProvider={selectedProvider}
-              selectProvider={selectProvider}
-              saveProvider={saveProvider}
-              deleteProvider={deleteProvider}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={selectModel}
             />
           )}
           {page === 'skills' && <SkillsPage />}
@@ -157,11 +128,9 @@ export function App() {
           {page === 'cron' && <CronPage />}
           {page === 'settings' && (
             <Settings
-              providers={providers}
-              selectedProvider={selectedProvider}
-              onSaveProvider={saveProvider}
-              onDeleteProvider={deleteProvider}
-              onSelectProvider={selectProvider}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={selectModel}
               colorScheme={colorScheme}
               language={language}
               onColorSchemeChange={setColorScheme}
@@ -172,7 +141,6 @@ export function App() {
           {page === 'about' && <AboutPage />}
         </main>
       </div>
-      )}
     </I18nProvider>
   )
 }

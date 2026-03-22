@@ -1,4 +1,3 @@
-import type { LlmProvider } from '../llm/types'
 import { capturePageSnapshot } from './snapshot'
 import { inferObservation, type ObservedAction } from './inference'
 
@@ -16,7 +15,8 @@ async function getActiveTabId(): Promise<number> {
 
 export async function observe(
   instruction: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<ObserveResult> {
   try {
@@ -24,7 +24,7 @@ export async function observe(
     const snapshot = await capturePageSnapshot(tabId)
     if (signal?.aborted) throw new Error('Aborted')
 
-    const actions = await inferObservation(instruction, snapshot, provider, signal)
+    const actions = await inferObservation(instruction, snapshot, gatewayUrl, model, signal)
     return { success: true, actions }
   } catch (err: unknown) {
     return {

@@ -1,7 +1,7 @@
-import type { LlmProvider, LlmRequestMessage, ToolCallPart } from '../llm/types'
+import type { LlmRequestMessage, ToolCallPart } from '../llm/types'
 import type { ActCache } from './cache'
 import type { Variables } from './variables'
-import { streamChat } from '../llm/client'
+import { streamChat } from '../gateway/client'
 import { BROWSER_TOOLS, executeTool } from './tools'
 import { buildSystemPrompt } from './systemPrompt'
 import { ensureAttached, sendCdp } from './cdp'
@@ -47,7 +47,8 @@ async function getPageContext(): Promise<{ url: string; title: string } | undefi
 const TAG = '[ocbot:agent]'
 
 export async function runAgentLoop(
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   messages: LlmRequestMessage[],
   callbacks: AgentCallbacks,
   signal?: AbortSignal,
@@ -98,7 +99,7 @@ export async function runAgentLoop(
   const skillStore = new SkillStore()
   console.log(`${TAG} instruction: "${userInstruction}"`)
   console.log(`${TAG} page: ${startUrl || '(no page)'}`)
-  console.log(`${TAG} provider: ${provider.name} / ${provider.modelId}`)
+  console.log(`${TAG} provider: ${model}`)
   console.log(`${TAG} tools: ${activeTools.length}`)
 
   // --- Skill matching (user skills) ---
@@ -106,7 +107,8 @@ export async function runAgentLoop(
     const skillMatch = await matchSkill(
       userInstruction,
       startUrl,
-      provider,
+      gatewayUrl,
+      model,
       skillStore,
       signal,
     )
@@ -128,7 +130,7 @@ export async function runAgentLoop(
           }
 
           // LLM extraction
-          const extracted = await extractSkillParams(userInstruction, skill.parameters, provider, signal)
+          const extracted = await extractSkillParams(userInstruction, skill.parameters, gatewayUrl, model, signal)
           console.log(`${TAG} 📋 Extracted params:`, extracted)
 
           // Check for missing required params
@@ -160,7 +162,8 @@ export async function runAgentLoop(
             const result = await runner.execute(
               skill,
               mergedParams,
-              provider,
+              gatewayUrl,
+              model,
               cache!,
               {
                 onStepStart: (i, step) => callbacks.onToolCallStart(`skill-step-${i}`, step.type),
@@ -194,7 +197,8 @@ export async function runAgentLoop(
           const result = await runner.execute(
             skill,
             variables ?? {},
-            provider,
+            gatewayUrl,
+            model,
             cache!,
             {
               onStepStart: (i, step) => callbacks.onToolCallStart(`skill-step-${i}`, step.type),
@@ -243,7 +247,7 @@ export async function runAgentLoop(
     const toolCalls: Map<string, { id: string; name: string; arguments: string }> = new Map()
 
     try {
-      for await (const event of streamChat(provider, allMessages, activeTools, signal)) {
+      for await (const event of streamChat(gatewayUrl, model, allMessages, activeTools, signal)) {
         if (signal?.aborted) return
 
         switch (event.type) {
@@ -333,7 +337,7 @@ export async function runAgentLoop(
       // Update tool status with args now that streaming is complete
       callbacks.onToolCallStart(tc.id, tc.name, tc.arguments)
       const toolT0 = performance.now()
-      const result = await executeTool(tc.name, tc.arguments, provider, cache!, signal, variables)
+      const result = await executeTool(tc.name, tc.arguments, gatewayUrl, model, cache!, signal, variables)
       const toolMs = (performance.now() - toolT0).toFixed(0)
       try {
         const parsed = JSON.parse(result)

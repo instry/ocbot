@@ -1,8 +1,7 @@
 // lib/skills/matcher.ts
 import type { Skill, SkillMatch, SkillPrecondition } from './types'
 import type { SkillStore } from './store'
-import type { LlmProvider } from '@/lib/llm/types'
-import { streamChat } from '@/lib/llm/client'
+import { streamChat } from '@/lib/gateway/client'
 import { getUrlHierarchy, matchUrlPattern, deriveUrlPattern } from './urlPattern'
 
 /**
@@ -125,7 +124,8 @@ function stripCodeFences(text: string): string {
 async function llmMatch(
   skills: Skill[],
   userMessage: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<SkillMatch | null> {
   const compactList = skills.slice(0, 30).map((s) => ({
@@ -151,7 +151,8 @@ async function llmMatch(
   let responseText = ''
 
   const stream = streamChat(
-    provider,
+    gatewayUrl,
+    model,
     [{ role: 'user', content: prompt }],
     undefined,
     signal,
@@ -199,7 +200,8 @@ async function llmMatch(
 export async function matchSkill(
   userMessage: string,
   currentUrl: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   store: SkillStore,
   signal?: AbortSignal,
   tabId?: number,

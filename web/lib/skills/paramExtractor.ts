@@ -1,7 +1,7 @@
 // lib/skills/paramExtractor.ts
 import type { SkillParameter } from './types'
-import type { LlmProvider, LlmRequestMessage } from '@/lib/llm/types'
-import { streamChat } from '@/lib/llm/client'
+import type { LlmRequestMessage } from '@/lib/llm/types'
+import { streamChat } from '@/lib/gateway/client'
 
 /**
  * Strip markdown code fences from a string so we can parse raw JSON.
@@ -18,7 +18,8 @@ function stripCodeFences(text: string): string {
 export async function extractSkillParams(
   instruction: string,
   parameters: SkillParameter[],
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<Record<string, string>> {
   if (parameters.length === 0) return {}
@@ -47,7 +48,7 @@ export async function extractSkillParams(
   ]
 
   let responseText = ''
-  for await (const event of streamChat(provider, messages, undefined, signal)) {
+  for await (const event of streamChat(gatewayUrl, model, messages, undefined, signal)) {
     if (event.type === 'text_delta') {
       responseText += event.text
     } else if (event.type === 'error') {

@@ -1,10 +1,7 @@
-import { Send, Square, ChevronDown, Search, Plus, Check, X } from 'lucide-react'
-import { useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { Send, Square, ChevronDown, Search, Check } from 'lucide-react'
+import { useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { useInputHistory } from '@/lib/hooks/useInputHistory'
-import { getModelDisplayName, getTemplateByType } from '@/lib/llm/models'
-import type { LlmProvider } from '@/lib/llm/types'
-import { ProviderForm } from './ProviderForm'
+import type { GatewayModel } from '@/lib/gateway/models'
 import { useI18n } from '@/lib/i18n/context'
 
 export interface ChatInputHandle {
@@ -19,28 +16,30 @@ interface ChatInputProps {
   variant?: 'footer' | 'standalone' | 'centered'
   rows?: number
   minHeight?: string
-  providers?: LlmProvider[]
-  selectedProvider?: LlmProvider | null
-  onSelectProvider?: (id: string) => void
-  onSaveProvider?: (provider: LlmProvider) => Promise<void>
-  onDeleteProvider?: (id: string) => Promise<void>
+  models?: GatewayModel[]
+  selectedModel?: string | null
+  onSelectModel?: (modelId: string) => void
 }
 
 export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({
   onSend, onStop, isLoading = false, disabled = false, variant = 'footer',
   rows = 1, minHeight = 'min-h-[42px]',
-  providers, selectedProvider, onSelectProvider, onSaveProvider, onDeleteProvider,
+  models, selectedModel, onSelectModel,
 }, ref) {
   const { t } = useI18n()
   const [input, setInput] = useState('')
   const [popoverOpen, setPopoverOpen] = useState(false)
-  const [dialog, setDialog] = useState<'connect' | null>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const { navigateUp, navigateDown, resetNavigation, addEntry } = useInputHistory()
 
   useImperativeHandle(ref, () => ({ setInput }), [])
 
-  const showSelector = !!(providers && onSelectProvider)
+  const showSelector = !!(models && onSelectModel)
+
+  const selectedModelObj = useMemo(() => {
+    if (!models || !selectedModel) return null
+    return models.find(m => m.id === selectedModel) ?? null
+  }, [models, selectedModel])
 
   useEffect(() => {
     if (!popoverOpen) return
@@ -108,9 +107,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                     type="button" onClick={() => setPopoverOpen(!popoverOpen)}
                     className="group flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors hover:bg-muted"
                   >
-                    {selectedProvider ? (
+                    {selectedModelObj ? (
                       <span className="font-medium text-foreground/80 transition-colors group-hover:text-foreground">
-                        {getModelDisplayName(selectedProvider)}
+                        {selectedModelObj.name}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">{t('models.selectModel')}</span>
@@ -119,11 +118,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                   </button>
                   {popoverOpen && (
                     <ModelPopover
-                      providers={providers!}
-                      selectedProvider={selectedProvider ?? null}
-                      onSelect={(id) => { onSelectProvider!(id); setPopoverOpen(false) }}
+                      models={models!}
+                      selectedModel={selectedModel ?? null}
+                      onSelect={(id) => { onSelectModel!(id); setPopoverOpen(false) }}
                       onClose={() => setPopoverOpen(false)}
-                      onConnect={onSaveProvider ? () => { setPopoverOpen(false); setDialog('connect') } : undefined}
                     />
                   )}
                 </div>
@@ -143,14 +141,6 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           </div>
         </div>
       </form>
-
-      {/* Dialogs */}
-      {dialog === 'connect' && onSaveProvider && (
-        <ConnectProviderDialog
-          onClose={() => setDialog(null)}
-          onSave={async (p) => { await onSaveProvider(p); setDialog(null) }}
-        />
-      )}
     </div>
   )
 })
@@ -159,12 +149,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
 // Model Popover (small, for selecting current model)
 // ============================================================
 
-function ModelPopover({ providers, selectedProvider, onSelect, onClose, onConnect }: {
-  providers: LlmProvider[]
-  selectedProvider: LlmProvider | null
+function ModelPopover({ models, selectedModel, onSelect, onClose }: {
+  models: GatewayModel[]
+  selectedModel: string | null
   onSelect: (id: string) => void
   onClose: () => void
-  onConnect?: () => void
 }) {
   const [search, setSearch] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
@@ -174,19 +163,16 @@ function ModelPopover({ providers, selectedProvider, onSelect, onClose, onConnec
 
   const grouped = useMemo(() => {
     const q = search.toLowerCase().trim()
-    const groups: { name: string; items: { provider: LlmProvider; modelName: string }[] }[] = []
-    for (const p of providers) {
-      const template = getTemplateByType(p.type)
-      const groupName = template?.name ?? p.type
-      const model = template?.models.find(m => m.id === p.modelId)
-      const modelName = model?.name ?? p.modelId
-      if (q && !groupName.toLowerCase().includes(q) && !modelName.toLowerCase().includes(q) && !p.name.toLowerCase().includes(q)) continue
+    const groups: { name: string; items: GatewayModel[] }[] = []
+    for (const m of models) {
+      const groupName = m.provider
+      if (q && !groupName.toLowerCase().includes(q) && !m.name.toLowerCase().includes(q) && !m.id.toLowerCase().includes(q)) continue
       let group = groups.find(g => g.name === groupName)
       if (!group) { group = { name: groupName, items: [] }; groups.push(group) }
-      group.items.push({ provider: p, modelName })
+      group.items.push(m)
     }
     return groups
-  }, [providers, search])
+  }, [models, search])
 
   return (
     <div
@@ -198,35 +184,24 @@ function ModelPopover({ providers, selectedProvider, onSelect, onClose, onConnec
         <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
         <input ref={searchRef} type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t('models.searchModels')} className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50" />
-        {onConnect && (
-          <button type="button" onClick={onConnect} className="cursor-pointer rounded-md p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-muted-foreground" title={t('models.addModel')}>
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
       <div className="flex-1 overflow-y-auto py-1">
         {grouped.length === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-            {providers.length === 0 ? (
-              <div className="flex flex-col items-center gap-2">
-                <span>{t('models.noModelsConfigured')}</span>
-                {onConnect && <button type="button" onClick={onConnect} className="cursor-pointer text-primary hover:underline">{t('models.addAModel')}</button>}
-              </div>
+            {models.length === 0 ? (
+              <span>{t('models.noModelsConfigured')}</span>
             ) : t('models.noModelsFound')}
           </div>
         ) : (
           grouped.map(group => (
             <div key={group.name}>
               <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">{group.name}</div>
-              {group.items.map(({ provider: p, modelName }) => {
-                const isSelected = selectedProvider?.id === p.id
+              {group.items.map(m => {
+                const isSelected = selectedModel === m.id
                 return (
-                  <button key={p.id} type="button" onClick={() => onSelect(p.id)}
+                  <button key={m.id} type="button" onClick={() => onSelect(m.id)}
                     className={`flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-muted ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                    <span className="flex-1 truncate">
-                      {p.name !== (getTemplateByType(p.type)?.name ?? p.type) && <span className="mr-1.5 text-muted-foreground">{p.name}</span>}
-                      <span className={isSelected ? 'font-medium' : ''}>{modelName}</span>
-                    </span>
+                    <span className={`flex-1 truncate ${isSelected ? 'font-medium' : ''}`}>{m.name}</span>
                     {isSelected && <Check className="h-3 w-3 shrink-0 text-primary" />}
                   </button>
                 )
@@ -236,56 +211,5 @@ function ModelPopover({ providers, selectedProvider, onSelect, onClose, onConnec
         )}
       </div>
     </div>
-  )
-}
-
-// ============================================================
-// Dialog Overlay (shared shell)
-// ============================================================
-
-function DialogOverlay({ children, onClose }: { children: ReactNode; onClose: () => void }) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl">
-        {children}
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
-// ============================================================
-// Connect Provider Dialog (uses shared ProviderForm)
-// ============================================================
-
-function ConnectProviderDialog({ onClose, onSave }: {
-  onClose: () => void
-  onSave: (provider: LlmProvider) => Promise<void>
-}) {
-  const { t } = useI18n()
-  return (
-    <DialogOverlay onClose={onClose}>
-      <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
-        <h2 className="text-sm font-semibold text-foreground">{t('models.add')}</h2>
-        <button type="button" onClick={onClose} className="cursor-pointer rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto px-5 py-5">
-        <ProviderForm
-          onSave={async (p) => { await onSave(p); onClose() }}
-          onCancel={onClose}
-          hideCancel
-          compact
-        />
-      </div>
-    </DialogOverlay>
   )
 }

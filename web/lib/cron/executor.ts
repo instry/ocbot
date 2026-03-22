@@ -2,19 +2,18 @@ import type { CronTask, TaskExecutionLog } from './types'
 import type { AgentCallbacks } from '../agent/loop'
 import { runAgentLoop } from '../agent/loop'
 import { ActCache } from '../agent/cache'
-import { getProviders, getDefaultProviderId } from '../storage'
+import { getOpenClawConfig, getSelectedModel } from '../storage'
 
 const TASK_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
 export async function executeCronTask(task: CronTask): Promise<TaskExecutionLog> {
   const startTime = Date.now()
 
-  // Get default provider
-  const providers = await getProviders()
-  const defaultId = await getDefaultProviderId()
-  const provider = providers.find(p => p.id === defaultId) ?? providers[0]
+  // Get gateway config and selected model
+  const { gatewayUrl } = await getOpenClawConfig()
+  const model = await getSelectedModel()
 
-  if (!provider) {
+  if (!model) {
     return {
       id: crypto.randomUUID(),
       taskId: task.id,
@@ -22,7 +21,7 @@ export async function executeCronTask(task: CronTask): Promise<TaskExecutionLog>
       durationMs: Date.now() - startTime,
       status: 'error',
       result: null,
-      error: 'No LLM provider configured',
+      error: 'No model selected',
     }
   }
 
@@ -43,7 +42,7 @@ export async function executeCronTask(task: CronTask): Promise<TaskExecutionLog>
 
   try {
     const messages = [{ role: 'user' as const, content: task.prompt }]
-    await runAgentLoop(provider, messages, callbacks, controller.signal, actCache)
+    await runAgentLoop(gatewayUrl, model, messages, callbacks, controller.signal, actCache)
 
     clearTimeout(timeout)
     const result = responseText.trim() || 'Completed'

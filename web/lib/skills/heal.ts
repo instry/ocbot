@@ -1,11 +1,11 @@
 // lib/skills/heal.ts — L2 (step re-inference) and L3 (segment repair) self-healing
 import type { AgentReplayStep } from '@/lib/agent/agentCache'
 import type { ActionStep } from '@/lib/agent/cache'
-import type { LlmProvider, LlmRequestMessage } from '@/lib/llm/types'
+import type { LlmRequestMessage } from '@/lib/llm/types'
 import type { PageSnapshot } from '@/lib/agent/snapshot'
 import { capturePageSnapshot } from '@/lib/agent/snapshot'
 import { buildRoleName } from '@/lib/agent/cache'
-import { streamChat } from '@/lib/llm/client'
+import { streamChat } from '@/lib/gateway/client'
 import { logDebug } from '@/lib/debug/eventLog'
 
 // --- Helpers ---
@@ -17,7 +17,8 @@ async function getActiveTabId(): Promise<number> {
 }
 
 async function callLlm(
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
@@ -27,7 +28,7 @@ async function callLlm(
   ]
 
   let result = ''
-  for await (const event of streamChat(provider, messages)) {
+  for await (const event of streamChat(gatewayUrl, model, messages)) {
     if (event.type === 'text_delta') {
       result += event.text
     } else if (event.type === 'error') {
@@ -79,7 +80,8 @@ Respond with ONLY valid JSON, no markdown fences:
  */
 export async function healStep(
   failedStep: AgentReplayStep,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
 ): Promise<AgentReplayStep | null> {
   // Only heal act/fillForm steps
   if (failedStep.type !== 'act' && failedStep.type !== 'fillForm') return null
@@ -97,7 +99,7 @@ export async function healStep(
     const snapshotText = formatSnapshotForPrompt(snapshot)
     const userPrompt = `## Page Snapshot\n${snapshotText}\n\n## Failed Step Instruction\n${instruction}`
 
-    const raw = await callLlm(provider, HEAL_STEP_SYSTEM, userPrompt)
+    const raw = await callLlm(gatewayUrl, model, HEAL_STEP_SYSTEM, userPrompt)
     const parsed = parseJsonResponse<{
       actions: Array<{ method: string; nodeId: number; args?: string[]; description: string }>
     }>(raw)
@@ -122,7 +124,7 @@ export async function healStep(
     const { executeTool } = await import('@/lib/agent/tools')
 
     if (failedStep.type === 'act') {
-      const result = await executeTool('act', JSON.stringify({ instruction }), provider, undefined as never, undefined, undefined)
+      const result = await executeTool('act', JSON.stringify({ instruction }), gatewayUrl, model, undefined as never, undefined, undefined)
       const resultParsed = JSON.parse(result)
       if (resultParsed.success === false) {
         logDebug('L2', 'healStep done', { success: false })
@@ -133,7 +135,7 @@ export async function healStep(
     }
 
     // For fillForm, re-execute with original fields
-    const result = await executeTool('fillForm', JSON.stringify({ fields: failedStep.fields }), provider, undefined as never, undefined, undefined)
+    const result = await executeTool('fillForm', JSON.stringify({ fields: failedStep.fields }), gatewayUrl, model, undefined as never, undefined, undefined)
     const resultParsed = JSON.parse(result)
     if (resultParsed.success === false) {
       logDebug('L2', 'healStep done', { success: false })
@@ -179,7 +181,8 @@ export async function healSegment(
   allSteps: AgentReplayStep[],
   failedIndex: number,
   skillMd: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
 ): Promise<AgentReplayStep[] | null> {
   try {
     logDebug('L3', 'Re-planning segment', { failedIndex })
@@ -202,7 +205,7 @@ export async function healSegment(
     const snapshotText = formatSnapshotForPrompt(snapshot)
     const userPrompt = `## Skill Description\n${skillMd}\n\n## Completed Steps (1–${failedIndex})\n${completedSummary}\n\n## Current Page Snapshot\n${snapshotText}\n\n## Task\nPlan the remaining steps to complete this skill. Steps 1–${failedIndex} already executed. Step ${failedIndex + 1} failed. What steps are needed from the current page state to finish?`
 
-    const raw = await callLlm(provider, HEAL_SEGMENT_SYSTEM, userPrompt)
+    const raw = await callLlm(gatewayUrl, model, HEAL_SEGMENT_SYSTEM, userPrompt)
     const parsed = parseJsonResponse<{
       steps: Array<{ type: string; instruction?: string; url?: string; direction?: string }>
     }>(raw)

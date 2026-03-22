@@ -1,4 +1,3 @@
-import type { LlmProvider } from '../llm/types'
 import type { ActCache, ActionStep } from './cache'
 import { buildRoleName } from './cache'
 import { capturePageSnapshot, type PageSnapshot } from './snapshot'
@@ -364,14 +363,15 @@ async function replayCachedViaXPath(
 async function selfHealRetry(
   tabId: number,
   instruction: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<{ actions: ActionStep[]; description: string } | null> {
   try {
     console.log('[ocbot:act] selfHealRetry: re-snapshot + re-LLM...')
     const snapshot = await capturePageSnapshot(tabId)
     if (signal?.aborted) return null
-    const result = await inferActions(instruction, snapshot, provider, signal)
+    const result = await inferActions(instruction, snapshot, gatewayUrl, model, signal)
     return result
   } catch (err) {
     console.log('[ocbot:act] selfHealRetry failed:', err instanceof Error ? err.message : err)
@@ -384,7 +384,8 @@ async function selfHealRetry(
 async function executeTwoStep(
   tabId: number,
   firstAction: ActionStep,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   signal?: AbortSignal,
 ): Promise<{ success: boolean; actions: ActionStep[] }> {
   // Execute first step (e.g. open dropdown)
@@ -400,7 +401,7 @@ async function executeTwoStep(
   const snapshot = await capturePageSnapshot(tabId)
   if (signal?.aborted) return { success: false, actions: [firstAction] }
 
-  const stepTwo = await inferStepTwo(snapshot, firstAction.description, provider, signal)
+  const stepTwo = await inferStepTwo(snapshot, firstAction.description, gatewayUrl, model, signal)
   if (!stepTwo.actions.length) {
     return { success: false, actions: [firstAction] }
   }
@@ -470,7 +471,8 @@ export async function actDirect(
 
 export async function act(
   instruction: string,
-  provider: LlmProvider,
+  gatewayUrl: string,
+  model: string,
   cache: ActCache,
   signal?: AbortSignal,
   options?: ActOptions,
@@ -501,7 +503,7 @@ export async function act(
     console.log('[ocbot:act] ✗ XPath replay failed, self-healing...')
     if (signal?.aborted) throw new Error('Aborted')
 
-    const healed = await selfHealRetry(tabId, instruction, provider, signal)
+    const healed = await selfHealRetry(tabId, instruction, gatewayUrl, model, signal)
     if (!healed) {
       return { success: false, actions: [], description: 'Self-heal failed', cacheHit: false, selfHealed: true }
     }
@@ -524,7 +526,7 @@ export async function act(
 
   let inferResult: { actions: ActionStep[]; description: string }
   try {
-    inferResult = await inferActions(instruction, snapshot, provider, signal)
+    inferResult = await inferActions(instruction, snapshot, gatewayUrl, model, signal)
   } catch (err) {
     console.log('[ocbot:act] inference failed:', err instanceof Error ? err.message : err)
     return { success: false, actions: [], description: 'Inference failed', cacheHit: false, selfHealed: false }
@@ -554,7 +556,7 @@ export async function act(
     if (signal?.aborted) throw new Error('Aborted')
 
     if (action.twoStep) {
-      const twoStepResult = await executeTwoStep(tabId, action, provider, signal)
+      const twoStepResult = await executeTwoStep(tabId, action, gatewayUrl, model, signal)
       allActions.push(...twoStepResult.actions)
       if (!twoStepResult.success) {
         allSuccess = false
@@ -566,7 +568,7 @@ export async function act(
       if (!result.success) {
         // Try selfHealRetry once
         console.log('[ocbot:act] execution failed, trying self-heal...')
-        const healed = await selfHealRetry(tabId, instruction, provider, signal)
+        const healed = await selfHealRetry(tabId, instruction, gatewayUrl, model, signal)
         if (healed) {
           const healReplay = await replayActions(tabId, healed.actions, verifyClicks)
           if (healReplay.success) {
