@@ -88,6 +88,8 @@ export class OcbotChatView extends LitElement {
   @state() toolCards: Map<string, ToolCard> = new Map()
   @state() models: GatewayModel[] = []
   @state() selectedModel = ''
+  @state() modelPopoverOpen = false
+  @state() modelSearch = ''
 
   // Input history
   private inputHistory: string[] = []
@@ -97,6 +99,10 @@ export class OcbotChatView extends LitElement {
   @query('#messages-container') private messagesEl!: HTMLDivElement
 
   private unsubEvents?: () => void
+  private boundClosePopover = (e: MouseEvent) => {
+    const popover = (e.target as Element)?.closest?.('.cv-model-popover, .cv-input__model-btn')
+    if (!popover) this.modelPopoverOpen = false
+  }
 
   override connectedCallback() {
     super.connectedCallback()
@@ -107,11 +113,13 @@ export class OcbotChatView extends LitElement {
       if (event === 'chat') this.handleChatEvent(payload as ChatEventPayload)
       if (event === 'agent') this.handleAgentEvent(payload as AgentEventPayload)
     })
+    document.addEventListener('mousedown', this.boundClosePopover)
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback()
     this.unsubEvents?.()
+    document.removeEventListener('mousedown', this.boundClosePopover)
   }
 
   override willUpdate(changed: PropertyValues) {
@@ -370,8 +378,9 @@ export class OcbotChatView extends LitElement {
 
   private scrollToBottom() {
     requestAnimationFrame(() => {
-      if (this.messagesEl) {
-        this.messagesEl.scrollTop = this.messagesEl.scrollHeight
+      const scrollContainer = this.querySelector('.chat-view')
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight
       }
     })
   }
@@ -529,13 +538,12 @@ export class OcbotChatView extends LitElement {
   }
 
   private _renderInput(hasMessages: boolean) {
+    const modelDisplay = this._getSelectedModelDisplay()
+
     return html`
       <div class="cv-input ${hasMessages ? '' : 'cv-input--centered'}">
         <div class="cv-input__inner">
         <div class="cv-input__box">
-          <button class="cv-input__attach" title="Attach file">
-            ${svgIcon('paperclip', 16)}
-          </button>
           <textarea
             id="chat-input"
             class="cv-input__textarea"
@@ -546,29 +554,90 @@ export class OcbotChatView extends LitElement {
             ?disabled=${this.sending}
             rows="1"
           ></textarea>
-          <button
-            class="cv-input__send ${this.sending ? 'cv-input__send--stop' : ''}"
-            @click=${this.sending ? this.abort : this.sendMessage}
-            ?disabled=${!this.inputText.trim() && !this.sending}
-          >
-            ${this.sending ? svgIcon('x', 16) : svgIcon('arrow-up', 16)}
-          </button>
-        </div>
-        <div class="cv-input__footer">
-          ${this.models.length ? html`
-            <select
-              class="cv-input__model"
-              .value=${this.selectedModel}
-              @change=${(e: Event) => { this.selectedModel = (e.target as HTMLSelectElement).value }}
+          <div class="cv-input__footer">
+            <div class="cv-input__footer-left">
+              <button class="cv-input__attach" title="Attach file">
+                ${svgIcon('paperclip', 16)}
+              </button>
+              ${this.models.length ? html`
+                <div class="cv-input__model-wrap">
+                  <button
+                    class="cv-input__model-btn"
+                    @click=${() => { this.modelPopoverOpen = !this.modelPopoverOpen; this.modelSearch = '' }}
+                  >
+                    <span class="cv-input__model-name">${modelDisplay}</span>
+                    ${svgIcon('chevron-down', 12)}
+                  </button>
+                  ${this.modelPopoverOpen ? this._renderModelPopover() : nothing}
+                </div>
+              ` : nothing}
+            </div>
+            <button
+              class="cv-input__send ${this.sending ? 'cv-input__send--stop' : ''}"
+              @click=${this.sending ? this.abort : this.sendMessage}
+              ?disabled=${!this.inputText.trim() && !this.sending}
             >
-              ${this.models.map(m => html`
-                <option value="${m.provider}/${m.id}" ?selected=${`${m.provider}/${m.id}` === this.selectedModel}>
-                  ${m.name || m.id}
-                </option>
-              `)}
-            </select>
-          ` : nothing}
+              ${this.sending ? svgIcon('x', 16) : svgIcon('arrow-up', 16)}
+            </button>
+          </div>
         </div>
+        </div>
+      </div>
+    `
+  }
+
+  private _getSelectedModelDisplay(): string {
+    if (!this.selectedModel) return 'Select model'
+    const m = this.models.find(m => `${m.provider}/${m.id}` === this.selectedModel)
+    return m ? (m.name || m.id) : this.selectedModel.split('/').pop() ?? this.selectedModel
+  }
+
+  private _renderModelPopover() {
+    const q = this.modelSearch.toLowerCase().trim()
+    // Group models by provider
+    const groups: { name: string; items: GatewayModel[] }[] = []
+    for (const m of this.models) {
+      const modelKey = `${m.provider}/${m.id}`
+      const displayName = (m.name || m.id).toLowerCase()
+      if (q && !m.provider.toLowerCase().includes(q) && !displayName.includes(q)) continue
+      let group = groups.find(g => g.name === m.provider)
+      if (!group) { group = { name: m.provider, items: [] }; groups.push(group) }
+      group.items.push(m)
+    }
+
+    return html`
+      <div class="cv-model-popover" @keydown=${(e: KeyboardEvent) => { if (e.key === 'Escape') this.modelPopoverOpen = false }}>
+        <div class="cv-model-popover__search">
+          ${svgIcon('search', 14)}
+          <input
+            type="text"
+            class="cv-model-popover__search-input"
+            placeholder="Search models..."
+            .value=${this.modelSearch}
+            @input=${(e: Event) => { this.modelSearch = (e.target as HTMLInputElement).value }}
+          />
+        </div>
+        <div class="cv-model-popover__list">
+          ${groups.length === 0 ? html`
+            <div class="cv-model-popover__empty">No models found</div>
+          ` : groups.map(group => html`
+            <div class="cv-model-popover__group">
+              <div class="cv-model-popover__group-name">${group.name}</div>
+              ${group.items.map(m => {
+                const key = `${m.provider}/${m.id}`
+                const isSelected = key === this.selectedModel
+                return html`
+                  <button
+                    class="cv-model-popover__item ${isSelected ? 'cv-model-popover__item--selected' : ''}"
+                    @click=${() => { this.selectedModel = key; this.modelPopoverOpen = false }}
+                  >
+                    <span class="cv-model-popover__item-name">${m.name || m.id}</span>
+                    ${isSelected ? svgIcon('check', 14) : nothing}
+                  </button>
+                `
+              })}
+            </div>
+          `)}
         </div>
       </div>
     `
