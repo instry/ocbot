@@ -277,21 +277,49 @@ export class OcbotProviderForm extends LitElement {
 
     try {
       const patch: Record<string, any> = {}
-      const profileKey = this.editProfileKey ?? `${this.selectedProvider}:default`
 
-      // Set auth profile
+      // Write provider config to models.providers (apiKey + baseUrl + models)
+      const providerConfig: Record<string, any> = {}
       if (!this.isLocal && this.apiKey.trim()) {
-        const profile: Record<string, string> = {
-          provider: this.selectedProvider,
-          mode: 'api_key',
-          apiKey: this.apiKey.trim(),
+        providerConfig.apiKey = this.apiKey.trim()
+      }
+      if (this.baseUrl.trim()) {
+        providerConfig.baseUrl = this.baseUrl.trim()
+      }
+
+      // Include selected models in provider config
+      const modelIds = this.isEditMode
+        ? (this.selectedModel ? [this.selectedModel] : [])
+        : (this.modelsByProvider[this.selectedProvider]?.length
+            ? Array.from(this.selectedModels)
+            : [this.selectedModel.trim()])
+
+      if (modelIds.length) {
+        const allModels = [...(this.modelsByProvider[this.selectedProvider] ?? [])].reverse()
+        providerConfig.models = modelIds.filter(Boolean).map(id => {
+          const m = allModels.find(m => m.id === id)
+          return { id, name: m?.name ?? id }
+        })
+      }
+
+      if (Object.keys(providerConfig).length) {
+        patch.models = {
+          mode: 'merge',
+          providers: {
+            [this.selectedProvider]: providerConfig,
+          },
         }
-        if (this.baseUrl.trim()) {
-          profile.baseUrl = this.baseUrl.trim()
-        }
+      }
+
+      // Also set auth profile (provider + mode only, no secrets)
+      if (!this.isLocal) {
+        const profileKey = this.editProfileKey ?? `${this.selectedProvider}:default`
         patch.auth = {
           profiles: {
-            [profileKey]: profile,
+            [profileKey]: {
+              provider: this.selectedProvider,
+              mode: 'api_key',
+            },
           },
         }
       }

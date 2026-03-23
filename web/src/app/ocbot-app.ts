@@ -48,17 +48,14 @@ export class OcbotApp extends LitElement {
 
   private async checkModels() {
     try {
-      // Check if user has configured any auth profiles (API keys).
-      // models.list returns static catalog even without credentials,
-      // so we check config for actual provider setup instead.
+      // Check if user has configured any model providers with API keys,
+      // or if local models (Ollama) are available.
       const result = await this.gateway.call<{ config?: Record<string, any> }>('config.get')
       const config = result?.config
-      const authProfiles = config?.auth?.profiles
-      const hasAuth = authProfiles && typeof authProfiles === 'object' && Object.keys(authProfiles).length > 0
-      // Also check if Ollama or other local models are discovered
-      if (!hasAuth) {
+      const providers = config?.models?.providers
+      const hasProviders = providers && typeof providers === 'object' && Object.keys(providers).length > 0
+      if (!hasProviders) {
         const models = await this.gateway.call<{ models?: unknown[] }>('models.list')
-        // Only count models from providers that don't need API keys (ollama, vllm, sglang)
         const localModels = (models?.models as any[] ?? []).filter(
           (m: any) => ['ollama', 'vllm', 'sglang'].includes(m.provider)
         )
