@@ -30,8 +30,19 @@ export class OcbotSidepanel extends LitElement {
 
   private async checkModels() {
     try {
-      const result = await this.gateway.call<{ models?: unknown[] }>('models.list')
-      this.hasModels = !!(result?.models?.length)
+      const result = await this.gateway.call<{ config?: Record<string, any> }>('config.get')
+      const config = result?.config
+      const authProfiles = config?.auth?.profiles
+      const hasAuth = authProfiles && typeof authProfiles === 'object' && Object.keys(authProfiles).length > 0
+      if (!hasAuth) {
+        const models = await this.gateway.call<{ models?: unknown[] }>('models.list')
+        const localModels = (models?.models as any[] ?? []).filter(
+          (m: any) => ['ollama', 'vllm', 'sglang'].includes(m.provider)
+        )
+        this.hasModels = localModels.length > 0
+      } else {
+        this.hasModels = true
+      }
     } catch {
       this.hasModels = false
     }
