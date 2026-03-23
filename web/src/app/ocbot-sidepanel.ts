@@ -8,6 +8,7 @@ export class OcbotSidepanel extends LitElement {
   override createRenderRoot() { return this }
 
   @state() gatewayState: GatewayState = 'disconnected'
+  @state() hasModels = false
 
   private gateway!: GatewayClient
   private unsubState?: () => void
@@ -18,12 +19,22 @@ export class OcbotSidepanel extends LitElement {
     this.gatewayState = this.gateway.state
     this.unsubState = this.gateway.onStateChange((s) => {
       this.gatewayState = s
+      if (s === 'connected') this.checkModels()
     })
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback()
     this.unsubState?.()
+  }
+
+  private async checkModels() {
+    try {
+      const result = await this.gateway.call<{ models?: unknown[] }>('models.list')
+      this.hasModels = !!(result?.models?.length)
+    } catch {
+      this.hasModels = false
+    }
   }
 
   override render() {
@@ -47,9 +58,20 @@ export class OcbotSidepanel extends LitElement {
           <span style="font-size:10px; color:var(--ok);">●</span>
         </div>
 
-        <!-- Chat -->
+        <!-- Chat or setup prompt -->
         <div style="flex:1; overflow:hidden;">
-          <ocbot-chat-view .gateway=${this.gateway}></ocbot-chat-view>
+          ${this.hasModels
+            ? html`<ocbot-chat-view .gateway=${this.gateway}></ocbot-chat-view>`
+            : html`
+              <div style="display:flex; align-items:center; justify-content:center; height:100%; padding:16px;">
+                <div style="text-align:center;">
+                  <img src="/logo.png" alt="" style="width:48px; height:48px; margin-bottom:12px;" />
+                  <div style="font-size:14px; font-weight:500; color:var(--text-strong); margin-bottom:4px;">No AI model configured</div>
+                  <div style="font-size:13px; color:var(--muted);">Open <b>oc://home</b> to set up a provider.</div>
+                </div>
+              </div>
+            `
+          }
         </div>
       </div>
     `

@@ -515,6 +515,23 @@ html, body {
   color: var(--text);
 }
 
+/* Setup prompt */
+.setup-prompt__btn {
+  padding: 12px 28px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.setup-prompt__btn:hover {
+  background: var(--accent-hover);
+}
+
 /* Apply theme based on system preference by default */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme-mode]) {

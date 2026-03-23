@@ -4,7 +4,6 @@ import { connectGateway, type GatewayClient, type GatewayState } from '../gatewa
 import '../components/ocbot-sidebar'
 import '../views/chat-view'
 import '../views/sessions-view'
-import '../views/onboarding-view'
 import '../views/cron-view'
 import '../views/config-view'
 import '../views/settings-view'
@@ -21,7 +20,7 @@ export class OcbotApp extends LitElement {
 
   @state() tab: Tab = 'chat'
   @state() gatewayState: GatewayState = 'disconnected'
-  @state() needsOnboarding: boolean | null = null
+  @state() hasModels = false
   @state() chatSessionKey = 'ocbot:home'
 
   private gateway!: GatewayClient
@@ -36,8 +35,8 @@ export class OcbotApp extends LitElement {
     this.gatewayState = this.gateway.state
     this.unsubState = this.gateway.onStateChange((s) => {
       this.gatewayState = s
-      if (s === 'connected' && this.needsOnboarding === null) {
-        this.checkOnboarding()
+      if (s === 'connected') {
+        this.checkModels()
       }
     })
   }
@@ -48,12 +47,12 @@ export class OcbotApp extends LitElement {
     this.unsubState?.()
   }
 
-  private async checkOnboarding() {
+  private async checkModels() {
     try {
       const result = await this.gateway.call<{ models?: unknown[] }>('models.list')
-      this.needsOnboarding = !result?.models?.length
+      this.hasModels = !!(result?.models?.length)
     } catch {
-      this.needsOnboarding = false
+      this.hasModels = false
     }
   }
 
@@ -73,11 +72,12 @@ export class OcbotApp extends LitElement {
     this._navigate('chat')
   }
 
-  private _onOnboardingComplete() {
-    this.needsOnboarding = false
+  private _onModelsChanged() {
+    this.checkModels()
   }
 
   override render() {
+    // Connecting screen
     if (this.gatewayState !== 'connected') {
       return html`
         <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100vw;">
@@ -92,23 +92,7 @@ export class OcbotApp extends LitElement {
       `
     }
 
-    if (this.needsOnboarding === true) {
-      return html`
-        <ocbot-onboarding
-          .gateway=${this.gateway}
-          @onboarding-complete=${this._onOnboardingComplete}
-        ></ocbot-onboarding>
-      `
-    }
-
-    if (this.needsOnboarding === null) {
-      return html`
-        <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100vw;">
-          <div style="font-size:14px; color:var(--muted);">Loading...</div>
-        </div>
-      `
-    }
-
+    // Main UI — always accessible, no onboarding block
     return html`
       <div style="display:flex; height:100vh; width:100vw;">
         <ocbot-sidebar
@@ -126,7 +110,9 @@ export class OcbotApp extends LitElement {
   private _renderContent() {
     switch (this.tab) {
       case 'chat':
-        return html`<ocbot-chat-view .gateway=${this.gateway} .sessionKey=${this.chatSessionKey}></ocbot-chat-view>`
+        return this.hasModels
+          ? html`<ocbot-chat-view .gateway=${this.gateway} .sessionKey=${this.chatSessionKey}></ocbot-chat-view>`
+          : this._renderSetupPrompt()
       case 'sessions':
         return html`<ocbot-sessions-view .gateway=${this.gateway} @select-session=${this._onSelectSession}></ocbot-sessions-view>`
       case 'cron':
@@ -140,11 +126,29 @@ export class OcbotApp extends LitElement {
       case 'usage':
         return html`<ocbot-usage-view .gateway=${this.gateway}></ocbot-usage-view>`
       case 'config':
-        return html`<ocbot-config-view .gateway=${this.gateway}></ocbot-config-view>`
+        return html`<ocbot-config-view .gateway=${this.gateway} @config-saved=${this._onModelsChanged}></ocbot-config-view>`
       case 'settings':
         return html`<ocbot-settings-view></ocbot-settings-view>`
       default:
         return html``
     }
+  }
+
+  private _renderSetupPrompt() {
+    return html`
+      <div style="display:flex; align-items:center; justify-content:center; height:100%; padding:24px;">
+        <div style="text-align:center; max-width:400px;">
+          <img src="/logo.png" alt="Ocbot" style="width:64px; height:64px; margin-bottom:16px;" />
+          <h2 style="font-size:20px; font-weight:600; color:var(--text-strong); margin:0 0 8px;">Set up AI model</h2>
+          <p style="font-size:14px; color:var(--muted); margin:0 0 24px; line-height:1.6;">
+            Configure an AI provider to start chatting. You can also use a local model with Ollama.
+          </p>
+          <button
+            class="setup-prompt__btn"
+            @click=${() => this._navigate('config')}
+          >Open Configuration</button>
+        </div>
+      </div>
+    `
   }
 }
