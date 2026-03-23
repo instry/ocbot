@@ -20,7 +20,7 @@ export class OcbotApp extends LitElement {
 
   @state() tab: Tab = 'chat'
   @state() gatewayState: GatewayState = 'disconnected'
-  @state() hasModels = false
+  @state() hasModels: boolean | null = null // null = still checking
   @state() chatSessionKey = 'ocbot:home'
 
   private gateway!: GatewayClient
@@ -110,6 +110,9 @@ export class OcbotApp extends LitElement {
   private _renderContent() {
     switch (this.tab) {
       case 'chat':
+        if (this.hasModels === null) {
+          return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);">Loading...</div>`
+        }
         return this.hasModels
           ? html`<ocbot-chat-view .gateway=${this.gateway} .sessionKey=${this.chatSessionKey}></ocbot-chat-view>`
           : this._renderSetupPrompt()

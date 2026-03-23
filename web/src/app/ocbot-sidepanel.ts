@@ -8,7 +8,7 @@ export class OcbotSidepanel extends LitElement {
   override createRenderRoot() { return this }
 
   @state() gatewayState: GatewayState = 'disconnected'
-  @state() hasModels = false
+  @state() hasModels: boolean | null = null
 
   private gateway!: GatewayClient
   private unsubState?: () => void
@@ -60,7 +60,9 @@ export class OcbotSidepanel extends LitElement {
 
         <!-- Chat or setup prompt -->
         <div style="flex:1; overflow:hidden;">
-          ${this.hasModels
+          ${this.hasModels === null
+            ? html`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);">Loading...</div>`
+            : this.hasModels
             ? html`<ocbot-chat-view .gateway=${this.gateway}></ocbot-chat-view>`
             : html`
               <div style="display:flex; align-items:center; justify-content:center; height:100%; padding:16px;">
