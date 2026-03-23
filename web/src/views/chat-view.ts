@@ -3,11 +3,44 @@ import { customElement, property, state, query } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
 import { svgIcon } from '../components/icons'
 
+/**
+ * Message content part — Anthropic-style content array.
+ * Each message has content: Array<{ type: "text", text: string } | ...>
+ */
+interface ContentPart {
+  type: string
+  text?: string
+}
+
 interface ChatMessage {
-  role: 'user' | 'assistant' | 'tool'
-  content: string
-  toolCalls?: { id: string; name: string; phase: string; output?: string }[]
+  role: 'user' | 'assistant'
+  content: ContentPart[] | string
   timestamp?: number
+}
+
+/** Extract display text from a message's content (string or content array) */
+function messageText(msg: ChatMessage): string {
+  if (typeof msg.content === 'string') return msg.content
+  if (Array.isArray(msg.content)) {
+    return msg.content
+      .filter((p): p is ContentPart & { text: string } => p.type === 'text' && !!p.text)
+      .map(p => p.text)
+      .join('')
+  }
+  return ''
+}
+
+/** Chat event payload from gateway */
+interface ChatEventPayload {
+  runId?: string
+  sessionKey?: string
+  state?: 'delta' | 'final' | 'error' | 'aborted'
+  message?: {
+    role: string
+    content: ContentPart[]
+    timestamp?: number
+  }
+  errorMessage?: string
 }
 
 @customElement('ocbot-chat-view')
@@ -15,163 +48,174 @@ export class OcbotChatView extends LitElement {
   override createRenderRoot() { return this }
 
   @property({ attribute: false }) gateway!: GatewayClient
+  @property() sessionKey = 'main'
 
   @state() messages: ChatMessage[] = []
-  @state() streamingText = ''
+  @state() streamText = ''  // cumulative streaming text from delta events
   @state() sending = false
   @state() inputText = ''
-  @property() sessionKey = 'ocbot:home'
-  @state() toolCards: Map<string, { name: string; phase: string; output?: string }> = new Map()
+  @state() runId: string | null = null  // current run correlation ID
+  @state() error: string | null = null
 
   @query('#chat-input') private inputEl!: HTMLTextAreaElement
   @query('#messages-container') private messagesEl!: HTMLDivElement
 
   private unsubChat?: () => void
-  private unsubAgent?: () => void
 
   override connectedCallback() {
     super.connectedCallback()
     this.loadHistory()
 
+    // Listen to 'chat' events from gateway
     this.unsubChat = this.gateway.onEvent((event, payload) => {
-      if (event !== 'chat') return
-      this.handleChatEvent(payload)
-    })
-
-    this.unsubAgent = this.gateway.onEvent((event, payload) => {
-      if (event !== 'agent') return
-      this.handleAgentEvent(payload)
+      if (event === 'chat') {
+        this.handleChatEvent(payload as ChatEventPayload)
+      }
     })
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback()
     this.unsubChat?.()
-    this.unsubAgent?.()
   }
 
   private async loadHistory() {
     try {
-      const result = await this.gateway.call<{ messages?: unknown[] }>('chat.history', {
+      const result = await this.gateway.call<{
+        messages?: Array<{ role: string; content: unknown; timestamp?: number }>
+      }>('chat.history', {
         sessionKey: this.sessionKey,
         limit: 200,
       })
+
       if (result?.messages) {
-        this.messages = this.normalizeMessages(result.messages)
+        this.messages = result.messages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .filter(m => {
+            // Filter out NO_REPLY assistant messages
+            const text = typeof m.content === 'string'
+              ? m.content
+              : Array.isArray(m.content)
+                ? (m.content as ContentPart[]).map(p => p.text ?? '').join('')
+                : ''
+            return m.role !== 'assistant' || text.trim() !== 'NO_REPLY'
+          })
+          .map(m => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content as ContentPart[] | string,
+            timestamp: m.timestamp,
+          }))
+        this.scrollToBottom()
       }
     } catch {
-      // Gateway may not have chat history yet — that's OK
+      // History not available — that's OK for new sessions
     }
   }
 
-  private normalizeMessages(raw: unknown[]): ChatMessage[] {
-    return raw.filter((m: any) => m?.role && m?.content != null).map((m: any) => ({
-      role: m.role as 'user' | 'assistant' | 'tool',
-      content: typeof m.content === 'string'
-        ? m.content
-        : Array.isArray(m.content)
-          ? m.content.map((p: any) => p.type === 'text' ? p.text : `[${p.type}]`).join('')
-          : String(m.content ?? ''),
-      timestamp: m.timestamp,
-    }))
-  }
+  private handleChatEvent(payload: ChatEventPayload) {
+    // Only handle events for our session
+    if (payload.sessionKey && payload.sessionKey !== this.sessionKey) return
 
-  private handleChatEvent(payload: unknown) {
-    const p = payload as { type?: string; text?: string; message?: any; error?: string }
-    switch (p?.type) {
-      case 'delta':
-        this.streamingText += p.text ?? ''
+    switch (payload.state) {
+      case 'delta': {
+        // Delta contains CUMULATIVE text (full text so far, not just the new chunk)
+        const text = payload.message?.content
+          ?.filter(p => p.type === 'text')
+          .map(p => p.text ?? '')
+          .join('') ?? ''
+        this.streamText = text
         this.scrollToBottom()
         break
-      case 'final':
-        if (p.message) {
+      }
+
+      case 'final': {
+        // Final message — add to messages, clear streaming state
+        if (payload.message) {
+          const text = payload.message.content
+            ?.filter(p => p.type === 'text')
+            .map(p => p.text ?? '')
+            .join('') ?? ''
+          // Skip NO_REPLY
+          if (text.trim() && text.trim() !== 'NO_REPLY') {
+            this.messages = [...this.messages, {
+              role: 'assistant',
+              content: payload.message.content,
+              timestamp: payload.message.timestamp ?? Date.now(),
+            }]
+          }
+        }
+        this.streamText = ''
+        this.runId = null
+        this.sending = false
+        this.scrollToBottom()
+        break
+      }
+
+      case 'aborted': {
+        // Partial response on abort
+        if (this.streamText.trim()) {
           this.messages = [...this.messages, {
             role: 'assistant',
-            content: typeof p.message.content === 'string'
-              ? p.message.content
-              : this.streamingText || '[message]',
+            content: [{ type: 'text', text: this.streamText }],
             timestamp: Date.now(),
           }]
         }
-        this.streamingText = ''
-        this.toolCards = new Map()
-        this.sending = false
-        this.scrollToBottom()
-        break
-      case 'aborted':
-        if (this.streamingText) {
-          this.messages = [...this.messages, {
-            role: 'assistant',
-            content: this.streamingText + ' [aborted]',
-            timestamp: Date.now(),
-          }]
-        }
-        this.streamingText = ''
-        this.toolCards = new Map()
+        this.streamText = ''
+        this.runId = null
         this.sending = false
         break
-      case 'error':
-        this.messages = [...this.messages, {
-          role: 'assistant',
-          content: `Error: ${p.error ?? 'Unknown error'}`,
-          timestamp: Date.now(),
-        }]
-        this.streamingText = ''
+      }
+
+      case 'error': {
+        this.error = payload.errorMessage ?? 'An error occurred'
+        this.streamText = ''
+        this.runId = null
         this.sending = false
         break
+      }
     }
-  }
-
-  private handleAgentEvent(payload: unknown) {
-    const p = payload as { stream?: string; phase?: string; toolCallId?: string; toolName?: string; output?: string }
-    if (p?.stream !== 'tool') return
-
-    const id = p.toolCallId ?? 'unknown'
-    const existing = this.toolCards.get(id) ?? { name: p.toolName ?? 'tool', phase: 'start' }
-    const updated = new Map(this.toolCards)
-    updated.set(id, {
-      ...existing,
-      name: p.toolName ?? existing.name,
-      phase: p.phase ?? existing.phase,
-      output: p.output ?? existing.output,
-    })
-    this.toolCards = updated
   }
 
   private async sendMessage() {
     const text = this.inputText.trim()
     if (!text || this.sending) return
 
+    this.error = null
+
+    // Add optimistic user message
     this.messages = [...this.messages, {
       role: 'user',
-      content: text,
+      content: [{ type: 'text', text }],
       timestamp: Date.now(),
     }]
     this.inputText = ''
     this.sending = true
-    this.streamingText = ''
-    this.toolCards = new Map()
+    this.streamText = ''
+
+    const idempotencyKey = crypto.randomUUID()
+    this.runId = idempotencyKey
+
     this.scrollToBottom()
 
     try {
       await this.gateway.call('chat.send', {
         sessionKey: this.sessionKey,
         message: text,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey,
       })
     } catch (err) {
-      this.messages = [...this.messages, {
-        role: 'assistant',
-        content: `Error: ${err instanceof Error ? err.message : String(err)}`,
-        timestamp: Date.now(),
-      }]
+      this.error = err instanceof Error ? err.message : String(err)
       this.sending = false
+      this.runId = null
     }
   }
 
   private async abort() {
     try {
-      await this.gateway.call('chat.abort', { sessionKey: this.sessionKey })
+      await this.gateway.call('chat.abort', {
+        sessionKey: this.sessionKey,
+        runId: this.runId,
+      })
     } catch { /* best effort */ }
   }
 
@@ -204,7 +248,7 @@ export class OcbotChatView extends LitElement {
 
         <!-- Messages -->
         <div class="chat-view__messages" id="messages-container">
-          ${this.messages.length === 0 && !this.streamingText ? html`
+          ${this.messages.length === 0 && !this.streamText ? html`
             <div class="chat-view__empty">
               <img src="/logo.png" alt="Ocbot" style="width:64px; height:64px; margin-bottom:16px;" />
               <div style="font-size:16px; color:var(--text-strong);">How can I help?</div>
@@ -214,27 +258,21 @@ export class OcbotChatView extends LitElement {
 
           ${this.messages.map(m => html`
             <div class="chat-view__msg chat-view__msg--${m.role}">
-              <div class="chat-view__msg-content">${m.content}</div>
+              <div class="chat-view__msg-content">${messageText(m)}</div>
             </div>
           `)}
 
-          <!-- Tool cards -->
-          ${this.toolCards.size > 0 ? html`
-            <div class="chat-view__tools">
-              ${[...this.toolCards.entries()].map(([id, tc]) => html`
-                <div class="chat-view__tool-card">
-                  <span class="chat-view__tool-icon">${tc.phase === 'result' ? svgIcon('check', 14) : svgIcon('loader', 14)}</span>
-                  <span class="chat-view__tool-name">${tc.name}</span>
-                  ${tc.output ? html`<span class="chat-view__tool-output">${tc.output.slice(0, 100)}</span>` : nothing}
-                </div>
-              `)}
+          <!-- Streaming text (cumulative) -->
+          ${this.streamText ? html`
+            <div class="chat-view__msg chat-view__msg--assistant">
+              <div class="chat-view__msg-content">${this.streamText}<span class="chat-view__cursor">▍</span></div>
             </div>
           ` : nothing}
 
-          <!-- Streaming text -->
-          ${this.streamingText ? html`
-            <div class="chat-view__msg chat-view__msg--assistant">
-              <div class="chat-view__msg-content">${this.streamingText}<span class="chat-view__cursor">▍</span></div>
+          <!-- Error -->
+          ${this.error ? html`
+            <div style="padding:8px 14px; margin:8px 0; border-radius:var(--radius-md); background:var(--danger-subtle); color:var(--danger); font-size:13px;">
+              ${this.error}
             </div>
           ` : nothing}
         </div>

@@ -199,6 +199,8 @@ export class GatewayClient {
       resolve: () => {
         this.backoffMs = BACKOFF_INITIAL_MS
         this.setState('connected')
+        // Subscribe to session events so chat events flow
+        this.call('sessions.subscribe').catch(() => {})
       },
       reject: (err) => {
         console.error('[gateway] connect failed:', err)
