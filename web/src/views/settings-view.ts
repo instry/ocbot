@@ -6,7 +6,7 @@ import '../components/provider-form'
 
 declare const __OCBOT_VERSION__: string
 
-type SettingsTab = 'models' | 'general'
+type SettingsTab = 'models' | 'general' | 'about'
 type ModelsView = 'list' | 'add' | 'edit'
 type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -136,6 +136,7 @@ export class OcbotSettingsView extends LitElement {
     const tabs: { id: SettingsTab; icon: string; label: string }[] = [
       { id: 'models', icon: '\u2699', label: 'Models' },
       { id: 'general', icon: '\u2638', label: 'General' },
+      { id: 'about', icon: '\u2139', label: 'About' },
     ]
 
     return html`
@@ -160,6 +161,7 @@ export class OcbotSettingsView extends LitElement {
         <div class="settings__content">
           ${this.activeTab === 'models' ? this._renderModelsTab() : nothing}
           ${this.activeTab === 'general' ? this._renderGeneralTab() : nothing}
+          ${this.activeTab === 'about' ? this._renderAboutTab() : nothing}
         </div>
       </div>
     `
@@ -302,19 +304,75 @@ export class OcbotSettingsView extends LitElement {
             </div>
           </div>
 
-          <!-- About -->
-          <div class="settings__section">
-            <h3 class="settings__section-title">About</h3>
-            <div class="settings__section-card">
-              <div class="settings__about">
-                <img src="/logo.png" alt="Ocbot" class="settings__about-logo" />
-                <div class="settings__about-info">
-                  <div class="settings__about-name">Ocbot</div>
-                  <div class="settings__about-version">v${this.version}</div>
-                </div>
-              </div>
-              <div class="settings__about-powered">Powered by OpenClaw</div>
+        </div>
+      </div>
+    `
+  }
+
+  private _renderAboutTab() {
+    const faqs = [
+      { q: 'What are you exactly?', a: "I'm a new species! Part browser, part AI agent. Think of me as a very helpful octopus that lives in your browser tabs." },
+      { q: 'Why the name "ocbot"?', a: 'Because "octo" means 8! I\'m an octopus-inspired bot with eight arms ready to multitask across the web.' },
+      { q: 'Why purple?', a: "Because I'm hitting the big time — only royalty gets to be purple. Plus it's the color of a certain deep-sea creature." },
+      { q: 'Your avatar only has 5 arms.', a: 'The other 3 are hidden behind me, duh.' },
+      { q: 'Will you leak my data?', a: "Nope! All your data is stored locally in your browser. I don't phone home. Your conversations, your skills, your settings — all yours." },
+    ]
+
+    const socials = [
+      { name: 'X', url: 'https://x.com/ocbot_ai' },
+      { name: 'Instagram', url: 'https://instagram.com/ocbot_ai' },
+      { name: 'YouTube', url: 'https://youtube.com/@ocbot_ai' },
+      { name: 'Discord', url: 'https://discord.gg/ocbot_ai' },
+      { name: 'TikTok', url: 'https://tiktok.com/@ocbot_ai' },
+    ]
+
+    return html`
+      <div class="settings__tab-content">
+        <div class="about">
+          <!-- Avatar + Name -->
+          <div class="about__hero">
+            <div class="about__avatar">
+              <img src="/logo.png" alt="Ocbot" style="width:48px; height:48px;" />
             </div>
+            <h1 class="about__name">ocbot</h1>
+            <p class="about__tagline">Got brains, got arms, up before the alarm.</p>
+          </div>
+
+          <!-- Intro -->
+          <div class="about__card">
+            <p class="about__intro">
+              My name is ocbot. I'm super smart and super quick at getting things done.
+              I live inside your browser with eight nimble arms ready to handle any task.
+              Ask me to find info, fill forms, compare products, or automate your online work.
+              I don't sleep, I don't forget, and I'm always ready.
+            </p>
+          </div>
+
+          <!-- FAQ -->
+          <div class="about__section">
+            <h2 class="about__section-title">❓ FAQ</h2>
+            <div class="about__faq-list">
+              ${faqs.map(f => html`
+                <div class="about__card">
+                  <p class="about__faq-q">Q: ${f.q}</p>
+                  <p class="about__faq-a">${f.a}</p>
+                </div>
+              `)}
+            </div>
+          </div>
+
+          <!-- Contact & Socials -->
+          <div class="about__footer">
+            <div class="about__links">
+              <a href="https://oc.bot" target="_blank" rel="noopener">🌐 oc.bot</a>
+              <a href="mailto:hi@oc.bot">✉ hi@oc.bot</a>
+            </div>
+            <div class="about__socials">
+              ${socials.map(s => html`
+                <a href=${s.url} target="_blank" rel="noopener" class="about__social-pill">${s.name}</a>
+              `)}
+            </div>
+            <div class="about__version">v${this.version}</div>
           </div>
         </div>
       </div>
