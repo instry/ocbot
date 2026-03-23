@@ -325,7 +325,6 @@ export class OcbotChatView extends LitElement {
         sessionKey: this.sessionKey,
         message: text,
         idempotencyKey,
-        ...(this.selectedModel ? { model: this.selectedModel } : {}),
       })
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)
