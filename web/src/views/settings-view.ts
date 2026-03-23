@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
+import '../components/provider-form'
 
 declare const __OCBOT_VERSION__: string
 
@@ -56,6 +57,22 @@ export class OcbotSettingsView extends LitElement {
     return html`
       <div style="padding:20px; height:100%; overflow-y:auto;">
         <h2 style="font-size:20px; font-weight:600; color:var(--text-strong); margin:0 0 24px 0;">Settings</h2>
+
+        <!-- AI Models -->
+        <section style="margin-bottom:32px;">
+          <h3 style="font-size:14px; font-weight:600; color:var(--text-strong); margin:0 0 12px 0; text-transform:uppercase; letter-spacing:0.05em;">AI Models</h3>
+          <div style="
+            padding:16px;
+            border:1px solid var(--border);
+            border-radius:8px;
+            background:var(--surface, var(--bg));
+          ">
+            <ocbot-provider-form
+              .gateway=${this.gateway}
+              @provider-saved=${() => this.dispatchEvent(new CustomEvent('models-changed', { bubbles: true, composed: true }))}
+            ></ocbot-provider-form>
+          </div>
+        </section>
 
         <!-- Theme -->
         <section style="margin-bottom:32px;">
