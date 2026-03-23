@@ -1,6 +1,7 @@
 import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state, query } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
+import { svgIcon } from '../components/icons'
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'tool'
@@ -222,7 +223,7 @@ export class OcbotChatView extends LitElement {
             <div class="chat-view__tools">
               ${[...this.toolCards.entries()].map(([id, tc]) => html`
                 <div class="chat-view__tool-card">
-                  <span class="chat-view__tool-icon">${tc.phase === 'result' ? '✓' : '⟳'}</span>
+                  <span class="chat-view__tool-icon">${tc.phase === 'result' ? svgIcon('check', 14) : svgIcon('loader', 14)}</span>
                   <span class="chat-view__tool-name">${tc.name}</span>
                   ${tc.output ? html`<span class="chat-view__tool-output">${tc.output.slice(0, 100)}</span>` : nothing}
                 </div>

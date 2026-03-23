@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
 import type { ConfiguredProvider } from '../components/provider-form'
+import { svgIcon } from '../components/icons'
 import '../components/provider-form'
 
 declare const __OCBOT_VERSION__: string
@@ -134,9 +135,9 @@ export class OcbotSettingsView extends LitElement {
 
   override render() {
     const tabs: { id: SettingsTab; icon: string; label: string }[] = [
-      { id: 'models', icon: '\u2699', label: 'Models' },
-      { id: 'general', icon: '\u2638', label: 'General' },
-      { id: 'about', icon: '\u2139', label: 'About' },
+      { id: 'models', icon: 'cpu', label: 'Models' },
+      { id: 'general', icon: 'sliders', label: 'General' },
+      { id: 'about', icon: 'info', label: 'About' },
     ]
 
     return html`
@@ -150,7 +151,7 @@ export class OcbotSettingsView extends LitElement {
                 class="settings__nav-btn ${this.activeTab === t.id ? 'settings__nav-btn--active' : ''}"
                 @click=${() => { this.activeTab = t.id; if (t.id === 'models') this.modelsView = 'list' }}
               >
-                <span class="settings__nav-icon">${t.icon}</span>
+                <span class="settings__nav-icon">${svgIcon(t.icon, 16)}</span>
                 <span>${t.label}</span>
               </button>
             `)}
@@ -270,9 +271,9 @@ export class OcbotSettingsView extends LitElement {
 
   private _renderGeneralTab() {
     const themes: { value: ThemeMode; label: string; icon: string }[] = [
-      { value: 'system', label: 'System', icon: '\u{1F5A5}' },
-      { value: 'light', label: 'Light', icon: '\u2600' },
-      { value: 'dark', label: 'Dark', icon: '\u263D' },
+      { value: 'system', label: 'System', icon: 'monitor' },
+      { value: 'light', label: 'Light', icon: 'sun' },
+      { value: 'dark', label: 'Dark', icon: 'moon' },
     ]
 
     return html`
@@ -295,7 +296,7 @@ export class OcbotSettingsView extends LitElement {
                       class="settings__theme-btn ${this.theme === t.value ? 'settings__theme-btn--active' : ''}"
                       @click=${() => this.setTheme(t.value)}
                     >
-                      <span class="settings__theme-icon">${t.icon}</span>
+                      <span class="settings__theme-icon">${svgIcon(t.icon, 14)}</span>
                       ${t.label}
                     </button>
                   `)}
@@ -350,7 +351,7 @@ export class OcbotSettingsView extends LitElement {
 
           <!-- FAQ -->
           <div class="about__section">
-            <h2 class="about__section-title">❓ FAQ</h2>
+            <h2 class="about__section-title">${svgIcon('message-question', 16)} FAQ</h2>
             <div class="about__faq-list">
               ${faqs.map(f => html`
                 <div class="about__card">
@@ -364,8 +365,8 @@ export class OcbotSettingsView extends LitElement {
           <!-- Contact & Socials -->
           <div class="about__footer">
             <div class="about__links">
-              <a href="https://oc.bot" target="_blank" rel="noopener">🌐 oc.bot</a>
-              <a href="mailto:hi@oc.bot">✉ hi@oc.bot</a>
+              <a href="https://oc.bot" target="_blank" rel="noopener">${svgIcon('globe', 14)} oc.bot</a>
+              <a href="mailto:hi@oc.bot">${svgIcon('mail', 14)} hi@oc.bot</a>
             </div>
             <div class="about__socials">
               ${socials.map(s => html`

@@ -1,6 +1,7 @@
 import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
+import { svgIcon } from '../components/icons'
 
 interface SessionRow {
   key: string
@@ -112,7 +113,7 @@ export class OcbotSessionsView extends LitElement {
           <div style="text-align:center; color:var(--danger); padding:40px;">${this.error}</div>
         ` : this.sessions.length === 0 ? html`
           <div style="text-align:center; color:var(--muted); padding:40px;">
-            <div style="font-size:32px; margin-bottom:8px;">📋</div>
+            <div style="margin-bottom:8px; color:var(--muted);">${svgIcon('clipboard', 32)}</div>
             <div>No sessions yet</div>
           </div>
         ` : html`

@@ -1,6 +1,7 @@
 import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
+import { svgIcon } from '../components/icons'
 
 interface CronJob {
   id: string
@@ -102,7 +103,7 @@ export class OcbotCronView extends LitElement {
           <div style="text-align:center; color:var(--danger); padding:40px;">${this.error}</div>
         ` : this.jobs.length === 0 ? html`
           <div style="text-align:center; color:var(--muted); padding:60px 20px;">
-            <div style="font-size:36px; margin-bottom:12px;">📅</div>
+            <div style="margin-bottom:12px; color:var(--muted);">${svgIcon('calendar', 36)}</div>
             <div style="font-size:15px;">No scheduled tasks</div>
           </div>
         ` : html`

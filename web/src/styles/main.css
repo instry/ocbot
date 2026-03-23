@@ -772,9 +772,12 @@ html, body {
 }
 
 .settings__nav-icon {
-  font-size: 15px;
   width: 18px;
-  text-align: center;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Content area */
@@ -1367,6 +1370,9 @@ html, body {
   font-weight: 600;
   color: var(--text-strong);
   margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .about__faq-q {
@@ -1402,6 +1408,9 @@ html, body {
   color: var(--muted);
   text-decoration: none;
   transition: color var(--duration-fast);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .about__links a:hover {
