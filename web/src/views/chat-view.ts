@@ -1,4 +1,4 @@
-import { LitElement, html, nothing } from 'lit'
+import { LitElement, html, nothing, type PropertyValues } from 'lit'
 import { customElement, property, state, query } from 'lit/decorators.js'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import type { GatewayClient } from '../gateway/client'
@@ -112,6 +112,18 @@ export class OcbotChatView extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback()
     this.unsubEvents?.()
+  }
+
+  override willUpdate(changed: PropertyValues) {
+    if (changed.has('sessionKey') && changed.get('sessionKey') !== undefined) {
+      // sessionKey changed, reload history for new session
+      this.messages = []
+      this.streamText = ''
+      this.error = null
+      this.toolCards = new Map()
+      this.canonicalSessionKey = null
+      this.loadHistory()
+    }
   }
 
   private async loadModels() {
@@ -274,6 +286,7 @@ export class OcbotChatView extends LitElement {
         sessionKey: this.sessionKey,
         message: text,
         idempotencyKey,
+        ...(this.selectedModel ? { model: this.selectedModel } : {}),
       })
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)

@@ -121,9 +121,12 @@ export class OcbotSessionPanel extends LitElement {
             <div class="session-panel__date-group">
               <div class="session-panel__date-label">${group.label}</div>
               ${group.items.map(s => html`
-                <button
+                <div
                   class="session-panel__item ${s.key === this.activeSessionKey ? 'session-panel__item--active' : ''}"
+                  role="button"
+                  tabindex="0"
                   @click=${() => this.selectSession(s.key)}
+                  @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.selectSession(s.key) }}
                 >
                   <span class="session-panel__item-title">${this.getTitle(s)}</span>
                   <button
@@ -131,7 +134,7 @@ export class OcbotSessionPanel extends LitElement {
                     @click=${(e: Event) => this.deleteSession(s.key, e)}
                     title="Delete"
                   >${svgIcon('trash', 12)}</button>
-                </button>
+                </div>
               `)}
             </div>
           `)}
