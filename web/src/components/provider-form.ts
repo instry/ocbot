@@ -7,6 +7,8 @@ import type { GatewayClient } from '../gateway/client'
 
 interface ProviderHint {
   label: string
+  api: string  // OpenClaw API protocol type
+  defaultBaseUrl: string
   apiKeyUrl?: string
   apiKeyPlaceholder?: string
   regions?: { id: string; label: string; baseUrl: string }[]
@@ -16,16 +18,22 @@ interface ProviderHint {
 const PROVIDER_HINTS: Record<string, ProviderHint> = {
   google: {
     label: 'Google',
+    api: 'google-genai',
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     apiKeyUrl: 'https://aistudio.google.com/apikey',
     apiKeyPlaceholder: 'AI...',
   },
   anthropic: {
     label: 'Anthropic',
+    api: 'anthropic-messages',
+    defaultBaseUrl: 'https://api.anthropic.com',
     apiKeyUrl: 'https://console.anthropic.com/settings/keys',
     apiKeyPlaceholder: 'sk-ant-...',
   },
   minimax: {
     label: 'MiniMax',
+    api: 'anthropic-messages',
+    defaultBaseUrl: 'https://api.minimax.io/v1',
     apiKeyUrl: 'https://platform.minimax.io/user-center/basic-information/interface-key',
     apiKeyPlaceholder: 'API key',
     regions: [
@@ -35,21 +43,29 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
   },
   openai: {
     label: 'OpenAI',
+    api: 'openai-responses',
+    defaultBaseUrl: 'https://api.openai.com/v1',
     apiKeyUrl: 'https://platform.openai.com/api-keys',
     apiKeyPlaceholder: 'sk-...',
   },
   deepseek: {
     label: 'DeepSeek',
+    api: 'openai-completions',
+    defaultBaseUrl: 'https://api.deepseek.com/v1',
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
     apiKeyPlaceholder: 'sk-...',
   },
   xai: {
     label: 'xAI',
+    api: 'openai-completions',
+    defaultBaseUrl: 'https://api.x.ai/v1',
     apiKeyUrl: 'https://console.x.ai/team/default/api-keys',
     apiKeyPlaceholder: 'xai-...',
   },
   zai: {
     label: 'Z-AI (Zhipu)',
+    api: 'openai-completions',
+    defaultBaseUrl: 'https://api.z.ai/api/paas/v4',
     apiKeyUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
     apiKeyPlaceholder: 'API key',
     regions: [
@@ -59,17 +75,20 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
   },
   moonshot: {
     label: 'Kimi',
+    api: 'openai-completions',
+    defaultBaseUrl: 'https://api.moonshot.ai/v1',
     apiKeyUrl: 'https://platform.moonshot.cn/console/api-keys',
     apiKeyPlaceholder: 'sk-...',
     regions: [
       { id: 'global', label: 'Global', baseUrl: 'https://api.moonshot.ai/v1' },
       { id: 'cn', label: 'China', baseUrl: 'https://api.moonshot.cn/v1' },
     ],
-    // models.list may use 'kimi-coding' as provider ID
     aliases: ['kimi-coding'],
   },
   qwen: {
     label: 'Qwen',
+    api: 'openai-completions',
+    defaultBaseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
     apiKeyUrl: 'https://bailian.console.aliyun.com/?apiKey=1',
     apiKeyPlaceholder: 'sk-...',
     regions: [
@@ -79,16 +98,22 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
   },
   openrouter: {
     label: 'OpenRouter',
+    api: 'openai-completions',
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
     apiKeyUrl: 'https://openrouter.ai/keys',
     apiKeyPlaceholder: 'sk-or-...',
   },
   mistral: {
     label: 'Mistral',
+    api: 'openai-completions',
+    defaultBaseUrl: 'https://api.mistral.ai/v1',
     apiKeyUrl: 'https://console.mistral.ai/api-keys',
     apiKeyPlaceholder: 'API key',
   },
   ollama: {
     label: 'Local (Ollama)',
+    api: 'openai-completions',
+    defaultBaseUrl: 'http://localhost:11434/v1',
     apiKeyPlaceholder: '(not required)',
   },
 }
@@ -236,6 +261,7 @@ export class OcbotProviderForm extends LitElement {
       this.baseUrl = preferred.baseUrl
     } else {
       this.selectedRegion = ''
+      this.baseUrl = hint.defaultBaseUrl ?? ''
     }
 
     // Pre-select newest model in add mode
@@ -277,14 +303,15 @@ export class OcbotProviderForm extends LitElement {
 
     try {
       const patch: Record<string, any> = {}
+      const hint = this.getHint(this.selectedProvider)
 
-      // Write provider config to models.providers (apiKey + baseUrl + models)
-      const providerConfig: Record<string, any> = {}
+      // Write provider config to models.providers
+      const providerConfig: Record<string, any> = {
+        api: hint.api,  // Required: tells gateway which protocol to use
+        baseUrl: this.baseUrl.trim() || hint.defaultBaseUrl,
+      }
       if (!this.isLocal && this.apiKey.trim()) {
         providerConfig.apiKey = this.apiKey.trim()
-      }
-      if (this.baseUrl.trim()) {
-        providerConfig.baseUrl = this.baseUrl.trim()
       }
 
       // Include selected models in provider config

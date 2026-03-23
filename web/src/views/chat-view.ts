@@ -69,7 +69,6 @@ export class OcbotChatView extends LitElement {
 
     // Listen to 'chat' events from gateway
     this.unsubChat = this.gateway.onEvent((event, payload) => {
-      console.log('[ocbot:chat] event:', event, payload)
       if (event === 'chat') {
         this.handleChatEvent(payload as ChatEventPayload)
       }
@@ -187,7 +186,6 @@ export class OcbotChatView extends LitElement {
     const text = this.inputText.trim()
     if (!text || this.sending) return
 
-    console.log('[ocbot:chat] sendMessage:', text, 'sessionKey:', this.sessionKey)
     this.error = null
 
     // Add optimistic user message
@@ -211,9 +209,7 @@ export class OcbotChatView extends LitElement {
         message: text,
         idempotencyKey,
       })
-      console.log('[ocbot:chat] chat.send response:', result)
     } catch (err) {
-      console.error('[ocbot:chat] chat.send error:', err)
       this.error = err instanceof Error ? err.message : String(err)
       this.sending = false
       this.runId = null
