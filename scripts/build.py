@@ -152,6 +152,7 @@ def _install_openclaw_runtime(logger, out_dir):
         ('dist', True),
         ('extensions', True),
         ('skills', True),
+        ('docs', True),
     ]
 
     # Also copy scripts/run-node.mjs if it exists
