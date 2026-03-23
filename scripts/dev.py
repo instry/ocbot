@@ -93,6 +93,12 @@ def _run_full(args, logger):
         from run import _start_embedded_runtime
         logger.info('Starting Ocbot with embedded OpenClaw runtime...')
 
+        # Ensure out_dir is set (may not be if --embedded was passed explicitly)
+        if 'out_dir' not in dir() or not out_dir:
+            src_dir = Path(args.src_dir) if args.src_dir else get_source_dir()
+            out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
+            out_dir = src_dir / 'out' / out_dir_name
+
         gateway_proc = _start_embedded_runtime(logger, out_dir)
         ocbot_proc = subprocess.Popen(run_cmd)
         try:

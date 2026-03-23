@@ -205,7 +205,7 @@ export class OcbotChatView extends LitElement {
         <div class="chat-view__messages" id="messages-container">
           ${this.messages.length === 0 && !this.streamingText ? html`
             <div class="chat-view__empty">
-              <div style="font-size:48px; margin-bottom:16px;">🐙</div>
+              <img src="/logo.png" alt="Ocbot" style="width:64px; height:64px; margin-bottom:16px;" />
               <div style="font-size:16px; color:var(--text-strong);">How can I help?</div>
               <div style="font-size:14px; color:var(--muted); margin-top:4px;">Send a message to get started.</div>
             </div>

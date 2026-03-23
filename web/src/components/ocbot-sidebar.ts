@@ -61,7 +61,7 @@ export class OcbotSidebar extends LitElement {
       <nav class="ocbot-sidebar">
         <!-- Brand -->
         <div class="ocbot-sidebar__brand">
-          <div class="ocbot-sidebar__logo">🐙 Ocbot</div>
+          <div class="ocbot-sidebar__logo"><img src="/logo.png" alt="" style="width:20px; height:20px; vertical-align:middle; margin-right:6px;" />Ocbot</div>
           <div class="ocbot-sidebar__status">
             ${this._statusDot()} ${this._statusText()}
           </div>
@@ -91,7 +91,7 @@ export class OcbotSidebar extends LitElement {
             <span class="ocbot-sidebar__icon">⚙</span>
             <span class="ocbot-sidebar__label">Settings</span>
           </button>
-          <div class="ocbot-sidebar__version">v${(globalThis as any).__OCBOT_VERSION__ ?? '0.0.0'}</div>
+          <div class="ocbot-sidebar__version">v${__OCBOT_VERSION__ ?? '0.0.0'}</div>
         </div>
       </nav>
     `

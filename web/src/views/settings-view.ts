@@ -96,7 +96,7 @@ export class OcbotSettingsView extends LitElement {
             background:var(--surface, var(--bg));
           ">
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-              <div style="font-size:28px;">🐙</div>
+              <img src="/logo.png" alt="Ocbot" style="width:32px; height:32px;" />
               <div>
                 <div style="font-weight:600; color:var(--text-strong); font-size:16px;">Ocbot</div>
                 <div style="font-size:13px; color:var(--muted);">v${this.version}</div>

@@ -31,7 +31,7 @@ export class OcbotSidepanel extends LitElement {
       return html`
         <div style="display:flex; align-items:center; justify-content:center; height:100vh; color:var(--muted);">
           <div style="text-align:center;">
-            <div style="font-size:32px; margin-bottom:8px;">🐙</div>
+            <img src="/logo.png" alt="Ocbot" style="width:32px; height:32px; margin-bottom:8px;" />
             <div style="font-size:14px;">Connecting...</div>
           </div>
         </div>
@@ -42,7 +42,7 @@ export class OcbotSidepanel extends LitElement {
       <div style="display:flex; flex-direction:column; height:100vh;">
         <!-- Compact header -->
         <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border);">
-          <span style="font-size:14px;">🐙</span>
+          <img src="/logo.png" alt="" style="width:18px; height:18px;" />
           <span style="font-weight:600; font-size:13px; color:var(--text-strong);">Ocbot</span>
           <span style="font-size:10px; color:var(--ok);">●</span>
         </div>

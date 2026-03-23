@@ -101,7 +101,7 @@ export class OcbotOnboarding extends LitElement {
       return html`
         <div class="onboarding">
           <div class="onboarding__card">
-            <div style="font-size:48px; margin-bottom:16px;">🐙</div>
+            <img src="/logo.png" alt="Ocbot" style="width:64px; height:64px; margin-bottom:16px;" />
             <h1 class="onboarding__title">You're all set!</h1>
             <p class="onboarding__subtitle">Your AI provider is configured.</p>
             <button class="onboarding__btn onboarding__btn--primary" @click=${this.skip}>Get Started</button>
@@ -114,7 +114,7 @@ export class OcbotOnboarding extends LitElement {
       <div class="onboarding">
         <div class="onboarding__card">
           <!-- Brand -->
-          <div style="font-size:48px; margin-bottom:16px;">🐙</div>
+          <img src="/logo.png" alt="Ocbot" style="width:64px; height:64px; margin-bottom:16px;" />
           <h1 class="onboarding__title">Welcome to Ocbot</h1>
 
           ${this.error ? html`

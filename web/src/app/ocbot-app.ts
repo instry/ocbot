@@ -82,7 +82,7 @@ export class OcbotApp extends LitElement {
       return html`
         <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100vw;">
           <div style="text-align:center;">
-            <div style="font-size:48px; margin-bottom:16px;">🐙</div>
+            <img src="/logo.png" alt="Ocbot" style="width:64px; height:64px; margin-bottom:16px;" />
             <div style="font-size:18px; font-weight:600; color:var(--text-strong); margin-bottom:8px;">
               ${this.gatewayState === 'connecting' ? 'Connecting to Ocbot...' : 'Reconnecting...'}
             </div>

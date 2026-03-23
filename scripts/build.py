@@ -11,7 +11,7 @@ from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root, get_agent_root, sync_extension_version, get_out_dir_name
 
 # Node.js version to embed
-NODE_VERSION = 'v22.14.0'
+NODE_VERSION = 'v22.16.0'
 # Cache downloaded Node.js archives here
 NODE_CACHE_DIR = Path.home() / '.cache' / 'ocbot' / 'node'
 

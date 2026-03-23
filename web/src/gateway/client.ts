@@ -30,9 +30,11 @@ export class GatewayClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private intentionalClose = false
   private url: string
+  private token: string | null
 
-  constructor(url: string) {
+  constructor(url: string, token?: string) {
     this.url = url
+    this.token = token ?? null
   }
 
   get state(): GatewayState { return this._state }
@@ -171,12 +173,12 @@ export class GatewayClient {
   private sendConnect() {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
 
-    const params = {
+    const params: Record<string, unknown> = {
       minProtocol: 3,
       maxProtocol: 3,
       client: {
-        id: 'ocbot',
-        version: (globalThis as any).__OCBOT_VERSION__ ?? '0.0.0',
+        id: 'webchat-ui',
+        version: __OCBOT_VERSION__ ?? '0.0.0',
         platform: navigator.platform ?? 'web',
         mode: 'webchat',
         instanceId: this.getInstanceId(),
@@ -185,6 +187,11 @@ export class GatewayClient {
       scopes: ['operator.admin'],
       caps: ['tool-events'],
       locale: navigator.language,
+    }
+
+    // Include auth token if available
+    if (this.token) {
+      params.auth = { token: this.token }
     }
 
     const id = crypto.randomUUID()
