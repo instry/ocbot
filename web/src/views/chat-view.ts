@@ -56,6 +56,7 @@ export class OcbotChatView extends LitElement {
   @state() inputText = ''
   @state() runId: string | null = null  // current run correlation ID
   @state() error: string | null = null
+  @state() canonicalSessionKey: string | null = null  // gateway-resolved key
 
   @query('#chat-input') private inputEl!: HTMLTextAreaElement
   @query('#messages-container') private messagesEl!: HTMLDivElement
@@ -68,6 +69,7 @@ export class OcbotChatView extends LitElement {
 
     // Listen to 'chat' events from gateway
     this.unsubChat = this.gateway.onEvent((event, payload) => {
+      console.log('[ocbot:chat] event:', event, payload)
       if (event === 'chat') {
         this.handleChatEvent(payload as ChatEventPayload)
       }
@@ -113,8 +115,13 @@ export class OcbotChatView extends LitElement {
   }
 
   private handleChatEvent(payload: ChatEventPayload) {
-    // Only handle events for our session
-    if (payload.sessionKey && payload.sessionKey !== this.sessionKey) return
+    // Match by runId if available (most reliable), otherwise accept all chat events
+    if (this.runId && payload.runId && payload.runId !== this.runId) return
+
+    // Track the canonical sessionKey from gateway (e.g. "agent:main:ocbot:home")
+    if (payload.sessionKey && !this.canonicalSessionKey) {
+      this.canonicalSessionKey = payload.sessionKey
+    }
 
     switch (payload.state) {
       case 'delta': {
@@ -180,6 +187,7 @@ export class OcbotChatView extends LitElement {
     const text = this.inputText.trim()
     if (!text || this.sending) return
 
+    console.log('[ocbot:chat] sendMessage:', text, 'sessionKey:', this.sessionKey)
     this.error = null
 
     // Add optimistic user message
@@ -198,12 +206,14 @@ export class OcbotChatView extends LitElement {
     this.scrollToBottom()
 
     try {
-      await this.gateway.call('chat.send', {
+      const result = await this.gateway.call('chat.send', {
         sessionKey: this.sessionKey,
         message: text,
         idempotencyKey,
       })
+      console.log('[ocbot:chat] chat.send response:', result)
     } catch (err) {
+      console.error('[ocbot:chat] chat.send error:', err)
       this.error = err instanceof Error ? err.message : String(err)
       this.sending = false
       this.runId = null

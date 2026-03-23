@@ -150,6 +150,14 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+}
+
+ocbot-chat-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .chat-view__header {
@@ -172,6 +180,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
 }
 
 .chat-view__empty {
