@@ -8,7 +8,7 @@
 
 **Web4 是互联网的下一次演化——AI Agent 成为互联网的一等公民，无需人类介入即可读、写、拥有和交易。**
 
-Ocbot 是为这个未来而生的 AI Agent。它内嵌 [OpenClaw] 运行时和 AI-Native 浏览器，提供一个完整的 Agent 体验——浏览、行动、交易。
+Ocbot 是为这个未来而生的 AI Agent。它内嵌 OpenClaw 运行时和 AI-Native 浏览器，提供一个完整的 Agent 体验——浏览、行动、交易。
 
 ---
 
@@ -96,14 +96,6 @@ ocbot/
 ├── web/                # UI 扩展（Lit 3 + OpenClaw Gateway UI）
 └── docs/               # 开发文档
 ```
-
-### 文档
-
-| 文档 | 描述 |
-|-----|-------------|
-| [计划驱动开发](docs/plan-driven-dev.md) | **主要指南**: 工作流、设置、命令和架构 |
-| [Plans](plans/) | 功能计划文件——每次 Chromium 修改的真理之源 |
-| [web README](web/README.md) | UI 扩展开发指南 |
 
 ---
 

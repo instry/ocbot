@@ -8,7 +8,7 @@
 
 **Web4 is the next evolution of the internet — where AI agents read, write, own, and transact without needing a human in the loop.**
 
-Ocbot is built for this future. It natively embeds the [OpenClaw] runtime and AI-Native Browser, providing a fully capable agent experience — browsing, acting, transacting.
+Ocbot is built for this future. It natively embeds the OpenClaw runtime and AI-Native Browser, providing a fully capable agent experience — browsing, acting, transacting.
 
 ---
 
@@ -96,14 +96,6 @@ ocbot/
 ├── web/                # UI extension (Lit 3 + OpenClaw Gateway UI)
 └── docs/               # Development documentation
 ```
-
-### Documentation
-
-| Doc | Description |
-|-----|-------------|
-| [Plan-Driven Development](docs/plan-driven-dev.md) | **The Main Guide**: Workflow, Setup, Commands, and Architecture |
-| [Plans](plans/) | Feature plan files — the source of truth for each Chromium modification |
-| [web README](web/README.md) | UI extension development guide |
 
 ---
 
