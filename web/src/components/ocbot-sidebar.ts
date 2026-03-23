@@ -27,7 +27,6 @@ const NAV_GROUPS: { items: NavItem[] }[] = [
   {
     items: [
       { id: 'usage', label: 'Usage' },
-      { id: 'config', label: 'Config' },
     ]
   },
 ]

@@ -7,7 +7,7 @@ import '../components/provider-form'
 
 declare const __OCBOT_VERSION__: string
 
-type SettingsTab = 'models' | 'general' | 'about'
+type SettingsTab = 'models' | 'general' | 'config' | 'about'
 type ModelsView = 'list' | 'add' | 'edit'
 type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -23,6 +23,11 @@ export class OcbotSettingsView extends LitElement {
   @state() providers: ConfiguredProvider[] = []
   @state() loadingProviders = true
   @state() editingProvider: ConfiguredProvider | null = null
+  @state() configRaw = ''
+  @state() configHash = ''
+  @state() configSaving = false
+  @state() configError: string | null = null
+  @state() configSuccess = false
 
   override connectedCallback() {
     super.connectedCallback()
@@ -137,6 +142,7 @@ export class OcbotSettingsView extends LitElement {
     const tabs: { id: SettingsTab; icon: string; label: string }[] = [
       { id: 'models', icon: 'cpu', label: 'Models' },
       { id: 'general', icon: 'sliders', label: 'General' },
+      { id: 'config', icon: 'config', label: 'Config' },
       { id: 'about', icon: 'info', label: 'About' },
     ]
 
@@ -149,7 +155,7 @@ export class OcbotSettingsView extends LitElement {
             ${tabs.map(t => html`
               <button
                 class="settings__nav-btn ${this.activeTab === t.id ? 'settings__nav-btn--active' : ''}"
-                @click=${() => { this.activeTab = t.id; if (t.id === 'models') this.modelsView = 'list' }}
+                @click=${() => { this.activeTab = t.id; if (t.id === 'models') this.modelsView = 'list'; if (t.id === 'config') this._loadConfig() }}
               >
                 <span class="settings__nav-icon">${svgIcon(t.icon, 16)}</span>
                 <span>${t.label}</span>
@@ -162,6 +168,7 @@ export class OcbotSettingsView extends LitElement {
         <div class="settings__content">
           ${this.activeTab === 'models' ? this._renderModelsTab() : nothing}
           ${this.activeTab === 'general' ? this._renderGeneralTab() : nothing}
+          ${this.activeTab === 'config' ? this._renderConfigTab() : nothing}
           ${this.activeTab === 'about' ? this._renderAboutTab() : nothing}
         </div>
       </div>
@@ -308,6 +315,64 @@ export class OcbotSettingsView extends LitElement {
         </div>
       </div>
     `
+  }
+
+  private _renderConfigTab() {
+    return html`
+      <div class="settings__tab-content">
+        <div class="settings__tab-header">
+          <h2 class="settings__tab-title">Configuration</h2>
+          <p class="settings__tab-desc">Advanced: edit openclaw.json directly</p>
+        </div>
+        <div style="max-width:640px;">
+          ${this.configError ? html`<div class="provider-form__error">${this.configError}</div>` : nothing}
+          ${this.configSuccess ? html`<div class="provider-form__success">Configuration saved</div>` : nothing}
+          <textarea
+            class="provider-form__input"
+            style="font-family:var(--mono); min-height:400px; resize:vertical; line-height:1.5;"
+            .value=${this.configRaw}
+            @input=${(e: Event) => { this.configRaw = (e.target as HTMLTextAreaElement).value; this.configSuccess = false }}
+          ></textarea>
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button class="provider-form__save" ?disabled=${this.configSaving} @click=${this._saveConfig}>
+              ${this.configSaving ? 'Saving...' : 'Save'}
+            </button>
+            <button class="provider-form__cancel-btn" @click=${this._loadConfig}>Reload</button>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  private async _loadConfig() {
+    try {
+      const result = await this.gateway.call<{ raw?: string; hash?: string }>('config.get')
+      this.configRaw = result?.raw ?? JSON.stringify(result, null, 2)
+      this.configHash = result?.hash ?? ''
+      this.configError = null
+    } catch (err) {
+      this.configError = err instanceof Error ? err.message : String(err)
+    }
+  }
+
+  private async _saveConfig() {
+    this.configSaving = true
+    this.configError = null
+    this.configSuccess = false
+    try {
+      await this.gateway.call('config.apply', {
+        baseHash: this.configHash,
+        raw: this.configRaw,
+      })
+      this.configSuccess = true
+      this.dispatchEvent(new CustomEvent('models-changed', { bubbles: true, composed: true }))
+      // Reload to get updated hash
+      await this._loadConfig()
+    } catch (err) {
+      this.configError = err instanceof Error ? err.message : String(err)
+    } finally {
+      this.configSaving = false
+    }
   }
 
   private _renderAboutTab() {
