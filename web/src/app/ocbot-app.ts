@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit'
 import { customElement, state } from 'lit/decorators.js'
 import { connectGateway, type GatewayClient, type GatewayState } from '../gateway/index'
 import '../components/ocbot-sidebar'
+import '../components/provider-form'
 import '../views/chat-view'
 import '../views/sessions-view'
 import '../views/cron-view'
@@ -155,17 +156,19 @@ export class OcbotApp extends LitElement {
 
   private _renderSetupPrompt() {
     return html`
-      <div style="display:flex; align-items:center; justify-content:center; height:100%; padding:24px;">
-        <div style="text-align:center; max-width:400px;">
-          <img src="/logo.png" alt="Ocbot" style="width:64px; height:64px; margin-bottom:16px;" />
-          <h2 style="font-size:20px; font-weight:600; color:var(--text-strong); margin:0 0 8px;">Set up AI model</h2>
-          <p style="font-size:14px; color:var(--muted); margin:0 0 24px; line-height:1.6;">
-            Configure an AI provider to start chatting. You can also use a local model with Ollama.
-          </p>
-          <button
-            class="setup-prompt__btn"
-            @click=${() => this._navigate('config')}
-          >Open Configuration</button>
+      <div style="padding:32px 24px; height:100%; overflow-y:auto;">
+        <div style="max-width:520px; margin:0 auto;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+            <img src="/logo.png" alt="Ocbot" style="width:40px; height:40px;" />
+            <div>
+              <h2 style="font-size:18px; font-weight:600; color:var(--text-strong); margin:0;">Set up AI model</h2>
+              <p style="font-size:13px; color:var(--muted); margin:4px 0 0;">Configure a provider to start chatting.</p>
+            </div>
+          </div>
+          <ocbot-provider-form
+            .gateway=${this.gateway}
+            @provider-saved=${this._onModelsChanged}
+          ></ocbot-provider-form>
         </div>
       </div>
     `
