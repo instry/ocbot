@@ -23,7 +23,9 @@ interface ToolCard {
   name: string
   phase: 'running' | 'done' | 'error'
   output?: string
+  args?: string
   startedAt: number
+  expanded: boolean
 }
 
 interface ChatEventPayload {
@@ -60,6 +62,12 @@ function messageText(msg: ChatMessage): string {
   return ''
 }
 
+function formatTime(ts?: number): string {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 // --- Component ---
 
 @customElement('ocbot-chat-view')
@@ -68,6 +76,7 @@ export class OcbotChatView extends LitElement {
 
   @property({ attribute: false }) gateway!: GatewayClient
   @property() sessionKey = 'main'
+  @property({ type: Boolean }) panelOpen = true
 
   @state() messages: ChatMessage[] = []
   @state() streamText = ''
@@ -79,6 +88,10 @@ export class OcbotChatView extends LitElement {
   @state() toolCards: Map<string, ToolCard> = new Map()
   @state() models: GatewayModel[] = []
   @state() selectedModel = ''
+
+  // Input history
+  private inputHistory: string[] = []
+  private historyIndex = -1
 
   @query('#chat-input') private inputEl!: HTMLTextAreaElement
   @query('#messages-container') private messagesEl!: HTMLDivElement
@@ -105,7 +118,6 @@ export class OcbotChatView extends LitElement {
     try {
       const result = await this.gateway.call<{ models?: GatewayModel[] }>('models.list')
       this.models = result?.models ?? []
-      // Get current default model from config
       const config = await this.gateway.call<{ config?: Record<string, any> }>('config.get')
       const primary = config?.config?.agents?.defaults?.model?.primary
       if (primary) this.selectedModel = primary
@@ -136,10 +148,10 @@ export class OcbotChatView extends LitElement {
           }))
         this.scrollToBottom()
       }
-    } catch { /* new session, no history */ }
+    } catch { /* new session */ }
   }
 
-  // --- Event handlers ---
+  // --- Event handlers (same logic as before) ---
 
   private handleChatEvent(payload: ChatEventPayload) {
     if (this.runId && payload.runId && payload.runId !== this.runId) return
@@ -220,7 +232,9 @@ export class OcbotChatView extends LitElement {
       name: (data.toolName ?? data.name ?? existing?.name ?? 'tool') as string,
       phase: phase === 'result' || phase === 'done' ? 'done' : phase === 'error' ? 'error' : 'running',
       output: (data.output ?? data.result ?? existing?.output) as string | undefined,
+      args: (data.arguments ?? existing?.args) as string | undefined,
       startedAt: existing?.startedAt ?? Date.now(),
+      expanded: existing?.expanded ?? false,
     })
     this.toolCards = updated
     this.scrollToBottom()
@@ -233,6 +247,12 @@ export class OcbotChatView extends LitElement {
     if (!text || this.sending) return
     this.error = null
 
+    // Save to input history
+    if (this.inputHistory[this.inputHistory.length - 1] !== text) {
+      this.inputHistory.push(text)
+    }
+    this.historyIndex = -1
+
     this.messages = [...this.messages, {
       role: 'user',
       content: [{ type: 'text', text }],
@@ -243,7 +263,6 @@ export class OcbotChatView extends LitElement {
     this.streamText = ''
     this.toolCards = new Map()
 
-    // Reset textarea height
     if (this.inputEl) this.inputEl.style.height = 'auto'
 
     const idempotencyKey = crypto.randomUUID()
@@ -278,7 +297,6 @@ export class OcbotChatView extends LitElement {
     this.error = null
     this.toolCards = new Map()
     this.canonicalSessionKey = null
-    // Use a unique session key for new conversations
     this.sessionKey = `ocbot:${Date.now()}`
     this.dispatchEvent(new CustomEvent('session-changed', {
       detail: this.sessionKey, bubbles: true, composed: true,
@@ -286,18 +304,55 @@ export class OcbotChatView extends LitElement {
   }
 
   private handleKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault()
       this.sendMessage()
+      return
+    }
+    // Input history navigation
+    if (e.key === 'ArrowUp' && this.inputText === '') {
+      e.preventDefault()
+      if (this.inputHistory.length > 0) {
+        if (this.historyIndex === -1) {
+          this.historyIndex = this.inputHistory.length - 1
+        } else if (this.historyIndex > 0) {
+          this.historyIndex--
+        }
+        this.inputText = this.inputHistory[this.historyIndex]
+      }
+      return
+    }
+    if (e.key === 'ArrowDown' && this.historyIndex >= 0) {
+      e.preventDefault()
+      if (this.historyIndex < this.inputHistory.length - 1) {
+        this.historyIndex++
+        this.inputText = this.inputHistory[this.historyIndex]
+      } else {
+        this.historyIndex = -1
+        this.inputText = ''
+      }
     }
   }
 
   private handleInput(e: Event) {
     const el = e.target as HTMLTextAreaElement
     this.inputText = el.value
-    // Auto-resize
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 150) + 'px'
+    // Reset history navigation when typing
+    this.historyIndex = -1
+  }
+
+  private toggleToolCard(id: string) {
+    const card = this.toolCards.get(id)
+    if (!card) return
+    const updated = new Map(this.toolCards)
+    updated.set(id, { ...card, expanded: !card.expanded })
+    this.toolCards = updated
+  }
+
+  private copyMessage(text: string) {
+    navigator.clipboard.writeText(text).catch(() => {})
   }
 
   private scrollToBottom() {
@@ -308,86 +363,169 @@ export class OcbotChatView extends LitElement {
     })
   }
 
+  private togglePanel() {
+    this.dispatchEvent(new CustomEvent('toggle-panel', { bubbles: true, composed: true }))
+  }
+
   // --- Render ---
 
   override render() {
+    const hasMessages = this.messages.length > 0 || !!this.streamText
+
     return html`
       <div class="chat-view">
         <!-- Header -->
         <div class="chat-view__header">
-          ${this.models.length ? html`
-            <select
-              class="chat-view__model-select"
-              .value=${this.selectedModel}
-              @change=${(e: Event) => { this.selectedModel = (e.target as HTMLSelectElement).value }}
-            >
-              ${this.models.map(m => html`
-                <option value="${m.provider}/${m.id}" ?selected=${`${m.provider}/${m.id}` === this.selectedModel}>
-                  ${m.name || m.id} (${m.provider})
-                </option>
-              `)}
-            </select>
-          ` : html`<span class="chat-view__session">Chat</span>`}
+          <button class="chat-view__header-btn" @click=${this.togglePanel} title="${this.panelOpen ? 'Hide sidebar' : 'Show sidebar'}">
+            ${svgIcon(this.panelOpen ? 'panel-left-close' : 'panel-left', 16)}
+          </button>
           <span style="flex:1"></span>
           ${this.sending ? html`
-            <button class="btn btn--sm" @click=${this.abort}>${svgIcon('x', 14)} Stop</button>
+            <button class="btn btn--sm btn--danger" @click=${this.abort}>${svgIcon('x', 14)} Stop</button>
           ` : nothing}
-          <button class="btn btn--sm" @click=${this.newSession} title="New chat">${svgIcon('plus', 14)}</button>
+          <button class="chat-view__header-btn" @click=${this.newSession} title="New chat">
+            ${svgIcon('square-pen', 16)}
+          </button>
         </div>
 
         <!-- Messages -->
         <div class="chat-view__messages" id="messages-container">
-          ${this.messages.length === 0 && !this.streamText ? html`
-            <div class="chat-view__empty">
-              <img src="/logo.png" alt="Ocbot" style="width:64px; height:64px; margin-bottom:16px;" />
-              <div style="font-size:16px; color:var(--text-strong);">How can I help?</div>
-              <div style="font-size:14px; color:var(--muted); margin-top:4px;">Send a message to get started.</div>
-            </div>
-          ` : nothing}
+          ${!hasMessages ? this._renderWelcome() : html`
+            ${this.messages.map((m, i) => this._renderMessage(m, i))}
 
-          ${this.messages.map(m => this._renderMessage(m))}
+            ${this.toolCards.size > 0 ? this._renderToolCards() : nothing}
 
-          <!-- Tool cards (during streaming) -->
-          ${this.toolCards.size > 0 ? html`
-            <div class="chat-view__tools">
-              ${[...this.toolCards.values()].map(tc => html`
-                <div class="chat-view__tool-card chat-view__tool-card--${tc.phase}">
-                  <span class="chat-view__tool-icon">
-                    ${tc.phase === 'done' ? svgIcon('check', 14)
-                      : tc.phase === 'error' ? svgIcon('circle-x', 14)
-                      : svgIcon('loader', 14)}
-                  </span>
-                  <span class="chat-view__tool-name">${tc.name}</span>
-                  ${tc.output ? html`
-                    <span class="chat-view__tool-output">${tc.output.slice(0, 120)}</span>
-                  ` : nothing}
-                </div>
-              `)}
-            </div>
-          ` : nothing}
+            ${this.streamText ? this._renderStreaming() : nothing}
 
-          <!-- Streaming text -->
-          ${this.streamText ? html`
-            <div class="chat-view__msg chat-view__msg--assistant">
-              <div class="chat-view__msg-content chat-view__markdown">
-                ${unsafeHTML(renderMarkdown(this.streamText))}
-                <span class="chat-view__cursor">▍</span>
-              </div>
-            </div>
-          ` : nothing}
-
-          <!-- Error -->
-          ${this.error ? html`
-            <div class="chat-view__error">${this.error}</div>
-          ` : nothing}
+            ${this.error ? html`
+              <div class="chat-view__error">${this.error}</div>
+            ` : nothing}
+          `}
         </div>
 
-        <!-- Input -->
-        <div class="chat-view__input-area">
+        <!-- Input Area -->
+        ${this._renderInput(hasMessages)}
+      </div>
+    `
+  }
+
+  private _renderWelcome() {
+    return html`
+      <div class="chat-view__welcome">
+        <img src="/logo.png" alt="Ocbot" class="chat-view__welcome-logo" />
+        <div class="chat-view__welcome-title">How can I help?</div>
+      </div>
+    `
+  }
+
+  private _renderMessage(m: ChatMessage, index: number) {
+    const text = messageText(m)
+    const time = formatTime(m.timestamp)
+
+    // Check if this is the first message in a group (different role from previous)
+    const prev = index > 0 ? this.messages[index - 1] : null
+    const isGroupStart = !prev || prev.role !== m.role
+
+    if (m.role === 'user') {
+      return html`
+        <div class="cv-msg cv-msg--user">
+          <div class="cv-msg__bubble">${text}</div>
+          ${time ? html`<div class="cv-msg__time">${time}</div>` : nothing}
+        </div>
+      `
+    }
+
+    // Assistant message
+    return html`
+      <div class="cv-msg cv-msg--assistant ${isGroupStart ? 'cv-msg--group-start' : ''}">
+        ${isGroupStart ? html`
+          <div class="cv-msg__header">
+            <div class="cv-msg__avatar">
+              <img src="/logo.png" alt="" width="24" height="24" />
+            </div>
+            <span class="cv-msg__name">Ocbot</span>
+            ${time ? html`<span class="cv-msg__time">${time}</span>` : nothing}
+          </div>
+        ` : nothing}
+        <div class="cv-msg__body">
+          <div class="cv-msg__content cv-markdown">
+            ${unsafeHTML(renderMarkdown(text))}
+          </div>
+          <button class="cv-msg__copy" @click=${() => this.copyMessage(text)} title="Copy">
+            ${svgIcon('copy', 14)}
+          </button>
+        </div>
+      </div>
+    `
+  }
+
+  private _renderToolCards() {
+    const cards = [...this.toolCards.values()]
+    return html`
+      <div class="cv-msg cv-msg--assistant cv-msg--group-start">
+        <div class="cv-msg__header">
+          <div class="cv-msg__avatar">
+            <img src="/logo.png" alt="" width="24" height="24" />
+          </div>
+          <span class="cv-msg__name">Ocbot</span>
+        </div>
+        <div class="cv-tools">
+          ${cards.map(tc => html`
+            <div class="cv-tool cv-tool--${tc.phase}">
+              <button class="cv-tool__header" @click=${() => this.toggleToolCard(tc.id)}>
+                <span class="cv-tool__icon">
+                  ${tc.phase === 'done' ? svgIcon('check', 14)
+                    : tc.phase === 'error' ? svgIcon('circle-x', 14)
+                    : svgIcon('loader', 14)}
+                </span>
+                <span class="cv-tool__name">${tc.name}</span>
+                <span style="flex:1"></span>
+                <span class="cv-tool__chevron ${tc.expanded ? 'cv-tool__chevron--open' : ''}">
+                  ${svgIcon('chevron-right', 12)}
+                </span>
+              </button>
+              ${tc.expanded && tc.output ? html`
+                <div class="cv-tool__detail">
+                  <pre class="cv-tool__output">${tc.output}</pre>
+                </div>
+              ` : nothing}
+            </div>
+          `)}
+        </div>
+      </div>
+    `
+  }
+
+  private _renderStreaming() {
+    return html`
+      <div class="cv-msg cv-msg--assistant cv-msg--group-start">
+        <div class="cv-msg__header">
+          <div class="cv-msg__avatar">
+            <img src="/logo.png" alt="" width="24" height="24" />
+          </div>
+          <span class="cv-msg__name">Ocbot</span>
+        </div>
+        <div class="cv-msg__body">
+          <div class="cv-msg__content cv-markdown">
+            ${unsafeHTML(renderMarkdown(this.streamText))}
+            <span class="chat-view__cursor">▍</span>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  private _renderInput(hasMessages: boolean) {
+    return html`
+      <div class="cv-input ${hasMessages ? '' : 'cv-input--centered'}">
+        <div class="cv-input__box">
+          <button class="cv-input__attach" title="Attach file">
+            ${svgIcon('paperclip', 16)}
+          </button>
           <textarea
             id="chat-input"
-            class="chat-view__textarea"
-            placeholder="Send a message... (Shift+Enter for new line)"
+            class="cv-input__textarea"
+            placeholder="Send a message..."
             .value=${this.inputText}
             @input=${this.handleInput}
             @keydown=${this.handleKeyDown}
@@ -395,31 +533,27 @@ export class OcbotChatView extends LitElement {
             rows="1"
           ></textarea>
           <button
-            class="chat-view__send-btn"
+            class="cv-input__send ${this.sending ? 'cv-input__send--stop' : ''}"
             @click=${this.sending ? this.abort : this.sendMessage}
             ?disabled=${!this.inputText.trim() && !this.sending}
           >
-            ${this.sending ? svgIcon('x', 16) : svgIcon('chat', 16)}
+            ${this.sending ? svgIcon('x', 16) : svgIcon('arrow-up', 16)}
           </button>
         </div>
-      </div>
-    `
-  }
-
-  private _renderMessage(m: ChatMessage) {
-    const text = messageText(m)
-    if (m.role === 'user') {
-      return html`
-        <div class="chat-view__msg chat-view__msg--user">
-          <div class="chat-view__msg-content">${text}</div>
-        </div>
-      `
-    }
-    // Assistant: render as markdown
-    return html`
-      <div class="chat-view__msg chat-view__msg--assistant">
-        <div class="chat-view__msg-content chat-view__markdown">
-          ${unsafeHTML(renderMarkdown(text))}
+        <div class="cv-input__footer">
+          ${this.models.length ? html`
+            <select
+              class="cv-input__model"
+              .value=${this.selectedModel}
+              @change=${(e: Event) => { this.selectedModel = (e.target as HTMLSelectElement).value }}
+            >
+              ${this.models.map(m => html`
+                <option value="${m.provider}/${m.id}" ?selected=${`${m.provider}/${m.id}` === this.selectedModel}>
+                  ${m.name || m.id}
+                </option>
+              `)}
+            </select>
+          ` : nothing}
         </div>
       </div>
     `
