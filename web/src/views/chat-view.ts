@@ -19,7 +19,7 @@ export class OcbotChatView extends LitElement {
   @state() streamingText = ''
   @state() sending = false
   @state() inputText = ''
-  @state() sessionKey = 'ocbot:home'
+  @property() sessionKey = 'ocbot:home'
   @state() toolCards: Map<string, { name: string; phase: string; output?: string }> = new Map()
 
   @query('#chat-input') private inputEl!: HTMLTextAreaElement

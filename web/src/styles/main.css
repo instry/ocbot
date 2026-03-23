@@ -330,6 +330,191 @@ html, body {
   font-size: 12px;
 }
 
+/* Session card */
+.session-card {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.session-card:hover {
+  background: var(--bg-hover);
+}
+
+.session-card__delete {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity var(--duration-fast);
+}
+
+.session-card:hover .session-card__delete {
+  opacity: 1;
+}
+
+.session-card__delete:hover {
+  color: var(--danger);
+}
+
+/* Onboarding */
+.onboarding {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+  padding: 24px;
+}
+
+.onboarding__card {
+  text-align: center;
+  max-width: 480px;
+  width: 100%;
+}
+
+.onboarding__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0 0 8px;
+}
+
+.onboarding__subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.onboarding__error {
+  font-size: 14px;
+  color: var(--danger);
+  margin: 0 0 16px;
+}
+
+.onboarding__step {
+  text-align: center;
+}
+
+.onboarding__step-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0 0 8px;
+}
+
+.onboarding__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.onboarding__option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  text-align: left;
+}
+
+.onboarding__option:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.onboarding__option-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.onboarding__option-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.onboarding__option-arrow {
+  color: var(--muted);
+}
+
+.onboarding__input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--mono);
+  outline: none;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.onboarding__input:focus {
+  border-color: var(--accent);
+}
+
+.onboarding__btn {
+  padding: 10px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.onboarding__btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.onboarding__btn--primary {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-color: var(--accent);
+}
+
+.onboarding__btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.onboarding__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.onboarding__skip {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 16px;
+  transition: color var(--duration-fast);
+}
+
+.onboarding__skip:hover {
+  color: var(--text);
+}
+
 /* Apply theme based on system preference by default */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme-mode]) {

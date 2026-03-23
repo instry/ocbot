@@ -3,6 +3,8 @@ import { customElement, state } from 'lit/decorators.js'
 import { connectGateway, type GatewayClient, type GatewayState } from '../gateway/index'
 import '../components/ocbot-sidebar'
 import '../views/chat-view'
+import '../views/sessions-view'
+import '../views/onboarding-view'
 
 type Tab = 'chat' | 'sessions' | 'cron' | 'agents' | 'skills' | 'channels' | 'usage' | 'config' | 'settings'
 
@@ -12,6 +14,8 @@ export class OcbotApp extends LitElement {
 
   @state() tab: Tab = 'chat'
   @state() gatewayState: GatewayState = 'disconnected'
+  @state() needsOnboarding: boolean | null = null // null = checking
+  @state() chatSessionKey = 'ocbot:home'
 
   private gateway!: GatewayClient
   private unsubState?: () => void
@@ -25,6 +29,9 @@ export class OcbotApp extends LitElement {
     this.gatewayState = this.gateway.state
     this.unsubState = this.gateway.onStateChange((s) => {
       this.gatewayState = s
+      if (s === 'connected' && this.needsOnboarding === null) {
+        this.checkOnboarding()
+      }
     })
   }
 
@@ -32,6 +39,15 @@ export class OcbotApp extends LitElement {
     super.disconnectedCallback()
     window.removeEventListener('hashchange', this._readHash)
     this.unsubState?.()
+  }
+
+  private async checkOnboarding() {
+    try {
+      const result = await this.gateway.call<{ models?: unknown[] }>('models.list')
+      this.needsOnboarding = !result?.models?.length
+    } catch {
+      this.needsOnboarding = false // skip onboarding if can't check
+    }
   }
 
   private _readHash = () => {
@@ -45,8 +61,17 @@ export class OcbotApp extends LitElement {
     history.replaceState(null, '', `#/${tab}`)
   }
 
+  private _onSelectSession(e: CustomEvent<string>) {
+    this.chatSessionKey = e.detail
+    this._navigate('chat')
+  }
+
+  private _onOnboardingComplete() {
+    this.needsOnboarding = false
+  }
+
   override render() {
-    // Show connect screen while gateway is not ready
+    // Connecting screen
     if (this.gatewayState !== 'connected') {
       return html`
         <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100vw;">
@@ -61,6 +86,26 @@ export class OcbotApp extends LitElement {
       `
     }
 
+    // Onboarding
+    if (this.needsOnboarding === true) {
+      return html`
+        <ocbot-onboarding
+          .gateway=${this.gateway}
+          @onboarding-complete=${this._onOnboardingComplete}
+        ></ocbot-onboarding>
+      `
+    }
+
+    // Still checking onboarding
+    if (this.needsOnboarding === null) {
+      return html`
+        <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100vw;">
+          <div style="font-size:14px; color:var(--muted);">Loading...</div>
+        </div>
+      `
+    }
+
+    // Main UI
     return html`
       <div style="display:flex; height:100vh; width:100vw;">
         <ocbot-sidebar
@@ -78,9 +123,9 @@ export class OcbotApp extends LitElement {
   private _renderContent() {
     switch (this.tab) {
       case 'chat':
-        return html`<ocbot-chat-view .gateway=${this.gateway}></ocbot-chat-view>`
+        return html`<ocbot-chat-view .gateway=${this.gateway} .sessionKey=${this.chatSessionKey}></ocbot-chat-view>`
       case 'sessions':
-        return html`<div class="page-placeholder"><h2>Sessions</h2><p style="color:var(--muted)">Coming soon</p></div>`
+        return html`<ocbot-sessions-view .gateway=${this.gateway} @select-session=${this._onSelectSession}></ocbot-sessions-view>`
       case 'cron':
         return html`<div class="page-placeholder"><h2>Scheduled Tasks</h2><p style="color:var(--muted)">Coming soon</p></div>`
       case 'agents':
