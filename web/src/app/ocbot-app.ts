@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit'
 import { customElement, state } from 'lit/decorators.js'
 import { connectGateway, type GatewayClient, type GatewayState } from '../gateway/index'
 import '../components/ocbot-sidebar'
+import '../components/session-panel'
 import '../views/chat-view'
 import '../views/sessions-view'
 import '../views/cron-view'
@@ -21,6 +22,7 @@ export class OcbotApp extends LitElement {
   @state() gatewayState: GatewayState = 'disconnected'
   @state() hasModels: boolean | null = null // null = still checking
   @state() chatSessionKey = 'ocbot:home'
+  @state() panelOpen = true
 
   private gateway!: GatewayClient
   private unsubState?: () => void
@@ -84,6 +86,11 @@ export class OcbotApp extends LitElement {
     this._navigate('chat')
   }
 
+  private _onNewChat() {
+    this.chatSessionKey = `ocbot:${Date.now()}`
+    this._navigate('chat')
+  }
+
   private _onModelsChanged() {
     this.checkModels()
   }
@@ -105,6 +112,8 @@ export class OcbotApp extends LitElement {
     }
 
     // Main UI — always accessible, no onboarding block
+    const showPanel = this.tab === 'chat' && this.panelOpen
+
     return html`
       <div style="display:flex; height:100vh; width:100vw;">
         <ocbot-sidebar
@@ -112,6 +121,16 @@ export class OcbotApp extends LitElement {
           .gatewayState=${this.gatewayState}
           @navigate=${(e: CustomEvent<Tab>) => this._navigate(e.detail)}
         ></ocbot-sidebar>
+
+        ${showPanel ? html`
+          <ocbot-session-panel
+            .gateway=${this.gateway}
+            .activeSessionKey=${this.chatSessionKey}
+            @select-session=${this._onSelectSession}
+            @new-chat=${this._onNewChat}
+          ></ocbot-session-panel>
+        ` : ''}
+
         <main style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
           ${this._renderContent()}
         </main>
@@ -126,7 +145,13 @@ export class OcbotApp extends LitElement {
           return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);">Loading...</div>`
         }
         return this.hasModels
-          ? html`<ocbot-chat-view .gateway=${this.gateway} .sessionKey=${this.chatSessionKey}></ocbot-chat-view>`
+          ? html`<ocbot-chat-view
+              .gateway=${this.gateway}
+              .sessionKey=${this.chatSessionKey}
+              .panelOpen=${this.panelOpen}
+              @toggle-panel=${() => { this.panelOpen = !this.panelOpen }}
+              @session-changed=${(e: CustomEvent) => { this.chatSessionKey = e.detail }}
+            ></ocbot-chat-view>`
           : this._renderSetupPrompt()
       case 'sessions':
         return html`<ocbot-sessions-view .gateway=${this.gateway} @select-session=${this._onSelectSession}></ocbot-sessions-view>`
