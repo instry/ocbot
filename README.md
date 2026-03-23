@@ -2,15 +2,33 @@
   <img src="ocbot_logo.png" alt="ocbot logo" width="200"/>
 </p>
 
-# ocbot - The Web4 Browser
+# ocbot - The Web4 Agent
 
 [中文文档](README_CN.md) | [Official Website](https://oc.bot)
 
-**ocbot** is an AI-native browser for Web4 — the era where AI agents are first-class citizens of the internet. It can browse, act, and transact on the open web, powered by on-chain identity (ERC-8004), native payments (USDC/x402), and a built-in AI agent runtime. The browser is its body; the web is its world.
+**Web4 is the next evolution of the internet — where AI agents read, write, own, and transact without needing a human in the loop.**
+
+Ocbot is built for this future. It natively embeds the [OpenClaw] runtime and AI-Native Browser, providing a fully capable agent experience — browsing, acting, transacting.
 
 ---
 
-## Download
+## 🌟 Key Features
+
+### 🤖 Built-in OpenClaw Runtime
+- **Easy Setup**: Embedded OpenClaw. No config or terminal required—just launch the app.
+- **Full Ecosystem**: Out-of-the-box support for all OpenClaw capabilities, including skills, tools, and remote IM channels.
+
+### 🌐 AI-Native Browser
+- **Deep Kernel Integration**: Not an extension. Modified Chromium kernel for native AI support and deeper control.
+- **Always On**: Agents and cron jobs keep running in the background even when the window is closed.
+
+### 🔗 Designed for Web4
+- **AI as a First-Class Citizen**: Built for the Agentic Web where AI agents autonomously browse, transact, and compose services.
+- **On-Chain Identit & Payments**: ERC-8004 identity, x402 micropayments. The agent pays for APIs, services, and content directly on-chain.
+
+---
+
+## 🚀 Download
 
 | Platform | Link |
 |----------|------|
@@ -19,9 +37,7 @@
 
 ---
 
-## What is Web4?
-
-Web4 is the next evolution of the internet — where AI agents read, write, own, and transact without needing a human in the loop.
+## 📖 What is Web4?
 
 | Era | End User | Key Shift |
 |-----|----------|-----------|
@@ -30,23 +46,13 @@ Web4 is the next evolution of the internet — where AI agents read, write, own,
 | Web3 | Human owns | Wallets, tokens, on-chain identity |
 | **Web4** | **AI acts** | **Agents browse, transact, and compose services autonomously** |
 
-In Web4, the end user is AI. Agents discover each other on-chain, trade services via micropayments, and operate on behalf of a creator — whether that creator is a human, another agent, or no longer around at all.
+In Web4, the end user is AI. Agents discover each other, trade services via micropayments, and operate on behalf of a creator — whether that creator is a human, another agent, or no longer around at all.
 
 The economics make it inevitable: inference cost is collapsing toward zero, while agent capability is not. Every hardware generation makes autonomous agents cheaper to run and harder to outperform manually.
 
 ---
 
-## Key Features
-
-*   **AI Agent Inside**: A built-in AI agent with its own Ethereum wallet and on-chain identity (ERC-8004). It doesn't just assist — it acts. Navigate, click, fill forms, extract data, take screenshots. The full web is its action space.
-*   **Native Payments**: The agent transacts via USDC and x402 micropayments — paying for APIs, services, and content directly on-chain. No credit cards, no platform middlemen.
-*   **Self-Healing Workflows**: Web UI changed? The agent uses visual understanding to automatically repair execution paths.
-*   **Chrome Lossless Experience**: Retains the full Chrome experience. Import your bookmarks, history, and passwords — continue browsing without interruption.
-*   **Freedom of Choice**: Ocbot inference gateway (zero-config) or bring your own API key. Supports mainstream cloud models and fully **local LLMs**.
-
----
-
-## Development
+## 🛠️ Development
 
 ### Prerequisites
 
@@ -87,11 +93,9 @@ ocbot/
 ├── scripts/            # Dev tooling (dev.py, build.py, run.py, etc.)
 ├── patches/            # Generated Chromium patches
 ├── plans/              # Feature plan files (source of truth)
-├── web/                # AI extension (browser UI + agent runtime)
+├── web/                # UI extension (Lit 3 + OpenClaw Gateway UI)
 └── docs/               # Development documentation
 ```
-
-The `web/` directory contains the AI browser extension (Chrome Side Panel + agent runtime). It is built automatically during `dev.py build`.
 
 ### Documentation
 
@@ -99,19 +103,19 @@ The `web/` directory contains the AI browser extension (Chrome Side Panel + agen
 |-----|-------------|
 | [Plan-Driven Development](docs/plan-driven-dev.md) | **The Main Guide**: Workflow, Setup, Commands, and Architecture |
 | [Plans](plans/) | Feature plan files — the source of truth for each Chromium modification |
-| [web README](web/README.md) | AI extension development guide |
+| [web README](web/README.md) | UI extension development guide |
 
 ---
 
-## FAQ
+## ❓ FAQ
 
 **Q: What are you exactly?**
 
-I'm a Web4 Browser — part browser, part AI agent. I browse the web, I interact with it, and I get stuff done.
+I'm a Web4 Agent. I live on the web. I browse, I think, I act, I get stuff done.
 
-**Q: What is Web4?**
+**Q: How does Ocbot relate to OpenClaw?**
 
-Web4 is the autonomous agent era. AI agents are first-class citizens of the internet — they have identities, wallets, and can transact. They discover each other on-chain, trade services via micropayments, and operate independently. Ocbot is how you enter Web4.
+OpenClaw is the agent engine inside Ocbot. Ocbot natively embeds it so you don't have to install or manage it yourself — just launch the app. Ocbot's UI is a Gateway-Native Extension that fully supports the OpenClaw ecosystem — tools, skills, extensions, channels — all working out of the box.
 
 **Q: Why the name "ocbot"?**
 
@@ -123,7 +127,7 @@ Because I'm hitting the big time. (and well, it's the AI color~)
 
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
