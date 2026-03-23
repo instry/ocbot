@@ -10,23 +10,33 @@ interface ProviderHint {
   apiKeyUrl?: string
   apiKeyPlaceholder?: string
   regions?: { id: string; label: string; baseUrl: string }[]
+  aliases?: string[]  // alternative provider IDs in models.list
 }
 
 const PROVIDER_HINTS: Record<string, ProviderHint> = {
+  google: {
+    label: 'Google',
+    apiKeyUrl: 'https://aistudio.google.com/apikey',
+    apiKeyPlaceholder: 'AI...',
+  },
   anthropic: {
     label: 'Anthropic',
     apiKeyUrl: 'https://console.anthropic.com/settings/keys',
     apiKeyPlaceholder: 'sk-ant-...',
   },
+  minimax: {
+    label: 'MiniMax',
+    apiKeyUrl: 'https://platform.minimax.io/user-center/basic-information/interface-key',
+    apiKeyPlaceholder: 'API key',
+    regions: [
+      { id: 'global', label: 'Global', baseUrl: 'https://api.minimax.io/v1' },
+      { id: 'cn', label: 'China', baseUrl: 'https://api.minimaxi.com/v1' },
+    ],
+  },
   openai: {
     label: 'OpenAI',
     apiKeyUrl: 'https://platform.openai.com/api-keys',
     apiKeyPlaceholder: 'sk-...',
-  },
-  google: {
-    label: 'Google',
-    apiKeyUrl: 'https://aistudio.google.com/apikey',
-    apiKeyPlaceholder: 'AI...',
   },
   deepseek: {
     label: 'DeepSeek',
@@ -38,15 +48,25 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     apiKeyUrl: 'https://console.x.ai/team/default/api-keys',
     apiKeyPlaceholder: 'xai-...',
   },
-  openrouter: {
-    label: 'OpenRouter',
-    apiKeyUrl: 'https://openrouter.ai/keys',
-    apiKeyPlaceholder: 'sk-or-...',
-  },
-  mistral: {
-    label: 'Mistral',
-    apiKeyUrl: 'https://console.mistral.ai/api-keys',
+  zai: {
+    label: 'Z-AI (Zhipu)',
+    apiKeyUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
     apiKeyPlaceholder: 'API key',
+    regions: [
+      { id: 'global', label: 'Global', baseUrl: 'https://api.z.ai/api/paas/v4' },
+      { id: 'cn', label: 'China', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+    ],
+  },
+  moonshot: {
+    label: 'Kimi',
+    apiKeyUrl: 'https://platform.moonshot.cn/console/api-keys',
+    apiKeyPlaceholder: 'sk-...',
+    regions: [
+      { id: 'global', label: 'Global', baseUrl: 'https://api.moonshot.ai/v1' },
+      { id: 'cn', label: 'China', baseUrl: 'https://api.moonshot.cn/v1' },
+    ],
+    // models.list may use 'kimi-coding' as provider ID
+    aliases: ['kimi-coding'],
   },
   qwen: {
     label: 'Qwen',
@@ -57,29 +77,28 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
       { id: 'cn', label: 'China', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
     ],
   },
-  moonshot: {
-    label: 'Kimi / Moonshot',
-    apiKeyUrl: 'https://platform.moonshot.cn/console/api-keys',
-    apiKeyPlaceholder: 'sk-...',
-    regions: [
-      { id: 'global', label: 'Global', baseUrl: 'https://api.moonshot.ai/v1' },
-      { id: 'cn', label: 'China', baseUrl: 'https://api.moonshot.cn/v1' },
-    ],
+  openrouter: {
+    label: 'OpenRouter',
+    apiKeyUrl: 'https://openrouter.ai/keys',
+    apiKeyPlaceholder: 'sk-or-...',
   },
-  minimax: {
-    label: 'MiniMax',
-    apiKeyUrl: 'https://platform.minimax.io/user-center/basic-information/interface-key',
+  mistral: {
+    label: 'Mistral',
+    apiKeyUrl: 'https://console.mistral.ai/api-keys',
     apiKeyPlaceholder: 'API key',
-    regions: [
-      { id: 'global', label: 'Global', baseUrl: 'https://api.minimax.io/v1' },
-      { id: 'cn', label: 'China', baseUrl: 'https://api.minimaxi.com/v1' },
-    ],
   },
   ollama: {
-    label: 'Ollama (Local)',
+    label: 'Local (Ollama)',
     apiKeyPlaceholder: '(not required)',
   },
 }
+
+// Curated provider list — ordered by popularity, only show these in the UI
+const CURATED_PROVIDER_IDS = [
+  'google', 'anthropic', 'openai', 'deepseek',
+  'xai', 'qwen', 'moonshot', 'minimax',
+  'zai', 'openrouter', 'mistral', 'ollama',
+]
 
 interface GatewayModel {
   id: string
@@ -175,10 +194,21 @@ export class OcbotProviderForm extends LitElement {
         if (!byProvider[m.provider]) byProvider[m.provider] = []
         byProvider[m.provider].push(m)
       }
+
+      // Merge alias provider models into the canonical provider ID
+      for (const [id, hint] of Object.entries(PROVIDER_HINTS)) {
+        if (!hint.aliases) continue
+        for (const alias of hint.aliases) {
+          if (byProvider[alias]) {
+            if (!byProvider[id]) byProvider[id] = []
+            byProvider[id].push(...byProvider[alias])
+          }
+        }
+      }
+
       this.modelsByProvider = byProvider
-      const hinted = Object.keys(PROVIDER_HINTS).filter(p => byProvider[p])
-      const others = Object.keys(byProvider).filter(p => !PROVIDER_HINTS[p]).sort()
-      this.providers = [...hinted, ...others]
+      // Only show curated providers (ordered by CURATED_PROVIDER_IDS)
+      this.providers = CURATED_PROVIDER_IDS.filter(id => PROVIDER_HINTS[id])
     } catch {
       this.error = 'Failed to load models'
     } finally {
