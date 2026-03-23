@@ -4,8 +4,6 @@ import sys
 import subprocess
 import os
 import json
-import time
-import urllib.request
 from pathlib import Path
 
 try:
@@ -43,115 +41,35 @@ def _build_extension(logger, zip=True):
         sys.exit(1)
 
 
-def _wait_for_cdp(logger, url='http://127.0.0.1:9222/json/version', timeout=15):
-    deadline = time.time() + timeout
-    last_error = None
-    while time.time() < deadline:
-        try:
-            with urllib.request.urlopen(url, timeout=1) as response:
-                if response.status == 200:
-                    logger.info(f"CDP is ready: {url}")
-                    return True
-        except Exception as e:
-            last_error = e
-        time.sleep(0.5)
-
-    logger.error(f"Timed out waiting for CDP at {url}: {last_error}")
-    return False
-
 
 def _run_full(args, logger):
-    script_path = Path(__file__).resolve()
-    run_cmd = [sys.executable, str(script_path), 'run']
-    if getattr(args, 'official', False):
-        run_cmd.append('--official')
-    if getattr(args, 'update_web', False):
-        run_cmd.append('--update-web')
-    if args.src_dir:
-        run_cmd.extend(['--src-dir', args.src_dir])
-    if getattr(args, 'args', None):
-        run_cmd.extend(args.args)
+    from run import run_chromium, _find_embedded_runtime, _start_embedded_runtime
 
-    # Determine if we should use embedded runtime
-    use_embedded = getattr(args, 'embedded', False)
-    if not use_embedded:
-        # Auto-detect: check if app bundle has embedded runtime
-        src_dir = Path(args.src_dir) if args.src_dir else get_source_dir()
-        if src_dir:
-            out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
-            out_dir = src_dir / 'out' / out_dir_name
-            from run import _find_embedded_runtime
-            node_path, openclaw_dir = _find_embedded_runtime(out_dir)
-            if node_path:
-                use_embedded = True
-                logger.info("Detected embedded runtime in app bundle")
+    # Locate embedded runtime in app bundle
+    src_dir = Path(args.src_dir) if args.src_dir else get_source_dir()
+    out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
+    out_dir = src_dir / 'out' / out_dir_name
 
-    if use_embedded:
-        # Embedded mode: start gateway via Python, then launch browser.
-        # (In production, the C++ RuntimeManager handles this. This path
-        # is for testing the embedded runtime without a full C++ build.)
-        from run import _start_embedded_runtime
-        logger.info('Starting Ocbot with embedded OpenClaw runtime...')
+    node_path, openclaw_dir = _find_embedded_runtime(out_dir)
+    if not node_path:
+        logger.error("No embedded runtime found. Run 'dev.py build' first.")
+        sys.exit(1)
 
-        # Ensure out_dir is set (may not be if --embedded was passed explicitly)
-        if 'out_dir' not in dir() or not out_dir:
-            src_dir = Path(args.src_dir) if args.src_dir else get_source_dir()
-            out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
-            out_dir = src_dir / 'out' / out_dir_name
-
-        gateway_proc = _start_embedded_runtime(logger, out_dir)
-        ocbot_proc = subprocess.Popen(run_cmd)
-        try:
-            ocbot_proc.wait()
-        except KeyboardInterrupt:
-            logger.info('Stopping Ocbot...')
-        finally:
-            if ocbot_proc.poll() is None:
-                ocbot_proc.terminate()
-                try:
-                    ocbot_proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    ocbot_proc.kill()
-            if gateway_proc and gateway_proc.poll() is None:
-                logger.info('Stopping embedded OpenClaw gateway...')
-                gateway_proc.terminate()
-                try:
-                    gateway_proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    gateway_proc.kill()
-        return
-
-    # Non-embedded mode: spawn OpenClaw from sibling directory
-    logger.info('Starting Ocbot...')
-    ocbot_proc = subprocess.Popen(run_cmd)
+    logger.info('Starting embedded OpenClaw gateway...')
+    gateway_proc = _start_embedded_runtime(logger, out_dir)
 
     try:
-        if not _wait_for_cdp(logger):
-            ocbot_proc.terminate()
-            sys.exit(1)
-
-        openclaw_dir = get_project_root().parent / 'openclaw'
-        if not openclaw_dir.exists():
-            logger.error(f"OpenClaw directory not found: {openclaw_dir}")
-            ocbot_proc.terminate()
-            sys.exit(1)
-
-        gateway_cmd = ['pnpm', 'gateway:dev']
-        logger.info('Starting OpenClaw gateway...')
-        logger.info(f"Command: {' '.join(gateway_cmd)}")
-        gateway_proc = subprocess.Popen(gateway_cmd, cwd=openclaw_dir)
-
-        logger.info('Ocbot + OpenClaw are running. Press Ctrl+C to stop both.')
-        gateway_proc.wait()
+        run_chromium(args)
     except KeyboardInterrupt:
-        logger.info('Stopping Ocbot + OpenClaw...')
+        logger.info('Stopping Ocbot...')
     finally:
-        if ocbot_proc.poll() is None:
-            ocbot_proc.terminate()
+        if gateway_proc and gateway_proc.poll() is None:
+            logger.info('Stopping embedded OpenClaw gateway...')
+            gateway_proc.terminate()
             try:
-                ocbot_proc.wait(timeout=5)
+                gateway_proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                ocbot_proc.kill()
+                gateway_proc.kill()
 
 def main():
     parser = argparse.ArgumentParser(description='ocbot development utility')
@@ -210,17 +128,10 @@ def main():
         help='Target architecture (default: native)')
 
     # Run
-    parser_run = subparsers.add_parser('run', help='Run Ocbot', parents=[parent_parser])
+    parser_run = subparsers.add_parser('run', help='Run Ocbot with OpenClaw gateway', parents=[parent_parser])
     parser_run.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Ocbot')
     parser_run.add_argument('--official', action='store_true', help='Run official build')
     parser_run.add_argument('--update-web', action='store_true', help='Build extension before running')
-
-    # Run full stack
-    parser_run_full = subparsers.add_parser('run_full', help='Run Ocbot with OpenClaw gateway', parents=[parent_parser])
-    parser_run_full.add_argument('args', nargs=argparse.REMAINDER, help='Arguments to pass to Ocbot')
-    parser_run_full.add_argument('--official', action='store_true', help='Run official build')
-    parser_run_full.add_argument('--update-web', action='store_true', help='Build extension before running')
-    parser_run_full.add_argument('--embedded', action='store_true', help='Force use of embedded OpenClaw runtime from app bundle')
 
     # Update Web (build extension only)
     parser_update_web = subparsers.add_parser('update-web', help='Build ocbot extension only', parents=[parent_parser])
@@ -349,10 +260,6 @@ def main():
 
         build_chromium(args)
     elif args.command == 'run':
-        if getattr(args, 'update_web', False):
-             _build_extension(logger, zip=False)
-        run_chromium(args)
-    elif args.command == 'run_full':
         if getattr(args, 'update_web', False):
              _build_extension(logger, zip=False)
         _run_full(args, logger)
