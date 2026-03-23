@@ -372,7 +372,7 @@ export class OcbotProviderForm extends LitElement {
 
   private _renderConfig() {
     const hint = this.getHint(this.selectedProvider)
-    const models = this.modelsByProvider[this.selectedProvider] ?? []
+    const models = [...(this.modelsByProvider[this.selectedProvider] ?? [])].reverse()
 
     return html`
       <!-- Region selector -->
