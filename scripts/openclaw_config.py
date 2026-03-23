@@ -11,7 +11,8 @@ DEFAULT_CONFIG = {
             "ocbot": {
                 "cdpUrl": "http://127.0.0.1:9222",
                 "attachOnly": True,
-                "driver": "openclaw"
+                "driver": "openclaw",
+                "color": "#7c3aed"
             }
         },
         "defaultProfile": "ocbot"
@@ -19,7 +20,14 @@ DEFAULT_CONFIG = {
     "gateway": {
         "port": 18789,
         "mode": "local",
-        "bind": "loopback"
+        "bind": "loopback",
+        "auth": {
+            "mode": "none"
+        },
+        "controlUi": {
+            "allowedOrigins": ["*"],
+            "allowInsecureAuth": True
+        }
     }
 }
 

@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.cc b/chrome/browser/ocbot/runtime_manager.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..83995a01252020d8422767400eb7f19c4a064d1c
+index 0000000000000000000000000000000000000000..29aaf31787bbb8fe4abc548cdfe70c4be5b97505
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.cc
-@@ -0,0 +1,751 @@
+@@ -0,0 +1,764 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -88,6 +88,7 @@ index 0000000000000000000000000000000000000000..83995a01252020d8422767400eb7f19c
 +  browser_profile.Set("cdpUrl", "http://127.0.0.1:9222");
 +  browser_profile.Set("attachOnly", true);
 +  browser_profile.Set("driver", "openclaw");
++  browser_profile.Set("color", "#7c3aed");
 +
 +  base::Value::Dict profiles;
 +  profiles.Set("ocbot", std::move(browser_profile));
@@ -96,10 +97,22 @@ index 0000000000000000000000000000000000000000..83995a01252020d8422767400eb7f19c
 +  browser.Set("profiles", std::move(profiles));
 +  browser.Set("defaultProfile", "ocbot");
 +
++  base::Value::Dict auth;
++  auth.Set("mode", "none");
++
++  base::Value::List allowed_origins;
++  allowed_origins.Append("*");
++
++  base::Value::Dict control_ui;
++  control_ui.Set("allowedOrigins", std::move(allowed_origins));
++  control_ui.Set("allowInsecureAuth", true);
++
 +  base::Value::Dict gateway;
 +  gateway.Set("port", 18789);
 +  gateway.Set("mode", "local");
 +  gateway.Set("bind", "loopback");
++  gateway.Set("auth", std::move(auth));
++  gateway.Set("controlUi", std::move(control_ui));
 +
 +  base::Value::Dict root;
 +  root.Set("browser", std::move(browser));
