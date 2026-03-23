@@ -2,7 +2,7 @@
   <img src="ocbot_logo.png" alt="ocbot logo" width="200"/>
 </p>
 
-# ocbot - Web4 Agent
+# ocbot - Your Web4 Agent
 
 [English](README.md) | [Official Website](https://oc.bot)
 

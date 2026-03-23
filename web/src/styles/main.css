@@ -1,0 +1,177 @@
+/* Control UI base tokens (colors, typography, spacing, shadows, radii, transitions) */
+@import "../../../../openclaw/ui/src/styles/base.css";
+
+/* Control UI component styles (buttons, forms, dialogs, cards) */
+@import "../../../../openclaw/ui/src/styles/components.css";
+
+/* Control UI layout (grid shell, nav, topbar) */
+@import "../../../../openclaw/ui/src/styles/layout.css";
+@import "../../../../openclaw/ui/src/styles/layout.mobile.css";
+
+/* Control UI chat styles */
+@import "../../../../openclaw/ui/src/styles/chat.css";
+
+/* Control UI config form styles */
+@import "../../../../openclaw/ui/src/styles/config.css";
+
+/* Ocbot brand overrides (must come last to override --accent etc.) */
+@import "./brand.css";
+
+/* Ocbot-specific layout */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Sidebar */
+.ocbot-sidebar {
+  width: 220px;
+  height: 100vh;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+
+.ocbot-sidebar__brand {
+  padding: 0 16px 16px;
+}
+
+.ocbot-sidebar__logo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.ocbot-sidebar__status {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.ocbot-sidebar__group {
+  padding: 8px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.ocbot-sidebar__group:first-of-type {
+  border-top: none;
+}
+
+.ocbot-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+  position: relative;
+  text-align: left;
+}
+
+.ocbot-sidebar__item:hover {
+  background: var(--bg-hover);
+}
+
+.ocbot-sidebar__item--active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.ocbot-sidebar__item--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+
+.ocbot-sidebar__icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.ocbot-sidebar__label {
+  flex: 1;
+}
+
+.ocbot-sidebar__footer {
+  margin-top: auto;
+  padding: 8px 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.ocbot-sidebar__version {
+  font-size: 11px;
+  color: var(--muted-strong);
+  padding: 8px 12px 0;
+}
+
+/* Page placeholder */
+.page-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.page-placeholder h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0 0 8px;
+}
+
+/* Apply theme based on system preference by default */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme-mode]) {
+    --bg: #f8f9fa;
+    --bg-accent: #f1f3f5;
+    --bg-elevated: #ffffff;
+    --bg-hover: #eceef0;
+    --bg-muted: #eceef0;
+    --card: #ffffff;
+    --card-foreground: #1a1a1e;
+    --card-highlight: rgba(0, 0, 0, 0.02);
+    --popover: #ffffff;
+    --popover-foreground: #1a1a1e;
+    --panel: #f8f9fa;
+    --panel-strong: #f1f3f5;
+    --panel-hover: #e6e8eb;
+    --chrome: rgba(248, 249, 250, 0.96);
+    --chrome-strong: rgba(248, 249, 250, 0.98);
+    --text: #3c3c43;
+    --text-strong: #1a1a1e;
+    --chat-text: #3c3c43;
+    --muted: #6e6e73;
+    --muted-strong: #545458;
+    --muted-foreground: #6e6e73;
+    --border: #e2e4e8;
+    --border-strong: #cfd2d8;
+    --border-hover: #bbbfc6;
+    --input: #e2e4e8;
+    --secondary: #f1f3f5;
+    --secondary-foreground: #1a1a1e;
+    color-scheme: light;
+  }
+}

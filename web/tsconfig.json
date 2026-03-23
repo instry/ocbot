@@ -1,16 +1,17 @@
 {
   "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
     "baseUrl": ".",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@openclaw-ui/*": ["../openclaw/ui/src/ui/*"]
     },
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx",
     ".wxt/**/*.ts"
   ]
 }

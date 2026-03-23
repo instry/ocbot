@@ -1,0 +1,29 @@
+/* Ocbot brand overrides — applied on top of Control UI base tokens */
+
+:root {
+  /* Accent — Ocbot purple */
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-muted: #7c3aed;
+  --accent-subtle: rgba(124, 58, 237, 0.1);
+  --accent-foreground: #fafafa;
+  --accent-glow: rgba(124, 58, 237, 0.2);
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --ring: #7c3aed;
+  --accent-2: #14b8a6;
+  --focus: rgba(124, 58, 237, 0.2);
+}
+
+:root[data-theme-mode="light"] {
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-muted: rgba(124, 58, 237, 0.85);
+  --accent-subtle: rgba(124, 58, 237, 0.08);
+  --accent-foreground: #ffffff;
+  --accent-glow: rgba(124, 58, 237, 0.15);
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --ring: #7c3aed;
+  --focus: rgba(124, 58, 237, 0.15);
+}
