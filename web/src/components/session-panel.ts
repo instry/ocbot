@@ -112,6 +112,12 @@ export class OcbotSessionPanel extends LitElement {
           />
         </div>
 
+        <div class="session-panel__actions">
+          <button class="session-panel__new-btn" @click=${this.newChat}>
+            ${svgIcon('plus', 14)} New Chat
+          </button>
+        </div>
+
         <div class="session-panel__list">
           ${this.loading ? html`
             <div class="session-panel__empty">Loading...</div>
@@ -138,12 +144,6 @@ export class OcbotSessionPanel extends LitElement {
               `)}
             </div>
           `)}
-        </div>
-
-        <div class="session-panel__footer">
-          <button class="session-panel__new-btn" @click=${this.newChat}>
-            ${svgIcon('plus', 14)} New Chat
-          </button>
         </div>
       </div>
     `

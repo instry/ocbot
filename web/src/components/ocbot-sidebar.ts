@@ -13,17 +13,19 @@ interface NavItem {
 const NAV_GROUPS: NavItem[][] = [
   [
     { id: 'chat', label: 'Chat', icon: 'chat' },
-    { id: 'cron', label: 'Cron', icon: 'cron' },
   ],
   [
     { id: 'agents', label: 'Agents', icon: 'agents' },
     { id: 'skills', label: 'Skills', icon: 'skills' },
+    { id: 'cron', label: 'Cron', icon: 'cron' },
     { id: 'channels', label: 'Channels', icon: 'channels' },
   ],
   [
     { id: 'usage', label: 'Usage', icon: 'usage' },
   ],
 ]
+
+declare const __OCBOT_VERSION__: string
 
 @customElement('ocbot-sidebar')
 export class OcbotSidebar extends LitElement {
@@ -40,11 +42,20 @@ export class OcbotSidebar extends LitElement {
     }
   }
 
+  private _version(): string {
+    try {
+      return typeof __OCBOT_VERSION__ !== 'undefined' ? __OCBOT_VERSION__ : 'dev'
+    } catch {
+      return 'dev'
+    }
+  }
+
   override render() {
     return html`
       <nav class="icon-bar">
         <div class="icon-bar__logo" title="Ocbot">
           <img src="/logo.png" alt="" width="22" height="22" />
+          <span class="icon-bar__logo-name">Ocbot</span>
           <span class="icon-bar__status-dot" style="background:${this._statusColor()}"></span>
         </div>
 
@@ -70,6 +81,7 @@ export class OcbotSidebar extends LitElement {
             ${svgIcon('settings', 18)}
             <span class="icon-bar__label">Settings</span>
           </button>
+          <span class="icon-bar__version">v${this._version()}</span>
         </div>
       </nav>
     `

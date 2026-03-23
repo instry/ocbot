@@ -43,27 +43,31 @@ html, body {
 }
 
 .icon-bar__logo {
-  position: relative;
-  width: 32px;
-  height: 32px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin: 0 auto 12px;
+  gap: 8px;
+  height: 34px;
+  margin: 0 8px 8px;
+  padding: 0 10px;
 }
 
 .icon-bar__logo img {
   border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.icon-bar__logo-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
 }
 
 .icon-bar__status-dot {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  border: 2px solid var(--panel);
+  flex-shrink: 0;
 }
 
 .icon-bar__group {
@@ -71,12 +75,11 @@ html, body {
   flex-direction: column;
   gap: 2px;
   padding: 8px 0;
-  border-top: 1px solid var(--border);
   width: 100%;
 }
 
 .icon-bar__group:first-of-type {
-  border-top: none;
+  padding-top: 0;
 }
 
 .icon-bar__btn {
@@ -125,8 +128,19 @@ html, body {
 .icon-bar__footer {
   margin-top: auto;
   padding-top: 8px;
-  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   width: 100%;
+}
+
+.icon-bar__version {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.5;
+  padding: 6px 0 2px;
 }
 
 /* Page placeholder */
@@ -269,9 +283,8 @@ html, body {
   background: var(--danger-subtle);
 }
 
-.session-panel__footer {
-  padding: 8px;
-  border-top: 1px solid var(--border);
+.session-panel__actions {
+  padding: 4px 8px;
 }
 
 .session-panel__new-btn {
