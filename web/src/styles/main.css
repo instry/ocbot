@@ -672,12 +672,20 @@ ocbot-chat-view {
   font-size: 14px;
   font-family: var(--font-body);
   resize: none;
-  outline: none;
+  outline: none !important;
+  -webkit-appearance: none;
   min-height: 42px;
-  max-height: 192px;
+  max-height: 200px;
   overflow-y: auto;
   line-height: 1.5;
   box-sizing: border-box;
+}
+
+.cv-input__textarea:focus,
+.cv-input__textarea:focus-visible {
+  outline: none !important;
+  border: none;
+  box-shadow: none;
 }
 
 .cv-input__textarea::placeholder {
@@ -695,6 +703,12 @@ ocbot-chat-view {
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+.cv-input__footer-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .cv-input__attach {
@@ -841,6 +855,26 @@ ocbot-chat-view {
   color: color-mix(in srgb, var(--muted) 50%, transparent);
 }
 
+.cv-model-popover__add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: color-mix(in srgb, var(--muted) 50%, transparent);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+
+.cv-model-popover__add-btn:hover {
+  background: var(--bg-muted);
+  color: var(--muted);
+}
+
 .cv-model-popover__list {
   flex: 1;
   overflow-y: auto;
@@ -852,6 +886,24 @@ ocbot-chat-view {
   text-align: center;
   font-size: 12px;
   color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.cv-model-popover__empty-link {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  padding: 0;
+}
+
+.cv-model-popover__empty-link:hover {
+  text-decoration: underline;
 }
 
 .cv-model-popover__group-name {

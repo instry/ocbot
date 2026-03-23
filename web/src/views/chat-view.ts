@@ -91,6 +91,9 @@ export class OcbotChatView extends LitElement {
   @state() modelPopoverOpen = false
   @state() modelSearch = ''
 
+  // Providers whose baseUrl matches a CN region endpoint
+  private cnProviders = new Set<string>()
+
   // Input history
   private inputHistory: string[] = []
   private historyIndex = -1
@@ -134,12 +137,40 @@ export class OcbotChatView extends LitElement {
     }
   }
 
+  // CN region base URLs keyed by provider
+  private static CN_URLS: Record<string, string> = {
+    minimax: 'https://api.minimaxi.com',
+    zai: 'https://open.bigmodel.cn',
+    moonshot: 'https://api.moonshot.cn',
+    qwen: 'https://dashscope.aliyuncs.com',
+  }
+
   private async loadModels() {
     try {
-      const result = await this.gateway.call<{ models?: GatewayModel[] }>('models.list')
-      this.models = result?.models ?? []
-      const config = await this.gateway.call<{ config?: Record<string, any> }>('config.get')
-      const primary = config?.config?.agents?.defaults?.model?.primary
+      const [modelsResult, configResult] = await Promise.all([
+        this.gateway.call<{ models?: GatewayModel[] }>('models.list'),
+        this.gateway.call<{ config?: Record<string, any> }>('config.get'),
+      ])
+      const config = configResult?.config ?? {}
+      const profiles: Record<string, any> = config?.auth?.profiles ?? {}
+      // Extract configured provider names and detect CN regions
+      const configuredProviders = new Set<string>()
+      const cn = new Set<string>()
+      for (const [key, profile] of Object.entries(profiles)) {
+        const provider = profile.provider ?? key.split(':')[0]
+        configuredProviders.add(provider)
+        const baseUrl: string = profile.baseUrl ?? ''
+        const cnUrl = OcbotChatView.CN_URLS[provider]
+        if (cnUrl && baseUrl.startsWith(cnUrl)) {
+          cn.add(provider)
+        }
+      }
+      this.cnProviders = cn
+      // Only show models from configured providers
+      const allModels = modelsResult?.models ?? []
+      this.models = allModels.filter(m => configuredProviders.has(m.provider))
+
+      const primary = config?.agents?.defaults?.model?.primary
       if (primary) this.selectedModel = primary
     } catch { /* ignore */ }
   }
@@ -359,7 +390,7 @@ export class OcbotChatView extends LitElement {
     const el = e.target as HTMLTextAreaElement
     this.inputText = el.value
     el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, 150) + 'px'
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px'
     // Reset history navigation when typing
     this.historyIndex = -1
   }
@@ -553,12 +584,10 @@ export class OcbotChatView extends LitElement {
             @keydown=${this.handleKeyDown}
             ?disabled=${this.sending}
             rows="1"
+            maxlength="20000"
           ></textarea>
           <div class="cv-input__footer">
             <div class="cv-input__footer-left">
-              <button class="cv-input__attach" title="Attach file">
-                ${svgIcon('paperclip', 16)}
-              </button>
               ${this.models.length ? html`
                 <div class="cv-input__model-wrap">
                   <button
@@ -572,13 +601,18 @@ export class OcbotChatView extends LitElement {
                 </div>
               ` : nothing}
             </div>
-            <button
-              class="cv-input__send ${this.sending ? 'cv-input__send--stop' : ''}"
-              @click=${this.sending ? this.abort : this.sendMessage}
-              ?disabled=${!this.inputText.trim() && !this.sending}
-            >
-              ${this.sending ? svgIcon('x', 16) : svgIcon('arrow-up', 16)}
-            </button>
+            <div class="cv-input__footer-right">
+              <button class="cv-input__attach" title="Attach file">
+                ${svgIcon('paperclip', 16)}
+              </button>
+              <button
+                class="cv-input__send ${this.sending ? 'cv-input__send--stop' : ''}"
+                @click=${this.sending ? this.abort : this.sendMessage}
+                ?disabled=${!this.inputText.trim() && !this.sending}
+              >
+                ${this.sending ? svgIcon('x', 16) : svgIcon('arrow-up', 16)}
+              </button>
+            </div>
           </div>
         </div>
         </div>
@@ -586,22 +620,35 @@ export class OcbotChatView extends LitElement {
     `
   }
 
+  private _modelDisplayName(m: GatewayModel): string {
+    const name = m.name || m.id
+    return this.cnProviders.has(m.provider) ? `${name}-CN` : name
+  }
+
   private _getSelectedModelDisplay(): string {
     if (!this.selectedModel) return 'Select model'
     const m = this.models.find(m => `${m.provider}/${m.id}` === this.selectedModel)
-    return m ? (m.name || m.id) : this.selectedModel.split('/').pop() ?? this.selectedModel
+    return m ? this._modelDisplayName(m) : this.selectedModel.split('/').pop() ?? this.selectedModel
   }
 
   private _renderModelPopover() {
     const q = this.modelSearch.toLowerCase().trim()
+    const providerLabels: Record<string, string> = {
+      anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google',
+      deepseek: 'DeepSeek', xai: 'xAI', openrouter: 'OpenRouter',
+      mistral: 'Mistral', qwen: 'Qwen', moonshot: 'Kimi / Moonshot',
+      minimax: 'MiniMax', ollama: 'Ollama', zai: 'Zhipu Z-AI',
+    }
     // Group models by provider
-    const groups: { name: string; items: GatewayModel[] }[] = []
+    const groups: { name: string; label: string; items: GatewayModel[] }[] = []
     for (const m of this.models) {
-      const modelKey = `${m.provider}/${m.id}`
       const displayName = (m.name || m.id).toLowerCase()
       if (q && !m.provider.toLowerCase().includes(q) && !displayName.includes(q)) continue
       let group = groups.find(g => g.name === m.provider)
-      if (!group) { group = { name: m.provider, items: [] }; groups.push(group) }
+      if (!group) {
+        group = { name: m.provider, label: providerLabels[m.provider] ?? m.provider, items: [] }
+        groups.push(group)
+      }
       group.items.push(m)
     }
 
@@ -616,13 +663,23 @@ export class OcbotChatView extends LitElement {
             .value=${this.modelSearch}
             @input=${(e: Event) => { this.modelSearch = (e.target as HTMLInputElement).value }}
           />
+          <button
+            class="cv-model-popover__add-btn"
+            title="Add model"
+            @click=${() => { this.modelPopoverOpen = false; this._navigateToSettings() }}
+          >${svgIcon('plus', 14)}</button>
         </div>
         <div class="cv-model-popover__list">
           ${groups.length === 0 ? html`
-            <div class="cv-model-popover__empty">No models found</div>
+            <div class="cv-model-popover__empty">
+              ${this.models.length === 0 ? html`
+                <span>No models configured</span>
+                <button class="cv-model-popover__empty-link" @click=${() => { this.modelPopoverOpen = false; this._navigateToSettings() }}>Add a model</button>
+              ` : html`<span>No models found</span>`}
+            </div>
           ` : groups.map(group => html`
             <div class="cv-model-popover__group">
-              <div class="cv-model-popover__group-name">${group.name}</div>
+              <div class="cv-model-popover__group-name">${group.label}</div>
               ${group.items.map(m => {
                 const key = `${m.provider}/${m.id}`
                 const isSelected = key === this.selectedModel
@@ -631,7 +688,7 @@ export class OcbotChatView extends LitElement {
                     class="cv-model-popover__item ${isSelected ? 'cv-model-popover__item--selected' : ''}"
                     @click=${() => { this.selectedModel = key; this.modelPopoverOpen = false }}
                   >
-                    <span class="cv-model-popover__item-name">${m.name || m.id}</span>
+                    <span class="cv-model-popover__item-name">${this._modelDisplayName(m)}</span>
                     ${isSelected ? svgIcon('check', 14) : nothing}
                   </button>
                 `
@@ -641,5 +698,9 @@ export class OcbotChatView extends LitElement {
         </div>
       </div>
     `
+  }
+
+  private _navigateToSettings() {
+    window.location.hash = '#/settings'
   }
 }

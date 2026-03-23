@@ -13,7 +13,6 @@ interface NavItem {
 const NAV_GROUPS: NavItem[][] = [
   [
     { id: 'chat', label: 'Chat', icon: 'chat' },
-    { id: 'sessions', label: 'Sessions', icon: 'sessions' },
     { id: 'cron', label: 'Cron', icon: 'cron' },
   ],
   [
