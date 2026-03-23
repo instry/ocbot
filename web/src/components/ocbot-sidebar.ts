@@ -2,33 +2,28 @@ import { LitElement, html } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { svgIcon } from './icons'
 
-type Tab = 'chat' | 'sessions' | 'cron' | 'agents' | 'skills' | 'channels' | 'usage' | 'config' | 'settings'
+export type Tab = 'chat' | 'sessions' | 'cron' | 'agents' | 'skills' | 'channels' | 'usage' | 'config' | 'settings'
 
 interface NavItem {
   id: Tab
   label: string
+  icon: string
 }
 
-const NAV_GROUPS: { items: NavItem[] }[] = [
-  {
-    items: [
-      { id: 'chat', label: 'Chat' },
-      { id: 'sessions', label: 'Sessions' },
-      { id: 'cron', label: 'Cron' },
-    ]
-  },
-  {
-    items: [
-      { id: 'agents', label: 'Agents' },
-      { id: 'skills', label: 'Skills' },
-      { id: 'channels', label: 'Channels' },
-    ]
-  },
-  {
-    items: [
-      { id: 'usage', label: 'Usage' },
-    ]
-  },
+const NAV_GROUPS: NavItem[][] = [
+  [
+    { id: 'chat', label: 'Chat', icon: 'chat' },
+    { id: 'sessions', label: 'Sessions', icon: 'sessions' },
+    { id: 'cron', label: 'Cron', icon: 'cron' },
+  ],
+  [
+    { id: 'agents', label: 'Agents', icon: 'agents' },
+    { id: 'skills', label: 'Skills', icon: 'skills' },
+    { id: 'channels', label: 'Channels', icon: 'channels' },
+  ],
+  [
+    { id: 'usage', label: 'Usage', icon: 'usage' },
+  ],
 ]
 
 @customElement('ocbot-sidebar')
@@ -38,59 +33,44 @@ export class OcbotSidebar extends LitElement {
   @property() activeTab: Tab = 'chat'
   @property() gatewayState: string = 'disconnected'
 
-  private _statusDot() {
+  private _statusColor() {
     switch (this.gatewayState) {
-      case 'connected': return html`<span style="color:var(--ok)">●</span>`
-      case 'connecting': return html`<span style="color:var(--warn)">◐</span>`
-      default: return html`<span style="color:var(--danger)">○</span>`
-    }
-  }
-
-  private _statusText() {
-    switch (this.gatewayState) {
-      case 'connected': return 'Connected'
-      case 'connecting': return 'Connecting...'
-      case 'error': return 'Error'
-      default: return 'Disconnected'
+      case 'connected': return 'var(--ok)'
+      case 'connecting': return 'var(--warn)'
+      default: return 'var(--danger)'
     }
   }
 
   override render() {
     return html`
-      <nav class="ocbot-sidebar">
-        <!-- Brand -->
-        <div class="ocbot-sidebar__brand">
-          <div class="ocbot-sidebar__logo"><img src="/logo.png" alt="" style="width:20px; height:20px; vertical-align:middle; margin-right:6px;" />Ocbot</div>
-          <div class="ocbot-sidebar__status">
-            ${this._statusDot()} ${this._statusText()}
-          </div>
+      <nav class="icon-bar">
+        <div class="icon-bar__logo" title="Ocbot">
+          <img src="/logo.png" alt="" width="22" height="22" />
+          <span class="icon-bar__status-dot" style="background:${this._statusColor()}"></span>
         </div>
 
-        <!-- Nav groups -->
         ${NAV_GROUPS.map(group => html`
-          <div class="ocbot-sidebar__group">
-            ${group.items.map(item => html`
+          <div class="icon-bar__group">
+            ${group.map(item => html`
               <button
-                class="ocbot-sidebar__item ${this.activeTab === item.id ? 'ocbot-sidebar__item--active' : ''}"
+                class="icon-bar__btn ${this.activeTab === item.id ? 'icon-bar__btn--active' : ''}"
+                title="${item.label}"
                 @click=${() => this.dispatchEvent(new CustomEvent('navigate', { detail: item.id }))}
               >
-                <span class="ocbot-sidebar__icon">${svgIcon(item.id)}</span>
-                <span class="ocbot-sidebar__label">${item.label}</span>
+                ${svgIcon(item.icon, 18)}
               </button>
             `)}
           </div>
         `)}
 
-        <!-- Footer -->
-        <div class="ocbot-sidebar__footer">
+        <div class="icon-bar__footer">
           <button
-            class="ocbot-sidebar__item ${this.activeTab === 'settings' ? 'ocbot-sidebar__item--active' : ''}"
+            class="icon-bar__btn ${this.activeTab === 'settings' ? 'icon-bar__btn--active' : ''}"
+            title="Settings"
             @click=${() => this.dispatchEvent(new CustomEvent('navigate', { detail: 'settings' }))}
           >
-            <span class="ocbot-sidebar__icon">${svgIcon('settings')}</span>
-            <span class="ocbot-sidebar__label">Settings</span>
+            ${svgIcon('settings', 18)}
           </button>
-          <div class="ocbot-sidebar__version">v${__OCBOT_VERSION__ ?? '0.0.0'}</div>
         </div>
       </nav>
     `

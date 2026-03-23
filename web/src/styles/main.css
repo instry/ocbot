@@ -28,104 +28,99 @@ html, body {
   color: var(--text);
 }
 
-/* Sidebar */
-.ocbot-sidebar {
-  width: 220px;
+/* ═══ Icon Bar (48px narrow nav) ═══ */
+
+.icon-bar {
+  width: 48px;
   height: 100vh;
   background: var(--panel);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 16px 0;
+  align-items: center;
+  padding: 12px 0;
   flex-shrink: 0;
 }
 
-.ocbot-sidebar__brand {
-  padding: 0 16px 16px;
+.icon-bar__logo {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
 }
 
-.ocbot-sidebar__logo {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-strong);
+.icon-bar__logo img {
+  border-radius: 6px;
 }
 
-.ocbot-sidebar__status {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 4px;
+.icon-bar__status-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
 }
 
-.ocbot-sidebar__group {
-  padding: 8px 8px;
+.icon-bar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
   border-top: 1px solid var(--border);
+  width: 100%;
 }
 
-.ocbot-sidebar__group:first-of-type {
+.icon-bar__group:first-of-type {
   border-top: none;
 }
 
-.ocbot-sidebar__item {
+.icon-bar__btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 12px;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--text);
-  font-size: 14px;
+  color: var(--muted);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out);
   position: relative;
-  text-align: left;
 }
 
-.ocbot-sidebar__item:hover {
+.icon-bar__btn:hover {
   background: var(--bg-hover);
+  color: var(--text);
 }
 
-.ocbot-sidebar__item--active {
+.icon-bar__btn--active {
   background: var(--accent-subtle);
   color: var(--accent);
-  font-weight: 500;
 }
 
-.ocbot-sidebar__item--active::before {
+.icon-bar__btn--active::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
+  left: -6px;
+  top: 8px;
+  bottom: 8px;
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: var(--accent);
 }
 
-.ocbot-sidebar__icon {
-  width: 20px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.ocbot-sidebar__label {
-  flex: 1;
-}
-
-.ocbot-sidebar__footer {
+.icon-bar__footer {
   margin-top: auto;
-  padding: 8px 8px 0;
+  padding-top: 8px;
   border-top: 1px solid var(--border);
-}
-
-.ocbot-sidebar__version {
-  font-size: 11px;
-  color: var(--muted-strong);
-  padding: 8px 12px 0;
+  width: 100%;
 }
 
 /* Page placeholder */
