@@ -134,7 +134,7 @@ def main():
     parser_run.add_argument('--update-web', action='store_true', help='Build extension before running')
 
     # Update Web (build extension only)
-    parser_update_web = subparsers.add_parser('update-web', help='Build ocbot extension only', parents=[parent_parser])
+    parser_update_web = subparsers.add_parser('update-web', help='Build ocbot extension and install into app bundle', parents=[parent_parser])
     parser_update_web.add_argument('--zip', action='store_true', help='Also create zip package (default: False for dev)')
 
     # Package
@@ -265,6 +265,12 @@ def main():
         _run_full(args, logger)
     elif args.command == 'update-web':
         _build_extension(logger, zip=getattr(args, 'zip', False))
+        from build import _install_extension
+        from common import get_out_dir_name
+        src_dir = Path(args.src_dir) if getattr(args, 'src_dir', None) else get_source_dir()
+        out_dir = src_dir / 'out' / get_out_dir_name(getattr(args, 'official', False), None)
+        _install_extension(logger, out_dir)
+        logger.info("Extension updated in app bundle. Reload the extension in the browser to see changes.")
     elif args.command == 'package':
         if sys.platform == 'win32':
             package_windows(args)
