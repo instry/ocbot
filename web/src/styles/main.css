@@ -31,13 +31,13 @@ html, body {
 /* ═══ Icon Bar (48px narrow nav) ═══ */
 
 .icon-bar {
-  width: 48px;
+  width: 160px;
   height: 100vh;
   background: var(--panel);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   padding: 12px 0;
   flex-shrink: 0;
 }
@@ -49,7 +49,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
+  margin: 0 auto 12px;
 }
 
 .icon-bar__logo img {
@@ -82,10 +82,10 @@ html, body {
 .icon-bar__btn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  margin: 0 auto;
+  gap: 10px;
+  height: 34px;
+  margin: 0 8px;
+  padding: 0 10px;
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -93,6 +93,12 @@ html, body {
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
   position: relative;
+}
+
+.icon-bar__label {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .icon-bar__btn:hover {
@@ -108,9 +114,9 @@ html, body {
 .icon-bar__btn--active::before {
   content: '';
   position: absolute;
-  left: -6px;
-  top: 8px;
-  bottom: 8px;
+  left: -10px;
+  top: 7px;
+  bottom: 7px;
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: var(--accent);
@@ -341,6 +347,9 @@ ocbot-chat-view {
   flex-direction: column;
   gap: 4px;
   min-height: 0;
+  max-width: 768px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .chat-view__cursor {
@@ -607,11 +616,17 @@ ocbot-chat-view {
   background: var(--bg);
 }
 
+.cv-input__inner {
+  max-width: 768px;
+  margin: 0 auto;
+}
+
 .cv-input--centered {
   border-top: none;
+}
+
+.cv-input--centered .cv-input__inner {
   max-width: 640px;
-  margin: 0 auto;
-  width: 100%;
 }
 
 .cv-input__box {

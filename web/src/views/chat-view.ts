@@ -531,6 +531,7 @@ export class OcbotChatView extends LitElement {
   private _renderInput(hasMessages: boolean) {
     return html`
       <div class="cv-input ${hasMessages ? '' : 'cv-input--centered'}">
+        <div class="cv-input__inner">
         <div class="cv-input__box">
           <button class="cv-input__attach" title="Attach file">
             ${svgIcon('paperclip', 16)}
@@ -567,6 +568,7 @@ export class OcbotChatView extends LitElement {
               `)}
             </select>
           ` : nothing}
+        </div>
         </div>
       </div>
     `

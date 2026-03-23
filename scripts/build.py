@@ -1,4 +1,5 @@
 import subprocess
+import hashlib
 import os
 import shutil
 import sys
@@ -49,6 +50,12 @@ def _install_node(logger, out_dir):
         node_dest = resources_dir / 'node.exe'
     else:
         node_dest = resources_dir / 'node'
+
+    # Skip if node binary already exists and version matches
+    version_marker = resources_dir / '.node-version'
+    if node_dest.exists() and version_marker.exists() and version_marker.read_text().strip() == NODE_VERSION:
+        logger.info(f"Node.js {NODE_VERSION} already installed, skipping.")
+        return
 
     # Determine platform and architecture for download URL
     if sys.platform == 'darwin':
@@ -115,6 +122,7 @@ def _install_node(logger, out_dir):
 
     size_mb = node_dest.stat().st_size / (1024 * 1024)
     logger.info(f"Node.js installed to {node_dest} ({size_mb:.1f} MB)")
+    version_marker.write_text(NODE_VERSION)
 
 
 def _install_openclaw_runtime(logger, out_dir):
@@ -172,38 +180,50 @@ def _install_openclaw_runtime(logger, out_dir):
         else:
             shutil.copy2(src_item, dest_item)
 
-    # Install production dependencies
-    logger.info("Installing OpenClaw production dependencies...")
-    _shell = sys.platform == 'win32'
-    try:
-        subprocess.run(
-            ['npm', 'install', '--production', '--prefix', str(dest)],
-            check=True, shell=_shell,
-            capture_output=True, text=True
-        )
-    except subprocess.CalledProcessError as e:
-        logger.warning(f"npm install --production failed: {e.stderr}")
-        # Try pnpm deploy as fallback
+    # Install production dependencies (skip if package.json unchanged)
+    pkg_json = dest / 'package.json'
+    node_modules = dest / 'node_modules'
+    hash_file = dest / '.pkg-hash'
+    pkg_hash = ''
+    if pkg_json.exists():
+        pkg_hash = hashlib.md5(pkg_json.read_bytes()).hexdigest()
+    if node_modules.exists() and hash_file.exists() and hash_file.read_text().strip() == pkg_hash:
+        logger.info("OpenClaw dependencies unchanged, skipping npm install.")
+    else:
+        logger.info("Installing OpenClaw production dependencies...")
+        _shell = sys.platform == 'win32'
         try:
-            import tempfile
-            with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(
+                ['npm', 'install', '--production', '--prefix', str(dest)],
+                check=True, shell=_shell,
+                capture_output=True, text=True
+            )
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"npm install --production failed: {e.stderr}")
+            # Try pnpm deploy as fallback
+            try:
+                import tempfile
+                with tempfile.TemporaryDirectory() as tmp:
+                    subprocess.run(
+                        ['pnpm', 'deploy', '--prod', str(dest)],
+                        cwd=openclaw_src, check=True, shell=_shell,
+                        capture_output=True, text=True
+                    )
+            except (subprocess.CalledProcessError, FileNotFoundError) as e2:
+                logger.warning(f"pnpm deploy fallback also failed: {e2}")
+        except FileNotFoundError:
+            logger.warning("npm not found, trying pnpm deploy...")
+            try:
                 subprocess.run(
                     ['pnpm', 'deploy', '--prod', str(dest)],
                     cwd=openclaw_src, check=True, shell=_shell,
                     capture_output=True, text=True
                 )
-        except (subprocess.CalledProcessError, FileNotFoundError) as e2:
-            logger.warning(f"pnpm deploy fallback also failed: {e2}")
-    except FileNotFoundError:
-        logger.warning("npm not found, trying pnpm deploy...")
-        try:
-            subprocess.run(
-                ['pnpm', 'deploy', '--prod', str(dest)],
-                cwd=openclaw_src, check=True, shell=_shell,
-                capture_output=True, text=True
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError) as e2:
-            logger.warning(f"pnpm deploy also failed: {e2}")
+            except (subprocess.CalledProcessError, FileNotFoundError) as e2:
+                logger.warning(f"pnpm deploy also failed: {e2}")
+        # Save hash so next build can skip if unchanged
+        if pkg_hash:
+            hash_file.write_text(pkg_hash)
 
     logger.info(f"OpenClaw runtime installed to {dest}")
 

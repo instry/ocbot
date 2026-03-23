@@ -54,10 +54,10 @@ export class OcbotSidebar extends LitElement {
             ${group.map(item => html`
               <button
                 class="icon-bar__btn ${this.activeTab === item.id ? 'icon-bar__btn--active' : ''}"
-                title="${item.label}"
                 @click=${() => this.dispatchEvent(new CustomEvent('navigate', { detail: item.id }))}
               >
                 ${svgIcon(item.icon, 18)}
+                <span class="icon-bar__label">${item.label}</span>
               </button>
             `)}
           </div>
@@ -66,10 +66,10 @@ export class OcbotSidebar extends LitElement {
         <div class="icon-bar__footer">
           <button
             class="icon-bar__btn ${this.activeTab === 'settings' ? 'icon-bar__btn--active' : ''}"
-            title="Settings"
             @click=${() => this.dispatchEvent(new CustomEvent('navigate', { detail: 'settings' }))}
           >
             ${svgIcon('settings', 18)}
+            <span class="icon-bar__label">Settings</span>
           </button>
         </div>
       </nav>
