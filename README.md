@@ -14,6 +14,10 @@ Ocbot is built for this future. It natively embeds the OpenClaw runtime and AI-N
 
 ## 🌟 Key Features
 
+### 🔗 Designed for Web4
+- **AI as a First-Class Citizen**: Built for the Agentic Web where AI agents autonomously browse, transact, and compose services.
+- **On-Chain Identit & Payments**: ERC-8004 identity, x402 micropayments. The agent pays for APIs, services, and content directly on-chain.
+
 ### 🤖 Built-in OpenClaw Runtime
 - **Easy Setup**: Embedded OpenClaw. No config or terminal required—just launch the app.
 - **Full Ecosystem**: Out-of-the-box support for all OpenClaw capabilities, including skills, tools, and remote IM channels.
@@ -22,9 +26,6 @@ Ocbot is built for this future. It natively embeds the OpenClaw runtime and AI-N
 - **Deep Kernel Integration**: Not an extension. Modified Chromium kernel for native AI support and deeper control.
 - **Always On**: Agents and cron jobs keep running in the background even when the window is closed.
 
-### 🔗 Designed for Web4
-- **AI as a First-Class Citizen**: Built for the Agentic Web where AI agents autonomously browse, transact, and compose services.
-- **On-Chain Identit & Payments**: ERC-8004 identity, x402 micropayments. The agent pays for APIs, services, and content directly on-chain.
 
 ---
 
