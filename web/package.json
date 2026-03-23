@@ -14,7 +14,9 @@
     "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.98.0",
     "@webext-core/messaging": "^1.4.0",
+    "dompurify": "^3.3.3",
     "lit": "^3.3.0",
+    "marked": "^17.0.5",
     "viem": "^2.47.4"
   },
   "devDependencies": {
