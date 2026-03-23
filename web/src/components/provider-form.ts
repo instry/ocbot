@@ -87,27 +87,82 @@ interface GatewayModel {
   provider: string
 }
 
+/** Profile stored in openclaw config auth.profiles */
+interface AuthProfile {
+  provider: string
+  mode: string
+  apiKey?: string
+  baseUrl?: string
+}
+
+/** Data representing a configured provider for list display */
+export interface ConfiguredProvider {
+  profileKey: string
+  provider: string
+  label: string
+  apiKey: string
+  baseUrl?: string
+  modelId?: string
+  isDefault: boolean
+}
+
 @customElement('ocbot-provider-form')
 export class OcbotProviderForm extends LitElement {
   override createRenderRoot() { return this }
 
   @property({ attribute: false }) gateway!: GatewayClient
-  @property({ type: Boolean }) inline = false  // inline mode for setup prompt
+  @property({ type: Boolean }) inline = false
+
+  /** When set, the form is in edit mode for this profile key */
+  @property({ type: String }) editProfileKey: string | null = null
+
+  /** Initial data for edit mode */
+  @property({ attribute: false }) editData: ConfiguredProvider | null = null
 
   @state() providers: string[] = []
   @state() modelsByProvider: Record<string, GatewayModel[]> = {}
   @state() selectedProvider = ''
   @state() selectedRegion = ''
   @state() apiKey = ''
+  @state() baseUrl = ''
+  @state() selectedModels = new Set<string>()
   @state() selectedModel = ''
   @state() saving = false
   @state() error: string | null = null
-  @state() success = false
   @state() loading = true
+
+  private get isEditMode() { return !!this.editProfileKey }
+  private get isLocal() { return ['ollama', 'vllm', 'sglang'].includes(this.selectedProvider) }
+  private get preferredRegion() {
+    return navigator.language.startsWith('zh') ? 'cn' : 'global'
+  }
 
   override connectedCallback() {
     super.connectedCallback()
     this.loadModels()
+  }
+
+  override updated(changed: Map<string, unknown>) {
+    if (changed.has('editData') && this.editData) {
+      this.populateFromEdit(this.editData)
+    }
+  }
+
+  private populateFromEdit(data: ConfiguredProvider) {
+    this.selectedProvider = data.provider
+    this.apiKey = data.apiKey ?? ''
+    this.baseUrl = data.baseUrl ?? ''
+    this.selectedModel = data.modelId ?? ''
+    this.selectedModels = new Set()
+    this.error = null
+
+    const hint = this.getHint(data.provider)
+    if (hint.regions?.length) {
+      const matchedRegion = hint.regions.find(r => r.baseUrl === data.baseUrl)
+      this.selectedRegion = matchedRegion?.id ?? this.preferredRegion
+    } else {
+      this.selectedRegion = ''
+    }
   }
 
   private async loadModels() {
@@ -121,7 +176,6 @@ export class OcbotProviderForm extends LitElement {
         byProvider[m.provider].push(m)
       }
       this.modelsByProvider = byProvider
-      // Order: providers with hints first, then others
       const hinted = Object.keys(PROVIDER_HINTS).filter(p => byProvider[p])
       const others = Object.keys(byProvider).filter(p => !PROVIDER_HINTS[p]).sort()
       this.providers = [...hinted, ...others]
@@ -137,65 +191,104 @@ export class OcbotProviderForm extends LitElement {
   }
 
   private selectProvider(provider: string) {
+    if (this.isEditMode) return
     this.selectedProvider = provider
-    this.selectedRegion = ''
     this.apiKey = ''
-    this.selectedModel = ''
+    this.baseUrl = ''
     this.error = null
-    this.success = false
-    const models = this.modelsByProvider[provider]
-    if (models?.length) {
-      this.selectedModel = models[0].id
-    }
+    this.selectedModels = new Set<string>()
+    this.selectedModel = ''
+
     const hint = this.getHint(provider)
     if (hint.regions?.length) {
-      this.selectedRegion = hint.regions[0].id
+      const preferred = hint.regions.find(r => r.id === this.preferredRegion) ?? hint.regions[0]
+      this.selectedRegion = preferred.id
+      this.baseUrl = preferred.baseUrl
+    } else {
+      this.selectedRegion = ''
     }
+
+    // Pre-select first model in add mode
+    const models = this.modelsByProvider[provider]
+    if (models?.length) {
+      this.selectedModels = new Set([models[0].id])
+      this.selectedModel = models[0].id
+    }
+  }
+
+  private handleRegionChange(regionId: string) {
+    this.selectedRegion = regionId
+    const hint = this.getHint(this.selectedProvider)
+    const region = hint.regions?.find(r => r.id === regionId)
+    if (region) this.baseUrl = region.baseUrl
+  }
+
+  private toggleModel(id: string) {
+    const next = new Set(this.selectedModels)
+    if (next.has(id)) {
+      if (next.size > 1) next.delete(id)
+    } else {
+      next.add(id)
+    }
+    this.selectedModels = next
   }
 
   private async save() {
     if (!this.selectedProvider) return
-    const hint = this.getHint(this.selectedProvider)
-    const isLocal = ['ollama', 'vllm', 'sglang'].includes(this.selectedProvider)
 
-    if (!isLocal && !this.apiKey.trim()) {
+    if (!this.isLocal && !this.apiKey.trim()) {
       this.error = 'API key is required'
       return
     }
 
     this.saving = true
     this.error = null
-    this.success = false
 
     try {
-      // Build config patch
       const patch: Record<string, any> = {}
+      const profileKey = this.editProfileKey ?? `${this.selectedProvider}:default`
 
-      // Set auth profile (skip for local providers)
-      if (!isLocal && this.apiKey.trim()) {
+      // Set auth profile
+      if (!this.isLocal && this.apiKey.trim()) {
+        const profile: Record<string, string> = {
+          provider: this.selectedProvider,
+          mode: 'api_key',
+          apiKey: this.apiKey.trim(),
+        }
+        if (this.baseUrl.trim()) {
+          profile.baseUrl = this.baseUrl.trim()
+        }
         patch.auth = {
           profiles: {
-            [`${this.selectedProvider}:default`]: {
-              provider: this.selectedProvider,
-              mode: 'api_key',
-              apiKey: this.apiKey.trim(),
-            },
+            [profileKey]: profile,
           },
         }
       }
 
-      // Set default model if selected
-      if (this.selectedModel) {
-        patch.agents = {
-          defaults: {
-            model: {
-              primary: `${this.selectedProvider}/${this.selectedModel}`,
+      // Set default model
+      if (this.isEditMode) {
+        if (this.selectedModel) {
+          patch.agents = {
+            defaults: {
+              model: { primary: `${this.selectedProvider}/${this.selectedModel}` },
             },
-          },
+          }
+        }
+      } else {
+        // Add mode: save for first selected model
+        const modelIds = this.modelsByProvider[this.selectedProvider]?.length
+          ? Array.from(this.selectedModels)
+          : [this.selectedModel.trim()]
+        const firstModel = modelIds[0]
+        if (firstModel) {
+          patch.agents = {
+            defaults: {
+              model: { primary: `${this.selectedProvider}/${firstModel}` },
+            },
+          }
         }
       }
 
-      // Get baseHash for config.patch
       const config = await this.gateway.call<{ hash?: string }>('config.get')
       const baseHash = config?.hash ?? ''
 
@@ -204,7 +297,6 @@ export class OcbotProviderForm extends LitElement {
         raw: JSON.stringify(patch),
       })
 
-      this.success = true
       this.dispatchEvent(new CustomEvent('provider-saved', { bubbles: true, composed: true }))
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)
@@ -213,56 +305,57 @@ export class OcbotProviderForm extends LitElement {
     }
   }
 
+  private cancel() {
+    this.dispatchEvent(new CustomEvent('provider-cancel', { bubbles: true, composed: true }))
+  }
+
   override render() {
     if (this.loading) {
-      return html`<div style="padding:16px; color:var(--muted);">Loading providers...</div>`
+      return html`<div class="provider-form__loading">Loading providers...</div>`
     }
 
     return html`
-      <div class="provider-form">
-        ${this.success ? html`
-          <div class="provider-form__success">
-            ✓ Provider configured successfully
-          </div>
-        ` : nothing}
-
+      <div class="provider-form provider-form--full">
         ${this.error ? html`
           <div class="provider-form__error">${this.error}</div>
         ` : nothing}
 
-        <!-- Provider selection -->
-        <div class="provider-form__field">
-          <label class="provider-form__label">Provider</label>
-          <div class="provider-form__options">
-            ${this.providers.map(p => html`
-              <button
-                class="provider-form__option ${this.selectedProvider === p ? 'provider-form__option--active' : ''}"
-                @click=${() => this.selectProvider(p)}
-              >${this.getHint(p).label}</button>
-            `)}
+        <!-- Provider selection (add mode only) -->
+        ${!this.isEditMode ? html`
+          <div class="provider-form__field">
+            <label class="provider-form__label">Provider</label>
+            <div class="provider-form__grid">
+              ${this.providers.map(p => html`
+                <button
+                  class="provider-form__grid-btn ${this.selectedProvider === p ? 'provider-form__grid-btn--active' : ''}"
+                  @click=${() => this.selectProvider(p)}
+                >${this.getHint(p).label}</button>
+              `)}
+            </div>
           </div>
-        </div>
+        ` : nothing}
 
-        ${this.selectedProvider ? this._renderProviderConfig() : nothing}
+        ${this.selectedProvider ? this._renderConfig() : nothing}
       </div>
     `
   }
 
-  private _renderProviderConfig() {
+  private _renderConfig() {
     const hint = this.getHint(this.selectedProvider)
-    const isLocal = ['ollama', 'vllm', 'sglang'].includes(this.selectedProvider)
     const models = this.modelsByProvider[this.selectedProvider] ?? []
 
     return html`
-      <!-- Region (if available) -->
+      <!-- Region selector -->
       ${hint.regions?.length ? html`
         <div class="provider-form__field">
           <label class="provider-form__label">Region</label>
-          <div class="provider-form__options">
-            ${hint.regions.map(r => html`
+          <div class="provider-form__toggle-group">
+            ${[...hint.regions]
+              .sort((a, b) => a.id === this.preferredRegion ? -1 : b.id === this.preferredRegion ? 1 : 0)
+              .map(r => html`
               <button
-                class="provider-form__option ${this.selectedRegion === r.id ? 'provider-form__option--active' : ''}"
-                @click=${() => { this.selectedRegion = r.id }}
+                class="provider-form__toggle-btn ${this.selectedRegion === r.id ? 'provider-form__toggle-btn--active' : ''}"
+                @click=${() => this.handleRegionChange(r.id)}
               >${r.label}</button>
             `)}
           </div>
@@ -270,46 +363,98 @@ export class OcbotProviderForm extends LitElement {
       ` : nothing}
 
       <!-- API Key -->
-      ${!isLocal ? html`
+      ${!this.isLocal ? html`
         <div class="provider-form__field">
           <label class="provider-form__label">
             API Key
             ${hint.apiKeyUrl ? html`
-              <a href=${hint.apiKeyUrl} target="_blank" rel="noopener" class="provider-form__link">Get key →</a>
+              <a href=${hint.apiKeyUrl} target="_blank" rel="noopener" class="provider-form__link">Get key &rarr;</a>
             ` : nothing}
           </label>
           <input
             type="password"
             class="provider-form__input"
-            placeholder=${hint.apiKeyPlaceholder ?? 'API key'}
+            placeholder=${hint.apiKeyPlaceholder ?? 'Enter API key'}
             .value=${this.apiKey}
             @input=${(e: Event) => { this.apiKey = (e.target as HTMLInputElement).value }}
           />
         </div>
       ` : nothing}
 
-      <!-- Model selection -->
-      ${models.length ? html`
-        <div class="provider-form__field">
-          <label class="provider-form__label">Model</label>
-          <select
-            class="provider-form__select"
-            .value=${this.selectedModel}
-            @change=${(e: Event) => { this.selectedModel = (e.target as HTMLSelectElement).value }}
-          >
-            ${models.map(m => html`
-              <option value=${m.id} ?selected=${m.id === this.selectedModel}>${m.name || m.id}</option>
-            `)}
-          </select>
-        </div>
-      ` : nothing}
+      <!-- Base URL -->
+      <div class="provider-form__field">
+        <label class="provider-form__label provider-form__label--muted">Base URL</label>
+        <input
+          type="text"
+          class="provider-form__input"
+          placeholder="https://..."
+          .value=${this.baseUrl}
+          @input=${(e: Event) => { this.baseUrl = (e.target as HTMLInputElement).value }}
+        />
+      </div>
 
-      <!-- Save -->
+      <!-- Model selection -->
+      <div class="provider-form__field">
+        <label class="provider-form__label">
+          ${!this.isEditMode && models.length > 1 ? 'Models' : 'Model'}
+        </label>
+        ${models.length > 0 ? (
+          this.isEditMode ? html`
+            <!-- Edit mode: single select grid -->
+            <div class="provider-form__model-grid">
+              ${models.map(m => html`
+                <button
+                  class="provider-form__model-btn ${this.selectedModel === m.id ? 'provider-form__model-btn--active' : ''}"
+                  @click=${() => { this.selectedModel = m.id }}
+                >
+                  <span class="provider-form__model-name">${m.name || m.id}</span>
+                </button>
+              `)}
+            </div>
+          ` : html`
+            <!-- Add mode: multi-select with checkboxes -->
+            <div class="provider-form__model-chips">
+              ${models.map(m => {
+                const selected = this.selectedModels.has(m.id)
+                return html`
+                  <button
+                    class="provider-form__chip ${selected ? 'provider-form__chip--active' : ''}"
+                    @click=${() => this.toggleModel(m.id)}
+                  >
+                    <span class="provider-form__checkbox ${selected ? 'provider-form__checkbox--checked' : ''}">
+                      ${selected ? html`<span class="provider-form__checkmark">&#10003;</span>` : nothing}
+                    </span>
+                    <span>${m.name || m.id}</span>
+                  </button>
+                `
+              })}
+            </div>
+          `)
+        : html`
+          <input
+            type="text"
+            class="provider-form__input"
+            placeholder="e.g. gpt-4o"
+            .value=${this.isEditMode ? this.selectedModel : (this.selectedModels.size ? Array.from(this.selectedModels)[0] : '')}
+            @input=${(e: Event) => {
+              const val = (e.target as HTMLInputElement).value
+              if (this.isEditMode) { this.selectedModel = val }
+              else { this.selectedModels = new Set([val]) }
+            }}
+          />
+        `}
+      </div>
+
+      <!-- Actions -->
       <div class="provider-form__actions">
         <button
+          class="provider-form__cancel-btn"
+          @click=${() => this.cancel()}
+        >Cancel</button>
+        <button
           class="provider-form__save"
-          @click=${this.save}
-          ?disabled=${this.saving}
+          @click=${() => this.save()}
+          ?disabled=${this.saving || (!this.isLocal && !this.apiKey.trim()) || (!this.isEditMode && this.selectedModels.size === 0 && !this.selectedModel.trim())}
         >${this.saving ? 'Saving...' : 'Save'}</button>
       </div>
     `
