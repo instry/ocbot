@@ -5,6 +5,13 @@ import '../components/ocbot-sidebar'
 import '../views/chat-view'
 import '../views/sessions-view'
 import '../views/onboarding-view'
+import '../views/cron-view'
+import '../views/config-view'
+import '../views/settings-view'
+import '../views/agents-view'
+import '../views/channels-view'
+import '../views/usage-view'
+import '../views/skills-view'
 
 type Tab = 'chat' | 'sessions' | 'cron' | 'agents' | 'skills' | 'channels' | 'usage' | 'config' | 'settings'
 
@@ -14,7 +21,7 @@ export class OcbotApp extends LitElement {
 
   @state() tab: Tab = 'chat'
   @state() gatewayState: GatewayState = 'disconnected'
-  @state() needsOnboarding: boolean | null = null // null = checking
+  @state() needsOnboarding: boolean | null = null
   @state() chatSessionKey = 'ocbot:home'
 
   private gateway!: GatewayClient
@@ -46,7 +53,7 @@ export class OcbotApp extends LitElement {
       const result = await this.gateway.call<{ models?: unknown[] }>('models.list')
       this.needsOnboarding = !result?.models?.length
     } catch {
-      this.needsOnboarding = false // skip onboarding if can't check
+      this.needsOnboarding = false
     }
   }
 
@@ -71,7 +78,6 @@ export class OcbotApp extends LitElement {
   }
 
   override render() {
-    // Connecting screen
     if (this.gatewayState !== 'connected') {
       return html`
         <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100vw;">
@@ -86,7 +92,6 @@ export class OcbotApp extends LitElement {
       `
     }
 
-    // Onboarding
     if (this.needsOnboarding === true) {
       return html`
         <ocbot-onboarding
@@ -96,7 +101,6 @@ export class OcbotApp extends LitElement {
       `
     }
 
-    // Still checking onboarding
     if (this.needsOnboarding === null) {
       return html`
         <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100vw;">
@@ -105,7 +109,6 @@ export class OcbotApp extends LitElement {
       `
     }
 
-    // Main UI
     return html`
       <div style="display:flex; height:100vh; width:100vw;">
         <ocbot-sidebar
@@ -127,19 +130,19 @@ export class OcbotApp extends LitElement {
       case 'sessions':
         return html`<ocbot-sessions-view .gateway=${this.gateway} @select-session=${this._onSelectSession}></ocbot-sessions-view>`
       case 'cron':
-        return html`<div class="page-placeholder"><h2>Scheduled Tasks</h2><p style="color:var(--muted)">Coming soon</p></div>`
+        return html`<ocbot-cron-view .gateway=${this.gateway}></ocbot-cron-view>`
       case 'agents':
-        return html`<div class="page-placeholder"><h2>Agents</h2><p style="color:var(--muted)">Coming soon</p></div>`
+        return html`<ocbot-agents-view .gateway=${this.gateway}></ocbot-agents-view>`
       case 'skills':
-        return html`<div class="page-placeholder"><h2>Skills</h2><p style="color:var(--muted)">Coming soon</p></div>`
+        return html`<ocbot-skills-view .gateway=${this.gateway}></ocbot-skills-view>`
       case 'channels':
-        return html`<div class="page-placeholder"><h2>Channels</h2><p style="color:var(--muted)">Coming soon</p></div>`
+        return html`<ocbot-channels-view .gateway=${this.gateway}></ocbot-channels-view>`
       case 'usage':
-        return html`<div class="page-placeholder"><h2>Usage</h2><p style="color:var(--muted)">Coming soon</p></div>`
+        return html`<ocbot-usage-view .gateway=${this.gateway}></ocbot-usage-view>`
       case 'config':
-        return html`<div class="page-placeholder"><h2>Configuration</h2><p style="color:var(--muted)">Coming soon</p></div>`
+        return html`<ocbot-config-view .gateway=${this.gateway}></ocbot-config-view>`
       case 'settings':
-        return html`<div class="page-placeholder"><h2>Settings</h2><p style="color:var(--muted)">Coming soon</p></div>`
+        return html`<ocbot-settings-view></ocbot-settings-view>`
       default:
         return html``
     }
