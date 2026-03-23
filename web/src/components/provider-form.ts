@@ -238,11 +238,12 @@ export class OcbotProviderForm extends LitElement {
       this.selectedRegion = ''
     }
 
-    // Pre-select first model in add mode
+    // Pre-select newest model in add mode
     const models = this.modelsByProvider[provider]
     if (models?.length) {
-      this.selectedModels = new Set([models[0].id])
-      this.selectedModel = models[0].id
+      const newest = models[models.length - 1]
+      this.selectedModels = new Set([newest.id])
+      this.selectedModel = newest.id
     }
   }
 
