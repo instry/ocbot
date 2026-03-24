@@ -1,45 +1,80 @@
 /**
  * Lightweight HTTP client for the public ClawHub REST API.
- * Used by the Skills view to browse and search the marketplace.
+ * Uses the /api/v1/packages/* endpoints (the /api/v1/skills endpoint returns empty).
  */
 
 const CLAWHUB_BASE = 'https://clawhub.ai'
-const FETCH_TIMEOUT_MS = 10_000
+const FETCH_TIMEOUT_MS = 15_000
 
-// ── Types ──
+// ── Types (aligned with ClawHubPackageListItem from openclaw) ──
 
-export interface ClawHubSkillListItem {
-  slug: string
+export interface MarketplaceSkill {
+  name: string
   displayName: string
-  summary?: string
-  tags?: Record<string, string>
-  latestVersion?: { version: string; createdAt: number; changelog?: string }
-  metadata?: { os?: string[] | null; systems?: string[] | null }
+  family: string
+  channel: string        // "official" | "community" | "private"
+  isOfficial: boolean
+  summary?: string | null
+  ownerHandle?: string | null
+  ownerDisplayName?: string | null
+  ownerImage?: string | null
   createdAt: number
   updatedAt: number
+  latestVersion?: string | null
+  starCount?: number
+  installCount?: number
+  capabilityTags?: string[]
+  executesCode?: boolean
+  verificationTier?: string | null
+  runtimeId?: string | null
 }
 
-export interface ClawHubSkillSearchResult {
+export interface MarketplaceSearchResult {
   score: number
-  slug: string
-  displayName: string
-  summary?: string
-  version?: string
-  updatedAt?: number
+  package: MarketplaceSkill
 }
 
-export interface ClawHubSkillDetail {
-  skill: {
-    slug: string
-    displayName: string
-    summary?: string
+export interface MarketplaceSkillDetail {
+  package: (MarketplaceSkill & {
     tags?: Record<string, string>
-    createdAt: number
-    updatedAt: number
+    compatibility?: {
+      pluginApiRange?: string
+      builtWithOpenClawVersion?: string
+      minGatewayVersion?: string
+    } | null
+    capabilities?: {
+      executesCode?: boolean
+      capabilityTags?: string[]
+      hostTargets?: string[]
+    } | null
+    verification?: {
+      tier?: string
+      scope?: string
+      summary?: string
+      sourceRepo?: string
+      hasProvenance?: boolean
+      scanStatus?: string
+    } | null
+  }) | null
+  owner?: {
+    handle?: string | null
+    displayName?: string | null
+    image?: string | null
   } | null
-  latestVersion?: { version: string; createdAt: number; changelog?: string } | null
-  metadata?: { os?: string[] | null; systems?: string[] | null } | null
-  owner?: { handle?: string | null; displayName?: string | null; image?: string | null } | null
+}
+
+export interface MarketplaceSkillVersion {
+  package: { name: string; displayName: string; family: string } | null
+  version: {
+    version: string
+    createdAt: number
+    changelog: string
+  } | null
+}
+
+export interface MarketplaceSearchResponse {
+  results: MarketplaceSearchResult[]
+  total?: number
 }
 
 // ── Helpers ──
@@ -64,35 +99,42 @@ async function fetchJson<T>(path: string, search?: Record<string, string>): Prom
 
 // ── API ──
 
-export async function listClawHubSkills(limit = 30): Promise<ClawHubSkillListItem[]> {
-  try {
-    const result = await fetchJson<{ items: ClawHubSkillListItem[] }>(
-      '/api/v1/skills',
-      { limit: String(limit) },
-    )
-    return result.items ?? []
-  } catch {
-    return []
-  }
-}
-
-export async function searchClawHubSkills(query: string, limit = 20): Promise<ClawHubSkillSearchResult[]> {
+/** Search for skills on ClawHub marketplace. Query is required by the API. */
+export async function searchMarketplaceSkills(query: string, limit = 30): Promise<MarketplaceSearchResponse> {
   const q = query.trim()
-  if (!q) return []
+  if (!q) return { results: [], total: 0 }
   try {
-    const result = await fetchJson<{ results: ClawHubSkillSearchResult[] }>(
-      '/api/v1/search',
-      { q, limit: String(limit) },
+    const result = await fetchJson<{ results: MarketplaceSearchResult[]; total?: number }>(
+      '/api/v1/packages/search',
+      { q, family: 'skill', limit: String(limit) },
     )
-    return result.results ?? []
+    return { results: result.results ?? [], total: result.total }
   } catch {
-    return []
+    return { results: [], total: undefined }
   }
 }
 
-export async function getClawHubSkillDetail(slug: string): Promise<ClawHubSkillDetail | null> {
+/** Browse marketplace skills. Uses a broad single-char query since the API requires a search term. */
+export async function browseMarketplaceSkills(limit = 50): Promise<MarketplaceSearchResponse> {
+  // The packages/search endpoint requires a query; use a wildcard-like broad query
+  return searchMarketplaceSkills('a', limit)
+}
+
+/** Get full detail for a single package. */
+export async function getMarketplaceSkillDetail(name: string): Promise<MarketplaceSkillDetail | null> {
   try {
-    return await fetchJson<ClawHubSkillDetail>(`/api/v1/skills/${encodeURIComponent(slug)}`)
+    return await fetchJson<MarketplaceSkillDetail>(`/api/v1/packages/${encodeURIComponent(name)}`)
+  } catch {
+    return null
+  }
+}
+
+/** Get version detail (changelog). */
+export async function getMarketplaceSkillVersion(name: string, version: string): Promise<MarketplaceSkillVersion | null> {
+  try {
+    return await fetchJson<MarketplaceSkillVersion>(
+      `/api/v1/packages/${encodeURIComponent(name)}/versions/${encodeURIComponent(version)}`,
+    )
   } catch {
     return null
   }
