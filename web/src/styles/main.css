@@ -294,19 +294,17 @@ html, body {
   gap: 6px;
   width: 100%;
   padding: 8px;
-  border: 1px dashed var(--border);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--muted);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
   font-size: 13px;
   cursor: pointer;
   transition: all var(--duration-fast);
 }
 
 .session-panel__new-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-subtle);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 /* ═══ Chat View ═══ */
@@ -376,6 +374,29 @@ ocbot-chat-view {
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+.cv-msg__thinking {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.cv-msg__thinking-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-secondary, #888);
+  animation: thinking-bounce 1.4s ease-in-out infinite;
+}
+
+.cv-msg__thinking-dot:nth-child(2) { animation-delay: 0.16s; }
+.cv-msg__thinking-dot:nth-child(3) { animation-delay: 0.32s; }
+
+@keyframes thinking-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.2); }
 }
 
 .chat-view__error {
@@ -687,7 +708,7 @@ ocbot-chat-view {
   resize: none;
   outline: none !important;
   -webkit-appearance: none;
-  min-height: 42px;
+  min-height: 72px;
   max-height: 200px;
   overflow-y: auto;
   line-height: 1.5;
@@ -721,7 +742,7 @@ ocbot-chat-view {
 .cv-input__footer-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 .cv-input__attach {
@@ -819,12 +840,15 @@ ocbot-chat-view {
 }
 
 .cv-input__send--stop {
-  background: var(--danger);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text-secondary, #888);
+  box-shadow: none;
 }
 
 .cv-input__send--stop:hover {
-  background: var(--danger);
-  opacity: 0.8;
+  background: color-mix(in srgb, var(--text) 15%, transparent);
+  color: var(--text, #333);
+  box-shadow: none;
 }
 
 /* ── Model popover ── */
@@ -995,6 +1019,29 @@ ocbot-chat-view {
 .btn--sm {
   padding: 4px 10px;
   font-size: 12px;
+}
+
+/* New Chat button */
+.sessions-new-chat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.sessions-new-chat:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 /* Session card */

@@ -407,11 +407,13 @@ export class OcbotChatView extends LitElement {
   }
 
   private scrollToBottom() {
-    requestAnimationFrame(() => {
-      const scrollContainer = this.querySelector('.chat-view')
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight
-      }
+    this.updateComplete.then(() => {
+      requestAnimationFrame(() => {
+        const scrollContainer = this.querySelector('.chat-view')
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight
+        }
+      })
     })
   }
 
@@ -435,9 +437,6 @@ export class OcbotChatView extends LitElement {
           ${this.sending ? html`
             <button class="btn btn--sm btn--danger" @click=${this.abort}>${svgIcon('x', 14)} Stop</button>
           ` : nothing}
-          <button class="chat-view__header-btn" @click=${this.newSession} title="New chat">
-            ${svgIcon('square-pen', 16)}
-          </button>
         </div>
 
         <!-- Messages -->
@@ -446,6 +445,8 @@ export class OcbotChatView extends LitElement {
             ${this.messages.map((m, i) => this._renderMessage(m, i))}
 
             ${this.toolCards.size > 0 ? this._renderToolCards() : nothing}
+
+            ${this.sending && !this.streamText && this.toolCards.size === 0 ? this._renderThinking() : nothing}
 
             ${this.streamText ? this._renderStreaming() : nothing}
 
@@ -548,6 +549,26 @@ export class OcbotChatView extends LitElement {
     `
   }
 
+  private _renderThinking() {
+    return html`
+      <div class="cv-msg cv-msg--assistant cv-msg--group-start">
+        <div class="cv-msg__header">
+          <div class="cv-msg__avatar">
+            <img src="/logo.png" alt="" width="24" height="24" />
+          </div>
+          <span class="cv-msg__name">Ocbot</span>
+        </div>
+        <div class="cv-msg__body">
+          <div class="cv-msg__thinking">
+            <span class="cv-msg__thinking-dot"></span>
+            <span class="cv-msg__thinking-dot"></span>
+            <span class="cv-msg__thinking-dot"></span>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
   private _renderStreaming() {
     return html`
       <div class="cv-msg cv-msg--assistant cv-msg--group-start">
@@ -609,7 +630,7 @@ export class OcbotChatView extends LitElement {
                 @click=${this.sending ? this.abort : this.sendMessage}
                 ?disabled=${!this.inputText.trim() && !this.sending}
               >
-                ${this.sending ? svgIcon('x', 16) : svgIcon('arrow-up', 16)}
+                ${this.sending ? svgIcon('square', 16) : svgIcon('arrow-up', 16)}
               </button>
             </div>
           </div>

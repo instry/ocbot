@@ -101,11 +101,12 @@ export class OcbotSessionsView extends LitElement {
   override render() {
     return html`
       <div style="padding:20px; height:100%; overflow-y:auto;">
-        <div style="display:flex; align-items:center; margin-bottom:20px;">
+        <div style="display:flex; align-items:center; margin-bottom:16px;">
           <h2 style="font-size:20px; font-weight:600; color:var(--text-strong); margin:0;">Sessions</h2>
-          <span style="flex:1"></span>
-          <button class="btn" @click=${this.createSession}>+ New</button>
         </div>
+        <button class="sessions-new-chat" @click=${this.createSession}>
+          ${svgIcon('plus', 16)} New Chat
+        </button>
 
         ${this.loading ? html`
           <div style="text-align:center; color:var(--muted); padding:40px;">Loading...</div>
