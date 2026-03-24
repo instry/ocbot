@@ -233,6 +233,21 @@ def _install_openclaw_runtime(logger, out_dir):
         if pkg_hash:
             hash_file.write_text(pkg_hash)
 
+    # Clean up incomplete plugin directories in dist/extensions/.
+    # The openclaw build may produce extension dirs with only index.js or
+    # package.json but missing required files (openclaw.plugin.json, etc.),
+    # which causes gateway startup validation to fail.
+    dist_ext = dest / 'dist' / 'extensions'
+    if dist_ext.is_dir():
+        for ext_dir in list(dist_ext.iterdir()):
+            if not ext_dir.is_dir():
+                continue
+            has_pkg = (ext_dir / 'package.json').exists()
+            has_manifest = (ext_dir / 'openclaw.plugin.json').exists()
+            if not has_pkg and not has_manifest:
+                shutil.rmtree(ext_dir)
+                logger.info(f"Removed incomplete plugin dir: {ext_dir.name}")
+
     logger.info(f"OpenClaw runtime installed to {dest}")
 
 

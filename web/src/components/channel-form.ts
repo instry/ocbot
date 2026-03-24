@@ -249,7 +249,7 @@ export class OcbotChannelForm extends LitElement {
         raw: JSON.stringify(patch),
       })
 
-      this.success = 'Configuration saved.'
+      this.success = 'Channel saved successfully! The gateway will connect automatically.'
       this.dispatchEvent(new CustomEvent('channel-saved', { bubbles: true, composed: true }))
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)

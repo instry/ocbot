@@ -131,6 +131,12 @@ export class OcbotChannelsView extends LitElement {
     this.loadStatus()
   }
 
+  private async onChannelSaved(channelId: string) {
+    await this.loadStatus()
+    // Re-load the saved config so the form reflects persisted state
+    this.selectChannel(channelId)
+  }
+
   private getConfiguredIds(): string[] {
     const channels = this.status.channels ?? {}
     return CHANNEL_CATALOG
@@ -266,7 +272,7 @@ export class OcbotChannelsView extends LitElement {
                 .configHash=${this.channelConfigHash}
                 .configSchema=${schema?.configSchema ?? null}
                 .configUiHints=${schema?.configUiHints ?? null}
-                @channel-saved=${() => { this.loadStatus(); this.deselectChannel() }}
+                @channel-saved=${() => { this.onChannelSaved(id) }}
               ></ocbot-channel-form>
             `}
           </div>
