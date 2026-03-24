@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+from common import get_project_root
+
 
 DEFAULT_CONFIG = {
     "browser": {
@@ -26,14 +28,23 @@ DEFAULT_CONFIG = {
         },
         "controlUi": {
             "allowedOrigins": ["*"],
-            "allowInsecureAuth": True
+            "allowInsecureAuth": True,
+            "dangerouslyDisableDeviceAuth": True
         }
     }
 }
 
 
 def get_ocbot_config_dir():
-    """Return the platform-specific OpenClaw config directory for Ocbot."""
+    """Return the OpenClaw config directory for Ocbot.
+
+    In dev mode (running from source), uses <project_root>/.openclaw/.
+    In production, uses the platform-specific application data directory.
+    """
+    # Dev mode: use project-local directory
+    if os.environ.get('OCBOT_DEV'):
+        return get_project_root() / '.openclaw'
+
     if os.name == 'nt':
         base = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
         return base / 'Ocbot' / 'openclaw-config'

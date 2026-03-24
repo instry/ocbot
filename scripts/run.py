@@ -107,7 +107,8 @@ def _start_embedded_runtime(logger, out_dir):
 
     logger.info("Found embedded runtime, starting OpenClaw gateway...")
 
-    # Ensure config exists
+    # Ensure config exists (dev mode uses project-local .openclaw/)
+    os.environ['OCBOT_DEV'] = '1'
     config_dir = get_ocbot_config_dir()
     config_file = ensure_ocbot_openclaw_config(config_dir)
 
