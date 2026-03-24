@@ -15,11 +15,13 @@ const NAV_GROUPS: NavItem[][] = [
     { id: 'chat', label: 'Chat', icon: 'chat' },
   ],
   [
-    { id: 'agents', label: 'Agents', icon: 'agents' },
-    { id: 'skills', label: 'Skills', icon: 'skills' },
+    { id: 'agents', label: 'Agents', icon: 'bot' },
+    { id: 'skills', label: 'Skills', icon: 'component' },
     { id: 'cron', label: 'Cron', icon: 'cron' },
+  ],
+  [
     { id: 'models', label: 'Models', icon: 'cpu' },
-    { id: 'channels', label: 'Channels', icon: 'channels' },
+    { id: 'channels', label: 'Channels', icon: 'smartphone' },
   ],
   [
     { id: 'usage', label: 'Usage', icon: 'usage' },
