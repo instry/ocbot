@@ -2166,6 +2166,21 @@ ocbot-chat-view {
   max-width: 640px;
 }
 
+.channels__intro {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 12px;
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+.channels__card-icon {
+  flex-shrink: 0;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+
 .channels__card {
   padding: 12px 16px;
   border: 1px solid var(--border);

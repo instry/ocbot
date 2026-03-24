@@ -182,6 +182,18 @@ export class OcbotChannelsView extends LitElement {
     return `${Math.floor(diff / 86400_000)}d ago`
   }
 
+  private getChannelIcon(channelId: string): string {
+    const iconMap: Record<string, string> = {
+      telegram: 'send',
+      discord: 'chat',
+      slack: 'sessions',
+      irc: 'monitor',
+      googlechat: 'mail',
+      line: 'chat',
+    }
+    return iconMap[channelId] ?? 'channels'
+  }
+
   private getStatusColor(id: string): string {
     const summary = this.getAccountSummary(id)
     if (summary.connected > 0) return 'var(--ok)'
@@ -224,7 +236,12 @@ export class OcbotChannelsView extends LitElement {
       `
     }
 
+    const anyConfigured = ids.some(id => this.isConfigured(id))
+
     return html`
+      ${!anyConfigured ? html`
+        <p class="channels__intro">Connect your agent to messaging platforms. Choose one below to get started.</p>
+      ` : nothing}
       <div class="channels__list">
         ${ids.map(id => this.renderChannelCard(id))}
       </div>
@@ -242,12 +259,13 @@ export class OcbotChannelsView extends LitElement {
       <div class="channels__card ${configured ? 'channels__card--configured' : ''}">
         <div class="channels__card-header">
           <div class="channels__card-info">
+            <span class="channels__card-icon">${svgIcon(this.getChannelIcon(id), 16)}</span>
             <span class="channels__status-dot" style="background:${statusColor};"></span>
             <span class="channels__card-name">${label}</span>
             ${badge ? html`<span class="channels__card-badge">${badge}</span>` : nothing}
           </div>
           <button class="channels__configure-btn" @click=${() => this.enterConfigure(id)}>
-            ${svgIcon('config', 14)} Configure
+            ${configured ? html`${svgIcon('config', 14)} Configure` : html`${svgIcon('plus', 14)} Set up`}
           </button>
         </div>
         ${summary.lastActivity ? html`
