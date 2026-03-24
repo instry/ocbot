@@ -2254,3 +2254,40 @@ ocbot-chat-view {
   background: var(--accent-subtle);
 }
 
+.channels__field-help {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.channels__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.channels__checkbox-label input[type="checkbox"] {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.channels__advanced-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  margin: 4px 0 8px;
+  transition: color var(--duration-fast);
+}
+
+.channels__advanced-toggle:hover {
+  color: var(--text);
+}
+
