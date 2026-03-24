@@ -80,6 +80,46 @@ const CHANNEL_CREDENTIAL_HINTS: Record<string, CredentialField[]> = {
     { key: 'channelAccessToken', label: 'Channel Access Token', placeholder: 'Token from LINE Developers', sensitive: true, required: true },
     { key: 'channelSecret', label: 'Channel Secret', placeholder: 'Secret from LINE Developers', sensitive: true, required: true },
   ],
+  // Extension channels
+  feishu: [
+    { key: 'appId', label: 'App ID', placeholder: 'cli_...', required: true, help: 'From Feishu Open Platform.' },
+    { key: 'appSecret', label: 'App Secret', placeholder: 'App secret', sensitive: true, required: true },
+  ],
+  matrix: [
+    { key: 'homeserverUrl', label: 'Homeserver URL', placeholder: 'https://matrix.org', required: true },
+    { key: 'accessToken', label: 'Access Token', sensitive: true, required: true, help: 'Bot user access token.' },
+  ],
+  mattermost: [
+    { key: 'url', label: 'Server URL', placeholder: 'https://mattermost.example.com', required: true },
+    { key: 'token', label: 'Bot Token', sensitive: true, required: true, help: 'Personal access token or bot token.' },
+  ],
+  msteams: [
+    { key: 'appId', label: 'App ID', required: true, help: 'Azure AD application (client) ID.' },
+    { key: 'appPassword', label: 'App Password', sensitive: true, required: true, help: 'Azure AD client secret.' },
+  ],
+  'nextcloud-talk': [
+    { key: 'url', label: 'Nextcloud URL', placeholder: 'https://cloud.example.com', required: true },
+    { key: 'token', label: 'App Token', sensitive: true, required: true },
+  ],
+  nostr: [
+    { key: 'privateKey', label: 'Private Key (nsec)', sensitive: true, required: true, help: 'Nostr private key in nsec or hex format.' },
+    { key: 'relays', label: 'Relay URLs', placeholder: 'wss://relay.damus.io, wss://nos.lol', help: 'Comma-separated relay URLs.' },
+  ],
+  'synology-chat': [
+    { key: 'url', label: 'Synology URL', placeholder: 'https://nas.example.com:5001', required: true },
+    { key: 'token', label: 'Bot Token', sensitive: true, required: true },
+  ],
+  twitch: [
+    { key: 'token', label: 'OAuth Token', placeholder: 'oauth:...', sensitive: true, required: true, help: 'Twitch bot OAuth token.' },
+    { key: 'channel', label: 'Channel', placeholder: 'channelname', required: true },
+  ],
+  zalo: [
+    { key: 'accessToken', label: 'OA Access Token', sensitive: true, required: true, help: 'Zalo Official Account access token.' },
+  ],
+  bluebubbles: [
+    { key: 'url', label: 'Server URL', placeholder: 'http://localhost:1234', required: true, help: 'BlueBubbles server address.' },
+    { key: 'password', label: 'Password', sensitive: true, required: true },
+  ],
 }
 
 @customElement('ocbot-channel-form')
