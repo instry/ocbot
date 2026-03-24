@@ -149,9 +149,17 @@ def _install_openclaw_runtime(logger, out_dir):
             return
 
     dest = resources_dir / 'openclaw'
-    if dest.exists():
-        shutil.rmtree(dest)
-    dest.mkdir(parents=True)
+    dest.mkdir(parents=True, exist_ok=True)
+
+    # Preserve node_modules and .pkg-hash across rebuilds (for npm install cache)
+    preserved = {'node_modules', '.pkg-hash'}
+    for item in list(dest.iterdir()):
+        if item.name in preserved:
+            continue
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
 
     # Copy essential files
     items_to_copy = [

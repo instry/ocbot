@@ -13,4 +13,4 @@ plans/
 scripts/.env
 scripts/installer/win/Output/
 scripts/installer/win/deps/
-
+channel-catalog.hash

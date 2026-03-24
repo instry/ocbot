@@ -7,6 +7,7 @@ src/channels/registry.ts (CHAT_CHANNEL_META) for built-in channels.
 Output: web/src/generated/channel-catalog.ts
 """
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -172,6 +173,32 @@ def write_catalog_ts(entries, output_path):
     output_path.write_text('\n'.join(lines))
 
 
+def _compute_input_hash(openclaw_root):
+    """Compute a hash of all input files that feed the channel catalog."""
+    h = hashlib.sha256()
+
+    # Hash this script itself (logic changes should invalidate cache)
+    h.update(Path(__file__).read_bytes())
+
+    # Hash registry.ts
+    registry_path = openclaw_root / 'src' / 'channels' / 'registry.ts'
+    if registry_path.is_file():
+        h.update(registry_path.read_bytes())
+
+    # Hash all extension manifests and package.json channel metadata
+    extensions_dir = openclaw_root / 'extensions'
+    if extensions_dir.is_dir():
+        for ext_dir in sorted(extensions_dir.iterdir()):
+            manifest_path = ext_dir / 'openclaw.plugin.json'
+            if manifest_path.is_file():
+                h.update(manifest_path.read_bytes())
+            pkg_path = ext_dir / 'package.json'
+            if pkg_path.is_file():
+                h.update(pkg_path.read_bytes())
+
+    return h.hexdigest()
+
+
 def generate(logger=None):
     """Main entry point."""
     if logger is None:
@@ -182,9 +209,23 @@ def generate(logger=None):
         logger.error(f'OpenClaw project not found at {openclaw_root}')
         return False
 
-    entries = build_catalog(openclaw_root)
     output_path = get_project_root() / 'web' / 'src' / 'generated' / 'channel-catalog.ts'
+    hash_path = output_path.with_suffix('.hash')
+
+    # Skip regeneration if inputs haven't changed
+    current_hash = _compute_input_hash(openclaw_root)
+    if output_path.is_file() and hash_path.is_file():
+        try:
+            saved_hash = hash_path.read_text().strip()
+            if saved_hash == current_hash:
+                logger.info('Channel catalog up to date, skipping generation.')
+                return True
+        except OSError:
+            pass
+
+    entries = build_catalog(openclaw_root)
     write_catalog_ts(entries, output_path)
+    hash_path.write_text(current_hash + '\n')
 
     logger.info(f'Generated channel catalog: {len(entries)} channels → {output_path}')
     return True

@@ -149,15 +149,15 @@ export class OcbotSettingsView extends LitElement {
     return html`
       <div class="settings">
         <!-- Sub-nav sidebar -->
-        <div class="settings__nav">
-          <div class="settings__nav-header">Settings</div>
-          <nav class="settings__nav-items">
+        <div class="sub-nav">
+          <div class="sub-nav__header">Settings</div>
+          <nav class="sub-nav__items">
             ${tabs.map(t => html`
               <button
-                class="settings__nav-btn ${this.activeTab === t.id ? 'settings__nav-btn--active' : ''}"
+                class="sub-nav__btn ${this.activeTab === t.id ? 'sub-nav__btn--active' : ''}"
                 @click=${() => { this.activeTab = t.id; if (t.id === 'models') this.modelsView = 'list'; if (t.id === 'config') this._loadConfig() }}
               >
-                <span class="settings__nav-icon">${svgIcon(t.icon, 16)}</span>
+                <span class="sub-nav__icon">${svgIcon(t.icon, 16)}</span>
                 <span>${t.label}</span>
               </button>
             `)}

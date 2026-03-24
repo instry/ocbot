@@ -19,6 +19,7 @@ export class OcbotApp extends LitElement {
   override createRenderRoot() { return this }
 
   @state() tab: Tab = 'chat'
+  @state() channelId: string | null = null
   @state() gatewayState: GatewayState = 'disconnected'
   @state() hasModels: boolean | null = null // null = still checking
   @state() chatSessionKey = 'ocbot:home'
@@ -71,13 +72,22 @@ export class OcbotApp extends LitElement {
   }
 
   private _readHash = () => {
-    const hash = window.location.hash.replace('#/', '').split('?')[0] || 'chat'
+    const raw = window.location.hash.replace('#/', '').split('?')[0] || 'chat'
+    const parts = raw.split('/')
     const validTabs: Tab[] = ['chat', 'sessions', 'cron', 'agents', 'skills', 'channels', 'usage', 'settings']
-    this.tab = validTabs.includes(hash as Tab) ? hash as Tab : 'chat'
+
+    if (parts[0] === 'channels' && parts[1]) {
+      this.tab = 'channels'
+      this.channelId = parts[1]
+    } else {
+      this.tab = validTabs.includes(parts[0] as Tab) ? parts[0] as Tab : 'chat'
+      this.channelId = null
+    }
   }
 
   private _navigate(tab: Tab) {
     this.tab = tab
+    this.channelId = null
     history.replaceState(null, '', `#/${tab}`)
   }
 
@@ -162,7 +172,20 @@ export class OcbotApp extends LitElement {
       case 'skills':
         return html`<ocbot-skills-view .gateway=${this.gateway}></ocbot-skills-view>`
       case 'channels':
-        return html`<ocbot-channels-view .gateway=${this.gateway}></ocbot-channels-view>`
+        return html`<ocbot-channels-view
+          .gateway=${this.gateway}
+          .initialChannelId=${this.channelId}
+          @channel-navigated=${(e: CustomEvent<string | null>) => {
+            const id = e.detail
+            if (id) {
+              this.channelId = id
+              history.replaceState(null, '', `#/channels/${id}`)
+            } else {
+              this.channelId = null
+              history.replaceState(null, '', '#/channels')
+            }
+          }}
+        ></ocbot-channels-view>`
       case 'usage':
         return html`<ocbot-usage-view .gateway=${this.gateway}></ocbot-usage-view>`
       case 'settings':

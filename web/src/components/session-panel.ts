@@ -100,43 +100,43 @@ export class OcbotSessionPanel extends LitElement {
     const groups = this.groupByDate(filtered)
 
     return html`
-      <div class="session-panel">
-        <div class="session-panel__search">
+      <div class="sub-nav sub-nav--full-height">
+        <div class="sub-nav__search">
           ${svgIcon('search', 14)}
           <input
             type="text"
-            class="session-panel__search-input"
+            class="sub-nav__search-input"
             placeholder="Search..."
             .value=${this.searchQuery}
             @input=${(e: Event) => { this.searchQuery = (e.target as HTMLInputElement).value }}
           />
         </div>
 
-        <div class="session-panel__actions">
-          <button class="session-panel__new-btn" @click=${this.newChat}>
+        <div class="sub-nav__actions">
+          <button class="sub-nav__new-btn" @click=${this.newChat}>
             ${svgIcon('plus', 14)} New Chat
           </button>
         </div>
 
-        <div class="session-panel__list">
+        <div class="sub-nav__list">
           ${this.loading ? html`
-            <div class="session-panel__empty">Loading...</div>
+            <div class="sub-nav__empty">Loading...</div>
           ` : groups.length === 0 ? html`
-            <div class="session-panel__empty">No conversations</div>
+            <div class="sub-nav__empty">No conversations</div>
           ` : groups.map(group => html`
-            <div class="session-panel__date-group">
-              <div class="session-panel__date-label">${group.label}</div>
+            <div class="sub-nav__date-group">
+              <div class="sub-nav__date-label">${group.label}</div>
               ${group.items.map(s => html`
                 <div
-                  class="session-panel__item ${s.key === this.activeSessionKey ? 'session-panel__item--active' : ''}"
+                  class="sub-nav__item ${s.key === this.activeSessionKey ? 'sub-nav__item--active' : ''}"
                   role="button"
                   tabindex="0"
                   @click=${() => this.selectSession(s.key)}
                   @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.selectSession(s.key) }}
                 >
-                  <span class="session-panel__item-title">${this.getTitle(s)}</span>
+                  <span class="sub-nav__item-title">${this.getTitle(s)}</span>
                   <button
-                    class="session-panel__item-delete"
+                    class="sub-nav__item-delete"
                     @click=${(e: Event) => this.deleteSession(s.key, e)}
                     title="Delete"
                   >${svgIcon('trash', 12)}</button>
