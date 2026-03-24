@@ -1726,7 +1726,8 @@ ocbot-chat-view {
 
 /* View host elements must fill <main> */
 ocbot-settings-view,
-ocbot-channels-view {
+ocbot-channels-view,
+ocbot-skills-view {
   flex: 1;
   display: flex;
   overflow: hidden;
