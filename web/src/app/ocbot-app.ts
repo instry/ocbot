@@ -3,8 +3,7 @@ import { customElement, state } from 'lit/decorators.js'
 import { connectGateway, type GatewayClient, type GatewayState } from '../gateway/index'
 import '../components/ocbot-sidebar'
 import '../components/session-panel'
-import '../components/wizard-step'
-import type { WizardStep } from '../components/wizard-step'
+import '../components/provider-form'
 import '../views/chat-view'
 import '../views/sessions-view'
 import '../views/cron-view'
@@ -26,10 +25,7 @@ export class OcbotApp extends LitElement {
   @state() hasModels: boolean | null = null // null = still checking
   @state() chatSessionKey = `ocbot:${Date.now()}`
   @state() panelOpen = true
-  @state() wizardSessionId: string | null = null
-  @state() wizardStep: WizardStep | null = null
-  @state() wizardLoading = false
-  @state() wizardError: string | null = null
+  @state() showOnboarding = false
 
   private gateway!: GatewayClient
   private unsubState?: () => void
@@ -57,8 +53,6 @@ export class OcbotApp extends LitElement {
 
   private async checkModels() {
     try {
-      // Check if user has configured any model providers with API keys,
-      // or if local models (Ollama) are available.
       const result = await this.gateway.call<{ config?: Record<string, any> }>('config.get')
       const config = result?.config
       const providers = config?.models?.providers
@@ -111,79 +105,8 @@ export class OcbotApp extends LitElement {
     this.checkModels()
   }
 
-  private async _startWizard() {
-    if (this.wizardSessionId) return
-    this.wizardLoading = true
-    this.wizardError = null
-    try {
-      const result = await this.gateway.call<{
-        sessionId: string
-        done: boolean
-        step?: WizardStep
-        status: string
-        error?: string
-      }>('wizard.start', { mode: 'local' })
-      this.wizardSessionId = result.sessionId
-      if (result.done) {
-        this._onWizardDone()
-      } else if (result.step) {
-        this.wizardStep = result.step
-      } else {
-        this.wizardSessionId = null
-        this.wizardError = 'Wizard started but returned no step'
-      }
-    } catch (err) {
-      this.wizardError = err instanceof Error ? err.message : 'Failed to start wizard'
-    } finally {
-      this.wizardLoading = false
-    }
-  }
-
-  private async _onWizardAnswer(e: CustomEvent<{ stepId: string; value: unknown }>) {
-    if (!this.wizardSessionId) return
-    this.wizardLoading = true
-    this.wizardError = null
-    try {
-      const result = await this.gateway.call<{
-        done: boolean
-        step?: WizardStep
-        status: string
-        error?: string
-      }>('wizard.next', {
-        sessionId: this.wizardSessionId,
-        answer: e.detail,
-      })
-      if (result.done) {
-        this._onWizardDone()
-      } else if (result.step) {
-        this.wizardStep = result.step
-      } else if (result.error) {
-        this.wizardError = result.error
-      }
-    } catch (err) {
-      this.wizardError = err instanceof Error ? err.message : 'Wizard error'
-    } finally {
-      this.wizardLoading = false
-    }
-  }
-
-  private async _cancelWizard() {
-    if (this.wizardSessionId) {
-      try {
-        await this.gateway.call('wizard.cancel', { sessionId: this.wizardSessionId })
-      } catch { /* ignore */ }
-    }
-    this.wizardSessionId = null
-    this.wizardStep = null
-    this.wizardLoading = false
-    this.wizardError = null
-  }
-
-  private _onWizardDone() {
-    this.wizardSessionId = null
-    this.wizardStep = null
-    this.wizardLoading = false
-    this.wizardError = null
+  private _onProviderSaved() {
+    this.showOnboarding = false
     this.checkModels()
   }
 
@@ -203,7 +126,7 @@ export class OcbotApp extends LitElement {
       `
     }
 
-    // Main UI — always accessible, no onboarding block
+    // Main UI
     const showPanel = this.tab === 'chat' && this.panelOpen
 
     return html`
@@ -278,31 +201,23 @@ export class OcbotApp extends LitElement {
   }
 
   private _renderSetupPrompt() {
-    // Wizard is active — show step renderer
-    if (this.wizardSessionId && this.wizardStep) {
+    if (this.showOnboarding) {
       return html`
         <div class="wizard">
           <div class="wizard__container">
             <img src="/logo.png" alt="Ocbot" class="wizard__logo" />
-            ${this.wizardError
-              ? html`<div class="wizard__error">${this.wizardError}</div>`
-              : ''}
-            <ocbot-wizard-step
-              .step=${this.wizardStep}
-              .loading=${this.wizardLoading}
-              @wizard-answer=${this._onWizardAnswer}
-            ></ocbot-wizard-step>
-            <button
-              class="wizard__cancel"
-              @click=${this._cancelWizard}
-              ?disabled=${this.wizardLoading}
-            >Cancel</button>
+            <h2 class="wizard-step__title">Set up AI model</h2>
+            <ocbot-provider-form
+              .gateway=${this.gateway}
+              .inline=${true}
+              @provider-saved=${this._onProviderSaved}
+              @provider-cancel=${() => { this.showOnboarding = false }}
+            ></ocbot-provider-form>
           </div>
         </div>
       `
     }
 
-    // Default: show setup prompt with "Start Setup" button
     return html`
       <div style="display:flex; align-items:center; justify-content:center; height:100%; padding:24px;">
         <div style="text-align:center; max-width:400px;">
@@ -311,20 +226,10 @@ export class OcbotApp extends LitElement {
           <p style="font-size:14px; color:var(--muted); margin:0 0 24px; line-height:1.6;">
             Configure an AI provider to start chatting. You can also use a local model with Ollama.
           </p>
-          <div style="display:flex; gap:12px; justify-content:center;">
-            <button
-              class="setup-prompt__btn"
-              ?disabled=${this.wizardLoading}
-              @click=${this._startWizard}
-            >${this.wizardLoading ? 'Starting...' : 'Start Setup'}</button>
-            <button
-              class="setup-prompt__btn setup-prompt__btn--secondary"
-              @click=${() => this._navigate('settings')}
-            >Manual Setup</button>
-          </div>
-          ${this.wizardError
-            ? html`<div class="wizard__error" style="margin-top:16px;">${this.wizardError}</div>`
-            : ''}
+          <button
+            class="setup-prompt__btn"
+            @click=${() => { this.showOnboarding = true }}
+          >Get Started</button>
         </div>
       </div>
     `

@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.cc b/chrome/browser/ocbot/runtime_manager.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..b5187c0feafb944a3902c5aeef2f27f0af75c09e
+index 0000000000000000000000000000000000000000..29aaf31787bbb8fe4abc548cdfe70c4be5b97505
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.cc
-@@ -0,0 +1,765 @@
+@@ -0,0 +1,764 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -376,7 +376,6 @@ index 0000000000000000000000000000000000000000..b5187c0feafb944a3902c5aeef2f27f0
 +  // Set environment variables for OpenClaw.
 +  options.environment["OPENCLAW_CONFIG_PATH"] = config_file_.value();
 +  options.environment["OPENCLAW_STATE_DIR"] = config_dir_.value();
-+  options.environment["OCBOT_EMBEDDED"] = "1";
 +
 +  // OTA mode: set NODE_PATH so node can find modules in base layer.
 +  if (using_ota_runtime_ && !ota_runtime_dir_.empty()) {
