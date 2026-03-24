@@ -1553,6 +1553,7 @@ ocbot-chat-view {
 
 .provider-form__field {
   margin-bottom: 20px;
+  text-align: left;
 }
 
 .provider-form__label {
@@ -1646,6 +1647,7 @@ ocbot-chat-view {
 }
 
 .provider-form__save {
+  min-width: 120px;
   padding: 10px 28px;
   border: none;
   border-radius: var(--radius-md);
@@ -2092,7 +2094,7 @@ ocbot-channels-view {
 .provider-form__grid-btn {
   padding: 8px 4px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text);
   font-size: 12px;
@@ -2116,33 +2118,31 @@ ocbot-channels-view {
 /* Region toggle */
 .provider-form__toggle-group {
   display: inline-flex;
-  gap: 1px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-hover);
-  padding: 2px;
+  gap: 8px;
+  text-align: left;
 }
 
 .provider-form__toggle-btn {
-  padding: 5px 16px;
-  border: none;
-  border-radius: calc(var(--radius-md) - 2px);
+  padding: 6px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--muted);
-  font-size: 12px;
+  color: var(--text);
+  font-size: 13px;
   cursor: pointer;
   transition: all var(--duration-fast);
 }
 
 .provider-form__toggle-btn:hover {
-  color: var(--text);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .provider-form__toggle-btn--active {
-  background: var(--bg-elevated);
-  color: var(--text-strong);
-  font-weight: 500;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* Label variant */
@@ -2245,6 +2245,7 @@ ocbot-channels-view {
 
 /* Cancel button */
 .provider-form__cancel-btn {
+  min-width: 120px;
   padding: 10px 24px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -2264,7 +2265,7 @@ ocbot-channels-view {
 .provider-form__actions {
   margin-top: 24px;
   display: flex;
-  gap: 10px;
+  gap: 16px;
 }
 
 /* About page */

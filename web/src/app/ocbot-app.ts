@@ -27,9 +27,11 @@ export class OcbotApp extends LitElement {
   @state() chatSessionKey = `ocbot:${Date.now()}`
   @state() panelOpen = true
   @state() showOnboarding = false
+  @state() showDisconnected = false
 
   private gateway!: GatewayClient
   private unsubState?: () => void
+  private disconnectTimer?: ReturnType<typeof setTimeout>
 
   override connectedCallback() {
     super.connectedCallback()
@@ -41,7 +43,13 @@ export class OcbotApp extends LitElement {
     this.unsubState = this.gateway.onStateChange((s) => {
       this.gatewayState = s
       if (s === 'connected') {
+        clearTimeout(this.disconnectTimer)
+        this.showDisconnected = false
         this.checkModels()
+      } else if (!this.showDisconnected) {
+        // Grace period: only show "Reconnecting" after 2s of being disconnected
+        clearTimeout(this.disconnectTimer)
+        this.disconnectTimer = setTimeout(() => { this.showDisconnected = true }, 2000)
       }
     })
   }
@@ -50,6 +58,7 @@ export class OcbotApp extends LitElement {
     super.disconnectedCallback()
     window.removeEventListener('hashchange', this._readHash)
     this.unsubState?.()
+    clearTimeout(this.disconnectTimer)
   }
 
   private async checkModels() {
@@ -112,8 +121,8 @@ export class OcbotApp extends LitElement {
   }
 
   override render() {
-    // Connecting screen
-    if (this.gatewayState !== 'connected') {
+    // Connecting screen — show immediately on first connect, with grace period on reconnect
+    if (this.gatewayState !== 'connected' && (this.hasModels === null || this.showDisconnected)) {
       return html`
         <div style="display:flex; align-items:center; justify-content:center; height:100vh; width:100vw;">
           <div style="text-align:center;">

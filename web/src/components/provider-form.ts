@@ -231,6 +231,16 @@ export class OcbotProviderForm extends LitElement {
         }
       }
 
+      // Deduplicate models by id within each provider
+      for (const [id, models] of Object.entries(byProvider)) {
+        const seen = new Set<string>()
+        byProvider[id] = models.filter(m => {
+          if (seen.has(m.id)) return false
+          seen.add(m.id)
+          return true
+        })
+      }
+
       this.modelsByProvider = byProvider
       // Only show curated providers (ordered by CURATED_PROVIDER_IDS)
       this.providers = CURATED_PROVIDER_IDS.filter(id => PROVIDER_HINTS[id])
@@ -458,7 +468,7 @@ export class OcbotProviderForm extends LitElement {
             ` : nothing}
           </label>
           <input
-            type="password"
+            type="text"
             class="provider-form__input"
             placeholder=${hint.apiKeyPlaceholder ?? 'Enter API key'}
             .value=${this.apiKey}

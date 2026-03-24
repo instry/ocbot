@@ -114,6 +114,7 @@ def _start_embedded_runtime(logger, out_dir):
     env = os.environ.copy()
     env['OPENCLAW_CONFIG_PATH'] = str(config_file)
     env['OPENCLAW_STATE_DIR'] = str(config_dir)
+    env['OPENCLAW_NO_RESPAWN'] = '1'
 
     gateway_cmd = [
         str(node_path),
