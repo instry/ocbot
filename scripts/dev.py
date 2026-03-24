@@ -17,6 +17,7 @@ try:
     from package import package_dmg, package_windows
     from release import release_extension, release_browser, release_runtime, upload_config_to_r2
     from common import get_source_dir, get_project_root, get_agent_root
+    from gen_channel_catalog import generate as gen_channel_catalog
 except ImportError as e:
     print(f"Error importing scripts: {e}")
     sys.exit(1)
@@ -26,6 +27,9 @@ def _build_extension(logger, zip=True):
     extension_dir = get_agent_root()
     _shell = sys.platform == 'win32'
     try:
+        # Generate channel catalog from openclaw metadata before building
+        gen_channel_catalog(logger)
+
         if not (extension_dir / 'node_modules').exists():
             logger.info("Installing extension dependencies...")
             subprocess.run(['npm', 'install'], cwd=extension_dir, check=True, shell=_shell)
@@ -165,6 +169,9 @@ def main():
     # Sync Models
     parser_sync_models = subparsers.add_parser('sync-models', help='Upload models.json to CDN', parents=[parent_parser])
 
+    # Generate channel catalog
+    parser_gen_channels = subparsers.add_parser('gen-channels', help='Generate channel catalog from openclaw extensions', parents=[parent_parser])
+
     args = parser.parse_args()
 
     # Default extension source path
@@ -284,6 +291,8 @@ def main():
         release_runtime(args)
     elif args.command == 'sync-models':
         upload_config_to_r2()
+    elif args.command == 'gen-channels':
+        gen_channel_catalog(logger)
     else:
         parser.print_help()
 

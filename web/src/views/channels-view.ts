@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
 import { svgIcon } from '../components/icons'
+import { CHANNEL_CATALOG, type ChannelCatalogEntry } from '../generated/channel-catalog'
 import '../components/channel-form'
 
 interface ChannelAccount {
@@ -37,41 +38,15 @@ interface ConfigSchemaResult {
 
 type ViewMode = 'list' | 'configure'
 
-// Static channel catalog — always shown regardless of plugin load state.
-// When a channel plugin is loaded, live status from channels.status is merged in.
-interface ChannelHint {
-  id: string
-  label: string
-  detailLabel: string
-  icon: string
-  description: string
+// Map channel IDs to icons (UI concern, not in openclaw data)
+const CHANNEL_ICON_MAP: Record<string, string> = {
+  telegram: 'send',
+  irc: 'monitor',
+  googlechat: 'mail',
+  slack: 'sessions',
+  signal: 'channels',
+  nostr: 'channels',
 }
-
-const CHANNEL_CATALOG: ChannelHint[] = [
-  // Built-in channels (openclaw CHAT_CHANNEL_ORDER)
-  { id: 'telegram',       label: 'Telegram',        detailLabel: 'Telegram Bot',     icon: 'send',     description: 'Simplest way to get started — register a bot with @BotFather and get going.' },
-  { id: 'whatsapp',       label: 'WhatsApp',        detailLabel: 'WhatsApp Web',     icon: 'chat',     description: 'Works with your own number; recommend a separate phone + eSIM.' },
-  { id: 'discord',        label: 'Discord',         detailLabel: 'Discord Bot',      icon: 'chat',     description: 'Very well supported — create a bot in the Developer Portal.' },
-  { id: 'irc',            label: 'IRC',             detailLabel: 'IRC',              icon: 'monitor',  description: 'Classic IRC networks with DM/channel routing and pairing controls.' },
-  { id: 'googlechat',     label: 'Google Chat',     detailLabel: 'Google Chat',      icon: 'mail',     description: 'Google Workspace Chat app with HTTP webhook.' },
-  { id: 'slack',          label: 'Slack',           detailLabel: 'Slack Bot',        icon: 'sessions', description: 'Supported via Socket Mode.' },
-  { id: 'signal',         label: 'Signal',          detailLabel: 'Signal REST',      icon: 'channels', description: 'signal-cli linked device.' },
-  { id: 'imessage',       label: 'iMessage',        detailLabel: 'iMessage',         icon: 'chat',     description: 'macOS — requires imsg CLI.' },
-  { id: 'line',           label: 'LINE',            detailLabel: 'LINE Bot',         icon: 'chat',     description: 'LINE Messaging API webhook bot.' },
-  // Extension channels
-  { id: 'feishu',         label: 'Feishu',          detailLabel: 'Feishu Bot',       icon: 'chat',     description: 'Feishu (Lark) bot integration.' },
-  { id: 'matrix',         label: 'Matrix',          detailLabel: 'Matrix',           icon: 'chat',     description: 'Matrix protocol via bot account.' },
-  { id: 'mattermost',     label: 'Mattermost',      detailLabel: 'Mattermost',       icon: 'chat',     description: 'Mattermost bot integration.' },
-  { id: 'msteams',        label: 'Microsoft Teams',  detailLabel: 'MS Teams',         icon: 'chat',     description: 'Microsoft Teams bot.' },
-  { id: 'nextcloud-talk', label: 'Nextcloud Talk',   detailLabel: 'Nextcloud Talk',   icon: 'chat',     description: 'Nextcloud Talk bot integration.' },
-  { id: 'nostr',          label: 'Nostr',           detailLabel: 'Nostr',            icon: 'channels', description: 'Nostr protocol relay.' },
-  { id: 'synology-chat',  label: 'Synology Chat',   detailLabel: 'Synology Chat',    icon: 'chat',     description: 'Synology Chat bot.' },
-  { id: 'tlon',           label: 'Tlon',            detailLabel: 'Tlon',             icon: 'chat',     description: 'Tlon messaging.' },
-  { id: 'twitch',         label: 'Twitch',          detailLabel: 'Twitch',           icon: 'chat',     description: 'Twitch chat bot.' },
-  { id: 'zalo',           label: 'Zalo',            detailLabel: 'Zalo OA',          icon: 'chat',     description: 'Zalo Official Account bot.' },
-  { id: 'zalouser',       label: 'Zalo Personal',   detailLabel: 'Zalo Personal',    icon: 'chat',     description: 'Zalo personal account.' },
-  { id: 'bluebubbles',    label: 'BlueBubbles',     detailLabel: 'BlueBubbles',      icon: 'chat',     description: 'iMessage via BlueBubbles server.' },
-]
 
 @customElement('ocbot-channels-view')
 export class OcbotChannelsView extends LitElement {
@@ -160,7 +135,7 @@ export class OcbotChannelsView extends LitElement {
     return CHANNEL_CATALOG.map(ch => ch.id)
   }
 
-  private getChannelHint(id: string): ChannelHint | undefined {
+  private getChannelHint(id: string): ChannelCatalogEntry | undefined {
     return CHANNEL_CATALOG.find(ch => ch.id === id)
   }
 
@@ -205,7 +180,7 @@ export class OcbotChannelsView extends LitElement {
   }
 
   private getChannelIcon(channelId: string): string {
-    return this.getChannelHint(channelId)?.icon ?? 'channels'
+    return CHANNEL_ICON_MAP[channelId] ?? 'chat'
   }
 
   private getStatusColor(id: string): string {
@@ -299,7 +274,7 @@ export class OcbotChannelsView extends LitElement {
             &larr; Back to Channels
           </button>
           <h2 class="settings__page-title">${label}</h2>
-          <p class="settings__page-subtitle">${hint?.description ?? `Configure your ${label} channel connection.`}</p>
+          <p class="settings__page-subtitle">${hint?.blurb ?? `Configure your ${label} channel connection.`}</p>
           <div class="settings__form-container">
             ${this.channelConfig === null ? html`
               <div class="settings__empty">Loading configuration...</div>
