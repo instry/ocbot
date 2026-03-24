@@ -39,13 +39,28 @@ interface FieldDef {
 interface CredentialField {
   key: string
   label: string
+  type?: 'text' | 'password' | 'number' | 'boolean' | 'select'
   placeholder?: string
   sensitive?: boolean
   required?: boolean
   help?: string
+  options?: { value: string; label: string }[]
+  default?: unknown
 }
 
-const CHANNEL_CREDENTIAL_HINTS: Record<string, CredentialField[]> = {
+interface ChannelHints {
+  fields: CredentialField[]
+}
+
+// Helper: accept either a bare array (legacy) or a ChannelHints object
+function getChannelHints(channelId: string): ChannelHints {
+  const raw = CHANNEL_CREDENTIAL_HINTS[channelId]
+  if (!raw) return { fields: [] }
+  if (Array.isArray(raw)) return { fields: raw }
+  return raw
+}
+
+const CHANNEL_CREDENTIAL_HINTS: Record<string, CredentialField[] | ChannelHints> = {
   telegram: [
     { key: 'botToken', label: 'Bot Token', placeholder: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11', sensitive: true, required: true, help: 'Get your token from @BotFather on Telegram.' },
   ],
@@ -81,10 +96,33 @@ const CHANNEL_CREDENTIAL_HINTS: Record<string, CredentialField[]> = {
     { key: 'channelSecret', label: 'Channel Secret', placeholder: 'Secret from LINE Developers', sensitive: true, required: true },
   ],
   // Extension channels
-  feishu: [
-    { key: 'appId', label: 'App ID', placeholder: 'cli_...', required: true, help: 'From Feishu Open Platform.' },
-    { key: 'appSecret', label: 'App Secret', placeholder: 'App secret', sensitive: true, required: true },
-  ],
+  feishu: {
+    fields: [
+      { key: 'appId', label: 'App ID', placeholder: 'cli_...', required: true, help: 'From Feishu Open Platform → Credentials.' },
+      { key: 'appSecret', label: 'App Secret', placeholder: 'App secret', sensitive: true, type: 'password', required: true, help: 'Keep confidential. Rotate if exposed.' },
+      { key: 'enabled', label: 'Enable Channel', type: 'boolean', default: true, help: 'Enable or disable this channel.' },
+      { key: 'domain', label: 'Domain', type: 'select', default: 'feishu', options: [{ value: 'feishu', label: 'Feishu (China)' }, { value: 'lark', label: 'Lark (Global)' }], help: 'Feishu for China, Lark for global tenants.' },
+      { key: 'connectionMode', label: 'Connection Mode', type: 'select', default: 'websocket', options: [{ value: 'websocket', label: 'WebSocket (Recommended)' }, { value: 'webhook', label: 'Webhook' }], help: 'WebSocket requires no public endpoint.' },
+      { key: 'encryptKey', label: 'Encrypt Key', type: 'password', sensitive: true, help: 'Required for webhook mode.' },
+      { key: 'verificationToken', label: 'Verification Token', type: 'password', sensitive: true, help: 'Required for webhook mode.' },
+      { key: 'webhookPort', label: 'Webhook Port', type: 'number', help: 'Port for webhook server (webhook mode only).' },
+      { key: 'webhookPath', label: 'Webhook Path', placeholder: '/feishu/events', help: 'HTTP path for webhook events.' },
+      { key: 'dmPolicy', label: 'DM Policy', type: 'select', default: 'pairing', options: [{ value: 'pairing', label: 'Pairing (Approval Code)' }, { value: 'open', label: 'Open' }, { value: 'allowlist', label: 'Allowlist' }, { value: 'disabled', label: 'Disabled' }], help: 'Direct message access control.' },
+      { key: 'allowFrom', label: 'DM Allowlist', placeholder: 'open_id_1, open_id_2', help: 'Comma-separated open_id values. Use * for open policy.' },
+      { key: 'groupPolicy', label: 'Group Policy', type: 'select', default: 'open', options: [{ value: 'open', label: 'Open' }, { value: 'allowlist', label: 'Allowlist' }, { value: 'disabled', label: 'Disabled' }], help: 'Group message access control.' },
+      { key: 'groupAllowFrom', label: 'Group Allowlist', placeholder: 'chat_id_1, chat_id_2', help: 'Comma-separated chat_id values.' },
+      { key: 'requireMention', label: 'Require @Mention in Groups', type: 'boolean', default: true, help: 'Bot only responds when mentioned in group chats.' },
+      { key: 'streaming', label: 'Enable Streaming', type: 'boolean', default: true, help: 'Card Kit streaming for incremental text display.' },
+      { key: 'renderMode', label: 'Render Mode', type: 'select', default: 'auto', options: [{ value: 'auto', label: 'Auto' }, { value: 'raw', label: 'Raw (Plain Text)' }, { value: 'card', label: 'Card' }], help: 'Message rendering format.' },
+      { key: 'replyInThread', label: 'Reply in Thread', type: 'select', default: 'disabled', options: [{ value: 'disabled', label: 'Disabled' }, { value: 'enabled', label: 'Enabled' }], help: 'Bot replies create topic threads when enabled.' },
+      { key: 'typingIndicator', label: 'Typing Indicator', type: 'boolean', default: true, help: 'Show typing status while generating response.' },
+      { key: 'resolveSenderNames', label: 'Resolve Sender Names', type: 'boolean', default: true, help: 'Fetch sender display names from Feishu.' },
+      { key: 'textChunkLimit', label: 'Text Chunk Limit', type: 'number', default: 2000, help: 'Max characters per message chunk.' },
+      { key: 'mediaMaxMb', label: 'Max Media Size (MB)', type: 'number', default: 30, help: 'Media upload/download size limit.' },
+      { key: 'historyLimit', label: 'Group History Limit', type: 'number', help: 'Max messages to include as context in groups.' },
+      { key: 'dmHistoryLimit', label: 'DM History Limit', type: 'number', help: 'Max messages to include as context in DMs.' },
+    ],
+  },
   matrix: [
     { key: 'homeserverUrl', label: 'Homeserver URL', placeholder: 'https://matrix.org', required: true },
     { key: 'accessToken', label: 'Access Token', sensitive: true, required: true, help: 'Bot user access token.' },
@@ -138,12 +176,21 @@ export class OcbotChannelForm extends LitElement {
   @state() private error: string | null = null
   @state() private success: string | null = null
   @state() private showAdvanced = false
+  @state() private submitted = false
 
   override willUpdate(changed: Map<string, unknown>) {
-    if (changed.has('channelConfig')) {
-      this.formData = { ...(this.channelConfig ?? {}) }
+    if (changed.has('channelConfig') || changed.has('channelId')) {
+      const base = { ...(this.channelConfig ?? {}) }
+      const { fields } = getChannelHints(this.channelId)
+      for (const cred of fields) {
+        if (cred.default !== undefined && !(cred.key in base)) {
+          base[cred.key] = cred.default
+        }
+      }
+      this.formData = base
       this.error = null
       this.success = null
+      this.submitted = false
     }
   }
 
@@ -186,6 +233,7 @@ export class OcbotChannelForm extends LitElement {
   }
 
   private async save() {
+    this.submitted = true
     this.saving = true
     this.error = null
     this.success = null
@@ -224,7 +272,7 @@ export class OcbotChannelForm extends LitElement {
   }
 
   private renderStaticForm() {
-    const credentials = CHANNEL_CREDENTIAL_HINTS[this.channelId]
+    const { fields: credentials } = getChannelHints(this.channelId)
     if (!credentials || credentials.length === 0) {
       return html`
         <div class="settings__empty">
@@ -234,24 +282,24 @@ export class OcbotChannelForm extends LitElement {
       `
     }
 
+    const requiredCreds = credentials.filter(c => c.required)
+    const optionalCreds = credentials.filter(c => !c.required)
+
     return html`
       <div class="provider-form provider-form--full">
         ${this.error ? html`<div class="provider-form__error">${this.error}</div>` : nothing}
         ${this.success ? html`<div class="provider-form__success">${this.success}</div>` : nothing}
 
-        ${credentials.map(cred => html`
-          <div class="provider-form__field">
-            <label class="provider-form__label">${cred.label}${cred.required ? ' *' : ''}</label>
-            <input
-              type=${cred.sensitive ? 'password' : 'text'}
-              class="provider-form__input"
-              placeholder=${cred.placeholder ?? ''}
-              .value=${String(this.formData[cred.key] ?? '')}
-              @input=${(e: Event) => this.setField(cred.key, (e.target as HTMLInputElement).value)}
-            />
-            ${cred.help ? html`<div class="channels__field-help">${cred.help}</div>` : nothing}
-          </div>
-        `)}
+        ${requiredCreds.map(cred => this.renderStaticField(cred))}
+
+        ${optionalCreds.length > 0 ? html`
+          <button
+            class="channels__advanced-toggle"
+            @click=${() => { this.showAdvanced = !this.showAdvanced }}
+          >${this.showAdvanced ? 'Hide optional settings' : `Show optional settings (${optionalCreds.length})`}</button>
+
+          ${this.showAdvanced ? optionalCreds.map(cred => this.renderStaticField(cred)) : nothing}
+        ` : nothing}
 
         <div class="provider-form__actions">
           <button class="provider-form__cancel-btn" @click=${() => this.cancel()}>Cancel</button>
@@ -265,6 +313,88 @@ export class OcbotChannelForm extends LitElement {
     `
   }
 
+  private renderStaticField(cred: CredentialField) {
+    const empty = this.submitted && cred.required && this.isFieldEmpty(cred.key)
+    const type = cred.type ?? (cred.sensitive ? 'password' : 'text')
+    const reqMark = cred.required ? this.renderRequiredMark() : nothing
+
+    // Boolean → checkbox
+    if (type === 'boolean') {
+      return html`
+        <div class="provider-form__field">
+          <label class="channels__checkbox-label">
+            <input
+              type="checkbox"
+              .checked=${!!this.formData[cred.key]}
+              @change=${(e: Event) => this.setField(cred.key, (e.target as HTMLInputElement).checked)}
+            />
+            <span>${cred.label}</span>
+          </label>
+          ${cred.help ? html`<div class="channels__field-help">${cred.help}</div>` : nothing}
+        </div>
+      `
+    }
+
+    // Select → dropdown
+    if (type === 'select' && cred.options?.length) {
+      const value = String(this.formData[cred.key] ?? '')
+      return html`
+        <div class="provider-form__field">
+          <label class="provider-form__label">${cred.label}${reqMark}</label>
+          <select
+            class="provider-form__select ${empty ? 'provider-form__select--error' : ''}"
+            .value=${value}
+            @change=${(e: Event) => this.setField(cred.key, (e.target as HTMLSelectElement).value || undefined)}
+          >
+            <option value="">— Select —</option>
+            ${cred.options!.map(opt => html`
+              <option value=${opt.value} ?selected=${value === opt.value}>${opt.label}</option>
+            `)}
+          </select>
+          ${cred.help ? html`<div class="channels__field-help">${cred.help}</div>` : nothing}
+          ${empty ? html`<div class="channels__field-error">${cred.label} is required</div>` : nothing}
+        </div>
+      `
+    }
+
+    // Number
+    if (type === 'number') {
+      return html`
+        <div class="provider-form__field">
+          <label class="provider-form__label">${cred.label}${reqMark}</label>
+          <input
+            type="number"
+            class="provider-form__input ${empty ? 'provider-form__input--error' : ''}"
+            placeholder=${cred.placeholder ?? ''}
+            .value=${String(this.formData[cred.key] ?? '')}
+            @input=${(e: Event) => {
+              const raw = (e.target as HTMLInputElement).value
+              this.setField(cred.key, raw === '' ? undefined : parseInt(raw, 10))
+            }}
+          />
+          ${cred.help ? html`<div class="channels__field-help">${cred.help}</div>` : nothing}
+          ${empty ? html`<div class="channels__field-error">${cred.label} is required</div>` : nothing}
+        </div>
+      `
+    }
+
+    // Default: text / password
+    return html`
+      <div class="provider-form__field">
+        <label class="provider-form__label">${cred.label}${reqMark}</label>
+        <input
+          type=${type === 'password' || cred.sensitive ? 'password' : 'text'}
+          class="provider-form__input ${empty ? 'provider-form__input--error' : ''}"
+          placeholder=${cred.placeholder ?? ''}
+          .value=${String(this.formData[cred.key] ?? '')}
+          @input=${(e: Event) => this.setField(cred.key, (e.target as HTMLInputElement).value)}
+        />
+        ${cred.help ? html`<div class="channels__field-help">${cred.help}</div>` : nothing}
+        ${empty ? html`<div class="channels__field-error">${cred.label} is required</div>` : nothing}
+      </div>
+    `
+  }
+
   private hasRequiredFields(credentials: CredentialField[]): boolean {
     return credentials
       .filter(c => c.required)
@@ -272,6 +402,15 @@ export class OcbotChannelForm extends LitElement {
         const val = this.formData[c.key]
         return typeof val === 'string' && val.trim().length > 0
       })
+  }
+
+  private isFieldEmpty(key: string): boolean {
+    const val = this.formData[key]
+    return val === undefined || val === null || (typeof val === 'string' && val.trim() === '')
+  }
+
+  private renderRequiredMark() {
+    return html`<span class="channels__required-mark">*</span>`
   }
 
   private renderSchemaForm() {    const allFields = this.getFields()
@@ -317,6 +456,7 @@ export class OcbotChannelForm extends LitElement {
     const { key, schema, hint } = field
     const label = this.getFieldLabel(field)
     const value = this.getFieldValue(key, schema)
+    const empty = this.submitted && field.required && this.isFieldEmpty(key)
 
     // Boolean → checkbox
     if (schema.type === 'boolean') {
@@ -339,9 +479,9 @@ export class OcbotChannelForm extends LitElement {
     if (schema.type === 'string' && schema.enum?.length) {
       return html`
         <div class="provider-form__field">
-          <label class="provider-form__label">${label}${field.required ? ' *' : ''}</label>
+          <label class="provider-form__label">${label}${field.required ? this.renderRequiredMark() : nothing}</label>
           <select
-            class="provider-form__select"
+            class="provider-form__select ${empty ? 'provider-form__select--error' : ''}"
             .value=${String(value ?? '')}
             @change=${(e: Event) => this.setField(key, (e.target as HTMLSelectElement).value)}
           >
@@ -351,6 +491,7 @@ export class OcbotChannelForm extends LitElement {
             `)}
           </select>
           ${hint.help ? html`<div class="channels__field-help">${hint.help}</div>` : nothing}
+          ${empty ? html`<div class="channels__field-error">${label} is required</div>` : nothing}
         </div>
       `
     }
@@ -359,10 +500,10 @@ export class OcbotChannelForm extends LitElement {
     if (schema.type === 'number' || schema.type === 'integer') {
       return html`
         <div class="provider-form__field">
-          <label class="provider-form__label">${label}${field.required ? ' *' : ''}</label>
+          <label class="provider-form__label">${label}${field.required ? this.renderRequiredMark() : nothing}</label>
           <input
             type="number"
-            class="provider-form__input"
+            class="provider-form__input ${empty ? 'provider-form__input--error' : ''}"
             placeholder=${hint.placeholder ?? ''}
             .value=${String(value ?? '')}
             ?step=${schema.type === 'integer' ? '1' : 'any'}
@@ -376,6 +517,7 @@ export class OcbotChannelForm extends LitElement {
             }}
           />
           ${hint.help ? html`<div class="channels__field-help">${hint.help}</div>` : nothing}
+          ${empty ? html`<div class="channels__field-error">${label} is required</div>` : nothing}
         </div>
       `
     }
@@ -385,10 +527,10 @@ export class OcbotChannelForm extends LitElement {
       const arrValue = Array.isArray(value) ? (value as unknown[]).join(', ') : String(value ?? '')
       return html`
         <div class="provider-form__field">
-          <label class="provider-form__label">${label}${field.required ? ' *' : ''}</label>
+          <label class="provider-form__label">${label}${field.required ? this.renderRequiredMark() : nothing}</label>
           <input
             type="text"
-            class="provider-form__input"
+            class="provider-form__input ${empty ? 'provider-form__input--error' : ''}"
             placeholder=${hint.placeholder ?? 'Comma-separated values'}
             .value=${arrValue}
             @input=${(e: Event) => {
@@ -403,6 +545,7 @@ export class OcbotChannelForm extends LitElement {
             }}
           />
           ${hint.help ? html`<div class="channels__field-help">${hint.help}</div>` : nothing}
+          ${empty ? html`<div class="channels__field-error">${label} is required</div>` : nothing}
         </div>
       `
     }
@@ -410,15 +553,16 @@ export class OcbotChannelForm extends LitElement {
     // Default: string → text input (or password if sensitive)
     return html`
       <div class="provider-form__field">
-        <label class="provider-form__label">${label}${field.required ? ' *' : ''}</label>
+        <label class="provider-form__label">${label}${field.required ? this.renderRequiredMark() : nothing}</label>
         <input
           type=${hint.sensitive ? 'password' : 'text'}
-          class="provider-form__input"
+          class="provider-form__input ${empty ? 'provider-form__input--error' : ''}"
           placeholder=${hint.placeholder ?? ''}
           .value=${String(value ?? '')}
           @input=${(e: Event) => this.setField(key, (e.target as HTMLInputElement).value)}
         />
         ${hint.help ? html`<div class="channels__field-help">${hint.help}</div>` : nothing}
+        ${empty ? html`<div class="channels__field-error">${label} is required</div>` : nothing}
       </div>
     `
   }

@@ -35,6 +35,15 @@ def get_chromium_version():
         return entry['chromium']
     return None
 
+def get_openclaw_version():
+    """Look up the OpenClaw version from version_map.json using the product version."""
+    product_version = get_product_version()
+    version_map = get_version_map()
+    entry = version_map.get(product_version)
+    if entry:
+        return entry.get('openclaw')
+    return None
+
 def get_patches_dir():
     """
     Get the directory containing patches based on the Chromium major version.

@@ -2289,6 +2289,22 @@ ocbot-channels-view {
   line-height: 1.4;
 }
 
+.channels__required-mark {
+  color: var(--danger);
+  margin-left: 2px;
+}
+
+.channels__field-error {
+  font-size: 11px;
+  color: var(--danger);
+  margin-top: 4px;
+}
+
+.provider-form__input--error,
+.provider-form__select--error {
+  border-color: var(--danger);
+}
+
 .channels__checkbox-label {
   display: flex;
   align-items: center;

@@ -1,21 +1,25 @@
 {
   "26.3.19": {
     "chromium": "144.0.7559.132",
+    "openclaw": "2026.3.23",
     "date": "2026-03-19",
     "notes": ""
   },
   "26.3.18": {
     "chromium": "144.0.7559.132",
+    "openclaw": "2026.3.23",
     "date": "2026-03-18",
     "notes": ""
   },
   "26.3.16": {
     "chromium": "144.0.7559.132",
+    "openclaw": "2026.3.23",
     "date": "2026-03-16",
     "notes": "Fix startup and shutdown crashes in browser/extension updaters"
   },
   "26.3.9": {
     "chromium": "144.0.7559.132",
+    "openclaw": "2026.3.23",
     "date": "2026-03-09",
     "notes": "Date-based versioning"
   }
