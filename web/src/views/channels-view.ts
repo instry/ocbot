@@ -1,14 +1,50 @@
 import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
+import { svgIcon } from '../components/icons'
+import '../components/channel-form'
 
-interface ChannelRow {
-  id: string
-  type?: string
-  label?: string
+interface ChannelAccount {
+  accountId: string
+  enabled?: boolean
+  configured?: boolean
   connected?: boolean
-  lastActivity?: number
+  running?: boolean
+  lastError?: string
+  lastInboundAt?: number
+  lastOutboundAt?: number
 }
+
+interface ChannelMeta {
+  id: string
+  label: string
+  detailLabel: string
+  systemImage?: string
+}
+
+interface ChannelsStatusResult {
+  channelOrder?: string[]
+  channelLabels?: Record<string, string>
+  channelMeta?: ChannelMeta[]
+  channels?: Record<string, { configured?: boolean }>
+  channelAccounts?: Record<string, ChannelAccount[]>
+}
+
+interface ChannelSchemaEntry {
+  id: string
+  label: string
+  description?: string
+  configSchema?: Record<string, unknown>
+  configUiHints?: Record<string, unknown>
+}
+
+interface ConfigSchemaResult {
+  channels?: ChannelSchemaEntry[]
+}
+
+type ViewMode = 'list' | 'configure'
+
+const HIDDEN_CHANNELS = new Set(['whatsapp', 'signal', 'imessage'])
 
 @customElement('ocbot-channels-view')
 export class OcbotChannelsView extends LitElement {
@@ -16,21 +52,41 @@ export class OcbotChannelsView extends LitElement {
 
   @property({ attribute: false }) gateway!: GatewayClient
 
-  @state() channels: ChannelRow[] = []
-  @state() loading = true
-  @state() error: string | null = null
+  @state() private viewMode: ViewMode = 'list'
+  @state() private loading = true
+  @state() private error: string | null = null
+  @state() private status: ChannelsStatusResult = {}
+  @state() private schemas: ChannelSchemaEntry[] = []
+  @state() private configureChannelId: string | null = null
+  @state() private channelConfig: Record<string, unknown> | null = null
+  @state() private channelConfigHash: string | null = null
+
+  private refreshTimer: ReturnType<typeof setInterval> | null = null
 
   override connectedCallback() {
     super.connectedCallback()
-    this.loadChannels()
+    this.loadData()
+    this.refreshTimer = setInterval(() => this.loadStatus(), 30_000)
   }
 
-  private async loadChannels() {
+  override disconnectedCallback() {
+    super.disconnectedCallback()
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer)
+      this.refreshTimer = null
+    }
+  }
+
+  private async loadData() {
     this.loading = true
     this.error = null
     try {
-      const result = await this.gateway.call<{ channels?: ChannelRow[] }>('channels.status')
-      this.channels = result?.channels ?? []
+      const [statusResult, schemaResult] = await Promise.all([
+        this.gateway.call<ChannelsStatusResult>('channels.status'),
+        this.gateway.call<ConfigSchemaResult>('config.schema'),
+      ])
+      this.status = statusResult ?? {}
+      this.schemas = schemaResult?.channels ?? []
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)
     } finally {
@@ -38,7 +94,86 @@ export class OcbotChannelsView extends LitElement {
     }
   }
 
-  private getTimeAgo(ts: number | undefined): string {
+  private async loadStatus() {
+    try {
+      const result = await this.gateway.call<ChannelsStatusResult>('channels.status')
+      this.status = result ?? {}
+    } catch {
+      // silent refresh failure
+    }
+  }
+
+  private async enterConfigure(channelId: string) {
+    this.configureChannelId = channelId
+    this.channelConfig = null
+    this.channelConfigHash = null
+    this.viewMode = 'configure'
+    try {
+      const result = await this.gateway.call<{ config?: Record<string, unknown>; hash?: string }>('config.get')
+      const config = result?.config ?? {}
+      const channels = (config as Record<string, unknown>).channels as Record<string, unknown> | undefined
+      this.channelConfig = (channels?.[channelId] as Record<string, unknown>) ?? {}
+      this.channelConfigHash = result?.hash ?? null
+    } catch {
+      this.channelConfig = {}
+    }
+  }
+
+  private backToList() {
+    this.viewMode = 'list'
+    this.configureChannelId = null
+    this.channelConfig = null
+    this.channelConfigHash = null
+    this.loadStatus()
+  }
+
+  private getOrderedChannelIds(): string[] {
+    const order = this.status.channelOrder ?? []
+    const channelKeys = Object.keys(this.status.channels ?? {})
+    const metaIds = (this.status.channelMeta ?? []).map(m => m.id)
+    const allIds = new Set([...order, ...channelKeys, ...metaIds])
+    // Maintain order: use channelOrder first, then remaining
+    const result: string[] = []
+    for (const id of order) {
+      if (allIds.has(id) && !HIDDEN_CHANNELS.has(id)) result.push(id)
+    }
+    for (const id of allIds) {
+      if (!result.includes(id) && !HIDDEN_CHANNELS.has(id)) result.push(id)
+    }
+    return result
+  }
+
+  private getChannelLabel(id: string): string {
+    const meta = (this.status.channelMeta ?? []).find(m => m.id === id)
+    if (meta?.label) return meta.label
+    if (this.status.channelLabels?.[id]) return this.status.channelLabels[id]
+    return id.charAt(0).toUpperCase() + id.slice(1)
+  }
+
+  private getChannelBadge(id: string): string {
+    const meta = (this.status.channelMeta ?? []).find(m => m.id === id)
+    return meta?.detailLabel ?? ''
+  }
+
+  private getAccountSummary(id: string): { connected: number; total: number; lastActivity: number; lastError: string | null } {
+    const accounts = this.status.channelAccounts?.[id] ?? []
+    let connected = 0
+    let lastActivity = 0
+    let lastError: string | null = null
+    for (const acc of accounts) {
+      if (acc.connected || acc.running) connected++
+      const ts = Math.max(acc.lastInboundAt ?? 0, acc.lastOutboundAt ?? 0)
+      if (ts > lastActivity) lastActivity = ts
+      if (acc.lastError && !lastError) lastError = acc.lastError
+    }
+    return { connected, total: accounts.length, lastActivity, lastError }
+  }
+
+  private isConfigured(id: string): boolean {
+    return this.status.channels?.[id]?.configured === true
+  }
+
+  private getTimeAgo(ts: number): string {
     if (!ts) return ''
     const diff = Date.now() - ts
     if (diff < 60_000) return 'just now'
@@ -47,7 +182,25 @@ export class OcbotChannelsView extends LitElement {
     return `${Math.floor(diff / 86400_000)}d ago`
   }
 
+  private getStatusColor(id: string): string {
+    const summary = this.getAccountSummary(id)
+    if (summary.connected > 0) return 'var(--ok)'
+    if (this.isConfigured(id)) return 'var(--warn)'
+    return 'var(--muted)'
+  }
+
+  private getSchema(id: string): ChannelSchemaEntry | undefined {
+    return this.schemas.find(s => s.id === id)
+  }
+
   override render() {
+    if (this.viewMode === 'configure' && this.configureChannelId) {
+      return this.renderConfigure()
+    }
+    return this.renderList()
+  }
+
+  private renderList() {
     return html`
       <div style="padding:20px; height:100%; overflow-y:auto;">
         <div style="display:flex; align-items:center; margin-bottom:20px;">
@@ -55,38 +208,87 @@ export class OcbotChannelsView extends LitElement {
         </div>
 
         ${this.loading ? html`
-          <div style="text-align:center; color:var(--muted); padding:40px;">Loading...</div>
+          <div class="settings__empty">Loading...</div>
         ` : this.error ? html`
           <div style="text-align:center; color:var(--danger); padding:40px;">${this.error}</div>
-        ` : this.channels.length === 0 ? html`
-          <div style="text-align:center; color:var(--muted); padding:40px;">
-            <div>No channels configured</div>
+        ` : this.renderChannelList()}
+      </div>
+    `
+  }
+
+  private renderChannelList() {
+    const ids = this.getOrderedChannelIds()
+    if (ids.length === 0) {
+      return html`
+        <div class="settings__empty">No channels available</div>
+      `
+    }
+
+    return html`
+      <div class="channels__list">
+        ${ids.map(id => this.renderChannelCard(id))}
+      </div>
+    `
+  }
+
+  private renderChannelCard(id: string) {
+    const label = this.getChannelLabel(id)
+    const badge = this.getChannelBadge(id)
+    const configured = this.isConfigured(id)
+    const summary = this.getAccountSummary(id)
+    const statusColor = this.getStatusColor(id)
+
+    return html`
+      <div class="channels__card ${configured ? 'channels__card--configured' : ''}">
+        <div class="channels__card-header">
+          <div class="channels__card-info">
+            <span class="channels__status-dot" style="background:${statusColor};"></span>
+            <span class="channels__card-name">${label}</span>
+            ${badge ? html`<span class="channels__card-badge">${badge}</span>` : nothing}
           </div>
-        ` : html`
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${this.channels.map(ch => html`
-              <div class="session-card">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span
-                    style="width:8px; height:8px; border-radius:50%; flex-shrink:0; background:${ch.connected ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)'};"
-                  ></span>
-                  <span style="font-weight:500; color:var(--text-strong); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                    ${ch.label || ch.id}
-                  </span>
-                  ${ch.type ? html`
-                    <span style="font-size:12px; color:var(--muted); flex-shrink:0;">${ch.type}</span>
-                  ` : nothing}
-                </div>
-                <div style="display:flex; gap:12px; margin-top:4px; font-size:13px; color:var(--muted);">
-                  <span>${ch.connected ? 'Connected' : 'Disconnected'}</span>
-                  ${ch.lastActivity ? html`
-                    <span>Last activity: ${this.getTimeAgo(ch.lastActivity)}</span>
-                  ` : nothing}
-                </div>
-              </div>
-            `)}
+          <button class="channels__configure-btn" @click=${() => this.enterConfigure(id)}>
+            ${svgIcon('config', 14)} Configure
+          </button>
+        </div>
+        ${summary.lastActivity ? html`
+          <div class="channels__card-activity">Last activity: ${this.getTimeAgo(summary.lastActivity)}</div>
+        ` : nothing}
+        ${summary.lastError ? html`
+          <div class="channels__card-error">${summary.lastError}</div>
+        ` : nothing}
+      </div>
+    `
+  }
+
+  private renderConfigure() {
+    const id = this.configureChannelId!
+    const label = this.getChannelLabel(id)
+    const schema = this.getSchema(id)
+
+    return html`
+      <div style="padding:20px; height:100%; overflow-y:auto;">
+        <div class="settings__page">
+          <button class="settings__back-btn" @click=${() => this.backToList()}>
+            &larr; Back to Channels
+          </button>
+          <h2 class="settings__page-title">${label}</h2>
+          <p class="settings__page-subtitle">Configure your ${label} channel connection.</p>
+          <div class="settings__form-container">
+            ${this.channelConfig === null ? html`
+              <div class="settings__empty">Loading configuration...</div>
+            ` : html`
+              <ocbot-channel-form
+                .gateway=${this.gateway}
+                .channelId=${id}
+                .channelConfig=${this.channelConfig}
+                .configHash=${this.channelConfigHash}
+                .configSchema=${schema?.configSchema ?? null}
+                .configUiHints=${schema?.configUiHints ?? null}
+                @channel-saved=${() => this.backToList()}
+              ></ocbot-channel-form>
+            `}
           </div>
-        `}
+        </div>
       </div>
     `
   }

@@ -2155,3 +2155,102 @@ ocbot-chat-view {
   color: var(--muted-strong);
 }
 
+/* ═══════════════════════════════════════════════════════
+   Channels view — card list + configure
+   ═══════════════════════════════════════════════════════ */
+
+.channels__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 640px;
+}
+
+.channels__card {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  transition: border-color var(--duration-fast);
+}
+
+.channels__card:hover {
+  border-color: var(--border-strong);
+}
+
+.channels__card--configured {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg));
+}
+
+.channels__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.channels__card-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.channels__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.channels__card-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channels__card-badge {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.channels__card-activity {
+  font-size: 12px;
+  color: var(--muted);
+  padding-left: 16px;
+  margin-top: 4px;
+}
+
+.channels__card-error {
+  font-size: 12px;
+  color: var(--danger);
+  padding-left: 16px;
+  margin-top: 4px;
+}
+
+.channels__configure-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--duration-fast);
+}
+
+.channels__configure-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
