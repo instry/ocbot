@@ -15,17 +15,10 @@ interface ChannelAccount {
   lastOutboundAt?: number
 }
 
-interface ChannelMeta {
-  id: string
-  label: string
-  detailLabel: string
-  systemImage?: string
-}
-
 interface ChannelsStatusResult {
   channelOrder?: string[]
   channelLabels?: Record<string, string>
-  channelMeta?: ChannelMeta[]
+  channelMeta?: Array<{ id: string; label: string; detailLabel: string }>
   channels?: Record<string, { configured?: boolean }>
   channelAccounts?: Record<string, ChannelAccount[]>
 }
@@ -44,7 +37,24 @@ interface ConfigSchemaResult {
 
 type ViewMode = 'list' | 'configure'
 
-const HIDDEN_CHANNELS = new Set(['whatsapp', 'signal', 'imessage'])
+// Static channel catalog — always shown regardless of plugin load state.
+// When a channel plugin is loaded, live status from channels.status is merged in.
+interface ChannelHint {
+  id: string
+  label: string
+  detailLabel: string
+  icon: string
+  description: string
+}
+
+const CHANNEL_CATALOG: ChannelHint[] = [
+  { id: 'telegram', label: 'Telegram', detailLabel: 'Telegram Bot', icon: 'send', description: 'Bot API — register with @BotFather and get going.' },
+  { id: 'discord', label: 'Discord', detailLabel: 'Discord Bot', icon: 'chat', description: 'Bot API — create a bot in the Developer Portal.' },
+  { id: 'slack', label: 'Slack', detailLabel: 'Slack Bot', icon: 'sessions', description: 'Socket Mode — create a Slack app with bot + app tokens.' },
+  { id: 'irc', label: 'IRC', detailLabel: 'IRC', icon: 'monitor', description: 'Classic IRC with DM/channel routing.' },
+  { id: 'googlechat', label: 'Google Chat', detailLabel: 'Google Chat', icon: 'mail', description: 'Google Workspace Chat app.' },
+  { id: 'line', label: 'LINE', detailLabel: 'LINE Bot', icon: 'chat', description: 'LINE Messaging API webhook bot.' },
+]
 
 @customElement('ocbot-channels-view')
 export class OcbotChannelsView extends LitElement {
@@ -81,9 +91,10 @@ export class OcbotChannelsView extends LitElement {
     this.loading = true
     this.error = null
     try {
+      // Load live status + schemas in parallel; both may return empty if no plugins loaded yet
       const [statusResult, schemaResult] = await Promise.all([
-        this.gateway.call<ChannelsStatusResult>('channels.status'),
-        this.gateway.call<ConfigSchemaResult>('config.schema'),
+        this.gateway.call<ChannelsStatusResult>('channels.status').catch((): ChannelsStatusResult => ({})),
+        this.gateway.call<ConfigSchemaResult>('config.schema').catch((): ConfigSchemaResult => ({})),
       ])
       this.status = statusResult ?? {}
       this.schemas = schemaResult?.channels ?? []
@@ -128,31 +139,25 @@ export class OcbotChannelsView extends LitElement {
   }
 
   private getOrderedChannelIds(): string[] {
-    const order = this.status.channelOrder ?? []
-    const channelKeys = Object.keys(this.status.channels ?? {})
-    const metaIds = (this.status.channelMeta ?? []).map(m => m.id)
-    const allIds = new Set([...order, ...channelKeys, ...metaIds])
-    // Maintain order: use channelOrder first, then remaining
-    const result: string[] = []
-    for (const id of order) {
-      if (allIds.has(id) && !HIDDEN_CHANNELS.has(id)) result.push(id)
-    }
-    for (const id of allIds) {
-      if (!result.includes(id) && !HIDDEN_CHANNELS.has(id)) result.push(id)
-    }
-    return result
+    // Always use static catalog as the base list
+    return CHANNEL_CATALOG.map(ch => ch.id)
+  }
+
+  private getChannelHint(id: string): ChannelHint | undefined {
+    return CHANNEL_CATALOG.find(ch => ch.id === id)
   }
 
   private getChannelLabel(id: string): string {
+    // Prefer live data from gateway, fall back to static catalog
     const meta = (this.status.channelMeta ?? []).find(m => m.id === id)
     if (meta?.label) return meta.label
-    if (this.status.channelLabels?.[id]) return this.status.channelLabels[id]
-    return id.charAt(0).toUpperCase() + id.slice(1)
+    return this.getChannelHint(id)?.label ?? id
   }
 
   private getChannelBadge(id: string): string {
     const meta = (this.status.channelMeta ?? []).find(m => m.id === id)
-    return meta?.detailLabel ?? ''
+    if (meta?.detailLabel) return meta.detailLabel
+    return this.getChannelHint(id)?.detailLabel ?? ''
   }
 
   private getAccountSummary(id: string): { connected: number; total: number; lastActivity: number; lastError: string | null } {
@@ -183,15 +188,7 @@ export class OcbotChannelsView extends LitElement {
   }
 
   private getChannelIcon(channelId: string): string {
-    const iconMap: Record<string, string> = {
-      telegram: 'send',
-      discord: 'chat',
-      slack: 'sessions',
-      irc: 'monitor',
-      googlechat: 'mail',
-      line: 'chat',
-    }
-    return iconMap[channelId] ?? 'channels'
+    return this.getChannelHint(channelId)?.icon ?? 'channels'
   }
 
   private getStatusColor(id: string): string {
@@ -230,12 +227,6 @@ export class OcbotChannelsView extends LitElement {
 
   private renderChannelList() {
     const ids = this.getOrderedChannelIds()
-    if (ids.length === 0) {
-      return html`
-        <div class="settings__empty">No channels available</div>
-      `
-    }
-
     const anyConfigured = ids.some(id => this.isConfigured(id))
 
     return html`
@@ -281,6 +272,7 @@ export class OcbotChannelsView extends LitElement {
   private renderConfigure() {
     const id = this.configureChannelId!
     const label = this.getChannelLabel(id)
+    const hint = this.getChannelHint(id)
     const schema = this.getSchema(id)
 
     return html`
@@ -290,7 +282,7 @@ export class OcbotChannelsView extends LitElement {
             &larr; Back to Channels
           </button>
           <h2 class="settings__page-title">${label}</h2>
-          <p class="settings__page-subtitle">Configure your ${label} channel connection.</p>
+          <p class="settings__page-subtitle">${hint?.description ?? `Configure your ${label} channel connection.`}</p>
           <div class="settings__form-container">
             ${this.channelConfig === null ? html`
               <div class="settings__empty">Loading configuration...</div>

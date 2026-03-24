@@ -33,6 +33,43 @@ interface FieldDef {
   required: boolean
 }
 
+// Static credential hints for channels — used when no schema is available from gateway
+// (i.e., the channel plugin hasn't been loaded yet because config is empty).
+// Once saved, gateway restarts, plugin loads, and subsequent edits use the dynamic schema.
+interface CredentialField {
+  key: string
+  label: string
+  placeholder?: string
+  sensitive?: boolean
+  required?: boolean
+  help?: string
+}
+
+const CHANNEL_CREDENTIAL_HINTS: Record<string, CredentialField[]> = {
+  telegram: [
+    { key: 'botToken', label: 'Bot Token', placeholder: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11', sensitive: true, required: true, help: 'Get your token from @BotFather on Telegram.' },
+  ],
+  discord: [
+    { key: 'token', label: 'Bot Token', placeholder: 'Bot token from Developer Portal', sensitive: true, required: true, help: 'Create a bot at discord.com/developers/applications.' },
+  ],
+  slack: [
+    { key: 'botToken', label: 'Bot Token', placeholder: 'xoxb-...', sensitive: true, required: true, help: 'Bot User OAuth Token from your Slack app.' },
+    { key: 'appToken', label: 'App Token', placeholder: 'xapp-...', sensitive: true, required: true, help: 'App-Level Token (for Socket Mode). Generate at api.slack.com/apps.' },
+  ],
+  irc: [
+    { key: 'server', label: 'Server', placeholder: 'irc.libera.chat', required: true },
+    { key: 'nick', label: 'Nick', placeholder: 'mybot' },
+    { key: 'channel', label: 'Channel', placeholder: '#mychannel' },
+  ],
+  googlechat: [
+    { key: 'serviceAccountKey', label: 'Service Account Key (JSON)', placeholder: 'Paste JSON key', sensitive: true, required: true, help: 'From Google Cloud Console → IAM → Service Accounts.' },
+  ],
+  line: [
+    { key: 'channelAccessToken', label: 'Channel Access Token', placeholder: 'Token from LINE Developers', sensitive: true, required: true },
+    { key: 'channelSecret', label: 'Channel Secret', placeholder: 'Secret from LINE Developers', sensitive: true, required: true },
+  ],
+}
+
 @customElement('ocbot-channel-form')
 export class OcbotChannelForm extends LitElement {
   override createRenderRoot() { return this }
@@ -126,11 +163,61 @@ export class OcbotChannelForm extends LitElement {
   }
 
   override render() {
-    if (!this.configSchema?.properties) {
-      return html`<div class="settings__empty">No configuration schema available for this channel.</div>`
+    // If gateway returned a schema, use the dynamic schema-driven form
+    if (this.configSchema?.properties) {
+      return this.renderSchemaForm()
+    }
+    // Otherwise, use static credential hints for initial setup
+    return this.renderStaticForm()
+  }
+
+  private renderStaticForm() {
+    const credentials = CHANNEL_CREDENTIAL_HINTS[this.channelId]
+    if (!credentials) {
+      return html`<div class="settings__empty">No configuration available for this channel yet.</div>`
     }
 
-    const allFields = this.getFields()
+    return html`
+      <div class="provider-form provider-form--full">
+        ${this.error ? html`<div class="provider-form__error">${this.error}</div>` : nothing}
+        ${this.success ? html`<div class="provider-form__success">${this.success}</div>` : nothing}
+
+        ${credentials.map(cred => html`
+          <div class="provider-form__field">
+            <label class="provider-form__label">${cred.label}${cred.required ? ' *' : ''}</label>
+            <input
+              type=${cred.sensitive ? 'password' : 'text'}
+              class="provider-form__input"
+              placeholder=${cred.placeholder ?? ''}
+              .value=${String(this.formData[cred.key] ?? '')}
+              @input=${(e: Event) => this.setField(cred.key, (e.target as HTMLInputElement).value)}
+            />
+            ${cred.help ? html`<div class="channels__field-help">${cred.help}</div>` : nothing}
+          </div>
+        `)}
+
+        <div class="provider-form__actions">
+          <button class="provider-form__cancel-btn" @click=${() => this.cancel()}>Cancel</button>
+          <button
+            class="provider-form__save"
+            @click=${() => this.save()}
+            ?disabled=${this.saving || !this.hasRequiredFields(credentials)}
+          >${this.saving ? 'Saving...' : 'Save'}</button>
+        </div>
+      </div>
+    `
+  }
+
+  private hasRequiredFields(credentials: CredentialField[]): boolean {
+    return credentials
+      .filter(c => c.required)
+      .every(c => {
+        const val = this.formData[c.key]
+        return typeof val === 'string' && val.trim().length > 0
+      })
+  }
+
+  private renderSchemaForm() {    const allFields = this.getFields()
     const normalFields = allFields.filter(f => !f.hint.advanced)
     const advancedFields = allFields.filter(f => f.hint.advanced)
 
