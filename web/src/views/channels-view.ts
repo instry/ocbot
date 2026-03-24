@@ -48,11 +48,14 @@ interface ChannelHint {
 }
 
 const CHANNEL_CATALOG: ChannelHint[] = [
-  { id: 'telegram', label: 'Telegram', detailLabel: 'Telegram Bot', icon: 'send', description: 'Bot API — register with @BotFather and get going.' },
-  { id: 'discord', label: 'Discord', detailLabel: 'Discord Bot', icon: 'chat', description: 'Bot API — create a bot in the Developer Portal.' },
-  { id: 'slack', label: 'Slack', detailLabel: 'Slack Bot', icon: 'sessions', description: 'Socket Mode — create a Slack app with bot + app tokens.' },
-  { id: 'irc', label: 'IRC', detailLabel: 'IRC', icon: 'monitor', description: 'Classic IRC with DM/channel routing.' },
-  { id: 'googlechat', label: 'Google Chat', detailLabel: 'Google Chat', icon: 'mail', description: 'Google Workspace Chat app.' },
+  { id: 'telegram', label: 'Telegram', detailLabel: 'Telegram Bot', icon: 'send', description: 'Simplest way to get started — register a bot with @BotFather and get going.' },
+  { id: 'whatsapp', label: 'WhatsApp', detailLabel: 'WhatsApp Web', icon: 'chat', description: 'Works with your own number; recommend a separate phone + eSIM.' },
+  { id: 'discord', label: 'Discord', detailLabel: 'Discord Bot', icon: 'chat', description: 'Very well supported — create a bot in the Developer Portal.' },
+  { id: 'irc', label: 'IRC', detailLabel: 'IRC', icon: 'monitor', description: 'Classic IRC networks with DM/channel routing and pairing controls.' },
+  { id: 'googlechat', label: 'Google Chat', detailLabel: 'Google Chat', icon: 'mail', description: 'Google Workspace Chat app with HTTP webhook.' },
+  { id: 'slack', label: 'Slack', detailLabel: 'Slack Bot', icon: 'sessions', description: 'Supported via Socket Mode.' },
+  { id: 'signal', label: 'Signal', detailLabel: 'Signal REST', icon: 'channels', description: 'signal-cli linked device.' },
+  { id: 'imessage', label: 'iMessage', detailLabel: 'iMessage', icon: 'chat', description: 'macOS — requires imsg CLI.' },
   { id: 'line', label: 'LINE', detailLabel: 'LINE Bot', icon: 'chat', description: 'LINE Messaging API webhook bot.' },
 ]
 

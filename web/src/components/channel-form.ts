@@ -49,6 +49,9 @@ const CHANNEL_CREDENTIAL_HINTS: Record<string, CredentialField[]> = {
   telegram: [
     { key: 'botToken', label: 'Bot Token', placeholder: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11', sensitive: true, required: true, help: 'Get your token from @BotFather on Telegram.' },
   ],
+  whatsapp: [
+    // WhatsApp uses QR-code auth, no token needed — placeholder for future UI
+  ],
   discord: [
     { key: 'token', label: 'Bot Token', placeholder: 'Bot token from Developer Portal', sensitive: true, required: true, help: 'Create a bot at discord.com/developers/applications.' },
   ],
@@ -63,6 +66,15 @@ const CHANNEL_CREDENTIAL_HINTS: Record<string, CredentialField[]> = {
   ],
   googlechat: [
     { key: 'serviceAccountKey', label: 'Service Account Key (JSON)', placeholder: 'Paste JSON key', sensitive: true, required: true, help: 'From Google Cloud Console → IAM → Service Accounts.' },
+  ],
+  signal: [
+    { key: 'account', label: 'Phone Number', placeholder: '+1234567890', required: true, help: 'E.164 format phone number registered with Signal.' },
+    { key: 'cliPath', label: 'signal-cli Path', placeholder: 'signal-cli', help: 'Path to signal-cli binary (default: signal-cli).' },
+    { key: 'httpUrl', label: 'HTTP Daemon URL', placeholder: 'http://localhost:8080', help: 'signal-cli HTTP daemon endpoint.' },
+  ],
+  imessage: [
+    { key: 'cliPath', label: 'imsg CLI Path', placeholder: 'imsg', help: 'Path to imsg binary (default: imsg).' },
+    { key: 'dbPath', label: 'Messages Database Path', placeholder: '~/Library/Messages/chat.db', help: 'Override Messages.app database location (optional).' },
   ],
   line: [
     { key: 'channelAccessToken', label: 'Channel Access Token', placeholder: 'Token from LINE Developers', sensitive: true, required: true },
@@ -173,8 +185,13 @@ export class OcbotChannelForm extends LitElement {
 
   private renderStaticForm() {
     const credentials = CHANNEL_CREDENTIAL_HINTS[this.channelId]
-    if (!credentials) {
-      return html`<div class="settings__empty">No configuration available for this channel yet.</div>`
+    if (!credentials || credentials.length === 0) {
+      return html`
+        <div class="settings__empty">
+          Configuration for this channel is not yet available in the UI.
+          You can configure it manually in Settings &rarr; Config.
+        </div>
+      `
     }
 
     return html`
