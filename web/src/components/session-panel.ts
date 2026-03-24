@@ -1,4 +1,4 @@
-import { LitElement, html, nothing } from 'lit'
+import { LitElement, html } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
 import { svgIcon } from './icons'
@@ -51,42 +51,24 @@ export class OcbotSessionPanel extends LitElement {
   }
 
   private getTitle(s: SessionItem): string {
-    return s.label || s.displayName || s.derivedTitle || s.key
-  }
-
-  private groupByDate(sessions: SessionItem[]): { label: string; items: SessionItem[] }[] {
-    const todayStart = new Date(); todayStart.setHours(0,0,0,0)
-    const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1)
-    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 7)
-
-    const groups: { label: string; items: SessionItem[] }[] = [
-      { label: 'Today', items: [] },
-      { label: 'Yesterday', items: [] },
-      { label: 'Previous 7 days', items: [] },
-      { label: 'Older', items: [] },
-    ]
-
-    for (const s of sessions) {
-      const ts = s.updatedAt ?? 0
-      if (ts >= todayStart.getTime()) groups[0].items.push(s)
-      else if (ts >= yesterdayStart.getTime()) groups[1].items.push(s)
-      else if (ts >= weekStart.getTime()) groups[2].items.push(s)
-      else groups[3].items.push(s)
-    }
-
-    return groups.filter(g => g.items.length > 0)
+    const title = s.label || s.displayName || s.derivedTitle
+    if (title) return title
+    // Fallback: show "New Chat" instead of raw key like "ocbot:1711234567890"
+    if (s.key.startsWith('ocbot:')) return 'New Chat'
+    return s.key
   }
 
   private selectSession(key: string) {
     this.dispatchEvent(new CustomEvent('select-session', { detail: key, bubbles: true, composed: true }))
   }
 
-  private async deleteSession(key: string, e: Event) {
+  private deleteSession(key: string, e: Event) {
     e.stopPropagation()
-    try {
-      await this.gateway.call('sessions.delete', { sessionKey: key })
-      this.sessions = this.sessions.filter(s => s.key !== key)
-    } catch { /* best effort */ }
+    const prev = this.sessions
+    this.sessions = prev.filter(s => s.key !== key)
+    this.gateway.call('sessions.delete', { key }).catch(() => {
+      this.sessions = prev
+    })
   }
 
   private newChat() {
@@ -97,7 +79,6 @@ export class OcbotSessionPanel extends LitElement {
     const filtered = this.searchQuery
       ? this.sessions.filter(s => this.getTitle(s).toLowerCase().includes(this.searchQuery.toLowerCase()))
       : this.sessions
-    const groups = this.groupByDate(filtered)
 
     return html`
       <div class="sub-nav sub-nav--full-height">
@@ -121,27 +102,22 @@ export class OcbotSessionPanel extends LitElement {
         <div class="sub-nav__list">
           ${this.loading ? html`
             <div class="sub-nav__empty">Loading...</div>
-          ` : groups.length === 0 ? html`
+          ` : filtered.length === 0 ? html`
             <div class="sub-nav__empty">No conversations</div>
-          ` : groups.map(group => html`
-            <div class="sub-nav__date-group">
-              <div class="sub-nav__date-label">${group.label}</div>
-              ${group.items.map(s => html`
-                <div
-                  class="sub-nav__item ${s.key === this.activeSessionKey ? 'sub-nav__item--active' : ''}"
-                  role="button"
-                  tabindex="0"
-                  @click=${() => this.selectSession(s.key)}
-                  @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.selectSession(s.key) }}
-                >
-                  <span class="sub-nav__item-title">${this.getTitle(s)}</span>
-                  <button
-                    class="sub-nav__item-delete"
-                    @click=${(e: Event) => this.deleteSession(s.key, e)}
-                    title="Delete"
-                  >${svgIcon('trash', 12)}</button>
-                </div>
-              `)}
+          ` : filtered.map(s => html`
+            <div
+              class="sub-nav__item ${s.key === this.activeSessionKey ? 'sub-nav__item--active' : ''}"
+              role="button"
+              tabindex="0"
+              @click=${() => this.selectSession(s.key)}
+              @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.selectSession(s.key) }}
+            >
+              <span class="sub-nav__item-title">${this.getTitle(s)}</span>
+              <button
+                class="sub-nav__item-delete"
+                @click=${(e: Event) => this.deleteSession(s.key, e)}
+                title="Delete"
+              >${svgIcon('trash', 12)}</button>
             </div>
           `)}
         </div>

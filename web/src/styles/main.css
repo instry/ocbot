@@ -1312,6 +1312,240 @@ ocbot-chat-view {
   background: var(--accent-hover);
 }
 
+.setup-prompt__btn--secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.setup-prompt__btn--secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: transparent;
+}
+
+/* Wizard */
+.wizard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+}
+
+.wizard__container {
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+}
+
+.wizard__logo {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 24px;
+}
+
+.wizard__error {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  font-size: 13px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.wizard__cancel {
+  margin-top: 24px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color var(--duration-fast);
+}
+
+.wizard__cancel:hover {
+  color: var(--text);
+}
+
+/* Wizard step */
+.wizard-step {
+  text-align: left;
+}
+
+.wizard-step__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0 0 16px;
+}
+
+.wizard-step__message {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  margin: 0 0 20px;
+}
+
+.wizard-step__label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-strong);
+  margin-bottom: 12px;
+}
+
+.wizard-step__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wizard-step__option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.wizard-step__option:hover {
+  border-color: var(--accent);
+}
+
+.wizard-step__option--active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.wizard-step__option-label {
+  font-weight: 500;
+}
+
+.wizard-step__option-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.wizard-step__input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--mono);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast) var(--ease-out);
+  margin-bottom: 16px;
+}
+
+.wizard-step__input:focus {
+  border-color: var(--accent);
+}
+
+.wizard-step__input::placeholder {
+  color: var(--muted);
+  font-family: var(--font-body);
+}
+
+.wizard-step__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.wizard-step__btn {
+  padding: 10px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.wizard-step__btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.wizard-step__btn--primary {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-color: var(--accent);
+}
+
+.wizard-step__btn--primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--accent-foreground);
+}
+
+.wizard-step__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wizard-step__checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.wizard-step__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 14px;
+  transition: border-color var(--duration-fast);
+}
+
+.wizard-step__check:hover {
+  border-color: var(--accent);
+}
+
+.wizard-step__progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+}
+
+.wizard-step__spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: wizard-spin 0.7s linear infinite;
+}
+
+@keyframes wizard-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Provider form */
 .provider-form {
   max-width: 520px;

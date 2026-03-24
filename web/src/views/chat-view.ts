@@ -97,6 +97,7 @@ export class OcbotChatView extends LitElement {
   // Input history
   private inputHistory: string[] = []
   private historyIndex = -1
+  private titleGenerated = false
 
   @query('#chat-input') private inputEl!: HTMLTextAreaElement
   @query('#messages-container') private messagesEl!: HTMLDivElement
@@ -133,6 +134,7 @@ export class OcbotChatView extends LitElement {
       this.error = null
       this.toolCards = new Map()
       this.canonicalSessionKey = null
+      this.titleGenerated = false
       this.loadHistory()
     }
   }
@@ -198,6 +200,8 @@ export class OcbotChatView extends LitElement {
             timestamp: m.timestamp,
           }))
         this.scrollToBottom()
+        // Mark title as already generated for existing sessions
+        if (this.messages.length > 0) this.titleGenerated = true
       }
     } catch { /* new session */ }
   }
@@ -239,6 +243,7 @@ export class OcbotChatView extends LitElement {
         this.sending = false
         this.toolCards = new Map()
         this.scrollToBottom()
+        this.maybeGenerateTitle()
         break
       }
       case 'aborted': {
@@ -338,6 +343,30 @@ export class OcbotChatView extends LitElement {
       await this.gateway.call('chat.abort', {
         sessionKey: this.sessionKey,
         runId: this.runId,
+      })
+    } catch { /* best effort */ }
+  }
+
+  private async maybeGenerateTitle() {
+    if (this.titleGenerated) return
+    // Only generate after the first exchange (1 user + 1 assistant)
+    const userMsgs = this.messages.filter(m => m.role === 'user')
+    const assistantMsgs = this.messages.filter(m => m.role === 'assistant')
+    if (userMsgs.length !== 1 || assistantMsgs.length !== 1) return
+    this.titleGenerated = true
+
+    const userText = messageText(userMsgs[0]).trim()
+    if (!userText) return
+
+    // Use first user message (truncated) as the title
+    const title = userText.length > 30
+      ? userText.slice(0, 29) + '…'
+      : userText
+
+    try {
+      await this.gateway.call('sessions.patch', {
+        key: this.sessionKey,
+        label: title,
       })
     } catch { /* best effort */ }
   }
