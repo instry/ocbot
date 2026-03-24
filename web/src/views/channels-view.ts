@@ -16,6 +16,14 @@ interface ChannelAccount {
   lastOutboundAt?: number
 }
 
+interface PairingRequest {
+  id: string
+  code: string
+  createdAt: string
+  lastSeenAt: string
+  meta?: Record<string, string>
+}
+
 interface ChannelsStatusResult {
   channelOrder?: string[]
   channelLabels?: Record<string, string>
@@ -53,8 +61,13 @@ export class OcbotChannelsView extends LitElement {
   @state() private channelConfig: Record<string, unknown> | null = null
   @state() private channelConfigHash: string | null = null
   @state() private showAllUnconfigured = false
+  @state() private pairingRequests: PairingRequest[] = []
+  @state() private pairingLoading = false
+  @state() private pairingError: string | null = null
+  @state() private approving = new Set<string>()
 
   private refreshTimer: ReturnType<typeof setInterval> | null = null
+  private pairingTimer: ReturnType<typeof setInterval> | null = null
   private initialChannelHandled = false
 
   override connectedCallback() {
@@ -69,6 +82,7 @@ export class OcbotChannelsView extends LitElement {
       clearInterval(this.refreshTimer)
       this.refreshTimer = null
     }
+    this.stopPairingPoll()
   }
 
   override updated(changed: Map<string, unknown>) {
@@ -121,14 +135,70 @@ export class OcbotChannelsView extends LitElement {
     } catch {
       this.channelConfig = {}
     }
+    this.startPairingPoll(channelId)
   }
 
   private deselectChannel() {
     this.selectedChannelId = null
     this.channelConfig = null
     this.channelConfigHash = null
+    this.stopPairingPoll()
     this.dispatchEvent(new CustomEvent('channel-navigated', { detail: null }))
     this.loadStatus()
+  }
+
+  private startPairingPoll(channelId: string) {
+    this.stopPairingPoll()
+    this.loadPairingRequests(channelId)
+    this.pairingTimer = setInterval(() => this.loadPairingRequests(channelId), 10_000)
+  }
+
+  private stopPairingPoll() {
+    if (this.pairingTimer) {
+      clearInterval(this.pairingTimer)
+      this.pairingTimer = null
+    }
+    this.pairingRequests = []
+    this.pairingError = null
+  }
+
+  private async loadPairingRequests(channelId: string) {
+    try {
+      const result = await this.gateway.call<{
+        channel: string
+        requests: PairingRequest[]
+      }>('channel.pairing.list', { channel: channelId })
+      this.pairingRequests = result?.requests ?? []
+      this.pairingError = null
+    } catch {
+      // Channel may not support pairing — silently ignore
+      this.pairingRequests = []
+    }
+  }
+
+  private async approvePairing(channelId: string, code: string) {
+    const key = `${channelId}:${code}`
+    this.approving = new Set([...this.approving, key])
+    this.requestUpdate()
+    try {
+      await this.gateway.call('channel.pairing.approve', { channel: channelId, code })
+      await this.loadPairingRequests(channelId)
+    } catch (err) {
+      this.pairingError = err instanceof Error ? err.message : String(err)
+    } finally {
+      this.approving.delete(key)
+      this.approving = new Set(this.approving)
+      this.requestUpdate()
+    }
+  }
+
+  private timeAgo(isoString: string): string {
+    const diff = Date.now() - new Date(isoString).getTime()
+    const mins = Math.floor(diff / 60_000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hours = Math.floor(mins / 60)
+    return `${hours}h ago`
   }
 
   private async onChannelSaved(channelId: string) {
@@ -276,7 +346,47 @@ export class OcbotChannelsView extends LitElement {
               ></ocbot-channel-form>
             `}
           </div>
+          ${this.isConfigured(id) ? this.renderPairingSection(id) : nothing}
         </div>
+      </div>
+    `
+  }
+
+  private renderPairingSection(channelId: string) {
+    if (this.pairingRequests.length === 0 && !this.pairingError) return nothing
+
+    return html`
+      <div style="margin-top:28px; border-top:1px solid var(--border); padding-top:20px;">
+        <h3 style="font-size:15px; font-weight:600; color:var(--text-strong); margin:0 0 4px 0;">Pairing Requests</h3>
+        <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0;">
+          Users waiting for approval to message your bot.
+        </p>
+        ${this.pairingError ? html`
+          <div style="color:var(--danger); margin-bottom:8px; font-size:13px;">${this.pairingError}</div>
+        ` : nothing}
+        ${this.pairingRequests.map(req => {
+          const key = `${channelId}:${req.code}`
+          const isApproving = this.approving.has(key)
+          return html`
+            <div class="session-card" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:13px; font-weight:500; color:var(--text-strong);">${req.id}</span>
+                  <code style="font-size:11px; padding:1px 6px; border-radius:3px; background:var(--surface); color:var(--muted);">${req.code}</code>
+                </div>
+                <div style="font-size:12px; color:var(--muted); margin-top:2px;">
+                  Requested ${this.timeAgo(req.createdAt)}
+                </div>
+              </div>
+              <button
+                class="btn btn--sm btn--primary"
+                style="flex-shrink:0; padding:4px 14px; font-size:12px; border-radius:6px; cursor:pointer; background:var(--accent); color:#fff; border:none;"
+                ?disabled=${isApproving}
+                @click=${() => this.approvePairing(channelId, req.code)}
+              >${isApproving ? 'Approving...' : 'Approve'}</button>
+            </div>
+          `
+        })}
       </div>
     `
   }
