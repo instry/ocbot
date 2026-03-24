@@ -9,7 +9,7 @@ import zipfile
 import urllib.request
 import hashlib
 from pathlib import Path
-from common import get_logger, get_source_dir, get_project_root, get_agent_root, sync_extension_version, get_out_dir_name
+from common import get_logger, get_source_dir, get_project_root, get_agent_root, sync_extension_version, get_out_dir_name, get_product_version, get_chromium_version, get_openclaw_version
 
 # Node.js version to embed
 NODE_VERSION = 'v22.16.0'
@@ -482,6 +482,14 @@ def _build_single_arch(args, arch=None):
 
 def build_chromium(args):
     """Build Chromium, dispatching to single-arch or universal build."""
+    logger = get_logger()
+    logger.info("=" * 50)
+    logger.info(f"  Ocbot     : {get_product_version()}")
+    logger.info(f"  Chromium  : {get_chromium_version()}")
+    logger.info(f"  OpenClaw  : {get_openclaw_version()}")
+    logger.info(f"  Node.js   : {NODE_VERSION}")
+    logger.info("=" * 50)
+
     arch = getattr(args, 'arch', None)
     # Default to universal for official macOS builds
     if arch is None and args.official and sys.platform == 'darwin':
