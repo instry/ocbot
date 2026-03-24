@@ -2,8 +2,10 @@ import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
 
-// --- Static UI hints for providers (API key URLs, regions, placeholders) ---
-// Model lists come dynamically from gateway models.list
+// --- Static provider configuration including model catalogs ---
+// Model IDs are maintained here to avoid dependency on gateway models.list,
+// which mixes sources (plugins, user config, models.json) and can produce
+// incorrect model IDs for a given provider.
 
 interface ProviderHint {
   label: string
@@ -12,7 +14,7 @@ interface ProviderHint {
   apiKeyUrl?: string
   apiKeyPlaceholder?: string
   regions?: { id: string; label: string; baseUrl: string }[]
-  aliases?: string[]  // alternative provider IDs in models.list
+  models?: { id: string; name: string }[]
 }
 
 const PROVIDER_HINTS: Record<string, ProviderHint> = {
@@ -22,6 +24,10 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     apiKeyUrl: 'https://aistudio.google.com/apikey',
     apiKeyPlaceholder: 'AI...',
+    models: [
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    ],
   },
   anthropic: {
     label: 'Anthropic',
@@ -29,6 +35,10 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     defaultBaseUrl: 'https://api.anthropic.com',
     apiKeyUrl: 'https://console.anthropic.com/settings/keys',
     apiKeyPlaceholder: 'sk-ant-...',
+    models: [
+      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
+      { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
+    ],
   },
   minimax: {
     label: 'MiniMax',
@@ -40,6 +50,9 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
       { id: 'global', label: 'Global', baseUrl: 'https://api.minimax.io/v1' },
       { id: 'cn', label: 'China', baseUrl: 'https://api.minimaxi.com/v1' },
     ],
+    models: [
+      { id: 'MiniMax-M2.5', name: 'MiniMax M2.5' },
+    ],
   },
   openai: {
     label: 'OpenAI',
@@ -47,6 +60,12 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     defaultBaseUrl: 'https://api.openai.com/v1',
     apiKeyUrl: 'https://platform.openai.com/api-keys',
     apiKeyPlaceholder: 'sk-...',
+    models: [
+      { id: 'gpt-4.1', name: 'GPT-4.1' },
+      { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini' },
+      { id: 'o3', name: 'o3' },
+      { id: 'o4-mini', name: 'o4 Mini' },
+    ],
   },
   deepseek: {
     label: 'DeepSeek',
@@ -54,6 +73,10 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     defaultBaseUrl: 'https://api.deepseek.com/v1',
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
     apiKeyPlaceholder: 'sk-...',
+    models: [
+      { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner' },
+    ],
   },
   xai: {
     label: 'xAI',
@@ -61,6 +84,10 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     defaultBaseUrl: 'https://api.x.ai/v1',
     apiKeyUrl: 'https://console.x.ai/team/default/api-keys',
     apiKeyPlaceholder: 'xai-...',
+    models: [
+      { id: 'grok-3', name: 'Grok 3' },
+      { id: 'grok-3-mini', name: 'Grok 3 Mini' },
+    ],
   },
   zai: {
     label: 'Z-AI (Zhipu)',
@@ -71,6 +98,9 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     regions: [
       { id: 'global', label: 'Global', baseUrl: 'https://api.z.ai/api/paas/v4' },
       { id: 'cn', label: 'China', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+    ],
+    models: [
+      { id: 'glm-4-plus', name: 'GLM-4 Plus' },
     ],
   },
   moonshot: {
@@ -83,7 +113,11 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
       { id: 'global', label: 'Global', baseUrl: 'https://api.moonshot.ai/v1' },
       { id: 'cn', label: 'China', baseUrl: 'https://api.moonshot.cn/v1' },
     ],
-    aliases: ['kimi-coding'],
+    models: [
+      { id: 'kimi-k2.5', name: 'Kimi K2.5' },
+      { id: 'kimi-k2-thinking', name: 'Kimi K2 Thinking' },
+      { id: 'kimi-k2-turbo', name: 'Kimi K2 Turbo' },
+    ],
   },
   qwen: {
     label: 'Qwen',
@@ -94,6 +128,10 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     regions: [
       { id: 'global', label: 'Global', baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' },
       { id: 'cn', label: 'China', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+    ],
+    models: [
+      { id: 'qwen3-coder-plus', name: 'Qwen3 Coder Plus' },
+      { id: 'qwen3.5-plus', name: 'Qwen3.5 Plus' },
     ],
   },
   openrouter: {
@@ -109,6 +147,10 @@ const PROVIDER_HINTS: Record<string, ProviderHint> = {
     defaultBaseUrl: 'https://api.mistral.ai/v1',
     apiKeyUrl: 'https://console.mistral.ai/api-keys',
     apiKeyPlaceholder: 'API key',
+    models: [
+      { id: 'codestral-latest', name: 'Codestral' },
+      { id: 'mistral-large-latest', name: 'Mistral Large' },
+    ],
   },
   ollama: {
     label: 'Local (Ollama)',
@@ -209,46 +251,16 @@ export class OcbotProviderForm extends LitElement {
     }
   }
 
-  private async loadModels() {
-    this.loading = true
-    try {
-      const result = await this.gateway.call<{ models?: GatewayModel[] }>('models.list')
-      const models = result?.models ?? []
-      const byProvider: Record<string, GatewayModel[]> = {}
-      for (const m of models) {
-        if (!byProvider[m.provider]) byProvider[m.provider] = []
-        byProvider[m.provider].push(m)
+  private loadModels() {
+    const byProvider: Record<string, GatewayModel[]> = {}
+    for (const [id, hint] of Object.entries(PROVIDER_HINTS)) {
+      if (hint.models?.length) {
+        byProvider[id] = hint.models.map(m => ({ ...m, provider: id }))
       }
-
-      // Merge alias provider models into the canonical provider ID
-      for (const [id, hint] of Object.entries(PROVIDER_HINTS)) {
-        if (!hint.aliases) continue
-        for (const alias of hint.aliases) {
-          if (byProvider[alias]) {
-            if (!byProvider[id]) byProvider[id] = []
-            byProvider[id].push(...byProvider[alias])
-          }
-        }
-      }
-
-      // Deduplicate models by id within each provider
-      for (const [id, models] of Object.entries(byProvider)) {
-        const seen = new Set<string>()
-        byProvider[id] = models.filter(m => {
-          if (seen.has(m.id)) return false
-          seen.add(m.id)
-          return true
-        })
-      }
-
-      this.modelsByProvider = byProvider
-      // Only show curated providers (ordered by CURATED_PROVIDER_IDS)
-      this.providers = CURATED_PROVIDER_IDS.filter(id => PROVIDER_HINTS[id])
-    } catch {
-      this.error = 'Failed to load models'
-    } finally {
-      this.loading = false
     }
+    this.modelsByProvider = byProvider
+    this.providers = CURATED_PROVIDER_IDS.filter(id => PROVIDER_HINTS[id])
+    this.loading = false
   }
 
   private getHint(provider: string): ProviderHint {
