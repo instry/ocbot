@@ -12,8 +12,9 @@ import '../views/agents-view'
 import '../views/channels-view'
 import '../views/usage-view'
 import '../views/skills-view'
+import '../views/models-view'
 
-type Tab = 'chat' | 'sessions' | 'cron' | 'agents' | 'skills' | 'channels' | 'usage' | 'settings'
+type Tab = 'chat' | 'sessions' | 'cron' | 'agents' | 'skills' | 'models' | 'channels' | 'usage' | 'settings'
 
 @customElement('ocbot-app')
 export class OcbotApp extends LitElement {
@@ -74,7 +75,7 @@ export class OcbotApp extends LitElement {
   private _readHash = () => {
     const raw = window.location.hash.replace('#/', '').split('?')[0] || 'chat'
     const parts = raw.split('/')
-    const validTabs: Tab[] = ['chat', 'sessions', 'cron', 'agents', 'skills', 'channels', 'usage', 'settings']
+    const validTabs: Tab[] = ['chat', 'sessions', 'cron', 'agents', 'skills', 'models', 'channels', 'usage', 'settings']
 
     if (parts[0] === 'channels' && parts[1]) {
       this.tab = 'channels'
@@ -191,10 +192,12 @@ export class OcbotApp extends LitElement {
             }
           }}
         ></ocbot-channels-view>`
+      case 'models':
+        return html`<ocbot-models-view .gateway=${this.gateway} @models-changed=${this._onModelsChanged}></ocbot-models-view>`
       case 'usage':
         return html`<ocbot-usage-view .gateway=${this.gateway}></ocbot-usage-view>`
       case 'settings':
-        return html`<ocbot-settings-view .gateway=${this.gateway} @models-changed=${this._onModelsChanged}></ocbot-settings-view>`
+        return html`<ocbot-settings-view .gateway=${this.gateway}></ocbot-settings-view>`
       default:
         return html``
     }

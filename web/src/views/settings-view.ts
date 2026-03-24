@@ -1,14 +1,11 @@
 import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
-import type { ConfiguredProvider } from '../components/provider-form'
 import { svgIcon } from '../components/icons'
-import '../components/provider-form'
 
 declare const __OCBOT_VERSION__: string
 
-type SettingsTab = 'models' | 'general' | 'config' | 'about'
-type ModelsView = 'list' | 'add' | 'edit'
+type SettingsTab = 'general' | 'about'
 type ThemeMode = 'system' | 'light' | 'dark'
 
 @customElement('ocbot-settings-view')
@@ -17,17 +14,8 @@ export class OcbotSettingsView extends LitElement {
 
   @property({ attribute: false }) gateway!: GatewayClient
 
-  @state() activeTab: SettingsTab = 'models'
-  @state() modelsView: ModelsView = 'list'
+  @state() activeTab: SettingsTab = 'general'
   @state() theme: ThemeMode = 'system'
-  @state() providers: ConfiguredProvider[] = []
-  @state() loadingProviders = true
-  @state() editingProvider: ConfiguredProvider | null = null
-  @state() configRaw = ''
-  @state() configHash = ''
-  @state() configSaving = false
-  @state() configError: string | null = null
-  @state() configSuccess = false
 
   override connectedCallback() {
     super.connectedCallback()
@@ -36,47 +24,6 @@ export class OcbotSettingsView extends LitElement {
       this.theme = stored
     }
     this.applyTheme(this.theme)
-    this.loadProviders()
-  }
-
-  private async loadProviders() {
-    this.loadingProviders = true
-    try {
-      const result = await this.gateway.call<{ config?: Record<string, any>; hash?: string }>('config.get')
-      const config = result?.config ?? {}
-      const profiles: Record<string, any> = config?.auth?.profiles ?? {}
-      const defaultModel: string = config?.agents?.defaults?.model?.primary ?? ''
-
-      const list: ConfiguredProvider[] = []
-      for (const [key, profile] of Object.entries(profiles)) {
-        const provider = profile.provider ?? key.split(':')[0] ?? ''
-        const hint = this.getProviderLabel(provider)
-        list.push({
-          profileKey: key,
-          provider,
-          label: hint,
-          apiKey: profile.apiKey ?? '',
-          baseUrl: profile.baseUrl,
-          modelId: defaultModel.startsWith(`${provider}/`) ? defaultModel.split('/').slice(1).join('/') : undefined,
-          isDefault: defaultModel.startsWith(`${provider}/`),
-        })
-      }
-      this.providers = list
-    } catch {
-      this.providers = []
-    } finally {
-      this.loadingProviders = false
-    }
-  }
-
-  private getProviderLabel(provider: string): string {
-    const labels: Record<string, string> = {
-      anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google',
-      deepseek: 'DeepSeek', xai: 'xAI', openrouter: 'OpenRouter',
-      mistral: 'Mistral', qwen: 'Qwen', moonshot: 'Kimi / Moonshot',
-      minimax: 'MiniMax', ollama: 'Ollama',
-    }
-    return labels[provider] ?? provider
   }
 
   private setTheme(mode: ThemeMode) {
@@ -102,47 +49,9 @@ export class OcbotSettingsView extends LitElement {
     }
   }
 
-  private async deleteProvider(profileKey: string) {
-    try {
-      const result = await this.gateway.call<{ config?: Record<string, any>; hash?: string }>('config.get')
-      const config = result?.config ?? {}
-      const hash = result?.hash ?? ''
-      const profiles = { ...(config?.auth?.profiles ?? {}) }
-      delete profiles[profileKey]
-
-      const patch: Record<string, any> = {
-        auth: { profiles },
-      }
-
-      await this.gateway.call('config.patch', {
-        baseHash: hash,
-        raw: JSON.stringify(patch),
-      })
-
-      this.dispatchEvent(new CustomEvent('models-changed', { bubbles: true, composed: true }))
-      await this.loadProviders()
-    } catch (err) {
-      console.error('Failed to delete provider:', err)
-    }
-  }
-
-  private handleProviderSaved() {
-    this.modelsView = 'list'
-    this.editingProvider = null
-    this.loadProviders()
-    this.dispatchEvent(new CustomEvent('models-changed', { bubbles: true, composed: true }))
-  }
-
-  private handleProviderCancel() {
-    this.modelsView = 'list'
-    this.editingProvider = null
-  }
-
   override render() {
     const tabs: { id: SettingsTab; icon: string; label: string }[] = [
-      { id: 'models', icon: 'cpu', label: 'Models' },
       { id: 'general', icon: 'sliders', label: 'General' },
-      { id: 'config', icon: 'config', label: 'Config' },
       { id: 'about', icon: 'info', label: 'About' },
     ]
 
@@ -155,7 +64,7 @@ export class OcbotSettingsView extends LitElement {
             ${tabs.map(t => html`
               <button
                 class="sub-nav__btn ${this.activeTab === t.id ? 'sub-nav__btn--active' : ''}"
-                @click=${() => { this.activeTab = t.id; if (t.id === 'models') this.modelsView = 'list'; if (t.id === 'config') this._loadConfig() }}
+                @click=${() => { this.activeTab = t.id }}
               >
                 <span class="sub-nav__icon">${svgIcon(t.icon, 16)}</span>
                 <span>${t.label}</span>
@@ -166,109 +75,8 @@ export class OcbotSettingsView extends LitElement {
 
         <!-- Content area -->
         <div class="settings__content">
-          ${this.activeTab === 'models' ? this._renderModelsTab() : nothing}
           ${this.activeTab === 'general' ? this._renderGeneralTab() : nothing}
-          ${this.activeTab === 'config' ? this._renderConfigTab() : nothing}
           ${this.activeTab === 'about' ? this._renderAboutTab() : nothing}
-        </div>
-      </div>
-    `
-  }
-
-  /* ───────── Models Tab ───────── */
-
-  private _renderModelsTab() {
-    if (this.modelsView === 'add') {
-      return html`
-        <div class="settings__page">
-          <button class="settings__back-btn" @click=${() => this.handleProviderCancel()}>
-            &larr; Back to Models
-          </button>
-          <h2 class="settings__page-title">Add Provider</h2>
-          <div class="settings__form-container">
-            <ocbot-provider-form
-              .gateway=${this.gateway}
-              @provider-saved=${() => this.handleProviderSaved()}
-              @provider-cancel=${() => this.handleProviderCancel()}
-            ></ocbot-provider-form>
-          </div>
-        </div>
-      `
-    }
-
-    if (this.modelsView === 'edit' && this.editingProvider) {
-      return html`
-        <div class="settings__page">
-          <button class="settings__back-btn" @click=${() => this.handleProviderCancel()}>
-            &larr; Back to Models
-          </button>
-          <h2 class="settings__page-title">Edit Provider</h2>
-          <p class="settings__page-subtitle">${this.editingProvider.label}</p>
-          <div class="settings__form-container">
-            <ocbot-provider-form
-              .gateway=${this.gateway}
-              .editProfileKey=${this.editingProvider.profileKey}
-              .editData=${this.editingProvider}
-              @provider-saved=${() => this.handleProviderSaved()}
-              @provider-cancel=${() => this.handleProviderCancel()}
-            ></ocbot-provider-form>
-          </div>
-        </div>
-      `
-    }
-
-    // List view
-    return html`
-      <div class="settings__page">
-        <h2 class="settings__page-title">Models</h2>
-        <p class="settings__page-subtitle">Manage your AI model providers and API keys.</p>
-
-        <div class="settings__provider-list">
-          ${this.loadingProviders ? html`
-            <div class="settings__empty">Loading...</div>
-          ` : this.providers.length === 0 ? html`
-            <div class="settings__empty">No providers configured yet. Add one to get started.</div>
-          ` : this.providers.map(p => this._renderProviderCard(p))}
-
-          <button
-            class="settings__add-btn"
-            @click=${() => { this.modelsView = 'add' }}
-          >+ Add Provider</button>
-        </div>
-      </div>
-    `
-  }
-
-  private _renderProviderCard(p: ConfiguredProvider) {
-    const initials = p.label.slice(0, 2).toUpperCase()
-    return html`
-      <div class="settings__provider-card ${p.isDefault ? 'settings__provider-card--default' : ''}">
-        <div class="settings__provider-info">
-          <div class="settings__provider-avatar">${initials}</div>
-          <div class="settings__provider-details">
-            <div class="settings__provider-name-row">
-              <span class="settings__provider-name">${p.profileKey}</span>
-              <span class="settings__provider-badge">${p.label}</span>
-              ${p.isDefault ? html`
-                <span class="settings__provider-default-badge">&#9733; Default</span>
-              ` : nothing}
-            </div>
-            ${p.modelId ? html`
-              <div class="settings__provider-model">${p.modelId}</div>
-            ` : nothing}
-          </div>
-        </div>
-        <div class="settings__provider-actions">
-          <button
-            class="settings__icon-btn"
-            title="Edit"
-            @click=${() => { this.editingProvider = p; this.modelsView = 'edit' }}
-          >&#9998;</button>
-          <button
-            class="settings__icon-btn settings__icon-btn--danger"
-            title="Delete"
-            @click=${() => this.deleteProvider(p.profileKey)}
-          >&#10005;</button>
         </div>
       </div>
     `
@@ -315,64 +123,6 @@ export class OcbotSettingsView extends LitElement {
         </div>
       </div>
     `
-  }
-
-  private _renderConfigTab() {
-    return html`
-      <div class="settings__tab-content">
-        <div class="settings__tab-header">
-          <h2 class="settings__tab-title">Configuration</h2>
-          <p class="settings__tab-desc">Advanced: edit openclaw.json directly</p>
-        </div>
-        <div style="max-width:640px;">
-          ${this.configError ? html`<div class="provider-form__error">${this.configError}</div>` : nothing}
-          ${this.configSuccess ? html`<div class="provider-form__success">Configuration saved</div>` : nothing}
-          <textarea
-            class="provider-form__input"
-            style="font-family:var(--mono); min-height:400px; resize:vertical; line-height:1.5;"
-            .value=${this.configRaw}
-            @input=${(e: Event) => { this.configRaw = (e.target as HTMLTextAreaElement).value; this.configSuccess = false }}
-          ></textarea>
-          <div style="display:flex; gap:8px; margin-top:12px;">
-            <button class="provider-form__save" ?disabled=${this.configSaving} @click=${this._saveConfig}>
-              ${this.configSaving ? 'Saving...' : 'Save'}
-            </button>
-            <button class="provider-form__cancel-btn" @click=${this._loadConfig}>Reload</button>
-          </div>
-        </div>
-      </div>
-    `
-  }
-
-  private async _loadConfig() {
-    try {
-      const result = await this.gateway.call<{ raw?: string; hash?: string }>('config.get')
-      this.configRaw = result?.raw ?? JSON.stringify(result, null, 2)
-      this.configHash = result?.hash ?? ''
-      this.configError = null
-    } catch (err) {
-      this.configError = err instanceof Error ? err.message : String(err)
-    }
-  }
-
-  private async _saveConfig() {
-    this.configSaving = true
-    this.configError = null
-    this.configSuccess = false
-    try {
-      await this.gateway.call('config.apply', {
-        baseHash: this.configHash,
-        raw: this.configRaw,
-      })
-      this.configSuccess = true
-      this.dispatchEvent(new CustomEvent('models-changed', { bubbles: true, composed: true }))
-      // Reload to get updated hash
-      await this._loadConfig()
-    } catch (err) {
-      this.configError = err instanceof Error ? err.message : String(err)
-    } finally {
-      this.configSaving = false
-    }
   }
 
   private _renderAboutTab() {

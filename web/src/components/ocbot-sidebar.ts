@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { svgIcon } from './icons'
 
-export type Tab = 'chat' | 'sessions' | 'cron' | 'agents' | 'skills' | 'channels' | 'usage' | 'config' | 'settings'
+export type Tab = 'chat' | 'sessions' | 'cron' | 'agents' | 'skills' | 'models' | 'channels' | 'usage' | 'config' | 'settings'
 
 interface NavItem {
   id: Tab
@@ -18,6 +18,7 @@ const NAV_GROUPS: NavItem[][] = [
     { id: 'agents', label: 'Agents', icon: 'agents' },
     { id: 'skills', label: 'Skills', icon: 'skills' },
     { id: 'cron', label: 'Cron', icon: 'cron' },
+    { id: 'models', label: 'Models', icon: 'cpu' },
     { id: 'channels', label: 'Channels', icon: 'channels' },
   ],
   [
