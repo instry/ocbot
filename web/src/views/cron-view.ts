@@ -3,15 +3,48 @@ import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
 import { svgIcon } from '../components/icons'
 
+interface CronSchedule {
+  kind: 'cron' | 'every' | 'at'
+  expr?: string
+  tz?: string
+  everyMs?: number
+  at?: string
+}
+
+interface CronPayload {
+  kind: 'agentTurn' | 'systemEvent'
+  message?: string
+  text?: string
+}
+
+interface CronJobState {
+  nextRunAtMs?: number
+  lastRunAtMs?: number
+  lastRunStatus?: 'ok' | 'error' | 'skipped'
+  lastError?: string
+}
+
 interface CronJob {
   id: string
-  label?: string
-  schedule?: string
-  enabled?: boolean
-  lastRunAt?: number
-  lastRunStatus?: string
-  nextRunAt?: number
+  name: string
+  description?: string
+  enabled: boolean
+  schedule: CronSchedule
+  payload: CronPayload
+  state: CronJobState
 }
+
+interface CronRunEntry {
+  jobId: string
+  ranAtMs: number
+  status: 'ok' | 'error' | 'skipped'
+  error?: string
+  summary?: string
+  durationMs?: number
+}
+
+type FormMode = 'create' | 'edit'
+type ScheduleKind = 'cron' | 'every' | 'at'
 
 @customElement('ocbot-cron-view')
 export class OcbotCronView extends LitElement {
@@ -22,6 +55,21 @@ export class OcbotCronView extends LitElement {
   @state() jobs: CronJob[] = []
   @state() loading = true
   @state() error: string | null = null
+
+  @state() private formOpen = false
+  @state() private formMode: FormMode = 'create'
+  @state() private formEditId: string | null = null
+  @state() private formName = ''
+  @state() private formScheduleKind: ScheduleKind = 'cron'
+  @state() private formScheduleValue = ''
+  @state() private formMessage = ''
+  @state() private formSaving = false
+
+  @state() private expandedJobId: string | null = null
+  @state() private runs: CronRunEntry[] = []
+  @state() private runsLoading = false
+
+  @state() private confirmDeleteId: string | null = null
 
   private unsubCron?: () => void
 
