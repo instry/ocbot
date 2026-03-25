@@ -157,6 +157,37 @@ export class OcbotCronView extends LitElement {
     "></span>`
   }
 
+  private openEditForm(job: CronJob) {
+    this.formOpen = true
+    this.formMode = 'edit'
+    this.formEditId = job.id
+    this.formName = job.name ?? ''
+    this.formScheduleKind = job.schedule?.kind ?? 'cron'
+    switch (job.schedule?.kind) {
+      case 'cron': this.formScheduleValue = job.schedule.expr ?? ''; break
+      case 'every': {
+        const ms = job.schedule.everyMs ?? 0
+        if (ms >= 3600000) this.formScheduleValue = `${ms / 3600000}h`
+        else this.formScheduleValue = `${ms / 60000}m`
+        break
+      }
+      case 'at': this.formScheduleValue = job.schedule.at ?? ''; break
+      default: this.formScheduleValue = ''
+    }
+    const p = job.payload
+    this.formMessage = p?.kind === 'agentTurn' ? (p.message ?? '') : (p?.text ?? '')
+  }
+
+  private async removeJob(id: string) {
+    try {
+      await this.gateway.call('cron.remove', { id })
+      this.confirmDeleteId = null
+      await this.loadJobs()
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : String(err)
+    }
+  }
+
   private openCreateForm() {
     this.formOpen = true
     this.formMode = 'create'
@@ -335,7 +366,8 @@ export class OcbotCronView extends LitElement {
                 border:1px solid var(--border);
                 border-radius:8px;
                 background:var(--surface, var(--bg));
-              ">
+                cursor:pointer;
+              " @click=${() => this.openEditForm(job)}>
                 <div style="display:flex; align-items:center; gap:10px;">
                   ${this.statusDot(job)}
                   <div style="flex:1; min-width:0;">
@@ -365,6 +397,26 @@ export class OcbotCronView extends LitElement {
                       title=${job.enabled ? 'Pause' : 'Resume'}
                       style="min-width:32px; padding:4px 8px;"
                     >${job.enabled ? '\u23F8' : '\u25B6'}</button>
+                    ${this.confirmDeleteId === job.id ? html`
+                      <button
+                        class="btn btn--sm btn--danger"
+                        @click=${(e: Event) => { e.stopPropagation(); this.removeJob(job.id) }}
+                        style="min-width:32px; padding:4px 8px;"
+                        title="Confirm delete"
+                      >Yes</button>
+                      <button
+                        class="btn btn--sm"
+                        @click=${(e: Event) => { e.stopPropagation(); this.confirmDeleteId = null }}
+                        style="min-width:32px; padding:4px 8px;"
+                      >No</button>
+                    ` : html`
+                      <button
+                        class="btn btn--sm"
+                        @click=${(e: Event) => { e.stopPropagation(); this.confirmDeleteId = job.id }}
+                        title="Delete"
+                        style="min-width:32px; padding:4px 8px; color:var(--danger, #e53e3e);"
+                      >&#128465;</button>
+                    `}
                   </div>
                 </div>
               </div>
