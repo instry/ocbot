@@ -2,13 +2,12 @@ import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
 import {
-  browseMarketplaceSkills,
+  listMarketplaceSkills,
   searchMarketplaceSkills,
   getMarketplaceSkillDetail,
   type MarketplaceSkill,
   type MarketplaceSearchResult,
   type MarketplaceSkillDetail,
-  type MarketplaceSearchResponse,
 } from '../lib/clawhub-client'
 
 // ── Types (mirrors gateway skills.status response) ──
@@ -113,10 +112,9 @@ export class OcbotSkillsView extends LitElement {
   @state() private installResult: Record<string, { ok: boolean; message: string }> = {}
 
   // ── Marketplace state ──
-  @state() private hubSkills: MarketplaceSearchResult[] = []
+  @state() private hubSkills: MarketplaceSkill[] = []
   @state() private hubSearchResults: MarketplaceSearchResult[] = []
   @state() private hubLoading = false
-  @state() private hubLoadingMore = false
   @state() private hubError: string | null = null
   @state() private hubLoaded = false
   @state() private hubTotal: number | null = null
@@ -129,6 +127,7 @@ export class OcbotSkillsView extends LitElement {
   override connectedCallback() {
     super.connectedCallback()
     this.loadLocalSkills()
+    this.fetchHubTotal()
   }
 
   // ── Data loading ──
@@ -146,38 +145,40 @@ export class OcbotSkillsView extends LitElement {
     }
   }
 
+  /** Fetch hub total count on page load. Only use if API returns total explicitly. */
+  private async fetchHubTotal() {
+    try {
+      const resp = await listMarketplaceSkills(1, 0)
+      if (resp.total != null) this.hubTotal = resp.total
+    } catch { /* ignore */ }
+  }
+
+  /** Load all marketplace skills by paginating through all pages. */
   private async loadHubSkills() {
     if (this.hubLoaded) return
     this.hubLoading = true
     this.hubError = null
     try {
-      const resp = await browseMarketplaceSkills(100)
-      this.hubSkills = resp.results
-      if (resp.total != null) this.hubTotal = resp.total
-      else this.hubTotal = resp.results.length
+      const all: MarketplaceSkill[] = []
+      const PAGE = 200
+      let offset = 0
+      let total: number | undefined
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const resp = await listMarketplaceSkills(PAGE, offset)
+        if (resp.total != null) total = resp.total
+        all.push(...resp.items)
+        if (resp.items.length < PAGE) break   // last page
+        offset += resp.items.length
+        if (total != null && all.length >= total) break
+      }
+      this.hubSkills = all
+      if (total != null) this.hubTotal = total
       this.hubLoaded = true
     } catch (err) {
       this.hubError = err instanceof Error ? err.message : String(err)
     } finally {
       this.hubLoading = false
-    }
-  }
-
-  private async loadMoreHubSkills() {
-    if (this.hubLoadingMore || !this.hubLoaded) return
-    if (this.hubTotal != null && this.hubSkills.length >= this.hubTotal) return
-    this.hubLoadingMore = true
-    try {
-      const resp = await searchMarketplaceSkills('a', 100)
-      // Merge new results, deduplicate by name
-      const existing = new Set(this.hubSkills.map(r => r.package.name))
-      const newItems = resp.results.filter(r => !existing.has(r.package.name))
-      if (newItems.length > 0) {
-        this.hubSkills = [...this.hubSkills, ...newItems]
-      }
-      if (resp.total != null) this.hubTotal = resp.total
-    } finally {
-      this.hubLoadingMore = false
     }
   }
 
@@ -354,13 +355,8 @@ export class OcbotSkillsView extends LitElement {
         if (this.localVisible < total) this.localVisible += LOAD_BATCH
       } else {
         const isSearching = this.searchQuery.trim().length > 0
-        const items = isSearching ? this.hubSearchResults : this.hubSkills
-        if (this.hubVisible < items.length) {
-          this.hubVisible += LOAD_BATCH
-        } else if (!isSearching && this.hubTotal != null && items.length < this.hubTotal) {
-          // All locally loaded items shown, fetch more from API
-          this.loadMoreHubSkills()
-        }
+        const total = isSearching ? this.hubSearchResults.length : this.hubSkills.length
+        if (this.hubVisible < total) this.hubVisible += LOAD_BATCH
       }
     }
   }
@@ -395,23 +391,23 @@ export class OcbotSkillsView extends LitElement {
     return skills
   }
 
-  private getSortedHubSkills(): MarketplaceSearchResult[] {
+  private getSortedHubSkills(): MarketplaceSkill[] {
     const items = [...this.hubSkills]
     switch (this.hubSort) {
       case 'newest':
-        items.sort((a, b) => b.package.createdAt - a.package.createdAt)
+        items.sort((a, b) => b.createdAt - a.createdAt)
         break
       case 'updated':
-        items.sort((a, b) => b.package.updatedAt - a.package.updatedAt)
+        items.sort((a, b) => b.updatedAt - a.updatedAt)
         break
       case 'name':
-        items.sort((a, b) => a.package.displayName.localeCompare(b.package.displayName))
+        items.sort((a, b) => a.displayName.localeCompare(b.displayName))
         break
       case 'stars':
-        items.sort((a, b) => (b.package.starCount ?? 0) - (a.package.starCount ?? 0))
+        items.sort((a, b) => (b.starCount ?? 0) - (a.starCount ?? 0))
         break
       case 'installs':
-        items.sort((a, b) => (b.package.installCount ?? 0) - (a.package.installCount ?? 0))
+        items.sort((a, b) => (b.installCount ?? 0) - (a.installCount ?? 0))
         break
     }
     return items
@@ -456,7 +452,7 @@ export class OcbotSkillsView extends LitElement {
   private renderListPage() {
     return html`
       <div
-        style="display:flex; flex-direction:column; height:100%; overflow-y:auto; padding:24px;"
+        style="display:flex; flex-direction:column; height:100%; overflow-y:scroll; padding:24px;"
         @scroll=${this.onListScroll}
       >
         <!-- Title -->
@@ -618,7 +614,7 @@ export class OcbotSkillsView extends LitElement {
     const status = this.getStatusInfo(skill)
     return html`
       <div
-        style="display:flex; flex-direction:column; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--card); cursor:pointer; transition:all 0.15s; box-shadow:var(--shadow-sm, none);"
+        style="display:flex; flex-direction:column; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--card); cursor:pointer; transition:all 0.15s; box-shadow:var(--shadow-sm, none);"
         @click=${() => this.openLocalDetail(skill)}
         @mouseenter=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong, var(--border))' }}
         @mouseleave=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm, none)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
@@ -691,25 +687,28 @@ export class OcbotSkillsView extends LitElement {
     if (this.hubError) return html`<div style="text-align:center; color:var(--danger); padding:48px;">${this.hubError}</div>`
 
     const isSearching = this.searchQuery.trim().length > 0
-    const items = isSearching ? this.hubSearchResults : this.getSortedHubSkills()
+    // Browse returns MarketplaceSkill[], search returns MarketplaceSearchResult[] — normalize to MarketplaceSkill[]
+    const skills: MarketplaceSkill[] = isSearching
+      ? this.hubSearchResults.map(r => r.package)
+      : this.getSortedHubSkills()
 
     if (this.hubLoading) return this.renderEmpty('Searching...')
-    if (items.length === 0) return this.renderEmpty(isSearching ? 'No matching skills' : 'No skills available')
+    if (skills.length === 0) return this.renderEmpty(isSearching ? 'No matching skills' : 'No skills available')
 
-    const visible = items.slice(0, this.hubVisible)
+    const visible = skills.slice(0, this.hubVisible)
 
     return html`
       ${this.displayMode === 'cards' ? html`
         <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">
-          ${visible.map(s => this.renderHubCard(s.package))}
+          ${visible.map(s => this.renderHubCard(s))}
         </div>
       ` : html`
         <div style="display:flex; flex-direction:column; gap:6px;">
-          ${visible.map(s => this.renderHubListRow(s.package))}
+          ${visible.map(s => this.renderHubListRow(s))}
         </div>
       `}
-      ${visible.length < items.length || this.hubLoadingMore ? html`
-        <div style="text-align:center; color:var(--muted); padding:16px; font-size:13px;">${this.hubLoadingMore ? 'Loading more skills...' : 'Loading more...'}</div>
+      ${visible.length < skills.length ? html`
+        <div style="text-align:center; color:var(--muted); padding:16px; font-size:13px;">Loading more...</div>
       ` : nothing}
     `
   }
@@ -718,12 +717,12 @@ export class OcbotSkillsView extends LitElement {
     const installed = this.isInstalled(pkg.name)
     return html`
       <div
-        style="display:flex; flex-direction:column; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--card); cursor:pointer; transition:all 0.15s; box-shadow:var(--shadow-sm, none);"
+        style="display:flex; flex-direction:column; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--card); cursor:pointer; transition:all 0.15s; box-shadow:var(--shadow-sm, none);"
         @click=${() => this.openHubDetail(pkg.name)}
         @mouseenter=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong, var(--border))' }}
         @mouseleave=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm, none)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
       >
-        <div style="display:flex; align-items:flex-start; gap:14px;">
+        <div style="display:flex; align-items:flex-start; gap:14px; min-width:0;">
           <!-- Icon / Owner avatar -->
           ${pkg.ownerImage ? html`
             <img src="${pkg.ownerImage}" alt="" style="width:48px; height:48px; border-radius:var(--radius-lg); object-fit:cover; flex-shrink:0;" />
@@ -765,10 +764,10 @@ export class OcbotSkillsView extends LitElement {
           ${pkg.summary || 'No description'}
         </p>
         <!-- Footer: version left, author right -->
-        <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-size:12px; color:var(--muted);">
-          <span style="font-family:var(--font-mono, monospace);">${pkg.latestVersion ? `v${pkg.latestVersion}` : pkg.name}</span>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-size:12px; color:var(--muted); min-width:0;">
+          <span style="font-family:var(--font-mono, monospace); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex-shrink:1;">${pkg.latestVersion ? `v${pkg.latestVersion}` : pkg.name}</span>
           ${pkg.ownerHandle || pkg.ownerDisplayName ? html`
-            <span style="display:flex; align-items:center; gap:5px; overflow:hidden;">
+            <span style="display:flex; align-items:center; gap:5px; overflow:hidden; flex-shrink:0; max-width:50%;">
               ${pkg.ownerImage ? html`
                 <img src="${pkg.ownerImage}" alt="" style="width:16px; height:16px; border-radius:50%; object-fit:cover; flex-shrink:0;" />
               ` : html`

@@ -1,6 +1,6 @@
 /**
  * Lightweight HTTP client for the public ClawHub REST API.
- * Uses the /api/v1/packages/* endpoints (the /api/v1/skills endpoint returns empty).
+ * Uses /api/v1/packages/* endpoints for browsing and search.
  */
 
 const CLAWHUB_BASE = 'https://clawhub.ai'
@@ -77,6 +77,11 @@ export interface MarketplaceSearchResponse {
   total?: number
 }
 
+export interface MarketplaceListResponse {
+  items: MarketplaceSkill[]
+  total?: number
+}
+
 // ── Helpers ──
 
 async function fetchJson<T>(path: string, search?: Record<string, string>): Promise<T> {
@@ -99,25 +104,41 @@ async function fetchJson<T>(path: string, search?: Record<string, string>): Prom
 
 // ── API ──
 
-/** Search for skills on ClawHub marketplace. Query is required by the API. */
+/**
+ * List skills from ClawHub marketplace (paginated).
+ * Tries /api/v1/packages?family=skill first, which returns all packages.
+ * The response may use "items", "results", or "packages" as the array key.
+ */
+export async function listMarketplaceSkills(limit = 100, offset = 0): Promise<MarketplaceListResponse> {
+  const raw = await fetchJson<Record<string, unknown>>(
+    '/api/v1/packages',
+    { family: 'skill', limit: String(limit), offset: String(offset) },
+  )
+  // Normalize: API may return array under different keys
+  const arr = (raw.items ?? raw.results ?? raw.packages ?? []) as MarketplaceSkill[]
+  const total = (raw.total ?? raw.count ?? raw.totalCount) as number | undefined
+  console.log('[clawhub] list response keys:', Object.keys(raw), 'items:', arr.length, 'total:', total)
+  return { items: arr, total }
+}
+
+/** Search for skills on ClawHub marketplace. */
 export async function searchMarketplaceSkills(query: string, limit = 30): Promise<MarketplaceSearchResponse> {
   const q = query.trim()
   if (!q) return { results: [], total: 0 }
-  try {
-    const result = await fetchJson<{ results: MarketplaceSearchResult[]; total?: number }>(
-      '/api/v1/packages/search',
-      { q, family: 'skill', limit: String(limit) },
-    )
-    return { results: result.results ?? [], total: result.total }
-  } catch {
-    return { results: [], total: undefined }
-  }
+  const raw = await fetchJson<Record<string, unknown>>(
+    '/api/v1/packages/search',
+    { q, family: 'skill', limit: String(limit) },
+  )
+  // Normalize: search results may be wrapped in { score, package } or be flat
+  const results = (raw.results ?? raw.items ?? []) as MarketplaceSearchResult[]
+  const total = (raw.total ?? raw.count ?? raw.totalCount) as number | undefined
+  console.log('[clawhub] search response keys:', Object.keys(raw), 'results:', results.length, 'total:', total)
+  return { results, total }
 }
 
-/** Browse marketplace skills. Uses a broad single-char query since the API requires a search term. */
-export async function browseMarketplaceSkills(limit = 50): Promise<MarketplaceSearchResponse> {
-  // The packages/search endpoint requires a query; use a wildcard-like broad query
-  return searchMarketplaceSkills('a', limit)
+/** Browse marketplace skills (convenience wrapper for first page). */
+export async function browseMarketplaceSkills(limit = 100): Promise<MarketplaceListResponse> {
+  return listMarketplaceSkills(limit, 0)
 }
 
 /** Get full detail for a single package. */
