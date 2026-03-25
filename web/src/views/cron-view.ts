@@ -91,7 +91,9 @@ export class OcbotCronView extends LitElement {
     this.loading = true
     this.error = null
     try {
-      const result = await this.gateway.call<{ jobs?: CronJob[] }>('cron.list')
+      const result = await this.gateway.call<{ jobs?: CronJob[] }>('cron.list', {
+        includeDisabled: true,
+      })
       this.jobs = result?.jobs ?? []
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)
@@ -110,7 +112,10 @@ export class OcbotCronView extends LitElement {
   private async toggleJob(job: CronJob, e: Event) {
     e.stopPropagation()
     try {
-      await this.gateway.call('cron.update', { id: job.id, enabled: !job.enabled })
+      await this.gateway.call('cron.update', {
+        id: job.id,
+        patch: { enabled: !job.enabled },
+      })
       this.jobs = this.jobs.map(j =>
         j.id === job.id ? { ...j, enabled: !j.enabled } : j
       )
@@ -126,10 +131,26 @@ export class OcbotCronView extends LitElement {
     })
   }
 
+  private formatSchedule(schedule?: CronSchedule): string {
+    if (!schedule) return ''
+    switch (schedule.kind) {
+      case 'cron': return schedule.expr ?? ''
+      case 'every': {
+        const ms = schedule.everyMs ?? 0
+        if (ms >= 3600000) return `every ${ms / 3600000}h`
+        if (ms >= 60000) return `every ${ms / 60000}m`
+        return `every ${ms / 1000}s`
+      }
+      case 'at': return schedule.at ? new Date(schedule.at).toLocaleString() : ''
+      default: return ''
+    }
+  }
+
   private statusDot(job: CronJob) {
+    const status = job.state?.lastRunStatus
     const color = job.enabled
-      ? (job.lastRunStatus === 'error' ? 'var(--danger, #e53e3e)' : 'var(--success, #38a169)')
-      : 'var(--warning, #d69e2e)'
+      ? (status === 'error' ? 'var(--danger, #e53e3e)' : 'var(--ok, #38a169)')
+      : 'var(--warn, #d69e2e)'
     return html`<span style="
       display:inline-block; width:8px; height:8px; border-radius:50%;
       background:${color}; flex-shrink:0;
@@ -167,16 +188,16 @@ export class OcbotCronView extends LitElement {
                   ${this.statusDot(job)}
                   <div style="flex:1; min-width:0;">
                     <div style="font-weight:500; color:var(--text-strong); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                      ${job.label ?? job.id}
+                      ${job.name ?? job.id}
                     </div>
-                    ${job.schedule ? html`
-                      <div style="font-size:12px; color:var(--muted); margin-top:2px;">${job.schedule}</div>
-                    ` : nothing}
+                    <div style="font-size:12px; color:var(--muted); margin-top:2px;">
+                      ${this.formatSchedule(job.schedule)}
+                    </div>
                   </div>
 
                   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px; font-size:12px; color:var(--muted); flex-shrink:0; margin-right:8px;">
-                    <span>Last: ${this.formatTime(job.lastRunAt)}${job.lastRunStatus ? html` <span style="color:${job.lastRunStatus === 'error' ? 'var(--danger, #e53e3e)' : 'var(--success, #38a169)'}">${job.lastRunStatus}</span>` : nothing}</span>
-                    ${job.nextRunAt ? html`<span>Next: ${this.formatTime(job.nextRunAt)}</span>` : nothing}
+                    <span>Last: ${this.formatTime(job.state?.lastRunAtMs)}${job.state?.lastRunStatus ? html` <span style="color:${job.state.lastRunStatus === 'error' ? 'var(--danger, #e53e3e)' : 'var(--ok, #38a169)'}">${job.state.lastRunStatus}</span>` : nothing}</span>
+                    ${job.state?.nextRunAtMs ? html`<span>Next: ${this.formatTime(job.state.nextRunAtMs)}</span>` : nothing}
                   </div>
 
                   <div style="display:flex; gap:4px; flex-shrink:0;">
