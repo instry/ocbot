@@ -157,14 +157,166 @@ export class OcbotCronView extends LitElement {
     "></span>`
   }
 
+  private openCreateForm() {
+    this.formOpen = true
+    this.formMode = 'create'
+    this.formEditId = null
+    this.formName = ''
+    this.formScheduleKind = 'cron'
+    this.formScheduleValue = ''
+    this.formMessage = ''
+  }
+
+  private closeForm() {
+    this.formOpen = false
+    this.formSaving = false
+  }
+
+  private buildSchedule(): CronSchedule {
+    switch (this.formScheduleKind) {
+      case 'cron': return { kind: 'cron', expr: this.formScheduleValue }
+      case 'every': return { kind: 'every', everyMs: this.parseInterval(this.formScheduleValue) }
+      case 'at': return { kind: 'at', at: this.formScheduleValue }
+    }
+  }
+
+  private parseInterval(value: string): number {
+    const num = parseFloat(value)
+    if (value.endsWith('h')) return num * 3600000
+    if (value.endsWith('s')) return num * 1000
+    // default: minutes
+    return num * 60000
+  }
+
+  private async saveJob() {
+    if (!this.formName.trim() || !this.formMessage.trim()) return
+    this.formSaving = true
+    try {
+      if (this.formMode === 'create') {
+        await this.gateway.call('cron.add', {
+          name: this.formName.trim(),
+          schedule: this.buildSchedule(),
+          payload: { kind: 'agentTurn', message: this.formMessage.trim() },
+          sessionTarget: 'isolated',
+          wakeMode: 'now',
+          enabled: true,
+        })
+      } else if (this.formEditId) {
+        await this.gateway.call('cron.update', {
+          id: this.formEditId,
+          patch: {
+            name: this.formName.trim(),
+            schedule: this.buildSchedule(),
+            payload: { kind: 'agentTurn', message: this.formMessage.trim() },
+          },
+        })
+      }
+      this.closeForm()
+      await this.loadJobs()
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : String(err)
+      this.formSaving = false
+    }
+  }
+
+  private renderForm() {
+    if (!this.formOpen) return nothing
+
+    const inputStyle = `
+      width:100%; padding:8px 10px; border:1px solid var(--border);
+      border-radius:6px; background:var(--bg); color:var(--text);
+      font-size:13px; outline:none;
+    `
+    const labelStyle = `font-size:12px; font-weight:500; color:var(--muted); margin-bottom:4px;`
+
+    return html`
+      <div style="
+        padding:16px; margin-bottom:12px;
+        border:1px solid var(--accent, #7c3aed);
+        border-radius:8px; background:var(--surface, var(--bg));
+      ">
+        <div style="font-weight:600; color:var(--text-strong); margin-bottom:12px;">
+          ${this.formMode === 'create' ? 'New Task' : 'Edit Task'}
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <!-- Name -->
+          <div>
+            <div style="${labelStyle}">Name</div>
+            <input
+              style="${inputStyle}"
+              placeholder="e.g. Morning report"
+              .value=${this.formName}
+              @input=${(e: Event) => { this.formName = (e.target as HTMLInputElement).value }}
+            />
+          </div>
+
+          <!-- Schedule type + value -->
+          <div>
+            <div style="${labelStyle}">Schedule</div>
+            <div style="display:flex; gap:8px;">
+              <select
+                style="padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text); font-size:13px;"
+                .value=${this.formScheduleKind}
+                @change=${(e: Event) => {
+                  this.formScheduleKind = (e.target as HTMLSelectElement).value as ScheduleKind
+                  this.formScheduleValue = ''
+                }}
+              >
+                <option value="cron">Cron</option>
+                <option value="every">Interval</option>
+                <option value="at">One-time</option>
+              </select>
+              <input
+                style="${inputStyle} flex:1;"
+                placeholder=${this.formScheduleKind === 'cron' ? '0 9 * * *'
+                  : this.formScheduleKind === 'every' ? '30m (or 2h, 60s)'
+                  : '2026-04-01T09:00'}
+                .value=${this.formScheduleValue}
+                @input=${(e: Event) => { this.formScheduleValue = (e.target as HTMLInputElement).value }}
+              />
+            </div>
+          </div>
+
+          <!-- Message -->
+          <div>
+            <div style="${labelStyle}">Prompt</div>
+            <textarea
+              style="${inputStyle} min-height:60px; resize:vertical; font-family:inherit;"
+              placeholder="What should the AI do?"
+              .value=${this.formMessage}
+              @input=${(e: Event) => { this.formMessage = (e.target as HTMLTextAreaElement).value }}
+            ></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+            <button class="btn btn--sm" @click=${() => this.closeForm()}>Cancel</button>
+            <button
+              class="btn btn--sm"
+              style="background:var(--accent, #7c3aed); color:var(--accent-foreground, #fff); border-color:var(--accent, #7c3aed);"
+              ?disabled=${this.formSaving || !this.formName.trim() || !this.formScheduleValue.trim() || !this.formMessage.trim()}
+              @click=${() => this.saveJob()}
+            >${this.formSaving ? 'Saving...' : (this.formMode === 'create' ? 'Create' : 'Save')}</button>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
   override render() {
     return html`
       <div style="padding:20px; height:100%; overflow-y:auto;">
         <div style="display:flex; align-items:center; margin-bottom:20px;">
           <h2 style="font-size:20px; font-weight:600; color:var(--text-strong); margin:0;">Scheduled Tasks</h2>
           <span style="flex:1"></span>
+          <button class="btn btn--sm" @click=${() => this.openCreateForm()} title="New task"
+            style="margin-right:8px;"
+          >+ New</button>
           <button class="btn btn--sm" @click=${() => this.loadJobs()} title="Refresh">Refresh</button>
         </div>
+
+        ${this.renderForm()}
 
         ${this.loading ? html`
           <div style="text-align:center; color:var(--muted); padding:40px;">Loading...</div>
