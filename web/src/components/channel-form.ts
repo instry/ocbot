@@ -274,6 +274,9 @@ export class OcbotChannelForm extends LitElement {
 
   // --- Feishu QR code install ---
 
+  private static readonly FEISHU_AUTH_URL = 'https://accounts.feishu.cn'
+  private static readonly LARK_AUTH_URL = 'https://accounts.larksuite.com'
+
   override disconnectedCallback() {
     super.disconnectedCallback()
     this.cleanupQr()
@@ -284,21 +287,42 @@ export class OcbotChannelForm extends LitElement {
     if (this.qrCountdownTimer) { clearInterval(this.qrCountdownTimer); this.qrCountdownTimer = null }
   }
 
+  private getFeishuAuthBase(): string {
+    return this.formData.domain === 'lark'
+      ? OcbotChannelForm.LARK_AUTH_URL
+      : OcbotChannelForm.FEISHU_AUTH_URL
+  }
+
+  private async feishuAuthRequest(action: string, extra: Record<string, string> = {}) {
+    const body = new URLSearchParams({ action, ...extra })
+    const resp = await fetch(`${this.getFeishuAuthBase()}/oauth/v1/app/registration`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    })
+    return resp.json()
+  }
+
   private async startFeishuQr() {
     this.cleanupQr()
     this.qrStatus = 'loading'
     this.qrError = ''
 
     try {
-      const isLark = this.formData.domain === 'lark'
-      const result = await this.gateway.call<{
-        url: string; deviceCode: string; interval: number; expireIn: number
-      }>('channel.feishu.install.qrcode', { isLark })
+      // Step 1: init
+      await this.feishuAuthRequest('init')
 
-      this.qrDeviceCode = result.deviceCode
-      const expireIn = result.expireIn ?? 300
+      // Step 2: begin — get QR code URL
+      const beginResp = await this.feishuAuthRequest('begin', {
+        archetype: 'PersonalAgent',
+        auth_method: 'client_secret',
+        request_user_info: 'open_id',
+      })
+
+      this.qrDeviceCode = beginResp.device_code
+      const expireIn = beginResp.expire_in ?? 300
       this.qrTimeLeft = expireIn
-      this.qrDataUrl = await QRCode.toDataURL(result.url, { width: 200, margin: 2 })
+      this.qrDataUrl = await QRCode.toDataURL(beginResp.verification_uri_complete, { width: 200, margin: 2 })
       this.qrStatus = 'showing'
 
       // Countdown timer
@@ -312,27 +336,28 @@ export class OcbotChannelForm extends LitElement {
       }, 1000)
 
       // Poll for scan result
-      const intervalMs = Math.max(result.interval ?? 5, 3) * 1000
+      const intervalMs = Math.max(beginResp.interval ?? 5, 3) * 1000
       this.qrPollTimer = setInterval(async () => {
         try {
-          const poll = await this.gateway.call<{
-            done: boolean; appId?: string; appSecret?: string; domain?: string; error?: string
-          }>('channel.feishu.install.poll', { deviceCode: this.qrDeviceCode, isLark })
+          const pollResp = await this.feishuAuthRequest('poll', {
+            device_code: this.qrDeviceCode,
+          })
 
-          if (poll.done && poll.appId && poll.appSecret) {
+          if (pollResp.client_id && pollResp.client_secret) {
             this.cleanupQr()
+            const domain = pollResp.user_info?.tenant_brand === 'lark' ? 'lark' : 'feishu'
             this.formData = {
               ...this.formData,
-              appId: poll.appId,
-              appSecret: poll.appSecret,
-              domain: poll.domain ?? 'feishu',
+              appId: pollResp.client_id,
+              appSecret: pollResp.client_secret,
+              domain,
               enabled: true,
             }
             this.qrStatus = 'success'
-          } else if (poll.error) {
+          } else if (pollResp.error && pollResp.error !== 'authorization_pending' && pollResp.error !== 'slow_down') {
             this.cleanupQr()
             this.qrStatus = 'error'
-            this.qrError = poll.error
+            this.qrError = pollResp.error_description || pollResp.error
           }
         } catch { /* keep polling */ }
       }, intervalMs)
