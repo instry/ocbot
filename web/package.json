@@ -17,10 +17,12 @@
     "dompurify": "^3.3.3",
     "lit": "^3.3.0",
     "marked": "^17.0.5",
+    "qrcode": "^1.5.4",
     "viem": "^2.47.4"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.300",
+    "@types/qrcode": "^1.5.6",
     "typescript": "^5.7.0",
     "wxt": "^0.20.0"
   }

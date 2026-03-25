@@ -1,5 +1,6 @@
 import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
+import QRCode from 'qrcode'
 import type { GatewayClient } from '../gateway/client'
 
 // --- JSON Schema (draft-07 subset) ---
@@ -178,6 +179,15 @@ export class OcbotChannelForm extends LitElement {
   @state() private showAdvanced = false
   @state() private submitted = false
 
+  // Feishu QR code install state
+  @state() private qrStatus: 'idle' | 'loading' | 'showing' | 'success' | 'error' = 'idle'
+  @state() private qrDataUrl = ''
+  @state() private qrError = ''
+  @state() private qrTimeLeft = 0
+  private qrDeviceCode = ''
+  private qrPollTimer: ReturnType<typeof setInterval> | null = null
+  private qrCountdownTimer: ReturnType<typeof setInterval> | null = null
+
   override willUpdate(changed: Map<string, unknown>) {
     if (changed.has('channelConfig') || changed.has('channelId')) {
       const base = { ...(this.channelConfig ?? {}) }
@@ -262,6 +272,130 @@ export class OcbotChannelForm extends LitElement {
     this.dispatchEvent(new CustomEvent('channel-cancel', { bubbles: true, composed: true }))
   }
 
+  // --- Feishu QR code install ---
+
+  override disconnectedCallback() {
+    super.disconnectedCallback()
+    this.cleanupQr()
+  }
+
+  private cleanupQr() {
+    if (this.qrPollTimer) { clearInterval(this.qrPollTimer); this.qrPollTimer = null }
+    if (this.qrCountdownTimer) { clearInterval(this.qrCountdownTimer); this.qrCountdownTimer = null }
+  }
+
+  private async startFeishuQr() {
+    this.cleanupQr()
+    this.qrStatus = 'loading'
+    this.qrError = ''
+
+    try {
+      const isLark = this.formData.domain === 'lark'
+      const result = await this.gateway.call<{
+        url: string; deviceCode: string; interval: number; expireIn: number
+      }>('channel.feishu.install.qrcode', { isLark })
+
+      this.qrDeviceCode = result.deviceCode
+      const expireIn = result.expireIn ?? 300
+      this.qrTimeLeft = expireIn
+      this.qrDataUrl = await QRCode.toDataURL(result.url, { width: 200, margin: 2 })
+      this.qrStatus = 'showing'
+
+      // Countdown timer
+      this.qrCountdownTimer = setInterval(() => {
+        this.qrTimeLeft--
+        if (this.qrTimeLeft <= 0) {
+          this.cleanupQr()
+          this.qrStatus = 'error'
+          this.qrError = 'QR code expired. Please try again.'
+        }
+      }, 1000)
+
+      // Poll for scan result
+      const intervalMs = Math.max(result.interval ?? 5, 3) * 1000
+      this.qrPollTimer = setInterval(async () => {
+        try {
+          const poll = await this.gateway.call<{
+            done: boolean; appId?: string; appSecret?: string; domain?: string; error?: string
+          }>('channel.feishu.install.poll', { deviceCode: this.qrDeviceCode, isLark })
+
+          if (poll.done && poll.appId && poll.appSecret) {
+            this.cleanupQr()
+            this.formData = {
+              ...this.formData,
+              appId: poll.appId,
+              appSecret: poll.appSecret,
+              domain: poll.domain ?? 'feishu',
+              enabled: true,
+            }
+            this.qrStatus = 'success'
+          } else if (poll.error) {
+            this.cleanupQr()
+            this.qrStatus = 'error'
+            this.qrError = poll.error
+          }
+        } catch { /* keep polling */ }
+      }, intervalMs)
+    } catch (err) {
+      this.qrStatus = 'error'
+      this.qrError = err instanceof Error ? err.message : 'Failed to start QR code flow'
+    }
+  }
+
+  private renderFeishuQrSection() {
+    if (this.channelId !== 'feishu') return nothing
+
+    return html`
+      <div class="provider-form__qr-section">
+        ${this.qrStatus === 'idle' ? html`
+          <button
+            class="provider-form__qr-btn"
+            @click=${() => this.startFeishuQr()}
+          >Scan QR Code to Connect</button>
+          <div class="channels__field-help">
+            Scan with Feishu app to automatically configure Bot credentials.
+          </div>
+        ` : nothing}
+
+        ${this.qrStatus === 'loading' ? html`
+          <div class="provider-form__qr-loading">Generating QR code...</div>
+        ` : nothing}
+
+        ${this.qrStatus === 'showing' ? html`
+          <div class="provider-form__qr-display">
+            <img src=${this.qrDataUrl} alt="Feishu QR Code" class="provider-form__qr-img" />
+            <div class="provider-form__qr-countdown">
+              Expires in ${Math.floor(this.qrTimeLeft / 60)}:${String(this.qrTimeLeft % 60).padStart(2, '0')}
+            </div>
+            <div class="channels__field-help">Open Feishu app and scan this QR code</div>
+            <button
+              class="provider-form__qr-refresh"
+              @click=${() => this.startFeishuQr()}
+            >Refresh</button>
+          </div>
+        ` : nothing}
+
+        ${this.qrStatus === 'success' ? html`
+          <div class="provider-form__success">
+            Credentials configured via QR code. Click Save to apply.
+          </div>
+        ` : nothing}
+
+        ${this.qrStatus === 'error' ? html`
+          <div class="provider-form__error">${this.qrError}</div>
+          <button
+            class="provider-form__qr-btn"
+            @click=${() => this.startFeishuQr()}
+          >Try Again</button>
+        ` : nothing}
+
+        <div class="provider-form__qr-divider">
+          <span>or configure manually</span>
+        </div>
+      </div>
+    `
+  }
+
   override render() {
     // If gateway returned a schema, use the dynamic schema-driven form
     if (this.configSchema?.properties) {
@@ -289,6 +423,8 @@ export class OcbotChannelForm extends LitElement {
       <div class="provider-form provider-form--full">
         ${this.error ? html`<div class="provider-form__error">${this.error}</div>` : nothing}
         ${this.success ? html`<div class="provider-form__success">${this.success}</div>` : nothing}
+
+        ${this.renderFeishuQrSection()}
 
         ${requiredCreds.map(cred => this.renderStaticField(cred))}
 

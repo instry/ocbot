@@ -2245,6 +2245,90 @@ ocbot-skills-view {
 }
 
 /* Cancel button */
+/* Feishu QR code install section */
+.provider-form__qr-section {
+  margin-bottom: 20px;
+}
+
+.provider-form__qr-btn {
+  width: 100%;
+  padding: 12px 24px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.provider-form__qr-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.provider-form__qr-loading {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.provider-form__qr-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.provider-form__qr-img {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--radius-sm);
+}
+
+.provider-form__qr-countdown {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.provider-form__qr-refresh {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.provider-form__qr-refresh:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.provider-form__qr-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.provider-form__qr-divider::before,
+.provider-form__qr-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
 .provider-form__cancel-btn {
   min-width: 120px;
   padding: 10px 24px;
