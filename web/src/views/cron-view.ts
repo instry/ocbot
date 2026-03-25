@@ -157,6 +157,58 @@ export class OcbotCronView extends LitElement {
     "></span>`
   }
 
+  private async loadRuns(jobId: string) {
+    if (this.expandedJobId === jobId) {
+      this.expandedJobId = null
+      this.runs = []
+      return
+    }
+    this.expandedJobId = jobId
+    this.runsLoading = true
+    try {
+      const result = await this.gateway.call<{ entries?: CronRunEntry[] }>('cron.runs', {
+        id: jobId,
+        limit: 10,
+        sortDir: 'desc',
+      })
+      this.runs = result?.entries ?? []
+    } catch {
+      this.runs = []
+    } finally {
+      this.runsLoading = false
+    }
+  }
+
+  private renderRuns(jobId: string) {
+    if (this.expandedJobId !== jobId) return nothing
+
+    if (this.runsLoading) {
+      return html`<div style="padding:8px 16px; font-size:12px; color:var(--muted);">Loading history...</div>`
+    }
+
+    if (this.runs.length === 0) {
+      return html`<div style="padding:8px 16px; font-size:12px; color:var(--muted);">No run history</div>`
+    }
+
+    return html`
+      <div style="padding:8px 16px 4px; border-top:1px solid var(--border); margin-top:8px;">
+        <div style="font-size:11px; font-weight:500; color:var(--muted); margin-bottom:6px;">Recent Runs</div>
+        ${this.runs.map(run => html`
+          <div style="display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px;">
+            <span style="color:${run.status === 'error' ? 'var(--danger, #e53e3e)' : run.status === 'ok' ? 'var(--ok, #38a169)' : 'var(--muted)'};">
+              ${run.status === 'ok' ? '\u2713' : run.status === 'error' ? '\u2717' : '\u2014'}
+            </span>
+            <span style="color:var(--muted); flex-shrink:0;">${this.formatTime(run.ranAtMs)}</span>
+            ${run.durationMs ? html`<span style="color:var(--muted);">${(run.durationMs / 1000).toFixed(1)}s</span>` : nothing}
+            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);">
+              ${run.error ?? run.summary ?? ''}
+            </span>
+          </div>
+        `)}
+      </div>
+    `
+  }
+
   private openEditForm(job: CronJob) {
     this.formOpen = true
     this.formMode = 'edit'
@@ -397,6 +449,12 @@ export class OcbotCronView extends LitElement {
                       title=${job.enabled ? 'Pause' : 'Resume'}
                       style="min-width:32px; padding:4px 8px;"
                     >${job.enabled ? '\u23F8' : '\u25B6'}</button>
+                    <button
+                      class="btn btn--sm"
+                      @click=${(e: Event) => { e.stopPropagation(); this.loadRuns(job.id) }}
+                      title="Run history"
+                      style="min-width:32px; padding:4px 8px;"
+                    >&#128203;</button>
                     ${this.confirmDeleteId === job.id ? html`
                       <button
                         class="btn btn--sm btn--danger"
@@ -419,6 +477,7 @@ export class OcbotCronView extends LitElement {
                     `}
                   </div>
                 </div>
+                ${this.renderRuns(job.id)}
               </div>
             `)}
           </div>
