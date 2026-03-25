@@ -100,7 +100,7 @@ def _wait_for_gateway(logger, port=18789, timeout=15):
 
 
 def _start_embedded_runtime(logger, out_dir):
-    """Start embedded OpenClaw gateway if available. Returns subprocess or None."""
+    """Start embedded OpenClaw gateway. Returns subprocess or exits on failure."""
     node_path, openclaw_dir = _find_embedded_runtime(out_dir)
     if not node_path:
         return None
@@ -117,6 +117,12 @@ def _start_embedded_runtime(logger, out_dir):
     env['OPENCLAW_STATE_DIR'] = str(config_dir)
     env['OPENCLAW_NO_RESPAWN'] = '1'
 
+    # Tell openclaw where bundled plugins live (embedded runtime has no .git/src,
+    # so the source-checkout heuristic doesn't fire).
+    extensions_dir = openclaw_dir / 'extensions'
+    if extensions_dir.exists():
+        env['OPENCLAW_BUNDLED_PLUGINS_DIR'] = str(extensions_dir)
+
     gateway_cmd = [
         str(node_path),
         str(openclaw_dir / 'openclaw.mjs'),
@@ -132,44 +138,57 @@ def _start_embedded_runtime(logger, out_dir):
         proc = subprocess.Popen(
             gateway_cmd,
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=None,   # inherit terminal so logs are visible
+            stderr=None,
         )
     except Exception as e:
         logger.error(f"Failed to start embedded OpenClaw: {e}")
-        return None
+        sys.exit(1)
 
-    # Wait for gateway to be ready
+    # Wait for gateway to be ready; abort if it crashed or timed out.
     if not _wait_for_gateway(logger):
-        logger.warning("OpenClaw gateway did not become ready, continuing anyway")
+        # Check if process already died
+        exit_code = proc.poll()
+        if exit_code is not None:
+            logger.error(f"OpenClaw gateway exited with code {exit_code}. Check config: {config_file}")
+        else:
+            logger.error("OpenClaw gateway did not become ready (timed out)")
+            proc.terminate()
+        sys.exit(1)
 
     return proc
 
 
-def run_chromium(args):
+def run_ocbot(src_dir=None, official=False, extra_args=None, update_web=False):
+    """Start embedded OpenClaw gateway and launch Ocbot browser.
+
+    Args:
+        src_dir: Chromium source directory (auto-detected if None).
+        official: Use Official build output instead of Default.
+        extra_args: Additional command-line arguments for the browser.
+        update_web: Build extension before running.
+    """
     logger = get_logger()
 
-    root_dir = get_project_root()
-    src_dir = Path(args.src_dir) if args.src_dir else get_source_dir()
+    if src_dir is None:
+        src_dir = get_source_dir()
+    else:
+        src_dir = Path(src_dir)
 
     if not src_dir:
         logger.error("Could not find source directory.")
         return
 
-    out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
+    out_dir_name = 'Official' if official else 'Default'
     out_dir = src_dir / 'out' / out_dir_name
 
-    # Platform-specific executable path
+    # --- Locate browser executable ---
     if sys.platform == 'win32':
         executable = out_dir / 'ocbot.exe'
         if not executable.exists():
-             executable = out_dir / 'chrome.exe'
+            executable = out_dir / 'chrome.exe'
     else:
         executable = out_dir / 'Ocbot.app' / 'Contents' / 'MacOS' / 'Ocbot'
-        if not executable.exists():
-             # Fallback to Chromium/Google Chrome for macOS if Ocbot.app is missing
-             # (Though usually on macOS we build the app bundle)
-             pass
 
     if not executable.exists():
         if sys.platform == 'win32':
@@ -179,33 +198,32 @@ def run_chromium(args):
         logger.info("Please build first: python ocbot/scripts/dev.py build")
         return
 
+    # --- Start embedded gateway ---
+    node_path, openclaw_dir = _find_embedded_runtime(out_dir)
+    if not node_path:
+        logger.error("No embedded runtime found. Run 'dev.py build' first.")
+        return
+
+    logger.info('Starting embedded OpenClaw gateway...')
+    gateway_proc = _start_embedded_runtime(logger, out_dir)
+
+    # --- Build browser command ---
     cmd = [str(executable)]
 
-    # ocbot is loaded as a component extension from the Framework Resources dir.
-    # Sync latest extension build into the app bundle before launching.
     _sync_extension(logger, out_dir)
 
-    # Dev mode: point component_loader to local extension build directly,
-    # so hot-updated / bundled versions are skipped and OTA updater is disabled.
     extension_dev_path = get_agent_root() / '.output' / 'chrome-mv3'
     if extension_dev_path.exists():
         cmd.append(f'--ocbot-extension-dir={extension_dev_path}')
 
     cmd.append('--remote-debugging-port=9222')
 
-    # Pass through extra args
-    if hasattr(args, 'args') and args.args:
-        cmd.extend(args.args)
+    if extra_args:
+        cmd.extend(extra_args)
 
-    # Check if --user-data-dir is already provided
-    has_user_data_dir = False
-    for arg in cmd:
-        if arg.startswith('--user-data-dir'):
-            has_user_data_dir = True
-            break
-    
+    # Default dev profile
+    has_user_data_dir = any(a.startswith('--user-data-dir') for a in cmd)
     if not has_user_data_dir:
-        # Default to a dev profile in temp directory to avoid conflicts with stable installation
         dev_profile = Path(tempfile.gettempdir()) / "ocbot-dev-profile"
         dev_profile.mkdir(parents=True, exist_ok=True)
         cmd.append(f"--user-data-dir={dev_profile}")
@@ -214,12 +232,15 @@ def run_chromium(args):
     logger.info(f"Launching Ocbot...")
     logger.info(f"Command: {' '.join(cmd)}")
 
-    # Note: In production builds, the C++ RuntimeManager (runtime_manager.cc)
-    # handles starting/stopping the embedded OpenClaw gateway automatically.
-    # The Python-layer embedded runtime spawn is only used by dev.py run_full
-    # with --embedded flag for testing the embedded path without a C++ build.
-
     try:
         subprocess.run(cmd)
     except KeyboardInterrupt:
-        pass
+        logger.info('Stopping Ocbot...')
+    finally:
+        if gateway_proc and gateway_proc.poll() is None:
+            logger.info('Stopping embedded OpenClaw gateway...')
+            gateway_proc.terminate()
+            try:
+                gateway_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                gateway_proc.kill()

@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.cc b/chrome/browser/ocbot/runtime_manager.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..4bb2b52e03b2a44cbd277d1972f1fb61ee4d654d
+index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b778081e82
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.cc
-@@ -0,0 +1,768 @@
+@@ -0,0 +1,773 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -376,10 +376,15 @@ index 0000000000000000000000000000000000000000..4bb2b52e03b2a44cbd277d1972f1fb61
 +  // Set environment variables for OpenClaw.
 +  options.environment["OPENCLAW_CONFIG_PATH"] = config_file_.value();
 +  options.environment["OPENCLAW_STATE_DIR"] = config_dir_.value();
-+  // Force in-process restart on config changes instead of spawning a new
-+  // detached process.  RuntimeManager owns the gateway lifecycle, so
-+  // process-level respawn must not happen behind its back.
-+  options.environment["OPENCLAW_NO_RESPAWN"] = "1";
++
++  // Tell openclaw where bundled plugins live (embedded runtime has no .git/src,
++  // so the source-checkout heuristic doesn't fire).
++  base::FilePath extensions_dir =
++      openclaw_dir_.Append(FILE_PATH_LITERAL("extensions"));
++  if (base::PathExists(extensions_dir)) {
++    options.environment["OPENCLAW_BUNDLED_PLUGINS_DIR"] =
++        extensions_dir.value();
++  }
 +
 +  // OTA mode: set NODE_PATH so node can find modules in base layer.
 +  if (using_ota_runtime_ && !ota_runtime_dir_.empty()) {

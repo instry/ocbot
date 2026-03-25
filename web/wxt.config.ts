@@ -33,8 +33,18 @@ export default defineConfig({
       'scripting',
       'debugger',
       'identity',
-      'alarms'
+      'alarms',
+      'declarativeNetRequest'
     ],
+    declarative_net_request: {
+      rule_resources: [
+        {
+          id: 'clawhub_headers',
+          enabled: true,
+          path: 'rules/clawhub-headers.json'
+        }
+      ]
+    },
     host_permissions: [
       '<all_urls>'
     ],

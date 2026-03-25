@@ -1,0 +1,178 @@
+:root[data-ocbot-embed="true"] {
+  --ocbot-accent: #7c3aed;
+  --ocbot-accent-foreground: #ffffff;
+  --ocbot-accent-subtle: rgba(124, 58, 237, 0.14);
+  --ocbot-bg: #0b0d12;
+  --ocbot-bg-hover: rgba(148, 163, 184, 0.08);
+  --ocbot-bg-elevated: #11151c;
+  --ocbot-card: #11151c;
+  --ocbot-text: #e5e7eb;
+  --ocbot-text-strong: #f8fafc;
+  --ocbot-muted: #94a3b8;
+  --ocbot-border: rgba(255, 255, 255, 0.08);
+  --ocbot-border-strong: rgba(255, 255, 255, 0.14);
+  --ocbot-radius: 14px;
+  --ocbot-radius-md: 10px;
+  --ocbot-font-body: Inter, system-ui, sans-serif;
+  --ocbot-shadow: none;
+  color-scheme: dark;
+}
+
+:root[data-ocbot-embed="true"][data-ocbot-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-ocbot-embed="true"] body {
+  margin: 0 !important;
+  background: var(--ocbot-bg) !important;
+  color: var(--ocbot-text) !important;
+  font-family: var(--ocbot-font-body) !important;
+}
+
+:root[data-ocbot-embed="true"] body > header,
+:root[data-ocbot-embed="true"] body > nav,
+:root[data-ocbot-embed="true"] footer {
+  display: none !important;
+}
+
+:root[data-ocbot-embed="true"] body,
+:root[data-ocbot-embed="true"] main,
+:root[data-ocbot-embed="true"] #__next,
+:root[data-ocbot-embed="true"] #root,
+:root[data-ocbot-embed="true"] [data-nextjs-scroll-focus-boundary] {
+  background: transparent !important;
+}
+
+:root[data-ocbot-embed="true"] main,
+:root[data-ocbot-embed="true"] #__next,
+:root[data-ocbot-embed="true"] #root {
+  min-height: 100vh;
+}
+
+:root[data-ocbot-embed="true"] main,
+:root[data-ocbot-embed="true"] [data-nextjs-scroll-focus-boundary] {
+  padding-top: 0 !important;
+}
+
+:root[data-ocbot-embed="true"] a {
+  color: inherit !important;
+}
+
+:root[data-ocbot-embed="true"] button,
+:root[data-ocbot-embed="true"] a[role="button"],
+:root[data-ocbot-embed="true"] input,
+:root[data-ocbot-embed="true"] textarea,
+:root[data-ocbot-embed="true"] select {
+  border-radius: var(--ocbot-radius-md) !important;
+  font-family: var(--ocbot-font-body) !important;
+}
+
+:root[data-ocbot-embed="true"] input,
+:root[data-ocbot-embed="true"] textarea,
+:root[data-ocbot-embed="true"] select {
+  border-color: var(--ocbot-border) !important;
+  background: transparent !important;
+  color: var(--ocbot-text) !important;
+  box-shadow: none !important;
+}
+
+:root[data-ocbot-embed="true"] button,
+:root[data-ocbot-embed="true"] a[role="button"] {
+  border: 1px solid var(--ocbot-border) !important;
+  background: transparent !important;
+  color: var(--ocbot-muted) !important;
+  transition: all 0.15s ease !important;
+}
+
+:root[data-ocbot-embed="true"] button:hover,
+:root[data-ocbot-embed="true"] a[role="button"]:hover {
+  background: var(--ocbot-bg-hover) !important;
+  color: var(--ocbot-text-strong) !important;
+}
+
+:root[data-ocbot-embed="true"] [data-ocbot-install="true"] {
+  border-color: var(--ocbot-accent) !important;
+  background: var(--ocbot-accent-subtle) !important;
+  color: var(--ocbot-accent) !important;
+}
+
+:root[data-ocbot-embed="true"] [data-ocbot-install="true"]:hover {
+  background: color-mix(in srgb, var(--ocbot-accent) 15%, transparent) !important;
+}
+
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] {
+  display: block !important;
+  overflow: hidden !important;
+  border: 1px solid var(--ocbot-border) !important;
+  border-radius: var(--ocbot-radius) !important;
+  background: var(--ocbot-card) !important;
+  color: inherit !important;
+  text-decoration: none !important;
+  box-shadow: var(--ocbot-shadow) !important;
+  transition: all 0.15s ease !important;
+}
+
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"]:hover {
+  border-color: var(--ocbot-border-strong) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] h2,
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] h3,
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] h4 {
+  color: var(--ocbot-text-strong) !important;
+  letter-spacing: -0.02em;
+}
+
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] p {
+  color: var(--ocbot-muted) !important;
+  line-height: 1.5 !important;
+}
+
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] [class*="badge"],
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] [class*="tag"],
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] [class*="pill"] {
+  border-radius: 6px !important;
+  border: 1px solid var(--ocbot-border) !important;
+  background: transparent !important;
+  color: var(--ocbot-muted) !important;
+}
+
+:root[data-ocbot-embed="true"] section,
+:root[data-ocbot-embed="true"] article,
+:root[data-ocbot-embed="true"] aside,
+:root[data-ocbot-embed="true"] [class*="card"],
+:root[data-ocbot-embed="true"] [class*="Card"],
+:root[data-ocbot-embed="true"] [class*="panel"],
+:root[data-ocbot-embed="true"] [class*="Panel"] {
+  border-radius: var(--ocbot-radius) !important;
+}
+
+:root[data-ocbot-embed="true"] [class*="card"],
+:root[data-ocbot-embed="true"] [class*="Card"],
+:root[data-ocbot-embed="true"] [class*="panel"],
+:root[data-ocbot-embed="true"] [class*="Panel"] {
+  border-color: var(--ocbot-border) !important;
+  box-shadow: none !important;
+}
+
+:root[data-ocbot-embed="true"] h1,
+:root[data-ocbot-embed="true"] h2,
+:root[data-ocbot-embed="true"] h3,
+:root[data-ocbot-embed="true"] h4,
+:root[data-ocbot-embed="true"] h5,
+:root[data-ocbot-embed="true"] h6 {
+  color: var(--ocbot-text-strong) !important;
+}
+
+:root[data-ocbot-embed="true"] p,
+:root[data-ocbot-embed="true"] span,
+:root[data-ocbot-embed="true"] label,
+:root[data-ocbot-embed="true"] small {
+  color: inherit;
+}
+
+:root[data-ocbot-embed="true"] [class*="badge"],
+:root[data-ocbot-embed="true"] [class*="Badge"] {
+  border-radius: 999px !important;
+}

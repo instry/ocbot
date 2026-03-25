@@ -11,7 +11,7 @@ try:
     from download import init_chromium, create_worktree, list_worktrees, remove_worktree, sync_worktree
     from patch import apply_patches, reset_source, update_patches, repatch_source
     from build import build_chromium
-    from run import run_chromium
+    from run import run_ocbot
     from check import check_environment
     from icons import install_icons
     from package import package_dmg, package_windows
@@ -45,35 +45,6 @@ def _build_extension(logger, zip=True):
         sys.exit(1)
 
 
-
-def _run_full(args, logger):
-    from run import run_chromium, _find_embedded_runtime, _start_embedded_runtime
-
-    # Locate embedded runtime in app bundle
-    src_dir = Path(args.src_dir) if args.src_dir else get_source_dir()
-    out_dir_name = 'Official' if getattr(args, 'official', False) else 'Default'
-    out_dir = src_dir / 'out' / out_dir_name
-
-    node_path, openclaw_dir = _find_embedded_runtime(out_dir)
-    if not node_path:
-        logger.error("No embedded runtime found. Run 'dev.py build' first.")
-        sys.exit(1)
-
-    logger.info('Starting embedded OpenClaw gateway...')
-    gateway_proc = _start_embedded_runtime(logger, out_dir)
-
-    try:
-        run_chromium(args)
-    except KeyboardInterrupt:
-        logger.info('Stopping Ocbot...')
-    finally:
-        if gateway_proc and gateway_proc.poll() is None:
-            logger.info('Stopping embedded OpenClaw gateway...')
-            gateway_proc.terminate()
-            try:
-                gateway_proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                gateway_proc.kill()
 
 def main():
     parser = argparse.ArgumentParser(description='ocbot development utility')
@@ -269,7 +240,11 @@ def main():
     elif args.command == 'run':
         if getattr(args, 'update_web', False):
              _build_extension(logger, zip=False)
-        _run_full(args, logger)
+        run_ocbot(
+            src_dir=args.src_dir,
+            official=getattr(args, 'official', False),
+            extra_args=getattr(args, 'args', None),
+        )
     elif args.command == 'update-web':
         _build_extension(logger, zip=getattr(args, 'zip', False))
         from build import _install_extension
