@@ -69,6 +69,7 @@ export class OcbotChannelsView extends LitElement {
   @state() private pairingError: string | null = null
   @state() private approving = new Set<string>()
   @state() private savingCredentials = false
+  @state() private editingCredentials = false
 
   private refreshTimer: ReturnType<typeof setInterval> | null = null
   private pairingTimer: ReturnType<typeof setInterval> | null = null
@@ -129,6 +130,7 @@ export class OcbotChannelsView extends LitElement {
     this.selectedChannelId = channelId
     this.channelConfig = null
     this.channelConfigHash = null
+    this.editingCredentials = false
     this.dispatchEvent(new CustomEvent('channel-navigated', { detail: channelId }))
     if (this.isConfigured(channelId)) {
       try {
@@ -155,9 +157,18 @@ export class OcbotChannelsView extends LitElement {
     this.loadStatus()
   }
 
+  private startEditingCredentials() {
+    this.editingCredentials = true
+  }
+
+  private stopEditingCredentials() {
+    this.editingCredentials = false
+  }
+
   // ── Phase detection ──
 
   private getChannelPhase(id: string): ChannelPhase {
+    if (this.editingCredentials) return 'credentials'
     if (!this.isConfigured(id)) return 'credentials'
     if (this.channelIsConnected(id)) return 'connected'
     return 'connecting'
@@ -165,15 +176,51 @@ export class OcbotChannelsView extends LitElement {
 
   // ── Credentials save ──
 
-  /** Wait for gateway to reconnect after restart (SIGUSR1). */
-  private waitForReconnect(timeoutMs = 15_000): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.gateway.state === 'connected') { resolve(); return }
-      const timer = setTimeout(() => { unsub(); reject(new Error('gateway reconnect timed out')) }, timeoutMs)
-      const unsub = this.gateway.onStateChange((state) => {
-        if (state === 'connected') { clearTimeout(timer); unsub(); resolve() }
-      })
-    })
+  private async wait(ms: number): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  private markChannelConfigured(channelId: string) {
+    this.status = {
+      ...this.status,
+      channels: {
+        ...(this.status.channels ?? {}),
+        [channelId]: {
+          ...(this.status.channels?.[channelId] ?? {}),
+          configured: true,
+        },
+      },
+    }
+  }
+
+  private async refreshAfterCredentialSave(channelId: string, previousHash: string) {
+    const deadline = Date.now() + 20_000
+    while (Date.now() < deadline) {
+      try {
+        const [statusResult, configResult] = await Promise.all([
+          this.gateway.call<ChannelsStatusResult>('channels.status'),
+          this.gateway.call<{ hash?: string }>('config.get'),
+        ])
+        const configured = statusResult?.channels?.[channelId]?.configured === true
+        const hashChanged = Boolean(configResult?.hash && configResult.hash !== previousHash)
+        if (configured || hashChanged) {
+          this.status = statusResult ?? this.status
+          break
+        }
+      } catch {
+        // gateway restart window
+      }
+      await this.wait(800)
+    }
+
+    try {
+      await this.loadData()
+      if (this.selectedChannelId === channelId) {
+        await this.selectChannel(channelId)
+      }
+    } catch {
+      // keep optimistic UI state
+    }
   }
 
   private async onCredentialsReady(e: CustomEvent) {
@@ -187,13 +234,12 @@ export class OcbotChannelsView extends LitElement {
       const baseHash = freshConfig?.hash ?? ''
       const patch = { channels: { [channelId]: config } }
       await this.gateway.call('config.patch', { baseHash, raw: JSON.stringify(patch) })
+      this.markChannelConfigured(channelId)
+      this.channelConfig = { ...config }
+      this.editingCredentials = false
       credentialsEl?.setSaveResult({ ok: true })
-      // Gateway restarts via SIGUSR1 — wait for WS to reconnect
-      await this.waitForReconnect()
-      // Reload status + schema after gateway is back
-      await this.loadData()
-      // Re-select to move to connecting/connected phase
-      this.selectChannel(channelId)
+      await this.selectChannel(channelId)
+      await this.refreshAfterCredentialSave(channelId, baseHash)
     } catch (err) {
       credentialsEl?.setSaveResult({
         ok: false,
@@ -404,13 +450,25 @@ export class OcbotChannelsView extends LitElement {
     return html`
       <div style="padding:20px; overflow-y:auto;">
         <div class="settings__page">
-          <h2 class="settings__page-title">${label}</h2>
-          <p class="settings__page-subtitle">${hint?.blurb ?? `Configure your ${label} channel connection.`}</p>
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:8px;">
+            <div style="min-width:0;">
+              <h2 class="settings__page-title" style="margin-bottom:8px;">${label}</h2>
+              <p class="settings__page-subtitle" style="margin:0;">${hint?.blurb ?? `Configure your ${label} channel connection.`}</p>
+            </div>
+            ${this.isConfigured(id) ? html`
+              <button
+                class="btn btn--sm"
+                style="flex-shrink:0; padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text-strong); cursor:pointer;"
+                @click=${() => phase === 'credentials' ? this.stopEditingCredentials() : this.startEditingCredentials()}
+              >${phase === 'credentials' ? 'Back to Status' : 'Edit Credentials'}</button>
+            ` : nothing}
+          </div>
 
           ${phase === 'credentials' ? html`
             <div class="settings__form-container">
               <ocbot-channel-credentials
                 .channelId=${id}
+                .initialConfig=${this.channelConfig}
                 @credentials-ready=${(e: CustomEvent) => this.onCredentialsReady(e)}
               ></ocbot-channel-credentials>
             </div>

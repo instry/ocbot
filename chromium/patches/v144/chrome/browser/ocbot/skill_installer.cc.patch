@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/skill_installer.cc b/chrome/browser/ocbot/skill_installer.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8cf8d0c20c
+index 0000000000000000000000000000000000000000..f9d4f6a9ce685f0b10371a9dae3957cbf59ade49
 --- /dev/null
 +++ b/chrome/browser/ocbot/skill_installer.cc
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,427 @@
 +// Copyright 2026 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -29,8 +29,8 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +#include "base/files/file_enumerator.h"
 +#include "base/files/file_path.h"
 +#include "base/files/file_util.h"
-+#include "base/process/launch.h"
-+#include "base/process/process.h"
++#include "third_party/zlib/google/zip.h"
++#include "base/strings/string_util.h"
 +#include "base/environment.h"
 +
 +namespace ocbot {
@@ -42,7 +42,12 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +constexpr char kRegistryBase[] = "https://wry-manatee-359.convex.site";
 +
 +network::mojom::URLLoaderFactory* GetURLLoaderFactory() {
-+  return SystemNetworkContextManager::GetInstance()->GetURLLoaderFactory();
++  SystemNetworkContextManager* manager =
++      SystemNetworkContextManager::GetInstance();
++  if (!manager) {
++    return nullptr;
++  }
++  return manager->GetURLLoaderFactory();
 +}
 +
 +std::string ResolveRuntimeMode() {
@@ -86,13 +91,13 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +}
 +
 +base::FilePath GetWorkspaceDir() {
++  // Must match RuntimeManager::EnsureConfig() path logic exactly.
 +  base::FilePath app_data_dir = GetOcbotAppDataDir();
 +  if (app_data_dir.empty()) {
 +    return base::FilePath();
 +  }
 +  const std::string mode = ResolveRuntimeMode();
-+  return app_data_dir.AppendASCII(mode == "prod" ? "openclaw"
-+                                                 : "openclaw-dev")
++  return app_data_dir.AppendASCII(mode == "prod" ? "openclaw" : "openclaw-dev")
 +      .Append(FILE_PATH_LITERAL("workspace"));
 +}
 +
@@ -114,26 +119,8 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +
 +bool ExtractZip(const base::FilePath& zip_path, const base::FilePath& dest_dir) {
 +  base::CreateDirectory(dest_dir);
-+#if BUILDFLAG(IS_WIN)
-+  // On Windows, prefer PowerShell's Expand-Archive.
-+  std::vector<std::string> argv = {
-+      "powershell", "-NoProfile", "-Command",
-+      "Expand-Archive -Force -Path \"" + zip_path.value() + "\" -DestinationPath \"" + dest_dir.value() + "\""};
-+#else
-+  std::vector<std::string> argv = {"unzip", "-q", zip_path.value(), "-d", dest_dir.value()};
-+#endif
-+  base::LaunchOptions options;
-+#if BUILDFLAG(IS_WIN)
-+  options.start_hidden = true;
-+#endif
-+  base::Process process = base::LaunchProcess(argv, options);
-+  if (!process.IsValid()) {
-+    LOG(ERROR) << "ocbot skill installer: failed to launch unzip";
-+    return false;
-+  }
-+  int exit_code = -1;
-+  if (!process.WaitForExit(&exit_code) || exit_code != 0) {
-+    LOG(ERROR) << "ocbot skill installer: unzip exited with " << exit_code;
++  if (!zip::Unzip(zip_path, dest_dir)) {
++    LOG(ERROR) << "ocbot skill installer: failed to unzip " << zip_path;
 +    return false;
 +  }
 +  return true;
@@ -161,6 +148,27 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +    return sub;
 +  }
 +  return base::FilePath();
++}
++
++bool CopyDirectoryContents(const base::FilePath& source_dir,
++                           const base::FilePath& target_dir) {
++  base::FileEnumerator entries(source_dir, /*recursive=*/false,
++                               base::FileEnumerator::FILES |
++                                   base::FileEnumerator::DIRECTORIES);
++  for (base::FilePath entry = entries.Next(); !entry.empty();
++       entry = entries.Next()) {
++    const base::FilePath target_path = target_dir.Append(entry.BaseName());
++    if (entries.GetInfo().IsDirectory()) {
++      if (!base::CopyDirectory(entry, target_path, /*recursive=*/true)) {
++        return false;
++      }
++      continue;
++    }
++    if (!base::CopyFile(entry, target_path)) {
++      return false;
++    }
++  }
++  return true;
 +}
 +
 +void FinalizeInstall(const base::FilePath& target_dir,
@@ -209,16 +217,47 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +  }
 +}
 +
++void RemoveFromLockfile(const std::string& slug) {
++  base::FilePath ws = GetWorkspaceDir();
++  if (ws.empty()) {
++    return;
++  }
++  base::FilePath lock_path = ws.Append(FILE_PATH_LITERAL(".clawhub"))
++                             .Append(FILE_PATH_LITERAL("lock.json"));
++  std::string existing;
++  if (!base::ReadFileToString(lock_path, &existing)) {
++    return;
++  }
++  auto lock = base::JSONReader::ReadDict(existing, base::JSON_PARSE_RFC);
++  if (!lock.has_value()) {
++    return;
++  }
++  base::Value::Dict* skills = lock->FindDict("skills");
++  if (!skills) {
++    return;
++  }
++  skills->Remove(slug);
++  if (!WriteJsonFile(lock_path, *lock)) {
++    LOG(WARNING) << "ocbot skill installer: failed to update lock.json";
++  }
++}
++
 +void DoInstall(std::string slug,
 +               std::string version) {
 +  LOG(INFO) << "ocbot skill install: slug=" << slug << " version=" << version;
++  if (slug.empty() || !base::IsStringASCII(slug) ||
++      slug.find('/') != std::string::npos ||
++      slug.find('\\') != std::string::npos ||
++      slug.find("..") != std::string::npos) {
++    LOG(ERROR) << "ocbot skill installer: invalid slug";
++    return;
++  }
 +  // Determine workspace and target skill directory.
 +  base::FilePath skills_dir = GetSkillsDir();
 +  if (skills_dir.empty()) {
 +    LOG(ERROR) << "ocbot skill installer: cannot resolve workspace dir";
 +    return;
 +  }
-+  base::CreateDirectory(skills_dir);
 +  base::FilePath target_dir = skills_dir.AppendASCII(slug);
 +
 +  // Build download URL.
@@ -260,8 +299,14 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +        })"));
 +  loader->SetRetryOptions(2, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
 +
++  network::mojom::URLLoaderFactory* loader_factory = GetURLLoaderFactory();
++  if (!loader_factory) {
++    LOG(ERROR) << "ocbot skill installer: URL loader factory unavailable";
++    return;
++  }
++
 +  loader->DownloadToTempFile(
-+      GetURLLoaderFactory(),
++      loader_factory,
 +      base::BindOnce(
 +          [](base::FilePath target_dir, std::string slug, std::string version,
 +             std::unique_ptr<network::SimpleURLLoader> loader,
@@ -271,43 +316,98 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +                         << loader->NetError() << ")";
 +              return;
 +            }
-+            // Extract zip to temp dir.
-+            base::FilePath ws = GetWorkspaceDir();
-+            base::FilePath temp_extract =
-+                ws.Append(FILE_PATH_LITERAL("tmp"))
-+                  .AppendASCII("skill-" + slug + "-" +
-+                               base::NumberToString(
-+                                   base::Time::Now()
-+                                       .InMillisecondsSinceUnixEpoch()));
-+            if (!ExtractZip(temp_path, temp_extract)) {
-+              LOG(ERROR) << "ocbot skill installer: extraction failed";
-+              base::DeleteFile(temp_path);
-+              base::DeletePathRecursively(temp_extract);
-+              return;
-+            }
-+            base::DeleteFile(temp_path);
-+            // Determine skill root.
-+            base::FilePath root = FindSkillRoot(temp_extract);
-+            if (root.empty()) {
-+              LOG(ERROR) << "ocbot skill installer: SKILL.md not found in archive";
-+              base::DeletePathRecursively(temp_extract);
-+              return;
-+            }
-+            // Install to target dir.
-+            base::DeletePathRecursively(target_dir);
-+            base::CreateDirectory(target_dir);
-+            if (!base::CopyDirectory(root, target_dir, /*recursive=*/true)) {
-+              LOG(ERROR) << "ocbot skill installer: failed to copy files";
-+              base::DeletePathRecursively(temp_extract);
-+              return;
-+            }
-+            base::DeletePathRecursively(temp_extract);
-+            // Write origin and lockfile.
-+            FinalizeInstall(target_dir, slug, version);
-+            LOG(INFO) << "ocbot skill installer: installed " << slug << " to " << target_dir;
++            // Post blocking file I/O to thread pool.
++            base::ThreadPool::PostTask(
++                FROM_HERE,
++                {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
++                base::BindOnce(
++                    [](base::FilePath target_dir, std::string slug,
++                       std::string version, base::FilePath temp_path) {
++                      // Extract zip to temp dir.
++                      base::FilePath ws = GetWorkspaceDir();
++                      base::FilePath temp_extract =
++                          ws.Append(FILE_PATH_LITERAL("tmp"))
++                            .AppendASCII(
++                                "skill-" + slug + "-" +
++                                base::NumberToString(
++                                    base::Time::Now()
++                                        .InMillisecondsSinceUnixEpoch()));
++                      if (!ExtractZip(temp_path, temp_extract)) {
++                        LOG(ERROR)
++                            << "ocbot skill installer: extraction failed";
++                        base::DeleteFile(temp_path);
++                        base::DeletePathRecursively(temp_extract);
++                        return;
++                      }
++                      base::DeleteFile(temp_path);
++                      // Determine skill root.
++                      base::FilePath root = FindSkillRoot(temp_extract);
++                      if (root.empty()) {
++                        LOG(ERROR) << "ocbot skill installer: SKILL.md not "
++                                      "found in archive";
++                        base::DeletePathRecursively(temp_extract);
++                        return;
++                      }
++                      // Install to target dir.
++                      base::CreateDirectory(target_dir.DirName());
++                      base::DeletePathRecursively(target_dir);
++                      base::CreateDirectory(target_dir);
++                      if (!CopyDirectoryContents(root, target_dir)) {
++                        LOG(ERROR)
++                            << "ocbot skill installer: failed to copy files";
++                        base::DeletePathRecursively(temp_extract);
++                        return;
++                      }
++                      if (!base::PathExists(
++                              target_dir.Append(FILE_PATH_LITERAL("SKILL.md")))) {
++                        LOG(ERROR)
++                            << "ocbot skill installer: installed layout is "
++                               "invalid, missing root SKILL.md";
++                        base::DeletePathRecursively(target_dir);
++                        base::DeletePathRecursively(temp_extract);
++                        return;
++                      }
++                      base::DeletePathRecursively(temp_extract);
++                      // Write origin and lockfile.
++                      FinalizeInstall(target_dir, slug, version);
++                      LOG(INFO) << "ocbot skill installer: installed " << slug
++                                << " to " << target_dir;
++                    },
++                    target_dir, slug, version, temp_path));
 +          },
 +          target_dir, slug, version, std::move(loader)),
 +      kMaxZipSize);
++}
++
++void DoUninstall(std::string slug) {
++  LOG(INFO) << "ocbot skill uninstall: slug=" << slug;
++  if (slug.empty() || !base::IsStringASCII(slug) ||
++      slug.find('/') != std::string::npos ||
++      slug.find('\\') != std::string::npos ||
++      slug.find("..") != std::string::npos) {
++    LOG(ERROR) << "ocbot skill installer: invalid uninstall slug";
++    return;
++  }
++  base::FilePath skills_dir = GetSkillsDir();
++  if (skills_dir.empty()) {
++    LOG(ERROR) << "ocbot skill installer: cannot resolve workspace dir";
++    return;
++  }
++  base::FilePath target_dir = skills_dir.AppendASCII(slug);
++  base::ThreadPool::PostTask(
++      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
++      base::BindOnce(
++          [](base::FilePath target_dir, std::string slug) {
++            if (base::PathExists(target_dir) &&
++                !base::DeletePathRecursively(target_dir)) {
++              LOG(ERROR) << "ocbot skill installer: failed to delete "
++                         << target_dir;
++              return;
++            }
++            RemoveFromLockfile(slug);
++            LOG(INFO) << "ocbot skill installer: uninstalled " << slug;
++          },
++          target_dir, slug));
 +}
 +
 +}  // namespace
@@ -321,6 +421,13 @@ index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8c
 +      base::BindOnce(&DoInstall,
 +                     std::string(slug),
 +                     std::string(version)));
++}
++
++void UninstallSkillBySlug(content::BrowserContext* browser_context,
++                          const std::string& slug) {
++  if (!browser_context) return;
++  content::GetUIThreadTaskRunner({})->PostTask(
++      FROM_HERE, base::BindOnce(&DoUninstall, std::string(slug)));
 +}
 +
 +}  // namespace ocbot

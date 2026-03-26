@@ -131,7 +131,7 @@ def _install_node(logger, out_dir):
     version_marker.write_text(NODE_VERSION)
 
 
-def _install_extension_deps(logger, openclaw_dest):
+def _install_extension_deps(logger, openclaw_dest, *, official=False):
     """Build compressed dependency archives for each extension plugin.
 
     Creates a .deps.tar.gz in each extension directory containing its
@@ -139,7 +139,13 @@ def _install_extension_deps(logger, openclaw_dest):
     runtime (by run.py or RuntimeManager) when the user configures the
     corresponding channel — so the app starts fast and only pays the
     cost of extraction for channels that are actually used.
+
+    In dev builds (official=False), skip archive creation to speed up
+    the build cycle — deps will be installed on demand at runtime.
     """
+    if not official:
+        logger.info("Skipping extension dep archives (dev build).")
+        return
     extensions_dir = openclaw_dest / 'extensions'
     if not extensions_dir.is_dir():
         return
@@ -203,7 +209,7 @@ def _install_extension_deps(logger, openclaw_dest):
             logger.warning(f"Failed to build dep archive for {ext_dir.name}: {e}")
 
 
-def _install_openclaw_runtime(logger, out_dir):
+def _install_openclaw_runtime(logger, out_dir, *, official=False):
     """Package OpenClaw runtime and install into app bundle Resources/openclaw/."""
     resources_dir = _get_resources_dir(logger, out_dir)
     if not resources_dir:
@@ -334,7 +340,7 @@ def _install_openclaw_runtime(logger, out_dir):
     # dependencies that aren't in the root package.json.  In the pnpm
     # monorepo these are resolved via workspace symlinks, but those
     # break once copied into the app bundle.
-    _install_extension_deps(logger, dest)
+    _install_extension_deps(logger, dest, official=official)
 
     # Clean up incomplete plugin directories in dist/extensions/.
     # The openclaw build may produce extension dirs with only index.js or
@@ -348,7 +354,7 @@ def _install_openclaw_runtime(logger, out_dir):
             has_pkg = (ext_dir / 'package.json').exists()
             has_manifest = (ext_dir / 'openclaw.plugin.json').exists()
             if not has_pkg and not has_manifest:
-                shutil.rmtree(ext_dir)
+                shutil.rmtree(ext_dir, ignore_errors=True)
                 logger.info(f"Removed incomplete plugin dir: {ext_dir.name}")
 
     logger.info(f"OpenClaw runtime installed to {dest}")
@@ -477,7 +483,7 @@ def _create_universal_binary(args):
     sync_extension_version()
     _install_extension(logger, universal_dir)
     _install_node(logger, universal_dir)
-    _install_openclaw_runtime(logger, universal_dir)
+    _install_openclaw_runtime(logger, universal_dir, official=args.official)
 
     logger.info(f"Universal binary created: {universal_app}")
 
@@ -633,4 +639,4 @@ def build_chromium(args):
     out_dir = src_dir / 'out' / get_out_dir_name(args.official, arch)
     _install_extension(logger, out_dir)
     _install_node(logger, out_dir)
-    _install_openclaw_runtime(logger, out_dir)
+    _install_openclaw_runtime(logger, out_dir, official=args.official)

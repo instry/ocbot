@@ -114,6 +114,7 @@ export class OcbotChannelCredentials extends LitElement {
   override createRenderRoot() { return this }
 
   @property({ type: String }) channelId = ''
+  @property({ attribute: false }) initialConfig: Record<string, unknown> | null = null
 
   @state() private formData: Record<string, unknown> = {}
   @state() private saving = false
@@ -130,10 +131,16 @@ export class OcbotChannelCredentials extends LitElement {
   private qrCountdownTimer: ReturnType<typeof setInterval> | null = null
 
   private prevChannelId = ''
+  private prevInitialConfigKey = ''
 
   override willUpdate(changed: Map<string, unknown>) {
+    const initialConfigKey = this.getInitialConfigKey()
     if (changed.has('channelId') && this.channelId !== this.prevChannelId) {
       this.prevChannelId = this.channelId
+      this.prevInitialConfigKey = initialConfigKey
+      this.resetForm()
+    } else if (changed.has('initialConfig') && initialConfigKey !== this.prevInitialConfigKey) {
+      this.prevInitialConfigKey = initialConfigKey
       this.resetForm()
     }
   }
@@ -151,12 +158,41 @@ export class OcbotChannelCredentials extends LitElement {
         if (f.default !== undefined) base[f.key] = f.default
       }
     }
-    this.formData = base
+    this.formData = {
+      ...base,
+      ...this.getInitialFormData(),
+    }
     this.error = null
     this.success = null
     this.saving = false
     this.cleanupQr()
     this.qrStatus = 'idle'
+  }
+
+  private getInitialFormData(): Record<string, unknown> {
+    const spec = CHANNEL_CREDENTIALS[this.channelId]
+    const source = this.initialConfig
+    if (!spec || !source) return {}
+
+    const data: Record<string, unknown> = {}
+    for (const field of spec.fields) {
+      const value = source[field.key]
+      if (typeof value === 'string' && value.trim()) {
+        data[field.key] = value
+      }
+    }
+    return data
+  }
+
+  private getInitialConfigKey(): string {
+    const spec = CHANNEL_CREDENTIALS[this.channelId]
+    if (!spec || !this.initialConfig) return `${this.channelId}:`
+    const picked = spec.fields.map(field => `${field.key}:${String(this.initialConfig?.[field.key] ?? '')}`)
+    return `${this.channelId}:${picked.join('|')}`
+  }
+
+  private hasInitialCredentials(): boolean {
+    return Object.keys(this.getInitialFormData()).length > 0
   }
 
   // --- QR code (Feishu) ---
@@ -327,8 +363,15 @@ export class OcbotChannelCredentials extends LitElement {
             @click=${() => this.startFeishuQr()}
           >Scan QR Code to Connect</button>
           <div class="channels__field-help">
-            Scan with Feishu app to automatically configure Bot credentials.
+            Scan with Feishu app to automatically create and configure a new bot.
           </div>
+          ${this.hasInitialCredentials() ? html`
+            <button
+              class="provider-form__qr-refresh"
+              style="margin-top:10px;"
+              @click=${() => this.resetForm()}
+            >Use Current Bot Credentials</button>
+          ` : nothing}
         ` : nothing}
 
         ${this.qrStatus === 'loading' ? html`
@@ -353,6 +396,13 @@ export class OcbotChannelCredentials extends LitElement {
           <div class="provider-form__success">
             Credentials configured via QR code. Click Save & Connect to apply.
           </div>
+          ${this.hasInitialCredentials() ? html`
+            <button
+              class="provider-form__qr-refresh"
+              style="margin-top:10px;"
+              @click=${() => this.resetForm()}
+            >Restore Current Bot</button>
+          ` : nothing}
         ` : nothing}
 
         ${this.qrStatus === 'error' ? html`
@@ -365,6 +415,9 @@ export class OcbotChannelCredentials extends LitElement {
 
         <div class="provider-form__qr-divider">
           <span>or configure manually</span>
+        </div>
+        <div class="channels__field-help">
+          To reuse an existing bot, enter its App ID and App Secret below instead of scanning.
         </div>
       </div>
     `

@@ -1,10 +1,8 @@
-import json
 import os
 import shutil
 import socket
 import subprocess
 import sys
-import tarfile
 import tempfile
 import time
 import urllib.request
@@ -81,84 +79,6 @@ def _find_embedded_runtime(out_dir):
     return None, None
 
 
-def _has_embedded_runtime_deps(openclaw_dir):
-    return (openclaw_dir / 'node_modules' / 'tslog' / 'package.json').exists()
-
-
-def _ensure_embedded_runtime_ready(logger, out_dir):
-    node_path, openclaw_dir = _find_embedded_runtime(out_dir)
-    if not node_path:
-        return None, None
-    if _has_embedded_runtime_deps(openclaw_dir):
-        return node_path, openclaw_dir
-
-    logger.info("Embedded OpenClaw runtime is missing dependencies, repairing...")
-    from build import _install_openclaw_runtime
-
-    _install_openclaw_runtime(logger, out_dir)
-    node_path, openclaw_dir = _find_embedded_runtime(out_dir)
-    if node_path and _has_embedded_runtime_deps(openclaw_dir):
-        return node_path, openclaw_dir
-
-    logger.error("Embedded OpenClaw runtime dependencies are still missing after repair.")
-    return node_path, openclaw_dir
-
-
-def _extract_extension_deps(logger, extensions_dir, config_file):
-    """Extract .deps.tar.gz for configured channels before gateway starts.
-
-    Reads the openclaw config, finds which channels are configured, maps
-    them to extension directories via openclaw.plugin.json, and extracts
-    the pre-built dependency archive if node_modules/ is missing.
-    """
-    if not extensions_dir.is_dir():
-        return
-
-    # Read config to find configured channels
-    try:
-        config = json.loads(config_file.read_text())
-    except (json.JSONDecodeError, OSError):
-        return
-    channels_cfg = config.get('channels', {})
-    if not channels_cfg:
-        return
-
-    # Build channel→extension mapping from plugin manifests
-    channel_to_ext = {}
-    for ext_dir in extensions_dir.iterdir():
-        manifest = ext_dir / 'openclaw.plugin.json'
-        if not manifest.is_file():
-            continue
-        try:
-            m = json.loads(manifest.read_text())
-        except (json.JSONDecodeError, OSError):
-            continue
-        for cid in m.get('channels', []):
-            channel_to_ext[cid] = ext_dir
-
-    # Extract deps for each configured channel
-    for channel_id, channel_cfg in channels_cfg.items():
-        if not isinstance(channel_cfg, dict):
-            continue
-        ext_dir = channel_to_ext.get(channel_id)
-        if not ext_dir:
-            continue
-
-        archive = ext_dir / '.deps.tar.gz'
-        node_modules = ext_dir / 'node_modules'
-
-        if node_modules.exists() or not archive.exists():
-            continue
-
-        logger.info(f"Extracting dependencies for {ext_dir.name}...")
-        try:
-            with tarfile.open(archive, 'r:gz') as tar:
-                tar.extractall(path=ext_dir)
-            logger.info(f"  {ext_dir.name}: dependencies ready")
-        except Exception as e:
-            logger.warning(f"  {ext_dir.name}: extraction failed: {e}")
-
-
 def _wait_for_gateway(logger, port=18789, timeout=15):
     """Wait for OpenClaw gateway to become ready on the given port."""
     url = f'http://127.0.0.1:{port}/'
@@ -186,7 +106,7 @@ def _wait_for_gateway(logger, port=18789, timeout=15):
 
 def _start_embedded_runtime(logger, out_dir):
     """Start embedded OpenClaw gateway. Returns subprocess or exits on failure."""
-    node_path, openclaw_dir = _ensure_embedded_runtime_ready(logger, out_dir)
+    node_path, openclaw_dir = _find_embedded_runtime(out_dir)
     if not node_path:
         return None
 
@@ -203,17 +123,12 @@ def _start_embedded_runtime(logger, out_dir):
     env['OPENCLAW_CONFIG_PATH'] = str(config_file)
     env['OPENCLAW_STATE_DIR'] = str(state_dir)
     env['OPENCLAW_NO_RESPAWN'] = '1'
-    if (openclaw_dir / 'node_modules').exists():
-        env['NODE_PATH'] = str(openclaw_dir / 'node_modules')
 
     # Tell openclaw where bundled plugins live (embedded runtime has no .git/src,
     # so the source-checkout heuristic doesn't fire).
     extensions_dir = openclaw_dir / 'extensions'
     if extensions_dir.exists():
         env['OPENCLAW_BUNDLED_PLUGINS_DIR'] = str(extensions_dir)
-
-    # Extract pre-built dependency archives for configured channels.
-    _extract_extension_deps(logger, extensions_dir, config_file)
 
     gateway_cmd = [
         str(node_path),
@@ -291,13 +206,9 @@ def run_ocbot(src_dir=None, official=False, extra_args=None, update_web=False):
         return
 
     # --- Start embedded gateway ---
-    node_path, openclaw_dir = _ensure_embedded_runtime_ready(logger, out_dir)
+    node_path, openclaw_dir = _find_embedded_runtime(out_dir)
     if not node_path:
         logger.error("No embedded runtime found. Run 'dev.py build' first.")
-        return
-    if not _has_embedded_runtime_deps(openclaw_dir):
-        logger.error(f"Embedded runtime dependencies missing under {openclaw_dir / 'node_modules'}")
-        logger.info("Run 'python3 scripts/dev.py build' after checking npm/pnpm availability.")
         return
 
     logger.info('Starting embedded OpenClaw gateway...')

@@ -122,6 +122,22 @@ interface ClawHubDetailResponse {
   resolvedSlug?: string
 }
 
+type OcbotSkillApi = {
+  installSkill: (slug: string, version: string, cb: () => void) => void
+  uninstallSkill: (slug: string, cb: () => void) => void
+}
+
+function getChromeOcbotApi(): Partial<OcbotSkillApi> | null {
+  try {
+    const chromeObj = (globalThis as { chrome?: { ocbot?: Partial<OcbotSkillApi> } }).chrome
+    if (chromeObj?.ocbot) {
+      return chromeObj.ocbot as Partial<OcbotSkillApi>
+    }
+  } catch {
+  }
+  return null
+}
+
 // ── ClawHub Convex API ──
 
 const CONVEX_API_URL = 'https://wry-manatee-359.convex.cloud'
@@ -268,12 +284,14 @@ export class OcbotSkillsView extends LitElement {
   // ── Local skills state ──
   @state() private localSkills: SkillStatusEntry[] = []
   @state() private localLoading = true
+  @state() private localRefreshing = false
   @state() private localError: string | null = null
   @state() private selectedSkill: SkillStatusEntry | null = null
   @state() private apiKeyInput = ''
   @state() private apiKeyVisible = false
   @state() private savingApiKey = false
   @state() private togglingSkill = false
+  @state() private uninstallingSkill = false
   @state() private installingDep: Record<string, boolean> = {}
   @state() private installResult: Record<string, { ok: boolean; message: string }> = {}
 
@@ -291,6 +309,7 @@ export class OcbotSkillsView extends LitElement {
   @state() private mpDetail: ClawHubDetailResponse | null = null
   @state() private mpDetailLoading = false
   @state() private mpInstalling: Record<string, boolean> = {}
+  @state() private mpPendingInstall: Record<string, boolean> = {}
   @state() private mpInstallResult: Record<string, { ok: boolean; message: string }> = {}
   @state() private mpReadme: string | null = null
   @state() private mpReadmeLoading = false
@@ -318,16 +337,36 @@ export class OcbotSkillsView extends LitElement {
   // DATA LOADING
   // ══════════════════════════════════════
 
-  private async loadLocalSkills() {
-    this.localLoading = true
+  private async loadLocalSkills(options: { silent?: boolean } = {}) {
+    const silent = options.silent === true && this.localSkills.length > 0
+    if (silent) {
+      this.localRefreshing = true
+    } else {
+      this.localLoading = true
+    }
     this.localError = null
     try {
       const result = await this.gateway.call<SkillStatusReport>('skills.status')
       this.localSkills = result?.skills ?? []
+      const pending = { ...this.mpPendingInstall }
+      let changed = false
+      for (const slug of Object.keys(pending)) {
+        if (this.isMarketplaceSkillInstalled(slug)) {
+          delete pending[slug]
+          changed = true
+        }
+      }
+      if (changed) {
+        this.mpPendingInstall = pending
+      }
     } catch (err) {
       this.localError = err instanceof Error ? err.message : String(err)
     } finally {
-      this.localLoading = false
+      if (silent) {
+        this.localRefreshing = false
+      } else {
+        this.localLoading = false
+      }
     }
   }
 
@@ -339,14 +378,23 @@ export class OcbotSkillsView extends LitElement {
     if (!slug) return
     const requestId = data.requestId || ''
     try {
-      const ocUrl = `oc://home/skills?action=install&slug=${encodeURIComponent(slug)}`
-      window.location.href = ocUrl
+      const chromeOcbot = getChromeOcbotApi()
+      const installSkill = chromeOcbot?.installSkill
+      if (typeof installSkill !== 'function') {
+        throw new Error('Install API unavailable')
+      }
+      await new Promise<void>((resolve, reject) => {
+        try {
+          installSkill(slug, '', () => resolve())
+        } catch (err) {
+          reject(err)
+        }
+      })
       const iframe = this.querySelector('iframe')
       iframe?.contentWindow?.postMessage(
-        { type: 'ocbot:clawhub:install:result', slug, requestId, ok: true, message: 'Installing' },
+        { type: 'ocbot:clawhub:install:result', slug, requestId, ok: true, message: 'Installing...' },
         '*',
       )
-      setTimeout(() => { this.loadLocalSkills() }, 3000)
     } catch (err) {
       const iframe = this.querySelector('iframe')
       iframe?.contentWindow?.postMessage(
@@ -448,24 +496,21 @@ export class OcbotSkillsView extends LitElement {
   private async installMarketplaceSkill(slug: string, version?: string) {
     this.mpInstalling = { ...this.mpInstalling, [slug]: true }
     try {
-      const installUrl = new URL(`oc://home/skills`)
-      installUrl.searchParams.set('action', 'install')
-      installUrl.searchParams.set('slug', slug)
-      if (version) installUrl.searchParams.set('version', version)
-      window.location.href = installUrl.toString()
-      const start = Date.now()
-      const deadline = start + 15000
-      let installed = false
-      while (Date.now() < deadline) {
-        await this.loadLocalSkills()
-        installed = this.localSkills.some(s => s.skillKey.includes(slug))
-        if (installed) break
-        await new Promise(r => setTimeout(r, 1000))
+      const chromeOcbot = getChromeOcbotApi()
+      const installSkill = chromeOcbot?.installSkill
+      if (typeof installSkill !== 'function') {
+        throw new Error('Install API unavailable')
       }
-      this.mpInstallResult = {
-        ...this.mpInstallResult,
-        [slug]: installed ? { ok: true, message: 'Installed' } : { ok: false, message: 'Install not detected yet' },
-      }
+      await new Promise<void>((resolve, reject) => {
+        try {
+          installSkill(slug, version ?? '', () => resolve())
+        } catch (err) {
+          reject(err)
+        }
+      })
+      this.mpPendingInstall = { ...this.mpPendingInstall, [slug]: true }
+      delete this.mpInstallResult[slug]
+      this.mpInstallResult = { ...this.mpInstallResult }
     } catch (err) {
       this.mpInstallResult = {
         ...this.mpInstallResult,
@@ -473,6 +518,85 @@ export class OcbotSkillsView extends LitElement {
       }
     } finally {
       this.mpInstalling = { ...this.mpInstalling, [slug]: false }
+    }
+  }
+
+  private normalizeMarketplaceSkillId(value: string | undefined | null): string {
+    return (value ?? '')
+      .toLowerCase()
+      .replace(/\\/g, '/')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  }
+
+  private isMarketplaceSkillInstalled(slug: string): boolean {
+    const normalizedSlug = this.normalizeMarketplaceSkillId(slug)
+    if (!normalizedSlug) return false
+
+    return this.localSkills.some(skill => {
+      const candidates = [
+        skill.skillKey,
+        skill.name,
+        skill.baseDir,
+        skill.filePath,
+      ]
+
+      return candidates.some(candidate => {
+        const normalized = this.normalizeMarketplaceSkillId(candidate)
+        return normalized === normalizedSlug ||
+          normalized.endsWith(`-${normalizedSlug}`) ||
+          normalized.includes(`skills-${normalizedSlug}`) ||
+          normalized.includes(`/${normalizedSlug}`.replace(/\//g, '-'))
+      })
+    })
+  }
+
+  private getManagedSkillSlug(skill: SkillStatusEntry): string | null {
+    if (skill.bundled || skill.source === 'openclaw-bundled') return null
+    const normalized = skill.baseDir.replace(/\\/g, '/')
+    const marker = '/workspace/skills/'
+    const index = normalized.lastIndexOf(marker)
+    if (index === -1) return null
+    const slug = normalized.slice(index + marker.length).split('/')[0]?.trim() ?? ''
+    return slug || null
+  }
+
+  private canUninstallSkill(skill: SkillStatusEntry): boolean {
+    return this.getManagedSkillSlug(skill) !== null
+  }
+
+  private async uninstallSkill(skill: SkillStatusEntry) {
+    const slug = this.getManagedSkillSlug(skill)
+    if (!slug) return
+    const confirmed = globalThis.confirm(`Uninstall ${skill.name}?`)
+    if (!confirmed) return
+
+    this.uninstallingSkill = true
+    try {
+      const chromeOcbot = getChromeOcbotApi()
+      const uninstallSkill = chromeOcbot?.uninstallSkill
+      if (typeof uninstallSkill !== 'function') {
+        throw new Error('Uninstall API unavailable')
+      }
+      await new Promise<void>((resolve, reject) => {
+        try {
+          uninstallSkill(slug, () => resolve())
+        } catch (err) {
+          reject(err)
+        }
+      })
+      await this.loadLocalSkills({ silent: true })
+      delete this.mpPendingInstall[slug]
+      this.mpPendingInstall = { ...this.mpPendingInstall }
+      delete this.mpInstallResult[slug]
+      this.mpInstallResult = { ...this.mpInstallResult }
+      if (this.selectedSkill?.skillKey === skill.skillKey) {
+        this.backToList()
+      }
+    } catch (err) {
+      this.localError = err instanceof Error ? err.message : String(err)
+    } finally {
+      this.uninstallingSkill = false
     }
   }
 
@@ -728,6 +852,19 @@ export class OcbotSkillsView extends LitElement {
                 />
               </div>
               ${this.renderSortDropdown()}
+              ${this.tab === 'local' ? html`
+                <button
+                  class="btn btn--sm"
+                  style="display:flex; align-items:center; gap:6px; padding:8px 12px; font-size:13px; white-space:nowrap;"
+                  ?disabled=${this.localRefreshing}
+                  @click=${() => this.loadLocalSkills({ silent: true })}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.13 3.36L1 14"/>
+                  </svg>
+                  ${this.localRefreshing ? 'Refreshing...' : 'Refresh'}
+                </button>
+              ` : nothing}
               ${this.renderViewToggle()}
             </div>
           ` : nothing}
@@ -1001,8 +1138,9 @@ export class OcbotSkillsView extends LitElement {
   private renderMarketplaceCard(entry: ClawHubListEntry) {
     const { skill, owner, latestVersion } = entry
     const badges = this.getMarketplaceBadges(skill)
-    const installing = this.mpInstalling[skill.slug]
+    const installing = this.mpInstalling[skill.slug] || this.mpPendingInstall[skill.slug]
     const result = this.mpInstallResult[skill.slug]
+    const installed = this.isMarketplaceSkillInstalled(skill.slug) || result?.ok === true
 
     return html`
       <div
@@ -1052,7 +1190,7 @@ export class OcbotSkillsView extends LitElement {
             ` : nothing}
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
-            ${result?.ok ? html`
+            ${installed ? html`
               <span style="font-size:11px; color:var(--ok);">\u2713 Installed</span>
             ` : html`
               <button
@@ -1060,7 +1198,7 @@ export class OcbotSkillsView extends LitElement {
                 style="padding:3px 12px; font-size:11px; border-color:var(--accent); color:var(--accent); background:var(--accent-subtle);"
                 ?disabled=${installing}
                 @click=${(e: Event) => { e.stopPropagation(); this.installMarketplaceSkill(skill.slug, entry.latestVersion?.version) }}
-              >${installing ? '...' : 'Install'}</button>
+              >${installing ? 'Installing...' : 'Install'}</button>
             `}
           </div>
         </div>
@@ -1070,8 +1208,9 @@ export class OcbotSkillsView extends LitElement {
 
   private renderMarketplaceListRow(entry: ClawHubListEntry) {
     const { skill, owner } = entry
-    const installing = this.mpInstalling[skill.slug]
+    const installing = this.mpInstalling[skill.slug] || this.mpPendingInstall[skill.slug]
     const result = this.mpInstallResult[skill.slug]
+    const installed = this.isMarketplaceSkillInstalled(skill.slug) || result?.ok === true
 
     return html`
       <div
@@ -1095,7 +1234,7 @@ export class OcbotSkillsView extends LitElement {
         ${owner?.handle ? html`
           <span style="font-size:11px; padding:2px 8px; border-radius:4px; border:1px solid var(--border); color:var(--muted); flex-shrink:0;">@${owner.handle || owner.displayName}</span>
         ` : nothing}
-        ${result?.ok ? html`
+        ${installed ? html`
           <span style="font-size:11px; color:var(--ok); flex-shrink:0;">\u2713</span>
         ` : html`
           <button
@@ -1103,7 +1242,7 @@ export class OcbotSkillsView extends LitElement {
             style="padding:3px 12px; font-size:11px; border-color:var(--accent); color:var(--accent); background:var(--accent-subtle); flex-shrink:0;"
             ?disabled=${installing}
             @click=${(e: Event) => { e.stopPropagation(); this.installMarketplaceSkill(skill.slug, entry.latestVersion?.version) }}
-          >${installing ? '...' : 'Install'}</button>
+          >${installing ? 'Installing...' : 'Install'}</button>
         `}
       </div>
     `
@@ -1114,8 +1253,9 @@ export class OcbotSkillsView extends LitElement {
     const slug = r.skill?.slug ?? r.slug ?? ''
     const summary = r.skill?.summary ?? r.summary ?? null
     const version = r.version?.version
-    const installing = this.mpInstalling[slug]
+    const installing = this.mpInstalling[slug] || this.mpPendingInstall[slug]
     const result = this.mpInstallResult[slug]
+    const installed = this.isMarketplaceSkillInstalled(slug) || result?.ok === true
 
     return html`
       <div
@@ -1144,7 +1284,7 @@ export class OcbotSkillsView extends LitElement {
         </p>
         <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-size:12px; color:var(--muted);">
           <span style="font-family:var(--font-mono, monospace);">${slug}</span>
-          ${result?.ok ? html`
+          ${installed ? html`
             <span style="font-size:11px; color:var(--ok);">\u2713 Installed</span>
           ` : html`
             <button
@@ -1152,7 +1292,7 @@ export class OcbotSkillsView extends LitElement {
               style="padding:3px 12px; font-size:11px; border-color:var(--accent); color:var(--accent); background:var(--accent-subtle);"
               ?disabled=${installing}
               @click=${(e: Event) => { e.stopPropagation(); slug && this.installMarketplaceSkill(slug, version) }}
-            >${installing ? '...' : 'Install'}</button>
+              >${installing ? 'Installing...' : 'Install'}</button>
           `}
         </div>
       </div>
@@ -1164,8 +1304,9 @@ export class OcbotSkillsView extends LitElement {
     const slug = r.skill?.slug ?? r.slug ?? ''
     const summary = r.skill?.summary ?? r.summary ?? null
     const version = r.version?.version
-    const installing = this.mpInstalling[slug]
+    const installing = this.mpInstalling[slug] || this.mpPendingInstall[slug]
     const result = this.mpInstallResult[slug]
+    const installed = this.isMarketplaceSkillInstalled(slug) || result?.ok === true
 
     return html`
       <div
@@ -1185,7 +1326,7 @@ export class OcbotSkillsView extends LitElement {
           ` : nothing}
         </div>
         <span style="font-size:11px; padding:2px 8px; border-radius:4px; border:1px solid var(--border); color:var(--muted); flex-shrink:0;">${slug}</span>
-        ${result?.ok ? html`
+        ${installed ? html`
           <span style="font-size:11px; color:var(--ok); flex-shrink:0;">\u2713</span>
         ` : html`
           <button
@@ -1193,7 +1334,7 @@ export class OcbotSkillsView extends LitElement {
             style="padding:3px 12px; font-size:11px; border-color:var(--accent); color:var(--accent); background:var(--accent-subtle); flex-shrink:0;"
             ?disabled=${installing}
             @click=${(e: Event) => { e.stopPropagation(); slug && this.installMarketplaceSkill(slug) }}
-          >${installing ? '...' : 'Install'}</button>
+          >${installing ? 'Installing...' : 'Install'}</button>
         `}
       </div>
     `
@@ -1253,13 +1394,21 @@ export class OcbotSkillsView extends LitElement {
             </div>
           </div>
 
-          <div style="display:flex; align-items:center; gap:12px;">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <button
               class="btn ${skill.disabled ? '' : 'primary'}"
               style="padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:500;"
               ?disabled=${this.togglingSkill}
               @click=${() => this.toggleSkill(skill)}
             >${this.togglingSkill ? '...' : skill.disabled ? 'Enable Skill' : 'Disable Skill'}</button>
+            ${this.canUninstallSkill(skill) ? html`
+              <button
+                class="btn"
+                style="padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:500; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border));"
+                ?disabled=${this.uninstallingSkill}
+                @click=${() => this.uninstallSkill(skill)}
+              >${this.uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+            ` : nothing}
             ${skill.homepage ? html`
               <a
                 href="${skill.homepage}"
@@ -1417,8 +1566,9 @@ export class OcbotSkillsView extends LitElement {
 
     const { skill, latestVersion, owner } = this.mpDetail
     const badges = this.getMarketplaceBadges(skill)
-    const installing = this.mpInstalling[skill.slug]
+    const installing = this.mpInstalling[skill.slug] || this.mpPendingInstall[skill.slug]
     const result = this.mpInstallResult[skill.slug]
+    const installed = this.isMarketplaceSkillInstalled(skill.slug) || result?.ok === true
     const clawdis = latestVersion?.parsed?.clawdis
     const requires = clawdis?.requires
     const osLabels = formatOsList(clawdis?.os)
@@ -1488,7 +1638,7 @@ export class OcbotSkillsView extends LitElement {
 
           <!-- Actions -->
           <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            ${result?.ok ? html`
+            ${installed ? html`
               <button class="btn" style="padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:500; color:var(--ok); border-color:var(--ok);" disabled>
                 \u2713 Installed
               </button>
@@ -1500,7 +1650,7 @@ export class OcbotSkillsView extends LitElement {
                 @click=${() => this.installMarketplaceSkill(skill.slug, latestVersion?.version)}
               >${installing ? 'Installing...' : 'Install Skill'}</button>
             `}
-            ${result && !result.ok ? html`
+            ${result && !result.ok && !installing ? html`
               <span style="font-size:13px; color:var(--danger);">${result.message}</span>
             ` : nothing}
           </div>

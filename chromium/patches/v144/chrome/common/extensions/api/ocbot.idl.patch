@@ -1,9 +1,9 @@
 diff --git a/chrome/common/extensions/api/ocbot.idl b/chrome/common/extensions/api/ocbot.idl
 new file mode 100644
-index 0000000000000000000000000000000000000000..e9576ba9755aa2a97619702f9179a12539f96567
+index 0000000000000000000000000000000000000000..24bbf679425327adbcc83917c7f6eed1d3d4d157
 --- /dev/null
 +++ b/chrome/common/extensions/api/ocbot.idl
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,42 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -34,9 +34,15 @@ index 0000000000000000000000000000000000000000..e9576ba9755aa2a97619702f9179a125
 +  };
 +
 +  callback GetBrowserProfilesCallback = void(BrowserProfilesResult[] results);
++  callback InstallSkillCallback = void();
++  callback UninstallSkillCallback = void();
 +
 +  interface Functions {
 +    // Returns a list of installed Chromium-based browsers and their profiles.
 +    static void getBrowserProfiles(GetBrowserProfilesCallback callback);
++    // Installs a Marketplace skill into the managed workspace.
++    static void installSkill(DOMString slug, DOMString version, InstallSkillCallback callback);
++    // Removes a managed Marketplace skill from the local workspace.
++    static void uninstallSkill(DOMString slug, UninstallSkillCallback callback);
 +  };
 +};

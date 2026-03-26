@@ -1,6 +1,6 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.cc b/chrome/browser/ocbot/runtime_manager.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..8b589b38e6d533cc5b5583253dfdef6045a04bc2
+index 0000000000000000000000000000000000000000..1c3dd6399879659a0576a582330c43ca2ebccc5a
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.cc
 @@ -0,0 +1,951 @@
@@ -277,8 +277,8 @@ index 0000000000000000000000000000000000000000..8b589b38e6d533cc5b5583253dfdef60
 +  }
 +
 +  // Extract deps for each configured channel.
-+  for (const auto& [channel_id, channel_cfg] : *channels) {
-+    auto it = channel_to_ext.find(channel_id);
++  for (auto pair = channels->begin(); pair != channels->end(); ++pair) {
++    auto it = channel_to_ext.find(pair->first);
 +    if (it == channel_to_ext.end()) {
 +      continue;
 +    }

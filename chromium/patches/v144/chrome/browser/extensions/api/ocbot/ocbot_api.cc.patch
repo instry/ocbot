@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/extensions/api/ocbot/ocbot_api.cc b/chrome/browser/extensions/api/ocbot/ocbot_api.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..ed33edbdd1ae7e27648906d2ef13b0dbae8cfb44
+index 0000000000000000000000000000000000000000..072ea14de688da1702ad322f2c05d11e728ac0b6
 --- /dev/null
 +++ b/chrome/browser/extensions/api/ocbot/ocbot_api.cc
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,163 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -20,6 +20,7 @@ index 0000000000000000000000000000000000000000..ed33edbdd1ae7e27648906d2ef13b0db
 +#include "base/task/thread_pool.h"
 +#include "base/values.h"
 +#include "build/build_config.h"
++#include "chrome/browser/ocbot/skill_installer.h"
 +#include "chrome/common/extensions/api/ocbot.h"
 +#include "chrome/common/importer/chrome_importer_utils.h"
 +
@@ -135,6 +136,34 @@ index 0000000000000000000000000000000000000000..ed33edbdd1ae7e27648906d2ef13b0db
 +void OcbotGetBrowserProfilesFunction::OnProfilesScanned(
 +    base::Value::List results) {
 +  Respond(WithArguments(std::move(results)));
++}
++
++ExtensionFunction::ResponseAction OcbotInstallSkillFunction::Run() {
++  std::optional<api::ocbot::InstallSkill::Params> params =
++      api::ocbot::InstallSkill::Params::Create(args());
++  if (!params) {
++    return RespondNow(Error("Invalid arguments"));
++  }
++  const std::string slug = params->slug;
++  if (slug.empty()) {
++    return RespondNow(Error("Missing slug"));
++  }
++  ocbot::InstallSkillBySlug(browser_context(), slug, params->version);
++  return RespondNow(NoArguments());
++}
++
++ExtensionFunction::ResponseAction OcbotUninstallSkillFunction::Run() {
++  std::optional<api::ocbot::UninstallSkill::Params> params =
++      api::ocbot::UninstallSkill::Params::Create(args());
++  if (!params) {
++    return RespondNow(Error("Invalid arguments"));
++  }
++  const std::string slug = params->slug;
++  if (slug.empty()) {
++    return RespondNow(Error("Missing slug"));
++  }
++  ocbot::UninstallSkillBySlug(browser_context(), slug);
++  return RespondNow(NoArguments());
 +}
 +
 +}  // namespace extensions

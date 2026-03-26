@@ -1,0 +1,38 @@
+diff --git a/tools/metrics/histograms/metadata/extensions/enums.xml b/tools/metrics/histograms/metadata/extensions/enums.xml
+index dc11e4016ed919873c421b8b617ef32a57a3a1ed..25a91649cfdbea8689bf2cb46d2f567899665beb 100644
+--- a/tools/metrics/histograms/metadata/extensions/enums.xml
++++ b/tools/metrics/histograms/metadata/extensions/enums.xml
+@@ -2867,6 +2867,33 @@ Called by update_extension_histograms.py.-->
+   <int value="1952"
+       label="AUTOFILLPRIVATE_SETWALLETABLEPASSDETECTIONOPTINSTATUS"/>
+   <int value="1953" label="METRICSPRIVATE_RECORDEXTENSIONUSAGEUKM"/>
++  <int value="1954" label="DELETED_OCBOT_CHECKPERMISSIONS"/>
++  <int value="1955" label="DELETED_OCBOT_REQUESTPERMISSION"/>
++  <int value="1956" label="DELETED_OCBOT_CAPTURESCREEN"/>
++  <int value="1957" label="DELETED_OCBOT_CAPTUREWINDOW"/>
++  <int value="1958" label="DELETED_OCBOT_CLICK"/>
++  <int value="1959" label="DELETED_OCBOT_DOUBLECLICK"/>
++  <int value="1960" label="DELETED_OCBOT_RIGHTCLICK"/>
++  <int value="1961" label="DELETED_OCBOT_MOUSEMOVE"/>
++  <int value="1962" label="DELETED_OCBOT_SCROLL"/>
++  <int value="1963" label="DELETED_OCBOT_TYPE"/>
++  <int value="1964" label="DELETED_OCBOT_PRESSKEY"/>
++  <int value="1965" label="DELETED_OCBOT_RUNCOMMAND"/>
++  <int value="1966" label="DELETED_OCBOT_RUNAPPLESCRIPT"/>
++  <int value="1967" label="DELETED_OCBOT_GETDESKTOPTREE"/>
++  <int value="1968" label="DELETED_OCBOT_LISTAPPS"/>
++  <int value="1969" label="DELETED_OCBOT_GETACTIVEAPP"/>
++  <int value="1970" label="DELETED_OCBOT_LAUNCHAPP"/>
++  <int value="1971" label="DELETED_OCBOT_GETCLIPBOARD"/>
++  <int value="1972" label="DELETED_OCBOT_SETCLIPBOARD"/>
++  <int value="1973" label="DELETED_OCBOT_READFILE"/>
++  <int value="1974" label="DELETED_OCBOT_WRITEFILE"/>
++  <int value="1975" label="DELETED_OCBOT_LISTDIR"/>
++  <int value="1976" label="DELETED_OCBOT_SETPROVIDER"/>
++  <int value="1977" label="DELETED_OCBOT_GETCONFIG"/>
++  <int value="1978" label="OCBOT_GETBROWSERPROFILES"/>
++  <int value="1979" label="OCBOT_INSTALLSKILL"/>
++  <int value="1980" label="OCBOT_UNINSTALLSKILL"/>
+ </enum>
+ 
+ <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->

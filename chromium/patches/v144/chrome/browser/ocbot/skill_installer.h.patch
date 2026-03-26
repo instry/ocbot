@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/skill_installer.h b/chrome/browser/ocbot/skill_installer.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..dbcddbf6c80233b07810078149bedd6417385327
+index 0000000000000000000000000000000000000000..4dc4d3666ec3d66b7e46fe7b5338e889e2120346
 --- /dev/null
 +++ b/chrome/browser/ocbot/skill_installer.h
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,23 @@
 +// Copyright 2026 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -21,6 +21,8 @@ index 0000000000000000000000000000000000000000..dbcddbf6c80233b07810078149bedd64
 +void InstallSkillBySlug(content::BrowserContext* browser_context,
 +                        const std::string& slug,
 +                        const std::string& version);
++void UninstallSkillBySlug(content::BrowserContext* browser_context,
++                          const std::string& slug);
 +
 +}  // namespace ocbot
 +
