@@ -2486,6 +2486,23 @@ ocbot-skills-view {
   border-radius: var(--radius-sm);
 }
 
+.channel-status__details {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  padding-left: 16px;
+}
+
+.channel-status__hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--warn);
+  background: var(--warn-subtle, rgba(234, 179, 8, 0.08));
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+}
+
 @keyframes channel-status-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
