@@ -2465,6 +2465,63 @@ ocbot-skills-view {
   gap: 16px;
 }
 
+/* Channel status indicator */
+.channel-status {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.channel-status__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.channel-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.channel-status__dot--connecting {
+  background: var(--warn);
+  animation: channel-status-pulse 1.5s ease-in-out infinite;
+}
+
+.channel-status__dot--connected {
+  background: var(--ok);
+}
+
+.channel-status__dot--error {
+  background: var(--danger);
+}
+
+.channel-status__dot--disconnected {
+  background: var(--muted);
+}
+
+.channel-status__text {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.channel-status__error {
+  margin-top: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--danger);
+  background: var(--danger-subtle);
+  border-radius: var(--radius-sm);
+}
+
+@keyframes channel-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* About page */
 .about {
   max-width: 560px;

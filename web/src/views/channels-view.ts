@@ -1,12 +1,14 @@
 import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
-import { svgIcon } from '../components/icons'
 import { CHANNEL_CATALOG, type ChannelCatalogEntry } from '../generated/channel-catalog'
 import '../components/channel-form'
+import '../components/channel-credentials'
+import '../components/channel-status'
 
 interface ChannelAccount {
   accountId: string
+  name?: string
   enabled?: boolean
   configured?: boolean
   connected?: boolean
@@ -44,6 +46,8 @@ interface ConfigSchemaResult {
   channels?: ChannelSchemaEntry[]
 }
 
+type ChannelPhase = 'credentials' | 'connecting' | 'connected'
+
 const MAX_UNCONFIGURED_VISIBLE = 10
 
 @customElement('ocbot-channels-view')
@@ -62,9 +66,9 @@ export class OcbotChannelsView extends LitElement {
   @state() private channelConfigHash: string | null = null
   @state() private showAllUnconfigured = false
   @state() private pairingRequests: PairingRequest[] = []
-  @state() private pairingLoading = false
   @state() private pairingError: string | null = null
   @state() private approving = new Set<string>()
+  @state() private savingCredentials = false
 
   private refreshTimer: ReturnType<typeof setInterval> | null = null
   private pairingTimer: ReturnType<typeof setInterval> | null = null
@@ -126,16 +130,20 @@ export class OcbotChannelsView extends LitElement {
     this.channelConfig = null
     this.channelConfigHash = null
     this.dispatchEvent(new CustomEvent('channel-navigated', { detail: channelId }))
-    try {
-      const result = await this.gateway.call<{ config?: Record<string, unknown>; hash?: string }>('config.get')
-      const config = result?.config ?? {}
-      const channels = (config as Record<string, unknown>).channels as Record<string, unknown> | undefined
-      this.channelConfig = (channels?.[channelId] as Record<string, unknown>) ?? {}
-      this.channelConfigHash = result?.hash ?? null
-    } catch {
-      this.channelConfig = {}
+    if (this.isConfigured(channelId)) {
+      try {
+        const result = await this.gateway.call<{ config?: Record<string, unknown>; hash?: string }>('config.get')
+        const config = result?.config ?? {}
+        const channels = (config as Record<string, unknown>).channels as Record<string, unknown> | undefined
+        this.channelConfig = (channels?.[channelId] as Record<string, unknown>) ?? {}
+        this.channelConfigHash = result?.hash ?? null
+      } catch {
+        this.channelConfig = {}
+      }
+      this.startPairingPoll(channelId)
+    } else {
+      this.stopPairingPoll()
     }
-    this.startPairingPoll(channelId)
   }
 
   private deselectChannel() {
@@ -146,6 +154,64 @@ export class OcbotChannelsView extends LitElement {
     this.dispatchEvent(new CustomEvent('channel-navigated', { detail: null }))
     this.loadStatus()
   }
+
+  // ── Phase detection ──
+
+  private getChannelPhase(id: string): ChannelPhase {
+    if (!this.isConfigured(id)) return 'credentials'
+    if (this.channelIsConnected(id)) return 'connected'
+    return 'connecting'
+  }
+
+  // ── Credentials save ──
+
+  private async onCredentialsReady(e: CustomEvent) {
+    const { channelId, config } = e.detail as { channelId: string; config: Record<string, unknown> }
+    this.savingCredentials = true
+    const credentialsEl = this.querySelector('ocbot-channel-credentials') as
+      import('../components/channel-credentials').OcbotChannelCredentials | null
+
+    try {
+      const freshConfig = await this.gateway.call<{ hash?: string }>('config.get')
+      const baseHash = freshConfig?.hash ?? ''
+      const patch = { channels: { [channelId]: config } }
+      await this.gateway.call('config.patch', { baseHash, raw: JSON.stringify(patch) })
+      credentialsEl?.setSaveResult({ ok: true })
+      // Gateway will restart via SIGUSR1, reload status to detect phase change
+      await this.loadStatus()
+      // Re-select to move to connecting/connected phase
+      this.selectChannel(channelId)
+    } catch (err) {
+      credentialsEl?.setSaveResult({
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      this.savingCredentials = false
+    }
+  }
+
+  // ── Status change from channel-status component ──
+
+  private async onStatusChanged(id: string, e: CustomEvent) {
+    const { status } = e.detail as { status: string }
+    if (status === 'connected') {
+      // Reload schema (plugin is now fully loaded) and config
+      await this.loadData()
+      if (this.selectedChannelId === id) {
+        this.selectChannel(id)
+      }
+    }
+  }
+
+  // ── Channel saved (advanced settings) ──
+
+  private async onChannelSaved(channelId: string) {
+    await this.loadStatus()
+    this.selectChannel(channelId)
+  }
+
+  // ── Pairing ──
 
   private startPairingPoll(channelId: string) {
     this.stopPairingPoll()
@@ -171,7 +237,6 @@ export class OcbotChannelsView extends LitElement {
       this.pairingRequests = result?.requests ?? []
       this.pairingError = null
     } catch {
-      // Channel may not support pairing — silently ignore
       this.pairingRequests = []
     }
   }
@@ -201,11 +266,7 @@ export class OcbotChannelsView extends LitElement {
     return `${hours}h ago`
   }
 
-  private async onChannelSaved(channelId: string) {
-    await this.loadStatus()
-    // Re-load the saved config so the form reflects persisted state
-    this.selectChannel(channelId)
-  }
+  // ── Helpers ──
 
   private getConfiguredIds(): string[] {
     const channels = this.status.channels ?? {}
@@ -278,10 +339,10 @@ export class OcbotChannelsView extends LitElement {
         <div class="sub-nav__header">Channels</div>
         <nav class="sub-nav__items" style="overflow-y:auto; flex:1;">
           ${configuredIds.length > 0 ? html`
-            ${configuredIds.map(id => this.renderNavItem(id, true))}
+            ${configuredIds.map(id => this.renderNavItem(id))}
             <div style="border-top:1px solid var(--border); margin:6px 0;"></div>
           ` : nothing}
-          ${visibleUnconfigured.map(id => this.renderNavItem(id, false))}
+          ${visibleUnconfigured.map(id => this.renderNavItem(id))}
           ${!this.showAllUnconfigured && hiddenCount > 0 ? html`
             <button
               class="sub-nav__btn"
@@ -294,7 +355,7 @@ export class OcbotChannelsView extends LitElement {
     `
   }
 
-  private renderNavItem(id: string, configured: boolean) {
+  private renderNavItem(id: string) {
     const active = this.selectedChannelId === id
     return html`
       <button
@@ -324,6 +385,7 @@ export class OcbotChannelsView extends LitElement {
     const id = this.selectedChannelId!
     const label = this.getChannelLabel(id)
     const hint = this.getChannelHint(id)
+    const phase = this.getChannelPhase(id)
     const schema = this.getSchema(id)
 
     return html`
@@ -331,22 +393,49 @@ export class OcbotChannelsView extends LitElement {
         <div class="settings__page">
           <h2 class="settings__page-title">${label}</h2>
           <p class="settings__page-subtitle">${hint?.blurb ?? `Configure your ${label} channel connection.`}</p>
-          <div class="settings__form-container">
-            ${this.channelConfig === null ? html`
-              <div class="settings__empty">Loading configuration...</div>
-            ` : html`
-              <ocbot-channel-form
-                .gateway=${this.gateway}
+
+          ${phase === 'credentials' ? html`
+            <div class="settings__form-container">
+              <ocbot-channel-credentials
                 .channelId=${id}
-                .channelConfig=${this.channelConfig}
-                .configHash=${this.channelConfigHash}
-                .configSchema=${schema?.configSchema ?? null}
-                .configUiHints=${schema?.configUiHints ?? null}
-                @channel-saved=${() => { this.onChannelSaved(id) }}
-              ></ocbot-channel-form>
-            `}
-          </div>
-          ${this.isConfigured(id) ? this.renderPairingSection(id) : nothing}
+                @credentials-ready=${(e: CustomEvent) => this.onCredentialsReady(e)}
+              ></ocbot-channel-credentials>
+            </div>
+          ` : nothing}
+
+          ${phase === 'connecting' ? html`
+            <ocbot-channel-status
+              .gateway=${this.gateway}
+              .channelId=${id}
+              @status-changed=${(e: CustomEvent) => this.onStatusChanged(id, e)}
+            ></ocbot-channel-status>
+          ` : nothing}
+
+          ${phase === 'connected' ? html`
+            <ocbot-channel-status
+              .gateway=${this.gateway}
+              .channelId=${id}
+              @status-changed=${(e: CustomEvent) => this.onStatusChanged(id, e)}
+            ></ocbot-channel-status>
+            ${schema?.configSchema ? html`
+              <div class="settings__form-container" style="margin-top:20px;">
+                ${this.channelConfig === null ? html`
+                  <div class="settings__empty">Loading configuration...</div>
+                ` : html`
+                  <ocbot-channel-form
+                    .gateway=${this.gateway}
+                    .channelId=${id}
+                    .channelConfig=${this.channelConfig}
+                    .configHash=${this.channelConfigHash}
+                    .configSchema=${schema.configSchema ?? null}
+                    .configUiHints=${schema.configUiHints ?? null}
+                    @channel-saved=${() => { this.onChannelSaved(id) }}
+                  ></ocbot-channel-form>
+                `}
+              </div>
+            ` : nothing}
+            ${this.renderPairingSection(id)}
+          ` : nothing}
         </div>
       </div>
     `
