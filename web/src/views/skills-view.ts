@@ -448,33 +448,19 @@ export class OcbotSkillsView extends LitElement {
   private async installMarketplaceSkill(slug: string, version?: string) {
     this.mpInstalling = { ...this.mpInstalling, [slug]: true }
     try {
-      // Preferred path: direct zip download via Convex downloads handler.
-      const url = new URL(`${CONVEX_SITE_URL}/api/v1/download`)
-      url.searchParams.set('slug', slug)
-      if (version) url.searchParams.set('version', version)
-      const zipResp = await fetch(url.toString(), { method: 'GET' })
-      if (zipResp.ok) {
-        // Trigger a local download to avoid invalid gateway params; installation is handled by embedded runtime watcher.
-        const blob = await zipResp.blob()
-        const a = document.createElement('a')
-        a.href = URL.createObjectURL(blob)
-        a.download = `${slug}.zip`
-        a.style.display = 'none'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(a.href)
-        const ok = true
+      const installUrl = new URL(`oc://home/skills`)
+      installUrl.searchParams.set('action', 'install')
+      installUrl.searchParams.set('slug', slug)
+      if (version) installUrl.searchParams.set('version', version)
+      window.location.href = installUrl.toString()
+      setTimeout(async () => {
+        await this.loadLocalSkills()
+        const installed = this.localSkills.some(s => s.skillKey.includes(slug))
         this.mpInstallResult = {
           ...this.mpInstallResult,
-          [slug]: { ok, message: 'Downloaded' },
+          [slug]: installed ? { ok: true, message: 'Installed' } : { ok: false, message: 'Install not detected yet' },
         }
-        return
-      }
-      this.mpInstallResult = {
-        ...this.mpInstallResult,
-        [slug]: { ok: false, message: `Download failed (${zipResp.status})` },
-      }
+      }, 3000)
     } catch (err) {
       this.mpInstallResult = {
         ...this.mpInstallResult,

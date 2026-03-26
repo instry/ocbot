@@ -6,26 +6,30 @@ import { svgIcon } from '../components/icons'
 declare const __OCBOT_VERSION__: string
 declare const __OCBOT_BROWSER_PATH__: string
 
-type SettingsTab = 'general' | 'about'
+type SettingsTab = 'general' | 'browser' | 'about'
 type ThemeMode = 'system' | 'light' | 'dark'
 type BrowserChoice = 'ocbot' | 'system' | 'custom'
 
-interface BrowserProfileInfo {
+// chrome.ocbot API type (injected by Ocbot browser)
+interface OcbotBrowserProfileInfo {
   directory: string
   name: string
   path: string
 }
 
-interface BrowserProfilesResult {
+interface OcbotOcbotBrowserProfilesResult {
   browser: { kind: string; userDataDir: string }
-  profiles: BrowserProfileInfo[]
+  profiles: OcbotBrowserProfileInfo[]
 }
 
-// chrome.ocbot API type (injected by Ocbot browser)
-declare namespace chrome {
-  namespace ocbot {
-    function getBrowserProfiles(callback: (results: BrowserProfilesResult[]) => void): void
-  }
+function getChromeOcbotApi(): { getBrowserProfiles(cb: (r: OcbotOcbotBrowserProfilesResult[]) => void): void } | null {
+  try {
+    const c = globalThis as Record<string, unknown>
+    const chromeObj = c.chrome as Record<string, unknown> | undefined
+    const ocbotApi = chromeObj?.ocbot as { getBrowserProfiles?: (cb: (r: OcbotOcbotBrowserProfilesResult[]) => void) => void } | undefined
+    if (ocbotApi?.getBrowserProfiles) return ocbotApi as ReturnType<typeof getChromeOcbotApi>
+  } catch { /* not available */ }
+  return null
 }
 
 @customElement('ocbot-settings-view')
@@ -36,12 +40,25 @@ export class OcbotSettingsView extends LitElement {
 
   @state() activeTab: SettingsTab = 'general'
   @state() theme: ThemeMode = 'system'
+  // Browser settings — editing state
   @state() browserChoice: BrowserChoice = 'ocbot'
   @state() customBrowserPath: string = ''
+  @state() selectedProfileKey: string = ''  // "kind:directory" e.g. "chrome:Profile 1"
+  // Browser settings — saved state (for cancel/dirty detection)
+  private _savedBrowserChoice: BrowserChoice = 'ocbot'
+  private _savedCustomBrowserPath: string = ''
+  private _savedProfileKey: string = ''
+  // Browser settings — infra
   @state() configHash: string | null = null
   @state() browserSaving: boolean = false
-  @state() browserProfiles: BrowserProfilesResult[] = []
-  @state() selectedProfileKey: string = ''  // "kind:directory" e.g. "chrome:Profile 1"
+  @state() browserSaveSuccess: boolean = false
+  @state() browserProfiles: OcbotBrowserProfilesResult[] = []
+
+  private get _browserDirty(): boolean {
+    return this.browserChoice !== this._savedBrowserChoice
+      || this.customBrowserPath !== this._savedCustomBrowserPath
+      || this.selectedProfileKey !== this._savedProfileKey
+  }
 
   override connectedCallback() {
     super.connectedCallback()
@@ -54,12 +71,17 @@ export class OcbotSettingsView extends LitElement {
   }
 
   private async _loadBrowserConfig() {
+    // Load profiles first so we can match saved config
+    await this._loadBrowserProfiles()
+
     try {
       const result = await this.gateway.call<{
         config?: { browser?: { executablePath?: string; defaultProfile?: string; profiles?: Record<string, { userDataDir?: string; driver?: string }> } }
         hash?: string
       }>('config.get')
       this.configHash = result?.hash ?? null
+
+      // Restore browser choice
       const execPath = result?.config?.browser?.executablePath ?? ''
       if (!execPath) {
         this.browserChoice = 'system'
@@ -70,22 +92,27 @@ export class OcbotSettingsView extends LitElement {
         this.customBrowserPath = execPath
       }
 
-      // Restore selected profile from config
+      // Restore selected profile
       const userProfile = result?.config?.browser?.profiles?.user
       if (userProfile?.userDataDir && userProfile?.driver === 'existing-session') {
-        // Find matching browser+profile from scan results
-        this._loadBrowserProfiles().then(() => {
-          for (const b of this.browserProfiles) {
-            if (b.browser.userDataDir === userProfile.userDataDir) {
-              // Default profile if no specific directory info
-              this.selectedProfileKey = `${b.browser.kind}:${b.profiles[0]?.directory ?? 'Default'}`
+        for (const b of this.browserProfiles) {
+          if (b.browser.userDataDir === userProfile.userDataDir) {
+            // Find the specific profile directory from the config
+            // The userDataDir matches the browser, now find which profile sub-dir
+            for (const p of b.profiles) {
+              const key = `${b.browser.kind}:${p.directory}`
+              this.selectedProfileKey = key
               break
             }
+            break
           }
-        })
-      } else {
-        this._loadBrowserProfiles()
+        }
       }
+
+      // Save as baseline for dirty detection
+      this._savedBrowserChoice = this.browserChoice
+      this._savedCustomBrowserPath = this.customBrowserPath
+      this._savedProfileKey = this.selectedProfileKey
     } catch {
       // Gateway not connected yet — keep defaults
     }
@@ -93,9 +120,10 @@ export class OcbotSettingsView extends LitElement {
 
   private async _loadBrowserProfiles() {
     try {
-      if (typeof chrome !== 'undefined' && chrome.ocbot?.getBrowserProfiles) {
-        const results = await new Promise<BrowserProfilesResult[]>((resolve) => {
-          chrome.ocbot.getBrowserProfiles(resolve)
+      const api = getChromeOcbotApi()
+      if (api) {
+        const results = await new Promise<OcbotBrowserProfilesResult[]>((resolve) => {
+          api.getBrowserProfiles(resolve)
         })
         this.browserProfiles = results
       }
@@ -112,11 +140,9 @@ export class OcbotSettingsView extends LitElement {
     }
   }
 
-  private async _setBrowserChoice(choice: BrowserChoice) {
+  private _setBrowserChoice(choice: BrowserChoice) {
     this.browserChoice = choice
-    if (choice !== 'custom') {
-      await this._saveBrowserConfig()
-    }
+    this.requestUpdate()
   }
 
   private async _saveBrowserConfig() {
@@ -129,38 +155,55 @@ export class OcbotSettingsView extends LitElement {
           ? this.customBrowserPath
           : null
 
-      const patch: Record<string, unknown> = {
-        browser: { executablePath: value }
-      }
+      const browserPatch: Record<string, unknown> = { executablePath: value }
 
       // If a profile is selected and browser is "system", configure existing-session profile
       if (this.browserChoice === 'system' && this.selectedProfileKey) {
         const profileConfig = this._resolveSelectedProfile()
         if (profileConfig) {
-          (patch.browser as Record<string, unknown>).profiles = {
+          browserPatch.profiles = {
             user: {
               driver: 'existing-session',
               userDataDir: profileConfig.userDataDir,
               attachOnly: true,
               color: '#00AA00',
             }
-          };
-          (patch.browser as Record<string, unknown>).defaultProfile = 'user'
+          }
+          browserPatch.defaultProfile = 'user'
         }
+      } else {
+        // Clear profile config when not using system browser
+        browserPatch.profiles = { user: null }
+        browserPatch.defaultProfile = null
       }
 
       await this.gateway.call('config.patch', {
         baseHash: this.configHash,
-        raw: JSON.stringify(patch),
+        raw: JSON.stringify({ browser: browserPatch }),
       })
 
       const result = await this.gateway.call<{ hash?: string }>('config.get')
       this.configHash = result?.hash ?? null
+
+      // Update saved baseline
+      this._savedBrowserChoice = this.browserChoice
+      this._savedCustomBrowserPath = this.customBrowserPath
+      this._savedProfileKey = this.selectedProfileKey
+
+      // Flash success
+      this.browserSaveSuccess = true
+      setTimeout(() => { this.browserSaveSuccess = false }, 2500)
     } catch (err) {
       console.error('Failed to save browser config:', err)
     } finally {
       this.browserSaving = false
     }
+  }
+
+  private _cancelBrowserConfig() {
+    this.browserChoice = this._savedBrowserChoice
+    this.customBrowserPath = this._savedCustomBrowserPath
+    this.selectedProfileKey = this._savedProfileKey
   }
 
   private _resolveSelectedProfile(): { userDataDir: string; directory: string } | null {
@@ -180,25 +223,10 @@ export class OcbotSettingsView extends LitElement {
 
   private _onProfileChange(e: Event) {
     this.selectedProfileKey = (e.target as HTMLSelectElement).value
-    if (this.browserChoice === 'system') {
-      this._saveBrowserConfig()
-    }
   }
 
   private _onCustomPathInput(e: Event) {
     this.customBrowserPath = (e.target as HTMLInputElement).value
-  }
-
-  private _onCustomPathBlur() {
-    if (this.browserChoice === 'custom' && this.customBrowserPath.trim()) {
-      this._saveBrowserConfig()
-    }
-  }
-
-  private _onCustomPathKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && this.customBrowserPath.trim()) {
-      this._saveBrowserConfig()
-    }
   }
 
   private setTheme(mode: ThemeMode) {
@@ -227,6 +255,7 @@ export class OcbotSettingsView extends LitElement {
   override render() {
     const tabs: { id: SettingsTab; icon: string; label: string }[] = [
       { id: 'general', icon: 'sliders', label: 'General' },
+      { id: 'browser', icon: 'globe', label: 'Browser' },
       { id: 'about', icon: 'info', label: 'About' },
     ]
 
@@ -251,6 +280,7 @@ export class OcbotSettingsView extends LitElement {
         <!-- Content area -->
         <div class="settings__content">
           ${this.activeTab === 'general' ? this._renderGeneralTab() : nothing}
+          ${this.activeTab === 'browser' ? this._renderBrowserTab() : nothing}
           ${this.activeTab === 'about' ? this._renderAboutTab() : nothing}
         </div>
       </div>
@@ -264,12 +294,6 @@ export class OcbotSettingsView extends LitElement {
       { value: 'system', label: 'System', icon: 'monitor' },
       { value: 'light', label: 'Light', icon: 'sun' },
       { value: 'dark', label: 'Dark', icon: 'moon' },
-    ]
-
-    const browsers: { value: BrowserChoice; label: string; icon: string }[] = [
-      { value: 'ocbot', label: 'Ocbot', icon: 'monitor' },
-      { value: 'system', label: 'System', icon: 'globe' },
-      { value: 'custom', label: 'Custom', icon: 'sliders' },
     ]
 
     return html`
@@ -301,13 +325,32 @@ export class OcbotSettingsView extends LitElement {
             </div>
           </div>
 
-          <!-- Browser -->
+        </div>
+      </div>
+    `
+  }
+
+  /* ───────── Browser Tab ───────── */
+
+  private _renderBrowserTab() {
+    const browsers: { value: BrowserChoice; label: string; icon: string }[] = [
+      { value: 'ocbot', label: 'Ocbot', icon: 'monitor' },
+      { value: 'system', label: 'System', icon: 'globe' },
+      { value: 'custom', label: 'Custom', icon: 'sliders' },
+    ]
+
+    return html`
+      <div class="settings__page">
+        <h2 class="settings__page-title">Browser</h2>
+
+        <div class="settings__sections">
+          <!-- Agent Browser -->
           <div class="settings__section">
-            <h3 class="settings__section-title">Browser</h3>
+            <h3 class="settings__section-title">Agent Browser</h3>
             <div class="settings__section-card">
               <div class="settings__row">
                 <div class="settings__row-info">
-                  <span class="settings__row-title">Agent Browser</span>
+                  <span class="settings__row-title">Browser</span>
                   <span class="settings__row-desc">Browser used when Agent performs tasks</span>
                 </div>
                 <div class="settings__theme-toggle">
@@ -333,16 +376,21 @@ export class OcbotSettingsView extends LitElement {
                       placeholder="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
                       .value=${this.customBrowserPath}
                       @input=${this._onCustomPathInput}
-                      @blur=${this._onCustomPathBlur}
-                      @keydown=${this._onCustomPathKeydown}
                     />
                   </div>
                 </div>
               ` : nothing}
-              ${this.browserChoice === 'system' && this.browserProfiles.length > 0 ? html`
+            </div>
+          </div>
+
+          <!-- Profile -->
+          ${this.browserChoice === 'system' && this.browserProfiles.length > 0 ? html`
+            <div class="settings__section">
+              <h3 class="settings__section-title">Profile</h3>
+              <div class="settings__section-card">
                 <div class="settings__row">
                   <div class="settings__row-info">
-                    <span class="settings__row-title">Profile</span>
+                    <span class="settings__row-title">Chrome Profile</span>
                     <span class="settings__row-desc">Use an existing browser profile with saved logins</span>
                   </div>
                   <select
@@ -364,8 +412,25 @@ export class OcbotSettingsView extends LitElement {
                     `)}
                   </select>
                 </div>
-              ` : nothing}
+              </div>
             </div>
+          ` : nothing}
+
+          <!-- Save / Cancel -->
+          <div class="settings__actions">
+            <button
+              class="settings__cancel-btn"
+              @click=${() => this._cancelBrowserConfig()}
+              ?disabled=${!this._browserDirty || this.browserSaving}
+            >Cancel</button>
+            <button
+              class="settings__save-btn"
+              @click=${() => this._saveBrowserConfig()}
+              ?disabled=${!this._browserDirty || this.browserSaving}
+            >${this.browserSaving ? 'Saving...' : 'Save'}</button>
+            ${this.browserSaveSuccess ? html`
+              <span class="settings__save-success">Saved</span>
+            ` : nothing}
           </div>
 
         </div>

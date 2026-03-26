@@ -2089,6 +2089,71 @@ ocbot-skills-view {
   color: var(--text);
 }
 
+/* Settings action buttons (Save / Cancel) — shared pattern */
+.settings__actions {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-start;
+  padding-top: 4px;
+}
+
+.settings__cancel-btn {
+  min-width: 120px;
+  padding: 10px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.settings__cancel-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.settings__cancel-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.settings__save-btn {
+  min-width: 120px;
+  padding: 10px 28px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.settings__save-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.settings__save-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.settings__save-success {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ok);
+  animation: settings-fade-in 0.2s ease-out;
+}
+
+@keyframes settings-fade-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 /* About */
 .settings__about {
   display: flex;
