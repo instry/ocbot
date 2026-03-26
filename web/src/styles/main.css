@@ -389,37 +389,6 @@ ocbot-chat-view {
   min-height: 0;
 }
 
-.chat-view__header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  background: var(--bg);
-  z-index: 10;
-}
-
-.chat-view__header-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: all var(--duration-fast);
-}
-
-.chat-view__header-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
 .chat-view__messages {
   flex: 1 0 auto;
   padding: 16px 24px;
@@ -2823,4 +2792,3 @@ ocbot-skills-view {
 .channels__advanced-toggle:hover {
   color: var(--text);
 }
-

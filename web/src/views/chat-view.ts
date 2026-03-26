@@ -76,7 +76,6 @@ export class OcbotChatView extends LitElement {
 
   @property({ attribute: false }) gateway!: GatewayClient
   @property() sessionKey = 'main'
-  @property({ type: Boolean }) panelOpen = true
 
   @state() messages: ChatMessage[] = []
   @state() streamText = ''
@@ -446,10 +445,6 @@ export class OcbotChatView extends LitElement {
     })
   }
 
-  private togglePanel() {
-    this.dispatchEvent(new CustomEvent('toggle-panel', { bubbles: true, composed: true }))
-  }
-
   // --- Render ---
 
   override render() {
@@ -457,18 +452,6 @@ export class OcbotChatView extends LitElement {
 
     return html`
       <div class="chat-view">
-        <!-- Header -->
-        <div class="chat-view__header">
-          <button class="chat-view__header-btn" @click=${this.togglePanel} title="${this.panelOpen ? 'Hide sidebar' : 'Show sidebar'}">
-            ${svgIcon(this.panelOpen ? 'panel-left-close' : 'panel-left', 16)}
-          </button>
-          <span style="flex:1"></span>
-          ${this.sending ? html`
-            <button class="btn btn--sm btn--danger" @click=${this.abort}>${svgIcon('x', 14)} Stop</button>
-          ` : nothing}
-        </div>
-
-        <!-- Messages -->
         <div class="chat-view__messages" id="messages-container">
           ${!hasMessages ? this._renderWelcome() : html`
             ${this.messages.map((m, i) => this._renderMessage(m, i))}
@@ -485,7 +468,6 @@ export class OcbotChatView extends LitElement {
           `}
         </div>
 
-        <!-- Input Area -->
         ${this._renderInput(hasMessages)}
       </div>
     `

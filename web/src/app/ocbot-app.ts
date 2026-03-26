@@ -24,7 +24,6 @@ export class OcbotApp extends LitElement {
   @state() gatewayState: GatewayState = 'disconnected'
   @state() hasModels: boolean | null = null // null = still checking
   @state() chatSessionKey = `ocbot:${Date.now()}`
-  @state() panelOpen = true
   @state() showOnboarding = false
   @state() showDisconnected = false
 
@@ -136,7 +135,7 @@ export class OcbotApp extends LitElement {
     }
 
     // Main UI
-    const showPanel = this.tab === 'chat' && this.panelOpen
+    const showPanel = this.tab === 'chat'
 
     return html`
       <div style="display:flex; height:100vh; width:100vw;">
@@ -172,8 +171,6 @@ export class OcbotApp extends LitElement {
           ? html`<ocbot-chat-view
               .gateway=${this.gateway}
               .sessionKey=${this.chatSessionKey}
-              .panelOpen=${this.panelOpen}
-              @toggle-panel=${() => { this.panelOpen = !this.panelOpen }}
               @session-changed=${(e: CustomEvent) => { this.chatSessionKey = e.detail }}
             ></ocbot-chat-view>`
           : this._renderSetupPrompt()

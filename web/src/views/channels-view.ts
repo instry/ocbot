@@ -165,6 +165,17 @@ export class OcbotChannelsView extends LitElement {
 
   // ── Credentials save ──
 
+  /** Wait for gateway to reconnect after restart (SIGUSR1). */
+  private waitForReconnect(timeoutMs = 15_000): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.gateway.state === 'connected') { resolve(); return }
+      const timer = setTimeout(() => { unsub(); reject(new Error('gateway reconnect timed out')) }, timeoutMs)
+      const unsub = this.gateway.onStateChange((state) => {
+        if (state === 'connected') { clearTimeout(timer); unsub(); resolve() }
+      })
+    })
+  }
+
   private async onCredentialsReady(e: CustomEvent) {
     const { channelId, config } = e.detail as { channelId: string; config: Record<string, unknown> }
     this.savingCredentials = true
@@ -177,8 +188,10 @@ export class OcbotChannelsView extends LitElement {
       const patch = { channels: { [channelId]: config } }
       await this.gateway.call('config.patch', { baseHash, raw: JSON.stringify(patch) })
       credentialsEl?.setSaveResult({ ok: true })
-      // Gateway will restart via SIGUSR1, reload status to detect phase change
-      await this.loadStatus()
+      // Gateway restarts via SIGUSR1 — wait for WS to reconnect
+      await this.waitForReconnect()
+      // Reload status + schema after gateway is back
+      await this.loadData()
       // Re-select to move to connecting/connected phase
       this.selectChannel(channelId)
     } catch (err) {
