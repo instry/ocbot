@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/skill_installer.cc b/chrome/browser/ocbot/skill_installer.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f714559787679
+index 0000000000000000000000000000000000000000..47296b67276296bda2c2f2c8a246dc8cf8d0c20c
 --- /dev/null
 +++ b/chrome/browser/ocbot/skill_installer.cc
-@@ -0,0 +1,295 @@
+@@ -0,0 +1,320 @@
 +// Copyright 2026 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -21,6 +21,7 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +#include "build/build_config.h"
 +#include "chrome/browser/net/system_network_context_manager.h"
 +#include "content/public/browser/browser_thread.h"
++#include "net/base/load_flags.h"
 +#include "net/traffic_annotation/network_traffic_annotation.h"
 +#include "services/network/public/cpp/resource_request.h"
 +#include "services/network/public/cpp/simple_url_loader.h"
@@ -30,6 +31,7 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +#include "base/files/file_util.h"
 +#include "base/process/launch.h"
 +#include "base/process/process.h"
++#include "base/environment.h"
 +
 +namespace ocbot {
 +
@@ -43,7 +45,22 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +  return SystemNetworkContextManager::GetInstance()->GetURLLoaderFactory();
 +}
 +
-+base::FilePath GetWorkspaceDir() {
++std::string ResolveRuntimeMode() {
++  std::unique_ptr<base::Environment> env(base::Environment::Create());
++  std::optional<std::string> mode = env->GetVar("OCBOT_RUNTIME_MODE");
++  if (!mode.has_value() || mode->empty()) {
++    return "dev";
++  }
++  std::string normalized = *mode;
++  for (auto& ch : normalized) ch = static_cast<char>(::tolower(ch));
++  if (normalized == "prod" || normalized == "production" ||
++      normalized == "release") {
++    return "prod";
++  }
++  return "dev";
++}
++
++base::FilePath GetOcbotAppDataDir() {
 +#if BUILDFLAG(IS_MAC)
 +  base::FilePath home_dir;
 +  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
@@ -51,24 +68,32 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +  }
 +  return home_dir.Append(FILE_PATH_LITERAL("Library"))
 +      .Append(FILE_PATH_LITERAL("Application Support"))
-+      .Append(FILE_PATH_LITERAL("Ocbot"))
-+      .Append(FILE_PATH_LITERAL("openclaw-workspace"));
++      .Append(FILE_PATH_LITERAL("Ocbot"));
 +#elif BUILDFLAG(IS_WIN)
 +  base::FilePath appdata_dir;
 +  if (!base::PathService::Get(base::DIR_ROAMING_APP_DATA, &appdata_dir)) {
 +    return base::FilePath();
 +  }
-+  return appdata_dir.Append(FILE_PATH_LITERAL("Ocbot"))
-+      .Append(FILE_PATH_LITERAL("openclaw-workspace"));
++  return appdata_dir.Append(FILE_PATH_LITERAL("Ocbot"));
 +#else
 +  base::FilePath home_dir;
 +  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
 +    return base::FilePath();
 +  }
 +  return home_dir.Append(FILE_PATH_LITERAL(".config"))
-+      .Append(FILE_PATH_LITERAL("ocbot"))
-+      .Append(FILE_PATH_LITERAL("openclaw-workspace"));
++      .Append(FILE_PATH_LITERAL("ocbot"));
 +#endif
++}
++
++base::FilePath GetWorkspaceDir() {
++  base::FilePath app_data_dir = GetOcbotAppDataDir();
++  if (app_data_dir.empty()) {
++    return base::FilePath();
++  }
++  const std::string mode = ResolveRuntimeMode();
++  return app_data_dir.AppendASCII(mode == "prod" ? "openclaw"
++                                                 : "openclaw-dev")
++      .Append(FILE_PATH_LITERAL("workspace"));
 +}
 +
 +base::FilePath GetSkillsDir() {
@@ -141,14 +166,15 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +void FinalizeInstall(const base::FilePath& target_dir,
 +                     const std::string& slug,
 +                     const std::string& version) {
++  const double installed_at =
++      static_cast<double>(base::Time::Now().InMillisecondsSinceUnixEpoch());
 +  // Write .clawhub/origin.json
 +  base::Value::Dict origin;
 +  origin.Set("version", 1);
 +  origin.Set("registry", kRegistryBase);
 +  origin.Set("slug", slug);
 +  origin.Set("installedVersion", version.empty() ? "latest" : version);
-+  origin.Set("installedAt",
-+             static_cast<int64_t>(base::Time::Now().InMillisecondsSinceUnixEpoch()));
++  origin.Set("installedAt", installed_at);
 +  base::FilePath origin_path = target_dir.Append(FILE_PATH_LITERAL(".clawhub"))
 +                                  .Append(FILE_PATH_LITERAL("origin.json"));
 +  if (!WriteJsonFile(origin_path, origin)) {
@@ -176,16 +202,14 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +  }
 +  base::Value::Dict entry;
 +  entry.Set("version", version.empty() ? "latest" : version);
-+  entry.Set("installedAt",
-+            static_cast<int64_t>(base::Time::Now().InMillisecondsSinceUnixEpoch()));
++  entry.Set("installedAt", installed_at);
 +  skills->Set(slug, std::move(entry));
 +  if (!WriteJsonFile(lock_path, lock)) {
 +    LOG(WARNING) << "ocbot skill installer: failed to write lock.json";
 +  }
 +}
 +
-+void DoInstall(content::BrowserContext* browser_context,
-+               std::string slug,
++void DoInstall(std::string slug,
 +               std::string version) {
 +  LOG(INFO) << "ocbot skill install: slug=" << slug << " version=" << version;
 +  // Determine workspace and target skill directory.
@@ -251,8 +275,10 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +            base::FilePath ws = GetWorkspaceDir();
 +            base::FilePath temp_extract =
 +                ws.Append(FILE_PATH_LITERAL("tmp"))
-+                  .AppendASCII("skill-" + slug + "-" + base::NumberToString(base::Time::Now().InSeconds()))
-+                  ;
++                  .AppendASCII("skill-" + slug + "-" +
++                               base::NumberToString(
++                                   base::Time::Now()
++                                       .InMillisecondsSinceUnixEpoch()));
 +            if (!ExtractZip(temp_path, temp_extract)) {
 +              LOG(ERROR) << "ocbot skill installer: extraction failed";
 +              base::DeleteFile(temp_path);
@@ -280,7 +306,7 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +            FinalizeInstall(target_dir, slug, version);
 +            LOG(INFO) << "ocbot skill installer: installed " << slug << " to " << target_dir;
 +          },
-+          target_dir, slug, version, base::Owned(std::move(loader))),
++          target_dir, slug, version, std::move(loader)),
 +      kMaxZipSize);
 +}
 +
@@ -293,7 +319,6 @@ index 0000000000000000000000000000000000000000..44aa047d3c0f78ce094b7535673f7145
 +  content::GetUIThreadTaskRunner({})->PostTask(
 +      FROM_HERE,
 +      base::BindOnce(&DoInstall,
-+                     browser_context,
 +                     std::string(slug),
 +                     std::string(version)));
 +}

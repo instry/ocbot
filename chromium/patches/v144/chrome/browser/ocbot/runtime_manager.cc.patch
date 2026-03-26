@@ -1,13 +1,15 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.cc b/chrome/browser/ocbot/runtime_manager.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b778081e82
+index 0000000000000000000000000000000000000000..8b589b38e6d533cc5b5583253dfdef6045a04bc2
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.cc
-@@ -0,0 +1,773 @@
+@@ -0,0 +1,951 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
 +#include "chrome/browser/ocbot/runtime_manager.h"
++
++#include <map>
 +
 +#include "base/command_line.h"
 +#include "base/files/file_enumerator.h"
@@ -22,6 +24,7 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +#include "base/strings/string_number_conversions.h"
 +#include "base/task/thread_pool.h"
 +#include "base/values.h"
++#include "base/environment.h"
 +#include "build/build_config.h"
 +#include "chrome/common/chrome_paths.h"
 +#include "components/keep_alive_registry/keep_alive_types.h"
@@ -55,6 +58,55 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +// Timeout for TCP connect health check (milliseconds).
 +constexpr int kHealthCheckTimeoutMs = 2000;
 +
++std::string ResolveRuntimeMode() {
++  std::unique_ptr<base::Environment> env(base::Environment::Create());
++  std::optional<std::string> mode = env->GetVar("OCBOT_RUNTIME_MODE");
++  if (!mode.has_value() || mode->empty()) {
++    return "dev";
++  }
++  std::string normalized = *mode;
++  for (auto& ch : normalized) ch = static_cast<char>(::tolower(ch));
++  if (normalized == "prod" || normalized == "production" ||
++      normalized == "release") {
++    return "prod";
++  }
++  return "dev";
++}
++
++base::FilePath GetOcbotAppDataDir() {
++#if BUILDFLAG(IS_MAC)
++  base::FilePath home_dir;
++  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++    return base::FilePath();
++  }
++  return home_dir.Append(FILE_PATH_LITERAL("Library"))
++      .Append(FILE_PATH_LITERAL("Application Support"))
++      .Append(FILE_PATH_LITERAL("Ocbot"));
++#elif BUILDFLAG(IS_WIN)
++  base::FilePath appdata_dir;
++  if (!base::PathService::Get(base::DIR_ROAMING_APP_DATA, &appdata_dir)) {
++    return base::FilePath();
++  }
++  return appdata_dir.Append(FILE_PATH_LITERAL("Ocbot"));
++#else
++  base::FilePath home_dir;
++  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++    return base::FilePath();
++  }
++  return home_dir.Append(FILE_PATH_LITERAL(".config"))
++      .Append(FILE_PATH_LITERAL("ocbot"));
++#endif
++}
++
++base::FilePath GetOpenClawDataDirForMode(const std::string& mode) {
++  base::FilePath app_data_dir = GetOcbotAppDataDir();
++  if (app_data_dir.empty()) {
++    return base::FilePath();
++  }
++  return app_data_dir.AppendASCII(mode == "prod" ? "openclaw"
++                                                 : "openclaw-dev");
++}
++
 +// Check if a TCP port is listening by attempting a connection.
 +bool IsPortListening(int port) {
 +  int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -83,7 +135,7 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +}
 +
 +// Generate default OpenClaw config JSON for Ocbot.
-+std::string GenerateDefaultConfig() {
++std::string GenerateDefaultConfig(const base::FilePath& workspace_dir) {
 +  base::Value::Dict browser_profile;
 +  browser_profile.Set("cdpUrl", "http://127.0.0.1:9222");
 +  browser_profile.Set("attachOnly", true);
@@ -114,9 +166,16 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +  gateway.Set("auth", std::move(auth));
 +  gateway.Set("controlUi", std::move(control_ui));
 +
++  base::Value::Dict agent_defaults;
++  agent_defaults.Set("workspace", workspace_dir.value());
++
++  base::Value::Dict agents;
++  agents.Set("defaults", std::move(agent_defaults));
++
 +  base::Value::Dict root;
 +  root.Set("browser", std::move(browser));
 +  root.Set("gateway", std::move(gateway));
++  root.Set("agents", std::move(agents));
 +
 +  std::string json;
 +  base::JSONWriter::WriteWithOptions(
@@ -131,6 +190,100 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +    return std::nullopt;
 +  }
 +  return base::JSONReader::ReadDict(content, base::JSON_PARSE_RFC);
++}
++
++// Extract .deps.tar.gz for an extension directory.
++// Returns true if extraction succeeded or was not needed.
++bool ExtractDepsArchive(const base::FilePath& ext_dir) {
++  base::FilePath archive =
++      ext_dir.Append(FILE_PATH_LITERAL(".deps.tar.gz"));
++  base::FilePath node_modules =
++      ext_dir.Append(FILE_PATH_LITERAL("node_modules"));
++
++  if (base::PathExists(node_modules) || !base::PathExists(archive)) {
++    return true;  // Already extracted or no archive available.
++  }
++
++  LOG(INFO) << "ocbot runtime: extracting deps for "
++            << ext_dir.BaseName().value();
++
++  std::vector<std::string> argv = {
++      "tar", "xzf", archive.value(), "-C", ext_dir.value()};
++
++  base::LaunchOptions options;
++#if BUILDFLAG(IS_WIN)
++  options.start_hidden = true;
++#endif
++
++  base::Process process = base::LaunchProcess(argv, options);
++  if (!process.IsValid()) {
++    LOG(ERROR) << "ocbot runtime: failed to launch tar for "
++               << ext_dir.BaseName().value();
++    return false;
++  }
++
++  int exit_code = -1;
++  if (!process.WaitForExit(&exit_code) || exit_code != 0) {
++    LOG(ERROR) << "ocbot runtime: tar exited with " << exit_code
++               << " for " << ext_dir.BaseName().value();
++    return false;
++  }
++
++  return true;
++}
++
++// Extract pre-built dependency archives for configured channel extensions.
++// Reads the openclaw config to find which channels are configured,
++// maps them to extension directories via openclaw.plugin.json,
++// and extracts .deps.tar.gz if node_modules/ is missing.
++void ExtractConfiguredExtensionDeps(const base::FilePath& config_file,
++                                    const base::FilePath& extensions_dir) {
++  if (!base::PathExists(config_file) || !base::PathExists(extensions_dir)) {
++    return;
++  }
++
++  // Read config to find configured channels.
++  auto config = ReadJsonFile(config_file);
++  if (!config) {
++    return;
++  }
++  const base::Value::Dict* channels = config->FindDict("channels");
++  if (!channels) {
++    return;
++  }
++
++  // Build channel→extension mapping from plugin manifests.
++  std::map<std::string, base::FilePath> channel_to_ext;
++  base::FileEnumerator enumerator(extensions_dir, false,
++                                  base::FileEnumerator::DIRECTORIES);
++  for (base::FilePath ext_dir = enumerator.Next(); !ext_dir.empty();
++       ext_dir = enumerator.Next()) {
++    base::FilePath manifest =
++        ext_dir.Append(FILE_PATH_LITERAL("openclaw.plugin.json"));
++    auto manifest_data = ReadJsonFile(manifest);
++    if (!manifest_data) {
++      continue;
++    }
++    const base::Value::List* channel_ids =
++        manifest_data->FindList("channels");
++    if (!channel_ids) {
++      continue;
++    }
++    for (const auto& cid_val : *channel_ids) {
++      if (cid_val.is_string()) {
++        channel_to_ext[cid_val.GetString()] = ext_dir;
++      }
++    }
++  }
++
++  // Extract deps for each configured channel.
++  for (const auto& [channel_id, channel_cfg] : *channels) {
++    auto it = channel_to_ext.find(channel_id);
++    if (it == channel_to_ext.end()) {
++      continue;
++    }
++    ExtractDepsArchive(it->second);
++  }
 +}
 +
 +// Write a dict as JSON to a file.
@@ -313,35 +466,27 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +}
 +
 +bool RuntimeManager::EnsureConfig() {
-+  // Determine config directory.
-+#if BUILDFLAG(IS_MAC)
-+  base::FilePath home_dir;
-+  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
++  const std::string runtime_mode = ResolveRuntimeMode();
++  data_dir_ = GetOpenClawDataDirForMode(runtime_mode);
++  if (data_dir_.empty()) {
++    LOG(ERROR) << "ocbot runtime: failed to resolve data dir";
 +    return false;
 +  }
-+  config_dir_ = home_dir.Append(FILE_PATH_LITERAL("Library"))
-+                    .Append(FILE_PATH_LITERAL("Application Support"))
-+                    .Append(FILE_PATH_LITERAL("Ocbot"))
-+                    .Append(FILE_PATH_LITERAL("openclaw-config"));
-+#elif BUILDFLAG(IS_WIN)
-+  base::FilePath appdata_dir;
-+  if (!base::PathService::Get(base::DIR_ROAMING_APP_DATA, &appdata_dir)) {
-+    return false;
-+  }
-+  config_dir_ = appdata_dir.Append(FILE_PATH_LITERAL("Ocbot"))
-+                    .Append(FILE_PATH_LITERAL("openclaw-config"));
-+#else
-+  base::FilePath home_dir;
-+  if (!base::PathService::Get(base::DIR_HOME, &home_dir)) {
-+    return false;
-+  }
-+  config_dir_ = home_dir.Append(FILE_PATH_LITERAL(".config"))
-+                    .Append(FILE_PATH_LITERAL("ocbot"))
-+                    .Append(FILE_PATH_LITERAL("openclaw-config"));
-+#endif
++  config_dir_ = data_dir_.Append(FILE_PATH_LITERAL("config"));
++  state_dir_ = data_dir_.Append(FILE_PATH_LITERAL("state"));
++  workspace_dir_ = data_dir_.Append(FILE_PATH_LITERAL("workspace"));
 +
 +  if (!base::CreateDirectory(config_dir_)) {
 +    LOG(ERROR) << "ocbot runtime: failed to create config dir: " << config_dir_;
++    return false;
++  }
++  if (!base::CreateDirectory(state_dir_)) {
++    LOG(ERROR) << "ocbot runtime: failed to create state dir: " << state_dir_;
++    return false;
++  }
++  if (!base::CreateDirectory(workspace_dir_)) {
++    LOG(ERROR) << "ocbot runtime: failed to create workspace dir: "
++               << workspace_dir_;
 +    return false;
 +  }
 +
@@ -349,12 +494,38 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +
 +  // Only generate default config if it doesn't exist.
 +  if (!base::PathExists(config_file_)) {
-+    std::string config_json = GenerateDefaultConfig();
++    std::string config_json = GenerateDefaultConfig(workspace_dir_);
 +    if (!base::WriteFile(config_file_, config_json)) {
 +      LOG(ERROR) << "ocbot runtime: failed to write config: " << config_file_;
 +      return false;
 +    }
 +    LOG(INFO) << "ocbot runtime: generated default config at " << config_file_;
++  } else {
++    auto config = ReadJsonFile(config_file_);
++    if (!config) {
++      LOG(ERROR) << "ocbot runtime: failed to parse config: " << config_file_;
++      return false;
++    }
++    base::Value::Dict* agents = config->FindDict("agents");
++    if (!agents) {
++      config->Set("agents", base::Value::Dict());
++      agents = config->FindDict("agents");
++    }
++    base::Value::Dict* defaults = agents->FindDict("defaults");
++    if (!defaults) {
++      agents->Set("defaults", base::Value::Dict());
++      defaults = agents->FindDict("defaults");
++    }
++    const std::string* current_workspace = defaults->FindString("workspace");
++    if (!current_workspace || *current_workspace != workspace_dir_.value()) {
++      defaults->Set("workspace", workspace_dir_.value());
++      if (!WriteJsonFile(config_file_, *config)) {
++        LOG(ERROR) << "ocbot runtime: failed to update workspace in config: "
++                   << config_file_;
++        return false;
++      }
++      LOG(INFO) << "ocbot runtime: aligned workspace to " << workspace_dir_;
++    }
 +  }
 +
 +  return true;
@@ -375,7 +546,8 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +
 +  // Set environment variables for OpenClaw.
 +  options.environment["OPENCLAW_CONFIG_PATH"] = config_file_.value();
-+  options.environment["OPENCLAW_STATE_DIR"] = config_dir_.value();
++  options.environment["OPENCLAW_STATE_DIR"] = state_dir_.value();
++  options.environment["OCBOT_RUNTIME_MODE"] = ResolveRuntimeMode();
 +
 +  // Tell openclaw where bundled plugins live (embedded runtime has no .git/src,
 +  // so the source-checkout heuristic doesn't fire).
@@ -385,6 +557,12 @@ index 0000000000000000000000000000000000000000..69b2c39311a661086b90f7899dc291b7
 +    options.environment["OPENCLAW_BUNDLED_PLUGINS_DIR"] =
 +        extensions_dir.value();
 +  }
++
++  // Extract pre-built dependency archives for configured channels.
++  // This ensures extension node_modules are ready before the gateway
++  // tries to load them.  Archives are created at build time by
++  // _install_extension_deps() in build.py.
++  ExtractConfiguredExtensionDeps(config_file_, extensions_dir);
 +
 +  // OTA mode: set NODE_PATH so node can find modules in base layer.
 +  if (using_ota_runtime_ && !ota_runtime_dir_.empty()) {

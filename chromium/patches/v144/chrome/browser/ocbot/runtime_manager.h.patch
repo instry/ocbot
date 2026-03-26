@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/runtime_manager.h b/chrome/browser/ocbot/runtime_manager.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..81a4daaf160157f153033c1c0bdd910d6b7b14b2
+index 0000000000000000000000000000000000000000..76469930b07e40967cb32d3c22a2e9f88aedac7c
 --- /dev/null
 +++ b/chrome/browser/ocbot/runtime_manager.h
-@@ -0,0 +1,110 @@
+@@ -0,0 +1,113 @@
 +// Copyright 2025 The Ocbot Authors
 +// SPDX-License-Identifier: MIT
 +
@@ -87,8 +87,11 @@ index 0000000000000000000000000000000000000000..81a4daaf160157f153033c1c0bdd910d
 +  // Paths resolved at startup.
 +  base::FilePath node_path_;
 +  base::FilePath openclaw_dir_;
++  base::FilePath data_dir_;
 +  base::FilePath config_dir_;
 +  base::FilePath config_file_;
++  base::FilePath state_dir_;
++  base::FilePath workspace_dir_;
 +
 +  // OTA runtime state.
 +  base::FilePath ota_runtime_dir_;  // <app-support>/Ocbot/runtime/
