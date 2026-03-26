@@ -2042,6 +2042,53 @@ ocbot-skills-view {
   font-size: 13px;
 }
 
+/* Browser custom path input */
+.settings__browser-input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  outline: none;
+  transition: border-color var(--duration-fast);
+  box-sizing: border-box;
+}
+
+.settings__browser-input:focus {
+  border-color: var(--accent);
+}
+
+.settings__browser-input::placeholder {
+  color: var(--muted);
+}
+
+/* Browser profile select */
+.settings__browser-select {
+  min-width: 160px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--duration-fast);
+}
+
+.settings__browser-select:focus {
+  border-color: var(--accent);
+}
+
+.settings__browser-select option {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
 /* About */
 .settings__about {
   display: flex;

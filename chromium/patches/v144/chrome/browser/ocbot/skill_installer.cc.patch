@@ -1,0 +1,42 @@
+diff --git a/chrome/browser/ocbot/skill_installer.cc b/chrome/browser/ocbot/skill_installer.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..4e74c8813b9a808cd1bb765398f87e04da103b51
+--- /dev/null
++++ b/chrome/browser/ocbot/skill_installer.cc
+@@ -0,0 +1,36 @@
++// Copyright 2026 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#include "chrome/browser/ocbot/skill_installer.h"
++
++#include "base/functional/bind.h"
++#include "base/logging.h"
++#include "base/task/thread_pool.h"
++#include "content/public/browser/browser_thread.h"
++
++namespace ocbot {
++
++namespace {
++
++void DoInstall(content::BrowserContext* browser_context,
++               std::string slug,
++               std::string version) {
++  LOG(INFO) << "ocbot skill install: slug=" << slug << " version=" << version;
++  // TODO: implement ZIP download from convex.site and extraction to managedSkillsDir.
++}
++
++}  // namespace
++
++void InstallSkillBySlug(content::BrowserContext* browser_context,
++                        const std::string& slug,
++                        const std::string& version) {
++  if (!browser_context) return;
++  content::GetUIThreadTaskRunner({})->PostTask(
++      FROM_HERE,
++      base::BindOnce(&DoInstall,
++                     browser_context,
++                     std::string(slug),
++                     std::string(version)));
++}
++
++}  // namespace ocbot

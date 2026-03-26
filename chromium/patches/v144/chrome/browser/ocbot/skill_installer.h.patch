@@ -1,0 +1,27 @@
+diff --git a/chrome/browser/ocbot/skill_installer.h b/chrome/browser/ocbot/skill_installer.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..dbcddbf6c80233b07810078149bedd6417385327
+--- /dev/null
++++ b/chrome/browser/ocbot/skill_installer.h
+@@ -0,0 +1,21 @@
++// Copyright 2026 The Ocbot Authors
++// SPDX-License-Identifier: MIT
++
++#ifndef CHROME_BROWSER_OCBOT_SKILL_INSTALLER_H_
++#define CHROME_BROWSER_OCBOT_SKILL_INSTALLER_H_
++
++#include <string>
++
++namespace content {
++class BrowserContext;
++}
++
++namespace ocbot {
++
++void InstallSkillBySlug(content::BrowserContext* browser_context,
++                        const std::string& slug,
++                        const std::string& version);
++
++}  // namespace ocbot
++
++#endif  // CHROME_BROWSER_OCBOT_SKILL_INSTALLER_H_

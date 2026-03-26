@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/extensions/api/BUILD.gn b/chrome/browser/extensions/api/BUILD.gn
+index 2c8ce77066767c1e0ba926429b69ed1d38c23a69..1fc22a356cedaf1f75efac7126ba0119222bcbb6 100644
+--- a/chrome/browser/extensions/api/BUILD.gn
++++ b/chrome/browser/extensions/api/BUILD.gn
+@@ -47,6 +47,7 @@ group("api_implementations") {
+     "//chrome/browser/extensions/api/reading_list",
+     "//chrome/browser/extensions/api/runtime",
+     "//chrome/browser/extensions/api/scripting",
++    "//chrome/browser/extensions/api/ocbot",
+     "//chrome/browser/extensions/api/search",
+     "//chrome/browser/extensions/api/tab_capture",
+     "//chrome/browser/extensions/api/web_authentication_proxy",

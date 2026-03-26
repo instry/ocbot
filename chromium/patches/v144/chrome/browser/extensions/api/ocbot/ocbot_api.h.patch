@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/extensions/api/ocbot/ocbot_api.h b/chrome/browser/extensions/api/ocbot/ocbot_api.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0a70c24c8356b60958ee77f1f57f8038001fdb9
+--- /dev/null
++++ b/chrome/browser/extensions/api/ocbot/ocbot_api.h
+@@ -0,0 +1,25 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_EXTENSIONS_API_OCBOT_OCBOT_API_H_
++#define CHROME_BROWSER_EXTENSIONS_API_OCBOT_OCBOT_API_H_
++
++#include "extensions/browser/extension_function.h"
++
++namespace extensions {
++
++class OcbotGetBrowserProfilesFunction : public ExtensionFunction {
++ public:
++  DECLARE_EXTENSION_FUNCTION("ocbot.getBrowserProfiles",
++                             OCBOT_GETBROWSERPROFILES)
++  OcbotGetBrowserProfilesFunction() = default;
++
++ private:
++  ~OcbotGetBrowserProfilesFunction() override = default;
++  ResponseAction Run() override;
++};
++
++}  // namespace extensions
++
++#endif  // CHROME_BROWSER_EXTENSIONS_API_OCBOT_OCBOT_API_H_

@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/extensions/api/ocbot/BUILD.gn b/chrome/browser/extensions/api/ocbot/BUILD.gn
+new file mode 100644
+index 0000000000000000000000000000000000000000..eb22f0ad7156d7ec1065738ee96c71038991d97a
+--- /dev/null
++++ b/chrome/browser/extensions/api/ocbot/BUILD.gn
+@@ -0,0 +1,24 @@
++# Copyright 2025 The Chromium Authors
++# Use of this source code is governed by a BSD-style license that can be
++# found in the LICENSE file.
++
++import("//extensions/buildflags/buildflags.gni")
++
++assert(enable_extensions_core)
++
++source_set("ocbot") {
++  sources = [
++    "ocbot_api.cc",
++    "ocbot_api.h",
++  ]
++
++  configs += [ "//build/config/compiler:wexit_time_destructors" ]
++
++  public_deps = [ "//extensions/browser" ]
++
++  deps = [
++    "//base",
++    "//chrome/common/extensions/api",
++    "//chrome/common/importer",
++  ]
++}

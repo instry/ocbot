@@ -1,4 +1,6 @@
 import { LitElement, html, nothing } from 'lit'
+import { unsafeHTML } from 'lit/directives/unsafe-html.js'
+import { renderMarkdown } from '../components/markdown'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
 
@@ -44,34 +46,125 @@ interface SkillStatusReport {
   skills: SkillStatusEntry[]
 }
 
-interface MarketplaceThemePayload {
-  mode: 'light' | 'dark'
-  accent: string
-  accentForeground: string
-  accentSubtle: string
-  bg: string
-  bgHover: string
-  bgElevated: string
-  card: string
-  text: string
-  textStrong: string
-  muted: string
-  border: string
-  borderStrong: string
-  radius: string
-  radiusMd: string
-  fontBody: string
-  shadow: string
+// ── ClawHub API Types ──
+
+interface ClawHubSkillStats {
+  downloads: number
+  installsCurrent?: number
+  installsAllTime?: number
+  stars: number
+  versions: number
+  comments: number
 }
 
+interface ClawHubSkill {
+  _id: string
+  slug: string
+  displayName: string
+  summary: string | null
+  ownerUserId: string
+  stats: ClawHubSkillStats
+  badges?: { highlighted?: object; official?: object; deprecated?: object }
+  createdAt: number
+  updatedAt: number
+}
+
+interface ClawHubListEntry {
+  skill: ClawHubSkill
+  latestVersion: { version: string; createdAt: number; changelog?: string } | null
+  ownerHandle?: string | null
+  owner?: { handle?: string; displayName?: string; image?: string } | null
+}
+
+interface ClawHubSearchResult {
+  skill: ClawHubSkill
+  version?: { version: string } | null
+  score: number
+  slug?: string
+  displayName?: string
+  summary?: string | null
+  ownerHandle?: string | null
+  owner?: { handle?: string; displayName?: string; image?: string } | null
+}
+
+interface ClawHubClawdis {
+  requires?: {
+    bins?: string[]
+    anyBins?: string[]
+    env?: string[]
+    config?: string[]
+  }
+  primaryEnv?: string
+  emoji?: string
+  os?: string[]
+  envVars?: Array<{ name: string; required?: boolean; description?: string }>
+  dependencies?: Array<{ name: string; type?: string; version?: string; url?: string; repository?: string }>
+  install?: Array<{ id?: string; kind: string; label?: string; bins?: string[]; formula?: string; tap?: string; package?: string; module?: string }>
+  links?: { homepage?: string; repository?: string; documentation?: string }
+  nix?: { plugin?: string; systems?: string[] }
+  config?: { requiredEnv?: string[]; stateDirs?: string[]; example?: string }
+  cliHelp?: string
+}
+
+interface ClawHubLatestVersion {
+  _id: string
+  version: string
+  createdAt: number
+  changelog?: string
+  files?: Array<{ path: string; size?: number }>
+  parsed?: { clawdis?: ClawHubClawdis }
+}
+
+interface ClawHubDetailResponse {
+  skill: ClawHubSkill
+  latestVersion: ClawHubLatestVersion | null
+  owner?: { handle?: string; displayName?: string; image?: string } | null
+  resolvedSlug?: string
+}
+
+// ── ClawHub Convex API ──
+
+const CONVEX_API_URL = 'https://wry-manatee-359.convex.cloud'
+const CONVEX_SITE_URL = 'https://wry-manatee-359.convex.site'
+
+async function convexQuery<T>(path: string, args: Record<string, unknown> = {}): Promise<T> {
+  const res = await fetch(`${CONVEX_API_URL}/api/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, format: 'json', args }),
+  })
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.')
+    throw new Error(`Convex query error: ${res.status}`)
+  }
+  const data = await res.json()
+  return data.value ?? data
+}
+
+async function convexAction<T>(path: string, args: Record<string, unknown> = {}): Promise<T> {
+  const res = await fetch(`${CONVEX_API_URL}/api/action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, format: 'json', args }),
+  })
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.')
+    throw new Error(`Convex action error: ${res.status}`)
+  }
+  const data = await res.json()
+  return data.value ?? data
+}
+
+// ── Shared constants ──
+
 type Tab = 'local' | 'clawhub'
-type View = 'list' | 'local-detail'
+type View = 'list' | 'local-detail' | 'marketplace-detail'
 type LocalSort = 'name' | 'source' | 'status'
+type MarketplaceSort = 'downloads' | 'stars' | 'newest' | 'updated'
 type DisplayMode = 'cards' | 'list'
 
 const LOAD_BATCH = 30
-const CLAWHUB_URL = 'https://clawhub.ai/skills'
-const CLAWHUB_ORIGIN = 'https://clawhub.ai'
+const MARKETPLACE_PAGE_SIZE = 25
 
 const LOCAL_SORT_OPTIONS: Array<{ value: LocalSort; label: string }> = [
   { value: 'name', label: 'Name' },
@@ -79,10 +172,81 @@ const LOCAL_SORT_OPTIONS: Array<{ value: LocalSort; label: string }> = [
   { value: 'source', label: 'Source' },
 ]
 
+const MARKETPLACE_SORT_OPTIONS: Array<{ value: MarketplaceSort; label: string }> = [
+  { value: 'downloads', label: 'Downloads' },
+  { value: 'stars', label: 'Stars' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'updated', label: 'Recently Updated' },
+]
+
 function getSkillAbbr(name: string): string {
   const words = name.replace(/[^a-zA-Z0-9\s]/g, '').trim().split(/\s+/)
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
   return name.slice(0, 2).toUpperCase()
+}
+
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
+
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}mo ago`
+  return `${Math.floor(months / 12)}y ago`
+}
+
+function stripFrontmatter(content: string): string {
+  const normalized = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  if (!normalized.startsWith('---')) return content
+  const endIndex = normalized.indexOf('\n---', 3)
+  if (endIndex === -1) return content
+  return normalized.slice(endIndex + 4).replace(/^\n+/, '')
+}
+
+function formatOsList(os?: string[]): string[] {
+  if (!os?.length) return []
+  return os.map(entry => {
+    const key = entry.trim().toLowerCase()
+    if (key === 'darwin' || key === 'macos' || key === 'mac') return 'macOS'
+    if (key === 'linux') return 'Linux'
+    if (key === 'windows' || key === 'win32') return 'Windows'
+    return entry
+  })
+}
+
+function formatInstallCmd(spec: ClawHubClawdis['install'] extends (infer T)[] | undefined ? T : never): string | null {
+  if (!spec) return null
+  if (spec.kind === 'brew' && spec.formula) {
+    return spec.tap && !spec.formula.includes('/') ? `brew install ${spec.tap}/${spec.formula}` : `brew install ${spec.formula}`
+  }
+  if (spec.kind === 'node' && spec.package) return `npm i -g ${spec.package}`
+  if (spec.kind === 'go' && spec.module) return `go install ${spec.module}`
+  if (spec.kind === 'uv' && spec.package) return `uv tool install ${spec.package}`
+  return null
+}
+
+function installKindLabel(kind: string): string {
+  const map: Record<string, string> = { brew: 'Homebrew', node: 'Node', go: 'Go', uv: 'uv' }
+  return map[kind] ?? 'Install'
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes)) return '\u2014'
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB']
+  let value = bytes / 1024
+  let i = 0
+  while (value >= 1024 && i < units.length - 1) { value /= 1024; i++ }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[i]}`
 }
 
 @customElement('ocbot-skills-view')
@@ -112,77 +276,47 @@ export class OcbotSkillsView extends LitElement {
   @state() private togglingSkill = false
   @state() private installingDep: Record<string, boolean> = {}
   @state() private installResult: Record<string, { ok: boolean; message: string }> = {}
-  @state() private marketplaceLoading = true
-  @state() private marketplaceReady = false
 
-  private _iframeMessageHandler: ((e: MessageEvent) => void) | null = null
-  private _themeObserver: MutationObserver | null = null
+  // ── Marketplace state ──
+  @state() private mpSkills: ClawHubListEntry[] = []
+  @state() private mpLoading = true
+  @state() private mpError: string | null = null
+  @state() private mpCursor: string | null = null
+  @state() private mpHasMore = false
+  @state() private mpLoadingMore = false
+  @state() private mpSort: MarketplaceSort = 'downloads'
+  @state() private mpSearchQuery = ''
+  @state() private mpSearchResults: ClawHubSearchResult[] = []
+  @state() private mpSearching = false
+  @state() private mpDetail: ClawHubDetailResponse | null = null
+  @state() private mpDetailLoading = false
+  @state() private mpInstalling: Record<string, boolean> = {}
+  @state() private mpInstallResult: Record<string, { ok: boolean; message: string }> = {}
+  @state() private mpReadme: string | null = null
+  @state() private mpReadmeLoading = false
+  @state() private mpReadmeRaw = false
+  @state() private mpSelectedFile: string | null = null
+  @state() private mpFileContent: string | null = null
+  @state() private mpFileLoading = false
+  @state() private mpFileError: string | null = null
+  private mpFileCache = new Map<string, string>()
+  private mpSearchTimer: ReturnType<typeof setTimeout> | null = null
+  private mpLoaded = false
 
   override connectedCallback() {
     super.connectedCallback()
-    // Ensure custom element fills parent flex container
     this.style.display = 'flex'
     this.style.flexDirection = 'column'
     this.style.flex = '1'
     this.style.minHeight = '0'
     this.loadLocalSkills()
-    // Listen for install requests from embedded ClawHub iframe
     this._iframeMessageHandler = this.handleIframeMessage.bind(this)
     window.addEventListener('message', this._iframeMessageHandler)
-    this._themeObserver = new MutationObserver(() => this.syncMarketplaceTheme())
-    this._themeObserver.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme-mode'],
-    })
   }
 
-  override disconnectedCallback() {
-    super.disconnectedCallback()
-    if (this._iframeMessageHandler) {
-      window.removeEventListener('message', this._iframeMessageHandler)
-    }
-    this._themeObserver?.disconnect()
-  }
-
-  private async handleIframeMessage(e: MessageEvent) {
-    const iframe = this.getMarketplaceIframe()
-    if (!iframe?.contentWindow || e.source !== iframe.contentWindow) return
-    if (!this.isTrustedMarketplaceOrigin(e.origin)) return
-
-    if (e.data?.type === 'ocbot:clawhub:ready') {
-      this.marketplaceLoading = false
-      this.marketplaceReady = true
-      this.syncMarketplaceTheme()
-      return
-    }
-
-    if (e.data?.type !== 'ocbot:clawhub:install') return
-
-    const slug = e.data.slug as string
-    const requestId = e.data.requestId as string | undefined
-    if (!slug) return
-
-    let ok = false
-    let message = ''
-    try {
-      const result = await this.gateway.call<{ ok: boolean; message?: string }>(
-        'skills.install',
-        { source: 'clawhub', slug },
-      )
-      ok = result?.ok !== false
-      message = ok ? 'Installed' : (result?.message ?? 'Failed')
-      if (ok) await this.loadLocalSkills()
-    } catch (err) {
-      message = err instanceof Error ? err.message : String(err)
-    }
-
-    iframe?.contentWindow?.postMessage(
-      { type: 'ocbot:clawhub:install:result', slug, requestId, ok, message },
-      e.origin || CLAWHUB_ORIGIN
-    )
-  }
-
-  // ── Data loading ──
+  // ══════════════════════════════════════
+  // DATA LOADING
+  // ══════════════════════════════════════
 
   private async loadLocalSkills() {
     this.localLoading = true
@@ -197,15 +331,195 @@ export class OcbotSkillsView extends LitElement {
     }
   }
 
+  private _iframeMessageHandler: ((e: MessageEvent) => void) | null = null
+  private async handleIframeMessage(e: MessageEvent) {
+    const data = e.data as { type?: string; slug?: string; requestId?: string }
+    if (data?.type !== 'ocbot:clawhub:install') return
+    const slug = data.slug || ''
+    if (!slug) return
+    const requestId = data.requestId || ''
+    try {
+      const ocUrl = `oc://home/skills?action=install&slug=${encodeURIComponent(slug)}`
+      window.location.href = ocUrl
+      const iframe = this.querySelector('iframe')
+      iframe?.contentWindow?.postMessage(
+        { type: 'ocbot:clawhub:install:result', slug, requestId, ok: true, message: 'Installing' },
+        '*',
+      )
+      setTimeout(() => { this.loadLocalSkills() }, 3000)
+    } catch (err) {
+      const iframe = this.querySelector('iframe')
+      iframe?.contentWindow?.postMessage(
+        { type: 'ocbot:clawhub:install:result', slug, requestId, ok: false, message: err instanceof Error ? err.message : String(err) },
+        '*',
+      )
+    }
+  }
 
-  // ── Actions ──
+  private async loadMarketplaceSkills(reset = true) {
+    if (reset) {
+      this.mpLoading = true
+      this.mpError = null
+      this.mpSkills = []
+      this.mpCursor = null
+    }
+    try {
+      const args: Record<string, unknown> = {
+        sort: this.mpSort === 'newest' ? 'newest' : this.mpSort,
+        dir: 'desc',
+        numItems: MARKETPLACE_PAGE_SIZE,
+        highlightedOnly: false,
+        nonSuspiciousOnly: true,
+      }
+      if (!reset && this.mpCursor) args.cursor = this.mpCursor
+      const resp = await convexQuery<{ page: ClawHubListEntry[]; hasMore: boolean; nextCursor: string | null }>(
+        'skills:listPublicPageV4', args,
+      )
+      this.mpSkills = reset ? resp.page : [...this.mpSkills, ...resp.page]
+      this.mpCursor = resp.nextCursor
+      this.mpHasMore = resp.hasMore
+    } catch (err) {
+      this.mpError = err instanceof Error ? err.message : String(err)
+    } finally {
+      this.mpLoading = false
+      this.mpLoadingMore = false
+    }
+  }
+
+  private async loadMoreMarketplace() {
+    if (this.mpLoadingMore || !this.mpHasMore) return
+    this.mpLoadingMore = true
+    await this.loadMarketplaceSkills(false)
+  }
+
+  private async searchMarketplace(query: string) {
+    if (!query.trim()) {
+      this.mpSearchResults = []
+      this.mpSearching = false
+      return
+    }
+    this.mpSearching = true
+    try {
+      const results = await convexAction<ClawHubSearchResult[]>('search:searchSkills', {
+        query: query.trim(),
+        limit: 50,
+        highlightedOnly: false,
+        nonSuspiciousOnly: true,
+      })
+      this.mpSearchResults = results ?? []
+    } catch {
+      this.mpSearchResults = []
+    } finally {
+      this.mpSearching = false
+    }
+  }
+
+  private async loadMarketplaceDetail(slug: string) {
+    this.mpDetailLoading = true
+    this.mpDetail = null
+    this.mpReadme = null
+    this.mpReadmeLoading = false
+    this.mpReadmeRaw = false
+    this.mpSelectedFile = null
+    this.mpFileContent = null
+    this.mpFileLoading = false
+    this.mpFileError = null
+    this.mpFileCache.clear()
+    this.view = 'marketplace-detail'
+    try {
+      const detail = await convexQuery<ClawHubDetailResponse>('skills:getBySlug', { slug })
+      this.mpDetail = detail
+      // Load README in background
+      if (detail?.latestVersion?._id) {
+        this.mpReadmeLoading = true
+        convexAction<{ text: string }>('skills:getReadme', { versionId: detail.latestVersion._id })
+          .then(data => { this.mpReadme = stripFrontmatter(data.text) })
+          .catch(() => { this.mpReadme = null })
+          .finally(() => { this.mpReadmeLoading = false })
+      }
+    } catch (err) {
+      this.mpError = err instanceof Error ? err.message : String(err)
+      this.view = 'list'
+    } finally {
+      this.mpDetailLoading = false
+    }
+  }
+
+  private async installMarketplaceSkill(slug: string, version?: string) {
+    this.mpInstalling = { ...this.mpInstalling, [slug]: true }
+    try {
+      // Preferred path: direct zip download via Convex downloads handler.
+      const url = new URL(`${CONVEX_SITE_URL}/api/v1/download`)
+      url.searchParams.set('slug', slug)
+      if (version) url.searchParams.set('version', version)
+      const zipResp = await fetch(url.toString(), { method: 'GET' })
+      if (zipResp.ok) {
+        // Trigger a local download to avoid invalid gateway params; installation is handled by embedded runtime watcher.
+        const blob = await zipResp.blob()
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = `${slug}.zip`
+        a.style.display = 'none'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(a.href)
+        const ok = true
+        this.mpInstallResult = {
+          ...this.mpInstallResult,
+          [slug]: { ok, message: 'Downloaded' },
+        }
+        return
+      }
+      this.mpInstallResult = {
+        ...this.mpInstallResult,
+        [slug]: { ok: false, message: `Download failed (${zipResp.status})` },
+      }
+    } catch (err) {
+      this.mpInstallResult = {
+        ...this.mpInstallResult,
+        [slug]: { ok: false, message: err instanceof Error ? err.message : String(err) },
+      }
+    } finally {
+      this.mpInstalling = { ...this.mpInstalling, [slug]: false }
+    }
+  }
+
+  private async selectFile(path: string) {
+    const versionId = this.mpDetail?.latestVersion?._id
+    if (!versionId) return
+    this.mpSelectedFile = path
+    this.mpFileError = null
+
+    const cacheKey = `${versionId}:${path}`
+    const cached = this.mpFileCache.get(cacheKey)
+    if (cached !== undefined) {
+      this.mpFileContent = cached
+      return
+    }
+
+    this.mpFileContent = null
+    this.mpFileLoading = true
+    try {
+      const data = await convexAction<{ text: string }>('skills:getFileText', { versionId, path })
+      this.mpFileCache.set(cacheKey, data.text)
+      this.mpFileContent = data.text
+    } catch (err) {
+      this.mpFileError = err instanceof Error ? err.message : String(err)
+    } finally {
+      this.mpFileLoading = false
+    }
+  }
+
+  // ══════════════════════════════════════
+  // LOCAL SKILL ACTIONS
+  // ══════════════════════════════════════
 
   private async toggleSkill(skill: SkillStatusEntry) {
     this.togglingSkill = true
     try {
       await this.gateway.call('skills.update', { skillKey: skill.skillKey, enabled: skill.disabled })
       await this.loadLocalSkills()
-      // Update selected skill reference
       this.selectedSkill = this.localSkills.find(s => s.skillKey === skill.skillKey) ?? null
     } catch (err) {
       console.error('toggle skill failed:', err)
@@ -255,8 +569,9 @@ export class OcbotSkillsView extends LitElement {
     }
   }
 
-
-  // ── Navigation ──
+  // ══════════════════════════════════════
+  // NAVIGATION
+  // ══════════════════════════════════════
 
   private openLocalDetail(skill: SkillStatusEntry) {
     this.selectedSkill = skill
@@ -266,19 +581,22 @@ export class OcbotSkillsView extends LitElement {
     this.view = 'local-detail'
   }
 
-
   private backToList() {
     this.view = 'list'
     this.selectedSkill = null
+    this.mpDetail = null
   }
-
-  // ── Search ──
 
   private onSearchInput(e: InputEvent) {
     const value = (e.target as HTMLInputElement).value
-    this.searchQuery = value
-    this.localVisible = LOAD_BATCH
-    if (this.searchTimer) clearTimeout(this.searchTimer)
+    if (this.tab === 'local') {
+      this.searchQuery = value
+      this.localVisible = LOAD_BATCH
+    } else {
+      this.mpSearchQuery = value
+      if (this.mpSearchTimer) clearTimeout(this.mpSearchTimer)
+      this.mpSearchTimer = setTimeout(() => this.searchMarketplace(value), 300)
+    }
   }
 
   private switchTab(tab: Tab) {
@@ -286,87 +604,42 @@ export class OcbotSkillsView extends LitElement {
     this.view = 'list'
     this.localVisible = LOAD_BATCH
     this.selectedSkill = null
-    if (tab === 'clawhub') {
-      this.marketplaceLoading = true
-      this.marketplaceReady = false
+    this.mpDetail = null
+    this.sortDropdownOpen = false
+    if (tab === 'clawhub' && !this.mpLoaded) {
+      this.mpLoaded = true
+      this.loadMarketplaceSkills()
     }
   }
 
-  private getMarketplaceIframe() {
-    return this.querySelector('iframe')
+  private onMarketplaceSortChange(sort: MarketplaceSort) {
+    this.mpSort = sort
+    this.sortDropdownOpen = false
+    this.mpSearchQuery = ''
+    this.mpSearchResults = []
+    this.loadMarketplaceSkills()
   }
 
-  private isTrustedMarketplaceOrigin(origin: string) {
-    try {
-      const { hostname, protocol } = new URL(origin)
-      return protocol === 'https:' && (hostname === 'clawhub.ai' || hostname.endsWith('.clawhub.ai'))
-    } catch {
-      return false
-    }
-  }
-
-  private getMarketplaceTheme(): MarketplaceThemePayload {
-    const root = document.documentElement
-    const style = getComputedStyle(root)
-    const resolve = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
-    const attrMode = root.getAttribute('data-theme-mode')
-    const mode = attrMode === 'light' || attrMode === 'dark'
-      ? attrMode
-      : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-
-    return {
-      mode,
-      accent: resolve('--accent', '#7c3aed'),
-      accentForeground: resolve('--accent-foreground', '#ffffff'),
-      accentSubtle: resolve('--accent-subtle', 'rgba(124, 58, 237, 0.14)'),
-      bg: resolve('--bg', '#0b0d12'),
-      bgHover: resolve('--bg-hover', 'rgba(148, 163, 184, 0.08)'),
-      bgElevated: resolve('--bg-elevated', resolve('--card', '#11151c')),
-      card: resolve('--card', resolve('--bg-elevated', '#11151c')),
-      text: resolve('--text', '#e5e7eb'),
-      textStrong: resolve('--text-strong', resolve('--text', '#f8fafc')),
-      muted: resolve('--muted', '#94a3b8'),
-      border: resolve('--border', 'rgba(255, 255, 255, 0.08)'),
-      borderStrong: resolve('--border-strong', resolve('--border', 'rgba(255, 255, 255, 0.12)')),
-      radius: resolve('--radius-lg', '14px'),
-      radiusMd: resolve('--radius-md', '10px'),
-      fontBody: resolve('--font-body', 'Inter, system-ui, sans-serif'),
-      shadow: resolve('--shadow-sm', '0 12px 32px rgba(0, 0, 0, 0.18)'),
-    }
-  }
-
-  private syncMarketplaceTheme() {
-    if (!this.marketplaceReady) return
-    this.postMarketplaceMessage({
-      type: 'ocbot:theme-sync',
-      theme: this.getMarketplaceTheme(),
-    })
-  }
-
-  private postMarketplaceMessage(message: unknown) {
-    const iframe = this.getMarketplaceIframe()
-    iframe?.contentWindow?.postMessage(message, CLAWHUB_ORIGIN)
-  }
-
-  private handleMarketplaceLoad() {
-    this.syncMarketplaceTheme()
-    window.setTimeout(() => {
-      if (!this.marketplaceReady && this.tab === 'clawhub') {
-        this.marketplaceLoading = false
+  private onMarketplaceScroll(e: Event) {
+    const el = e.target as HTMLElement
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+      if (!this.mpSearchQuery.trim()) {
+        this.loadMoreMarketplace()
       }
-    }, 1200)
+    }
   }
 
-  // ── Helpers ──
+  // ══════════════════════════════════════
+  // HELPERS
+  // ══════════════════════════════════════
 
-  private onListScroll(e: Event) {
+  private onLocalListScroll(e: Event) {
     const el = e.target as HTMLElement
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
       const total = this.getFilteredLocalSkills().length
       if (this.localVisible < total) this.localVisible += LOAD_BATCH
     }
   }
-
 
   private getFilteredLocalSkills(): SkillStatusEntry[] {
     const q = this.searchQuery.toLowerCase().trim()
@@ -394,7 +667,6 @@ export class OcbotSkillsView extends LitElement {
     return skills
   }
 
-
   private getStatusInfo(s: SkillStatusEntry): { color: string; label: string } {
     if (s.disabled) return { color: 'var(--muted)', label: 'Disabled' }
     if (s.blockedByAllowlist) return { color: 'var(--danger)', label: 'Blocked' }
@@ -409,37 +681,48 @@ export class OcbotSkillsView extends LitElement {
     return source
   }
 
-
-  // ── Render ──
-
-  override render() {
-    if (this.view === 'local-detail' && this.selectedSkill) return this.renderLocalDetailPage()
-    return this.renderListPage()
+  private getMarketplaceBadges(skill: ClawHubSkill): string[] {
+    const badges: string[] = []
+    if (skill.badges?.highlighted) badges.push('Featured')
+    if (skill.badges?.official) badges.push('Official')
+    if (skill.badges?.deprecated) badges.push('Deprecated')
+    return badges
   }
 
   // ══════════════════════════════════════
-  // LIST PAGE
+  // RENDER
   // ══════════════════════════════════════
 
+  override render() {
+    if (this.view === 'local-detail' && this.selectedSkill) return this.renderLocalDetailPage()
+    if (this.view === 'marketplace-detail') return this.renderMarketplaceDetailPage()
+    return this.renderListPage()
+  }
+
+  // ──────────────────────────────────────
+  // LIST PAGE
+  // ──────────────────────────────────────
+
   private renderListPage() {
+    const showToolbar = this.tab === 'local'
+      ? this.localSkills.length > 0
+      : (!this.mpLoading || this.mpSkills.length > 0)
+
     return html`
-      <div
-        style="display:flex; flex-direction:column; height:100%; overflow:hidden;"
-      >
-        <!-- Header area with padding -->
+      <div style="display:flex; flex-direction:column; height:100%; overflow:hidden;">
+        <!-- Header area -->
         <div style="padding:24px 24px 0;">
-          <!-- Title -->
           <h1 style="font-size:22px; font-weight:600; letter-spacing:-0.02em; color:var(--text-strong); margin:0;">Skills</h1>
           <p style="font-size:14px; color:var(--muted); margin:4px 0 0;">Browse and manage your AI skills</p>
 
-          <!-- Tabs (underline style) -->
+          <!-- Tabs -->
           <div style="display:flex; gap:16px; border-bottom:1px solid var(--border); margin-top:16px;">
             ${this.renderTabBtn('local', `My Skills (${this.localSkills.length})`)}
             ${this.renderTabBtn('clawhub', 'Marketplace')}
           </div>
 
-          <!-- Search + Sort -->
-          ${this.tab === 'local' && this.localSkills.length > 0 ? html`
+          <!-- Toolbar -->
+          ${showToolbar ? html`
             <div style="display:flex; align-items:center; gap:10px; margin-top:16px;">
               <div style="position:relative; max-width:400px; flex:1;">
                 <svg style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:var(--muted); pointer-events:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -447,8 +730,8 @@ export class OcbotSkillsView extends LitElement {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search skills..."
-                  .value=${this.searchQuery}
+                  placeholder="${this.tab === 'local' ? 'Search skills...' : 'Search marketplace...'}"
+                  .value=${this.tab === 'local' ? this.searchQuery : this.mpSearchQuery}
                   @input=${this.onSearchInput}
                   style="width:100%; padding:10px 16px 10px 36px; font-size:14px; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--bg); color:var(--text-strong); outline:none; transition:border-color 0.15s;"
                 />
@@ -463,12 +746,17 @@ export class OcbotSkillsView extends LitElement {
         ${this.tab === 'local' ? html`
           <div
             style="flex:1; overflow-y:scroll; padding:12px 24px 24px;"
-            @scroll=${this.onListScroll}
+            @scroll=${this.onLocalListScroll}
           >
             ${this.renderLocalGrid()}
           </div>
         ` : html`
-          ${this.renderMarketplaceIframe()}
+          <div
+            style="flex:1; overflow-y:scroll; padding:12px 24px 24px;"
+            @scroll=${this.onMarketplaceScroll}
+          >
+            ${this.renderMarketplaceGrid()}
+          </div>
         `}
       </div>
     `
@@ -485,8 +773,9 @@ export class OcbotSkillsView extends LitElement {
   }
 
   private renderSortDropdown() {
-    const options = LOCAL_SORT_OPTIONS
-    const current = this.localSort
+    const isLocal = this.tab === 'local'
+    const options = isLocal ? LOCAL_SORT_OPTIONS : MARKETPLACE_SORT_OPTIONS
+    const current = isLocal ? this.localSort : this.mpSort
     const currentLabel = options.find(o => o.value === current)?.label ?? 'Sort'
 
     return html`
@@ -516,9 +805,13 @@ export class OcbotSkillsView extends LitElement {
                 @mouseenter=${(e: MouseEvent) => { if (opt.value !== current) (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)' }}
                 @mouseleave=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.background = opt.value === current ? 'var(--accent-subtle)' : 'transparent' }}
                 @click=${() => {
-                  this.localSort = opt.value as LocalSort
-                  this.sortDropdownOpen = false
-                  this.localVisible = LOAD_BATCH
+                  if (isLocal) {
+                    this.localSort = opt.value as LocalSort
+                    this.sortDropdownOpen = false
+                    this.localVisible = LOAD_BATCH
+                  } else {
+                    this.onMarketplaceSortChange(opt.value as MarketplaceSort)
+                  }
                 }}
               >
                 ${opt.value === current ? html`
@@ -553,7 +846,9 @@ export class OcbotSkillsView extends LitElement {
     `
   }
 
-  // ── Local Grid ──
+  // ──────────────────────────────────────
+  // LOCAL GRID
+  // ──────────────────────────────────────
 
   private renderLocalGrid() {
     if (this.localLoading) return this.renderEmpty('Loading...')
@@ -599,7 +894,6 @@ export class OcbotSkillsView extends LitElement {
         @mouseleave=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm, none)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
       >
         <div style="display:flex; align-items:flex-start; gap:14px;">
-          <!-- Icon -->
           <div style="width:48px; height:48px; border-radius:var(--radius-lg); background:var(--accent-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; font-weight:600; color:var(--accent);">
             ${skill.emoji || getSkillAbbr(skill.name)}
           </div>
@@ -608,12 +902,10 @@ export class OcbotSkillsView extends LitElement {
               <span style="font-size:15px; font-weight:600; color:var(--text-strong); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:-0.02em;">
                 ${skill.name}
               </span>
-              <!-- Status badge -->
               <span style="display:inline-flex; align-items:center; gap:4px; padding:1px 8px; border-radius:6px; font-size:10px; font-weight:500; flex-shrink:0; border:1px solid ${status.color}30; background:${status.color}10; color:${status.color};">
                 ${status.label}
               </span>
             </div>
-            <!-- Source tag -->
             <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:4px;">
               <span style="padding:1px 8px; border-radius:6px; border:1px solid var(--border); font-size:10px; color:var(--muted);">
                 ${this.getSourceLabel(skill.source)}
@@ -621,11 +913,9 @@ export class OcbotSkillsView extends LitElement {
             </div>
           </div>
         </div>
-        <!-- Description -->
         <p style="margin:12px 0 0; font-size:13px; color:var(--muted); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; flex:1;">
           ${skill.description || 'No description'}
         </p>
-        <!-- Footer -->
         <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-size:12px; color:var(--muted);">
           <span style="font-family:var(--font-mono, monospace);">${skill.skillKey}</span>
           ${skill.homepage ? html`<span>\u2197</span>` : nothing}
@@ -659,25 +949,261 @@ export class OcbotSkillsView extends LitElement {
     `
   }
 
-  private renderMarketplaceIframe() {
+  // ──────────────────────────────────────
+  // MARKETPLACE GRID
+  // ──────────────────────────────────────
+
+  private renderMarketplaceGrid() {
+    if (this.mpLoading && this.mpSkills.length === 0) return this.renderEmpty('Loading marketplace...')
+    if (this.mpError && this.mpSkills.length === 0) return html`
+      <div style="display:flex; flex-direction:column; align-items:center; gap:12px; padding:48px; color:var(--muted); font-size:14px;">
+        <div style="color:var(--danger);">${this.mpError}</div>
+        <button class="btn" @click=${() => this.loadMarketplaceSkills()}>Retry</button>
+      </div>
+    `
+
+    // If searching, show search results
+    if (this.mpSearchQuery.trim()) {
+      return this.renderMarketplaceSearchResults()
+    }
+
+    const skills = this.mpSkills
+    if (skills.length === 0) return this.renderEmpty('No skills available')
+
     return html`
-      <div style="display:flex; flex:1; min-height:0; padding:12px 24px 24px;">
-        <div style="position:relative; flex:1; min-height:0; overflow:hidden; border-radius:var(--radius-lg); background:transparent;">
-          ${this.marketplaceLoading ? html`
-            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); z-index:1;">
-              <div style="display:flex; flex-direction:column; align-items:center; gap:12px; color:var(--muted);">
-                <div style="width:32px; height:32px; border-radius:999px; border:2px solid color-mix(in srgb, var(--border) 70%, transparent); border-top-color:var(--accent);"></div>
-                <span style="font-size:13px;">Loading Marketplace...</span>
-              </div>
-            </div>
-          ` : nothing}
-          <iframe
-            src=${CLAWHUB_URL}
-            title="ClawHub Marketplace"
-            @load=${this.handleMarketplaceLoad}
-            style="display:block; flex:1; width:100%; height:100%; border:none; background:transparent;"
-          ></iframe>
+      ${this.displayMode === 'cards' ? html`
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">
+          ${skills.map(entry => this.renderMarketplaceCard(entry))}
         </div>
+      ` : html`
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${skills.map(entry => this.renderMarketplaceListRow(entry))}
+        </div>
+      `}
+      ${this.mpLoadingMore ? html`
+        <div style="text-align:center; color:var(--muted); padding:16px; font-size:13px;">Loading more...</div>
+      ` : this.mpHasMore ? html`
+        <div style="text-align:center; padding:16px;">
+          <button class="btn btn--sm" @click=${() => this.loadMoreMarketplace()}>Load more</button>
+        </div>
+      ` : nothing}
+    `
+  }
+
+  private renderMarketplaceSearchResults() {
+    if (this.mpSearching) return this.renderEmpty('Searching...')
+    if (this.mpSearchResults.length === 0) return this.renderEmpty('No results found')
+
+    return html`
+      ${this.displayMode === 'cards' ? html`
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;">
+          ${this.mpSearchResults.map(r => this.renderSearchResultCard(r))}
+        </div>
+      ` : html`
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${this.mpSearchResults.map(r => this.renderSearchResultListRow(r))}
+        </div>
+      `}
+    `
+  }
+
+  private renderMarketplaceCard(entry: ClawHubListEntry) {
+    const { skill, owner, latestVersion } = entry
+    const badges = this.getMarketplaceBadges(skill)
+    const installing = this.mpInstalling[skill.slug]
+    const result = this.mpInstallResult[skill.slug]
+
+    return html`
+      <div
+        style="display:flex; flex-direction:column; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--card); cursor:pointer; transition:all 0.15s; box-shadow:var(--shadow-sm, none);"
+        @click=${() => this.loadMarketplaceDetail(skill.slug)}
+        @mouseenter=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong, var(--border))' }}
+        @mouseleave=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm, none)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
+      >
+        <div style="display:flex; align-items:flex-start; gap:14px;">
+          <div style="width:48px; height:48px; border-radius:var(--radius-lg); background:var(--accent-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; font-weight:600; color:var(--accent);">
+            ${getSkillAbbr(skill.displayName)}
+          </div>
+          <div style="min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:15px; font-weight:600; color:var(--text-strong); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:-0.02em;">
+                ${skill.displayName}
+              </span>
+              ${badges.map(b => html`
+                <span style="display:inline-flex; padding:1px 8px; border-radius:6px; font-size:10px; font-weight:500; flex-shrink:0; border:1px solid var(--accent)30; background:var(--accent-subtle); color:var(--accent);">
+                  ${b}
+                </span>
+              `)}
+            </div>
+            <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
+              ${owner?.handle ? html`
+                <span style="padding:1px 8px; border-radius:6px; border:1px solid var(--border); font-size:10px; color:var(--muted);">
+                  @${owner.handle || owner.displayName}
+                </span>
+              ` : nothing}
+              ${latestVersion ? html`
+                <span style="padding:1px 8px; border-radius:6px; border:1px solid var(--border); font-size:10px; color:var(--muted);">
+                  v${latestVersion.version}
+                </span>
+              ` : nothing}
+            </div>
+          </div>
+        </div>
+        <p style="margin:12px 0 0; font-size:13px; color:var(--muted); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; flex:1;">
+          ${skill.summary || 'No description'}
+        </p>
+        <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-size:12px; color:var(--muted);">
+          <div style="display:flex; gap:12px;">
+            <span title="Downloads">\u2B07 ${formatNumber(skill.stats.downloads)}</span>
+            <span title="Stars">\u2605 ${formatNumber(skill.stats.stars)}</span>
+            ${skill.stats.installsCurrent != null ? html`
+              <span title="Active installs">\u229A ${formatNumber(skill.stats.installsCurrent)}</span>
+            ` : nothing}
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            ${result?.ok ? html`
+              <span style="font-size:11px; color:var(--ok);">\u2713 Installed</span>
+            ` : html`
+              <button
+                class="btn btn--sm"
+                style="padding:3px 12px; font-size:11px; border-color:var(--accent); color:var(--accent); background:var(--accent-subtle);"
+                ?disabled=${installing}
+                @click=${(e: Event) => { e.stopPropagation(); this.installMarketplaceSkill(skill.slug, entry.latestVersion?.version) }}
+              >${installing ? '...' : 'Install'}</button>
+            `}
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  private renderMarketplaceListRow(entry: ClawHubListEntry) {
+    const { skill, owner } = entry
+    const installing = this.mpInstalling[skill.slug]
+    const result = this.mpInstallResult[skill.slug]
+
+    return html`
+      <div
+        class="session-card"
+        style="display:flex; align-items:center; gap:12px; cursor:pointer;"
+        @click=${() => this.loadMarketplaceDetail(skill.slug)}
+      >
+        <div style="width:36px; height:36px; border-radius:var(--radius-md); background:var(--accent-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; font-weight:600; color:var(--accent);">
+          ${getSkillAbbr(skill.displayName)}
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:14px; font-weight:500; color:var(--text-strong); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${skill.displayName}</span>
+            <span style="font-size:11px; color:var(--muted);">\u2B07 ${formatNumber(skill.stats.downloads)}</span>
+            <span style="font-size:11px; color:var(--muted);">\u2605 ${formatNumber(skill.stats.stars)}</span>
+          </div>
+          ${skill.summary ? html`
+            <div style="font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${skill.summary}</div>
+          ` : nothing}
+        </div>
+        ${owner?.handle ? html`
+          <span style="font-size:11px; padding:2px 8px; border-radius:4px; border:1px solid var(--border); color:var(--muted); flex-shrink:0;">@${owner.handle || owner.displayName}</span>
+        ` : nothing}
+        ${result?.ok ? html`
+          <span style="font-size:11px; color:var(--ok); flex-shrink:0;">\u2713</span>
+        ` : html`
+          <button
+            class="btn btn--sm"
+            style="padding:3px 12px; font-size:11px; border-color:var(--accent); color:var(--accent); background:var(--accent-subtle); flex-shrink:0;"
+            ?disabled=${installing}
+            @click=${(e: Event) => { e.stopPropagation(); this.installMarketplaceSkill(skill.slug, entry.latestVersion?.version) }}
+          >${installing ? '...' : 'Install'}</button>
+        `}
+      </div>
+    `
+  }
+
+  private renderSearchResultCard(r: ClawHubSearchResult) {
+    const name = r.skill?.displayName ?? r.displayName ?? r.slug ?? '?'
+    const slug = r.skill?.slug ?? r.slug ?? ''
+    const summary = r.skill?.summary ?? r.summary ?? null
+    const version = r.version?.version
+    const installing = this.mpInstalling[slug]
+    const result = this.mpInstallResult[slug]
+
+    return html`
+      <div
+        style="display:flex; flex-direction:column; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--card); cursor:pointer; transition:all 0.15s; box-shadow:var(--shadow-sm, none);"
+        @click=${() => slug && this.loadMarketplaceDetail(slug)}
+        @mouseenter=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong, var(--border))' }}
+        @mouseleave=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm, none)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
+      >
+        <div style="display:flex; align-items:flex-start; gap:14px;">
+          <div style="width:48px; height:48px; border-radius:var(--radius-lg); background:var(--accent-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; font-weight:600; color:var(--accent);">
+            ${getSkillAbbr(name)}
+          </div>
+          <div style="min-width:0; flex:1;">
+            <span style="font-size:15px; font-weight:600; color:var(--text-strong); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:-0.02em; display:block;">
+              ${name}
+            </span>
+            ${version ? html`
+              <div style="margin-top:6px;">
+                <span style="padding:1px 8px; border-radius:6px; border:1px solid var(--border); font-size:10px; color:var(--muted);">v${version}</span>
+              </div>
+            ` : nothing}
+          </div>
+        </div>
+        <p style="margin:12px 0 0; font-size:13px; color:var(--muted); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; flex:1;">
+          ${summary || 'No description'}
+        </p>
+        <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-size:12px; color:var(--muted);">
+          <span style="font-family:var(--font-mono, monospace);">${slug}</span>
+          ${result?.ok ? html`
+            <span style="font-size:11px; color:var(--ok);">\u2713 Installed</span>
+          ` : html`
+            <button
+              class="btn btn--sm"
+              style="padding:3px 12px; font-size:11px; border-color:var(--accent); color:var(--accent); background:var(--accent-subtle);"
+              ?disabled=${installing}
+              @click=${(e: Event) => { e.stopPropagation(); slug && this.installMarketplaceSkill(slug, version) }}
+            >${installing ? '...' : 'Install'}</button>
+          `}
+        </div>
+      </div>
+    `
+  }
+
+  private renderSearchResultListRow(r: ClawHubSearchResult) {
+    const name = r.skill?.displayName ?? r.displayName ?? r.slug ?? '?'
+    const slug = r.skill?.slug ?? r.slug ?? ''
+    const summary = r.skill?.summary ?? r.summary ?? null
+    const version = r.version?.version
+    const installing = this.mpInstalling[slug]
+    const result = this.mpInstallResult[slug]
+
+    return html`
+      <div
+        class="session-card"
+        style="display:flex; align-items:center; gap:12px; cursor:pointer;"
+        @click=${() => slug && this.loadMarketplaceDetail(slug)}
+      >
+        <div style="width:36px; height:36px; border-radius:var(--radius-md); background:var(--accent-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; font-weight:600; color:var(--accent);">
+          ${getSkillAbbr(name)}
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:14px; font-weight:500; color:var(--text-strong); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${name}</span>
+          </div>
+          ${summary ? html`
+            <div style="font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${summary}</div>
+          ` : nothing}
+        </div>
+        <span style="font-size:11px; padding:2px 8px; border-radius:4px; border:1px solid var(--border); color:var(--muted); flex-shrink:0;">${slug}</span>
+        ${result?.ok ? html`
+          <span style="font-size:11px; color:var(--ok); flex-shrink:0;">\u2713</span>
+        ` : html`
+          <button
+            class="btn btn--sm"
+            style="padding:3px 12px; font-size:11px; border-color:var(--accent); color:var(--accent); background:var(--accent-subtle); flex-shrink:0;"
+            ?disabled=${installing}
+            @click=${(e: Event) => { e.stopPropagation(); slug && this.installMarketplaceSkill(slug) }}
+          >${installing ? '...' : 'Install'}</button>
+        `}
       </div>
     `
   }
@@ -703,7 +1229,6 @@ export class OcbotSkillsView extends LitElement {
 
     return html`
       <div style="display:flex; flex-direction:column; height:100%; overflow-y:auto;">
-        <!-- Back button -->
         <button
           style="display:flex; align-items:center; gap:6px; padding:10px 16px; border:none; border-bottom:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:14px; transition:color 0.15s;"
           @mouseenter=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-strong)' }}
@@ -715,7 +1240,6 @@ export class OcbotSkillsView extends LitElement {
         </button>
 
         <div style="padding:24px; display:flex; flex-direction:column; gap:24px;">
-          <!-- Header -->
           <div style="display:flex; align-items:flex-start; gap:20px;">
             <div style="width:64px; height:64px; border-radius:16px; background:var(--accent-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:20px; font-weight:700; color:var(--accent);">
               ${skill.emoji || getSkillAbbr(skill.name)}
@@ -738,7 +1262,6 @@ export class OcbotSkillsView extends LitElement {
             </div>
           </div>
 
-          <!-- Action buttons -->
           <div style="display:flex; align-items:center; gap:12px;">
             <button
               class="btn ${skill.disabled ? '' : 'primary'}"
@@ -757,7 +1280,6 @@ export class OcbotSkillsView extends LitElement {
             ` : nothing}
           </div>
 
-          <!-- Requirements section -->
           ${hasRequirements ? html`
             <section>
               <h2 style="font-size:16px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Requirements</h2>
@@ -793,7 +1315,6 @@ export class OcbotSkillsView extends LitElement {
             </section>
           ` : nothing}
 
-          <!-- Install deps -->
           ${skill.install.length > 0 ? html`
             <section>
               <h2 style="font-size:16px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Install Dependencies</h2>
@@ -820,7 +1341,6 @@ export class OcbotSkillsView extends LitElement {
             </section>
           ` : nothing}
 
-          <!-- Configuration (API key) -->
           ${skill.primaryEnv ? html`
             <section>
               <h2 style="font-size:16px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Configuration</h2>
@@ -848,7 +1368,6 @@ export class OcbotSkillsView extends LitElement {
             </section>
           ` : nothing}
 
-          <!-- Config checks -->
           ${skill.configChecks.length > 0 ? html`
             <section>
               <h2 style="font-size:16px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Config Checks</h2>
@@ -869,4 +1388,331 @@ export class OcbotSkillsView extends LitElement {
       </div>
     `
   }
+
+  // ══════════════════════════════════════
+  // MARKETPLACE DETAIL PAGE
+  // ══════════════════════════════════════
+
+  private renderMarketplaceDetailPage() {
+    if (this.mpDetailLoading) {
+      return html`
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <button
+            style="display:flex; align-items:center; gap:6px; padding:10px 16px; border:none; border-bottom:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:14px;"
+            @click=${() => this.backToList()}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to Marketplace
+          </button>
+          ${this.renderEmpty('Loading skill details...')}
+        </div>
+      `
+    }
+
+    if (!this.mpDetail) {
+      return html`
+        <div style="display:flex; flex-direction:column; height:100%;">
+          <button
+            style="display:flex; align-items:center; gap:6px; padding:10px 16px; border:none; border-bottom:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:14px;"
+            @click=${() => this.backToList()}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to Marketplace
+          </button>
+          ${this.renderEmpty('Skill not found')}
+        </div>
+      `
+    }
+
+    const { skill, latestVersion, owner } = this.mpDetail
+    const badges = this.getMarketplaceBadges(skill)
+    const installing = this.mpInstalling[skill.slug]
+    const result = this.mpInstallResult[skill.slug]
+    const clawdis = latestVersion?.parsed?.clawdis
+    const requires = clawdis?.requires
+    const osLabels = formatOsList(clawdis?.os)
+    const installSpecs = clawdis?.install ?? []
+    const envVars = clawdis?.envVars ?? []
+    const deps = clawdis?.dependencies ?? []
+    const links = clawdis?.links
+    const hasRequirements = Boolean(
+      requires?.bins?.length || requires?.anyBins?.length || requires?.env?.length ||
+      requires?.config?.length || clawdis?.primaryEnv || envVars.length || osLabels.length
+    )
+
+    return html`
+      <div style="display:flex; flex-direction:column; height:100%; overflow-y:auto;">
+        <button
+          style="display:flex; align-items:center; gap:6px; padding:10px 16px; border:none; border-bottom:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:14px; transition:color 0.15s;"
+          @mouseenter=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-strong)' }}
+          @mouseleave=${(e: MouseEvent) => { (e.currentTarget as HTMLElement).style.color = 'var(--muted)' }}
+          @click=${() => this.backToList()}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back to Marketplace
+        </button>
+
+        <div style="padding:24px; display:flex; flex-direction:column; gap:24px;">
+          <!-- Header -->
+          <div style="display:flex; align-items:flex-start; gap:20px;">
+            <div style="width:64px; height:64px; border-radius:16px; background:var(--accent-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:20px; font-weight:700; color:var(--accent);">
+              ${clawdis?.emoji || getSkillAbbr(skill.displayName)}
+            </div>
+            <div style="min-width:0; flex:1;">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <h1 style="font-size:22px; font-weight:600; color:var(--text-strong); margin:0; letter-spacing:-0.02em;">${skill.displayName}</h1>
+                ${badges.map(b => html`
+                  <span style="display:inline-flex; padding:2px 10px; border-radius:6px; font-size:11px; font-weight:500; border:1px solid var(--accent)30; background:var(--accent-subtle); color:var(--accent);">
+                    ${b}
+                  </span>
+                `)}
+              </div>
+              <div style="margin-top:6px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:13px; color:var(--muted);">
+                ${owner?.handle ? html`
+                  <span>by <span style="font-weight:500; color:var(--text-strong);">@${owner.handle || owner.displayName}</span></span>
+                  <span style="color:var(--border);">\u00B7</span>
+                ` : nothing}
+                <span style="font-family:var(--font-mono, monospace);">${skill.slug}</span>
+                ${latestVersion ? html`
+                  <span style="color:var(--border);">\u00B7</span>
+                  <span>v${latestVersion.version}</span>
+                ` : nothing}
+                ${osLabels.length ? html`
+                  <span style="color:var(--border);">\u00B7</span>
+                  <span>${osLabels.join(' / ')}</span>
+                ` : nothing}
+              </div>
+              ${skill.summary ? html`
+                <p style="margin:8px 0 0; font-size:14px; color:var(--muted); line-height:1.6;">${skill.summary}</p>
+              ` : nothing}
+              <!-- Inline stats -->
+              <div style="margin-top:10px; display:flex; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--muted);">
+                <span>\u2B07 ${formatNumber(skill.stats.downloads)} downloads</span>
+                <span>\u2605 ${formatNumber(skill.stats.stars)} stars</span>
+                ${skill.stats.installsCurrent != null ? html`<span>\u229A ${formatNumber(skill.stats.installsCurrent)} active installs</span>` : nothing}
+                <span>${skill.stats.versions} versions</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            ${result?.ok ? html`
+              <button class="btn" style="padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:500; color:var(--ok); border-color:var(--ok);" disabled>
+                \u2713 Installed
+              </button>
+            ` : html`
+              <button
+                class="btn primary"
+                style="padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:500;"
+                ?disabled=${installing}
+                @click=${() => this.installMarketplaceSkill(skill.slug, latestVersion?.version)}
+              >${installing ? 'Installing...' : 'Install Skill'}</button>
+            `}
+            ${result && !result.ok ? html`
+              <span style="font-size:13px; color:var(--danger);">${result.message}</span>
+            ` : nothing}
+          </div>
+
+
+          <!-- Info panels grid -->
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
+
+            <!-- Runtime requirements -->
+            ${hasRequirements ? html`
+              <section style="border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; background:var(--card);">
+                <h3 style="font-size:14px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Runtime Requirements</h3>
+                <div style="display:flex; flex-direction:column; gap:8px; font-size:13px;">
+                  ${osLabels.length ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:60px;">OS</span><span style="color:var(--text-strong);">${osLabels.join(' \u00B7 ')}</span></div>
+                  ` : nothing}
+                  ${requires?.bins?.length ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:60px;">Bins</span><span style="font-family:var(--font-mono, monospace); color:var(--text-strong);">${requires.bins.join(', ')}</span></div>
+                  ` : nothing}
+                  ${requires?.anyBins?.length ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:60px;">Any bin</span><span style="font-family:var(--font-mono, monospace); color:var(--text-strong);">${requires.anyBins.join(', ')}</span></div>
+                  ` : nothing}
+                  ${requires?.env?.length ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:60px;">Env</span><span style="font-family:var(--font-mono, monospace); color:var(--text-strong);">${requires.env.join(', ')}</span></div>
+                  ` : nothing}
+                  ${requires?.config?.length ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:60px;">Config</span><span style="font-family:var(--font-mono, monospace); color:var(--text-strong);">${requires.config.join(', ')}</span></div>
+                  ` : nothing}
+                  ${clawdis?.primaryEnv ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:60px;">Key</span><span style="font-family:var(--font-mono, monospace); color:var(--text-strong);">${clawdis.primaryEnv}</span></div>
+                  ` : nothing}
+                  ${envVars.length ? html`
+                    <div style="border-top:1px solid var(--border); padding-top:8px; margin-top:4px;">
+                      <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">Environment Variables</div>
+                      ${envVars.map(env => html`
+                        <div style="display:flex; align-items:baseline; gap:8px; margin-top:4px;">
+                          <code style="font-size:12px; color:var(--text-strong);">${env.name}</code>
+                          ${env.required === true ? html`<span style="font-size:10px; color:var(--accent);">required</span>` :
+                            env.required === false ? html`<span style="font-size:10px; color:var(--muted);">optional</span>` : nothing}
+                          ${env.description ? html`<span style="font-size:12px; color:var(--muted);">\u2014 ${env.description}</span>` : nothing}
+                        </div>
+                      `)}
+                    </div>
+                  ` : nothing}
+                </div>
+              </section>
+            ` : nothing}
+
+            <!-- Install specs -->
+            ${installSpecs.length ? html`
+              <section style="border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; background:var(--card);">
+                <h3 style="font-size:14px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Install Dependencies</h3>
+                <div style="display:flex; flex-direction:column; gap:10px; font-size:13px;">
+                  ${installSpecs.map(spec => {
+                    const cmd = formatInstallCmd(spec)
+                    return html`
+                      <div>
+                        <div style="font-weight:500; color:var(--text-strong);">${spec.label || installKindLabel(spec.kind)}</div>
+                        ${spec.bins?.length ? html`<div style="font-size:12px; color:var(--muted);">Bins: ${spec.bins.join(', ')}</div>` : nothing}
+                        ${cmd ? html`<code style="display:block; margin-top:4px; padding:6px 10px; border-radius:var(--radius-md); background:var(--bg); font-size:12px; color:var(--text-strong); font-family:var(--font-mono, monospace); user-select:all;">${cmd}</code>` : nothing}
+                      </div>
+                    `
+                  })}
+                </div>
+              </section>
+            ` : nothing}
+
+            <!-- Dependencies -->
+            ${deps.length ? html`
+              <section style="border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; background:var(--card);">
+                <h3 style="font-size:14px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Dependencies</h3>
+                <div style="display:flex; flex-direction:column; gap:8px; font-size:13px;">
+                  ${deps.map(dep => html`
+                    <div>
+                      <span style="font-weight:500; color:var(--text-strong);">${dep.name}</span>
+                      ${dep.type ? html`<span style="color:var(--muted); margin-left:6px;">${dep.type}${dep.version ? ` ${dep.version}` : ''}</span>` : nothing}
+                      ${dep.url ? html`<div style="font-size:12px; margin-top:2px;"><a href="${dep.url}" target="_blank" rel="noopener" style="color:var(--accent);">${dep.url}</a></div>` : nothing}
+                    </div>
+                  `)}
+                </div>
+              </section>
+            ` : nothing}
+
+            <!-- Links -->
+            ${links?.homepage || links?.repository || links?.documentation ? html`
+              <section style="border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; background:var(--card);">
+                <h3 style="font-size:14px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Links</h3>
+                <div style="display:flex; flex-direction:column; gap:8px; font-size:13px;">
+                  ${links.homepage ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:50px;">Home</span><a href="${links.homepage}" target="_blank" rel="noopener" style="color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${links.homepage}</a></div>
+                  ` : nothing}
+                  ${links.repository ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:50px;">Repo</span><a href="${links.repository}" target="_blank" rel="noopener" style="color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${links.repository}</a></div>
+                  ` : nothing}
+                  ${links.documentation ? html`
+                    <div style="display:flex; gap:8px;"><span style="color:var(--muted); min-width:50px;">Docs</span><a href="${links.documentation}" target="_blank" rel="noopener" style="color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${links.documentation}</a></div>
+                  ` : nothing}
+                </div>
+              </section>
+            ` : nothing}
+          </div>
+
+          <!-- Latest version -->
+          ${latestVersion ? html`
+            <section>
+              <h2 style="font-size:16px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Latest Version</h2>
+              <div style="border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; background:var(--bg);">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                  <span style="font-weight:600; color:var(--text-strong);">v${latestVersion.version}</span>
+                  <span style="font-size:12px; color:var(--muted);">${timeAgo(latestVersion.createdAt)}</span>
+                </div>
+                ${latestVersion.changelog ? html`
+                  <p style="margin:0; font-size:13px; color:var(--muted); line-height:1.5; white-space:pre-wrap;">${latestVersion.changelog}</p>
+                ` : html`
+                  <p style="margin:0; font-size:13px; color:var(--muted);">No changelog provided.</p>
+                `}
+                ${latestVersion.files?.length ? html`
+                  <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:12px;">
+                    <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">Files (${latestVersion.files.length})</div>
+                  </div>
+                ` : nothing}
+              </div>
+            </section>
+          ` : nothing}
+
+          <!-- File Browser -->
+          ${latestVersion?.files?.length ? html`
+            <section>
+              <h2 style="font-size:16px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">Files</h2>
+              <div style="display:flex; border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; min-height:300px;">
+                <!-- File list -->
+                <div style="width:220px; flex-shrink:0; border-right:1px solid var(--border); background:var(--card); overflow-y:auto;">
+                  ${latestVersion.files.map(f => html`
+                    <button
+                      style="display:flex; align-items:center; justify-content:space-between; width:100%; padding:8px 12px; border:none; border-bottom:1px solid var(--border); cursor:pointer; font-size:12px; text-align:left; transition:background 0.1s; ${this.mpSelectedFile === f.path ? 'background:var(--accent-subtle); color:var(--accent);' : 'background:transparent; color:var(--text);'}"
+                      @mouseenter=${(e: MouseEvent) => { if (this.mpSelectedFile !== f.path) (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)' }}
+                      @mouseleave=${(e: MouseEvent) => { if (this.mpSelectedFile !== f.path) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                      @click=${() => this.selectFile(f.path)}
+                    >
+                      <span style="font-family:var(--font-mono, monospace); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.path}</span>
+                      ${f.size != null ? html`<span style="font-size:10px; color:var(--muted); flex-shrink:0; margin-left:8px;">${formatBytes(f.size)}</span>` : nothing}
+                    </button>
+                  `)}
+                </div>
+                <!-- File viewer -->
+                <div style="flex:1; min-width:0; display:flex; flex-direction:column; background:var(--bg);">
+                  <div style="padding:8px 12px; border-bottom:1px solid var(--border); font-size:12px; display:flex; align-items:center; justify-content:space-between;">
+                    <span style="font-family:var(--font-mono, monospace); color:var(--text-strong);">${this.mpSelectedFile ?? 'Select a file'}</span>
+                  </div>
+                  <div style="flex:1; overflow:auto; padding:12px;">
+                    ${this.mpFileLoading ? html`
+                      <div style="color:var(--muted); font-size:13px;">Loading...</div>
+                    ` : this.mpFileError ? html`
+                      <div style="color:var(--danger); font-size:13px;">${this.mpFileError}</div>
+                    ` : this.mpFileContent != null ? html`
+                      <pre style="margin:0; font-size:12px; line-height:1.6; color:var(--text); font-family:var(--font-mono, monospace); white-space:pre-wrap; word-break:break-word;">${this.mpFileContent}</pre>
+                    ` : html`
+                      <div style="color:var(--muted); font-size:13px;">Select a file to preview.</div>
+                    `}
+                  </div>
+                </div>
+              </div>
+            </section>
+          ` : nothing}
+
+          <!-- SKILL.md -->
+          ${this.mpReadmeLoading ? html`
+            <section>
+              <h2 style="font-size:16px; font-weight:600; color:var(--text-strong); margin:0 0 12px;">SKILL.md</h2>
+              <div style="text-align:center; color:var(--muted); padding:24px; font-size:13px;">Loading...</div>
+            </section>
+          ` : this.mpReadme ? html`
+            <section>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <h2 style="font-size:16px; font-weight:600; color:var(--text-strong); margin:0;">SKILL.md</h2>
+                <div style="display:flex; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden;">
+                  <button
+                    style="padding:4px 12px; font-size:12px; border:none; cursor:pointer; transition:all 0.1s; ${!this.mpReadmeRaw ? 'background:var(--accent-subtle); color:var(--accent);' : 'background:transparent; color:var(--muted);'}"
+                    @click=${() => { this.mpReadmeRaw = false }}
+                  >Rendered</button>
+                  <button
+                    style="padding:4px 12px; font-size:12px; border:none; border-left:1px solid var(--border); cursor:pointer; transition:all 0.1s; ${this.mpReadmeRaw ? 'background:var(--accent-subtle); color:var(--accent);' : 'background:transparent; color:var(--muted);'}"
+                    @click=${() => { this.mpReadmeRaw = true }}
+                  >Source</button>
+                </div>
+              </div>
+              ${this.mpReadmeRaw ? html`
+                <div style="border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--bg); font-size:13px; line-height:1.7; color:var(--text); white-space:pre-wrap; word-break:break-word; overflow-x:auto; font-family:var(--font-mono, monospace);">${this.mpReadme}</div>
+              ` : html`
+                <div class="markdown-body" style="border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--bg); font-size:14px; line-height:1.7; color:var(--text); overflow-x:auto;">${unsafeHTML(renderMarkdown(this.mpReadme))}</div>
+              `}
+            </section>
+          ` : nothing}
+
+          <!-- Timeline -->
+          <section style="font-size:13px; color:var(--muted); display:flex; gap:16px;">
+            <span>Created ${new Date(skill.createdAt).toLocaleDateString()}</span>
+            <span>\u00B7</span>
+            <span>Updated ${new Date(skill.updatedAt).toLocaleDateString()}</span>
+          </section>
+        </div>
+      </div>
+    `
+  }
+
 }

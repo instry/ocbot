@@ -1,0 +1,12 @@
+diff --git a/chrome/common/extensions/api/api_sources.gni b/chrome/common/extensions/api/api_sources.gni
+index 9a041705164b257ed12bf70797b905506b5a28d7..a5b85288a0a60c0ce8a5fdafb2323812fc69b95a 100644
+--- a/chrome/common/extensions/api/api_sources.gni
++++ b/chrome/common/extensions/api/api_sources.gni
+@@ -32,6 +32,7 @@ schema_sources_ = [
+   "permissions.json",
+   "processes.idl",
+   "reading_list.webidl",
++  "ocbot.idl",
+   "search.idl",
+   "scripting.idl",
+   "tab_capture.idl",

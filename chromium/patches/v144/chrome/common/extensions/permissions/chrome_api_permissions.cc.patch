@@ -1,0 +1,12 @@
+diff --git a/chrome/common/extensions/permissions/chrome_api_permissions.cc b/chrome/common/extensions/permissions/chrome_api_permissions.cc
+index d23585714d945b80646674235cd599847a886066..60fef20f05baa7b784c337010c9cf8c476e164ef 100644
+--- a/chrome/common/extensions/permissions/chrome_api_permissions.cc
++++ b/chrome/common/extensions/permissions/chrome_api_permissions.cc
+@@ -116,6 +116,7 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
+      APIPermissionInfo::kFlagRequiresManagementUIWarning},
+     {APIPermissionID::kSearch, "search",
+      APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
++    {APIPermissionID::kOcbot, "ocbot"},
+     {APIPermissionID::kSessions, "sessions"},
+     {APIPermissionID::kSidePanel, "sidePanel"},
+     {APIPermissionID::kTab, "tabs",

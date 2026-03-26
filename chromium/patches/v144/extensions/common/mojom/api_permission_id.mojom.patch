@@ -1,13 +1,14 @@
 diff --git a/extensions/common/mojom/api_permission_id.mojom b/extensions/common/mojom/api_permission_id.mojom
-index e19de6942981b9667adbddde1ec8ae12d1262af4..116bd8e0f8c7d1c88e594388e9e740a2df47bab2 100644
+index e19de6942981b9667adbddde1ec8ae12d1262af4..d5959a6e8d5b5afe848922fb26993372498dceee 100644
 --- a/extensions/common/mojom/api_permission_id.mojom
 +++ b/extensions/common/mojom/api_permission_id.mojom
-@@ -288,6 +288,8 @@ enum APIPermissionID {
+@@ -288,6 +288,9 @@ enum APIPermissionID {
    kOmniboxDirectInput = 261,
    kExperimentalActor = 262,
    kEnterpriseLogin = 263,
 +  kDeleted_Ocbot = 264,
 +  kDeleted_Ocbot2 = 265,
++  kOcbot = 266,
  
    // Add new entries at the end of the enum and be sure to update the
    // "ExtensionPermission3" enum in

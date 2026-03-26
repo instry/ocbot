@@ -1,0 +1,15 @@
+diff --git a/chrome/common/extensions/api/_api_features.json b/chrome/common/extensions/api/_api_features.json
+index d67338647ca4cf335a079bf130ff474ba67bd998..370240d724ad7681b5557d49eebe4f554b272dca 100644
+--- a/chrome/common/extensions/api/_api_features.json
++++ b/chrome/common/extensions/api/_api_features.json
+@@ -753,6 +753,10 @@
+     "dependencies": ["permission:notifications"],
+     "contexts": ["privileged_extension"]
+   },
++  "ocbot": {
++    "dependencies": ["permission:ocbot"],
++    "contexts": ["privileged_extension"]
++  },
+   "omnibox": {
+     "dependencies": ["manifest:omnibox"],
+     "contexts": ["privileged_extension"]

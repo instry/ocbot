@@ -1,0 +1,123 @@
+diff --git a/chrome/browser/extensions/api/ocbot/ocbot_api.cc b/chrome/browser/extensions/api/ocbot/ocbot_api.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..b61583bb3e54b8d723d43e826e1658586098a707
+--- /dev/null
++++ b/chrome/browser/extensions/api/ocbot/ocbot_api.cc
+@@ -0,0 +1,117 @@
++// Copyright 2025 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "chrome/browser/extensions/api/ocbot/ocbot_api.h"
++
++#include <string>
++#include <vector>
++
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/path_service.h"
++#include "base/values.h"
++#include "build/build_config.h"
++#include "chrome/common/extensions/api/ocbot.h"
++#include "chrome/common/importer/chrome_importer_utils.h"
++
++namespace extensions {
++
++namespace {
++
++struct BrowserCandidate {
++  std::string kind;
++  base::FilePath user_data_dir;
++};
++
++std::vector<BrowserCandidate> GetBrowserCandidates() {
++  std::vector<BrowserCandidate> candidates;
++  base::FilePath home_dir;
++  base::PathService::Get(base::DIR_HOME, &home_dir);
++
++#if BUILDFLAG(IS_MAC)
++  base::FilePath app_support =
++      home_dir.Append("Library").Append("Application Support");
++  candidates.push_back(
++      {"chrome", app_support.Append("Google").Append("Chrome")});
++  candidates.push_back(
++      {"brave", app_support.Append("BraveSoftware").Append("Brave-Browser")});
++  candidates.push_back(
++      {"edge", app_support.Append("Microsoft Edge")});
++  candidates.push_back(
++      {"chromium", app_support.Append("Chromium")});
++#elif BUILDFLAG(IS_LINUX)
++  base::FilePath config_dir = home_dir.Append(".config");
++  candidates.push_back({"chrome", config_dir.Append("google-chrome")});
++  candidates.push_back(
++      {"brave",
++       config_dir.Append("BraveSoftware").Append("Brave-Browser")});
++  candidates.push_back({"edge", config_dir.Append("microsoft-edge")});
++  candidates.push_back({"chromium", config_dir.Append("chromium")});
++#elif BUILDFLAG(IS_WIN)
++  base::FilePath local_app_data;
++  base::PathService::Get(base::DIR_LOCAL_APP_DATA, &local_app_data);
++  candidates.push_back(
++      {"chrome",
++       local_app_data.Append(L"Google").Append(L"Chrome").Append(
++           L"User Data")});
++  candidates.push_back(
++      {"brave",
++       local_app_data.Append(L"BraveSoftware")
++           .Append(L"Brave-Browser")
++           .Append(L"User Data")});
++  candidates.push_back(
++      {"edge",
++       local_app_data.Append(L"Microsoft").Append(L"Edge").Append(
++           L"User Data")});
++  candidates.push_back(
++      {"chromium",
++       local_app_data.Append(L"Chromium").Append(L"User Data")});
++#endif
++
++  return candidates;
++}
++
++}  // namespace
++
++ExtensionFunction::ResponseAction OcbotGetBrowserProfilesFunction::Run() {
++  base::Value::List results;
++
++  for (const auto& candidate : GetBrowserCandidates()) {
++    if (!base::DirectoryExists(candidate.user_data_dir)) {
++      continue;
++    }
++
++    std::vector<ChromeProfileInfo> profiles =
++        GetChromeProfiles(candidate.user_data_dir);
++    if (profiles.empty()) {
++      continue;
++    }
++
++    base::Value::Dict browser_info;
++    browser_info.Set("kind", candidate.kind);
++    browser_info.Set("userDataDir", candidate.user_data_dir.AsUTF8Unsafe());
++
++    base::Value::List profile_list;
++    for (const auto& profile : profiles) {
++      base::Value::Dict profile_info;
++      profile_info.Set("directory", profile.dir_name);
++      profile_info.Set("name", profile.display_name);
++      profile_info.Set(
++          "path",
++          candidate.user_data_dir
++              .Append(base::FilePath::FromUTF8Unsafe(profile.dir_name))
++              .AsUTF8Unsafe());
++      profile_list.Append(std::move(profile_info));
++    }
++
++    base::Value::Dict entry;
++    entry.Set("browser", std::move(browser_info));
++    entry.Set("profiles", std::move(profile_list));
++    results.Append(std::move(entry));
++  }
++
++  return RespondNow(WithArguments(std::move(results)));
++}
++
++}  // namespace extensions

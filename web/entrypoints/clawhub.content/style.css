@@ -55,7 +55,8 @@
 }
 
 :root[data-ocbot-embed="true"] a {
-  color: inherit !important;
+  color: var(--ocbot-accent) !important;
+  text-decoration-color: color-mix(in srgb, var(--ocbot-accent) 34%, transparent) !important;
 }
 
 :root[data-ocbot-embed="true"] button,
@@ -71,8 +72,8 @@
 :root[data-ocbot-embed="true"] textarea,
 :root[data-ocbot-embed="true"] select {
   border-color: var(--ocbot-border) !important;
-  background: transparent !important;
-  color: var(--ocbot-text) !important;
+  background: var(--ocbot-bg) !important;
+  color: var(--ocbot-text-strong) !important;
   box-shadow: none !important;
 }
 
@@ -87,6 +88,12 @@
 :root[data-ocbot-embed="true"] button:hover,
 :root[data-ocbot-embed="true"] a[role="button"]:hover {
   background: var(--ocbot-bg-hover) !important;
+  color: var(--ocbot-text-strong) !important;
+}
+
+:root[data-ocbot-embed="true"] [aria-selected="true"],
+:root[data-ocbot-embed="true"] [data-state="active"] {
+  background: var(--ocbot-accent-subtle) !important;
   color: var(--ocbot-text-strong) !important;
 }
 
@@ -129,12 +136,19 @@
   line-height: 1.5 !important;
 }
 
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] small,
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] time,
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] [class*="meta"],
+:root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] [class*="Meta"] {
+  color: var(--ocbot-muted) !important;
+}
+
 :root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] [class*="badge"],
 :root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] [class*="tag"],
 :root[data-ocbot-embed="true"] [data-ocbot-skill-link="true"] [class*="pill"] {
   border-radius: 6px !important;
   border: 1px solid var(--ocbot-border) !important;
-  background: transparent !important;
+  background: var(--ocbot-bg) !important;
   color: var(--ocbot-muted) !important;
 }
 
@@ -153,6 +167,7 @@
 :root[data-ocbot-embed="true"] [class*="panel"],
 :root[data-ocbot-embed="true"] [class*="Panel"] {
   border-color: var(--ocbot-border) !important;
+  background: var(--ocbot-card) !important;
   box-shadow: none !important;
 }
 
@@ -170,6 +185,17 @@
 :root[data-ocbot-embed="true"] label,
 :root[data-ocbot-embed="true"] small {
   color: inherit;
+}
+
+:root[data-ocbot-embed="true"] p,
+:root[data-ocbot-embed="true"] small,
+:root[data-ocbot-embed="true"] label {
+  color: var(--ocbot-muted) !important;
+}
+
+:root[data-ocbot-embed="true"] strong,
+:root[data-ocbot-embed="true"] b {
+  color: var(--ocbot-text-strong) !important;
 }
 
 :root[data-ocbot-embed="true"] [class*="badge"],

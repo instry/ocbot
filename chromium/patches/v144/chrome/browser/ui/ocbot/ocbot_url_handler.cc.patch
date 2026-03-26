@@ -1,12 +1,13 @@
 diff --git a/chrome/browser/ui/ocbot/ocbot_url_handler.cc b/chrome/browser/ui/ocbot/ocbot_url_handler.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..8c5ebbd730026efce2fbfa17b4fd6257755ba336
+index 0000000000000000000000000000000000000000..e49ef791cd115d2607b97624f62ff552079ee155
 --- /dev/null
 +++ b/chrome/browser/ui/ocbot/ocbot_url_handler.cc
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,102 @@
 +#include "chrome/browser/ui/ocbot/ocbot_url_handler.h"
 +
 +#include "chrome/browser/ui/ocbot/ocbot_constants.h"
++#include "chrome/browser/ocbot/skill_installer.h"
 +#include "chrome/common/url_constants.h"
 +#include "extensions/common/constants.h"
 +#include "url/gurl.h"
@@ -40,6 +41,24 @@ index 0000000000000000000000000000000000000000..8c5ebbd730026efce2fbfa17b4fd6257
 +  // Preserve query string
 +  if (url->has_query()) {
 +    path += "?" + std::string(url->query());
++    std::string query(url->query());
++    if (query.find("action=install") != std::string::npos) {
++      std::string slug;
++      std::string version;
++      size_t sp = query.find("slug=");
++      if (sp != std::string::npos) {
++        size_t sv = sp + 5;
++        size_t se = query.find('&', sv);
++        slug = query.substr(sv, se == std::string::npos ? std::string::npos : se - sv);
++      }
++      size_t vp = query.find("version=");
++      if (vp != std::string::npos) {
++        size_t vv = vp + 8;
++        size_t ve = query.find('&', vv);
++        version = query.substr(vv, ve == std::string::npos ? std::string::npos : ve - vv);
++      }
++      ocbot::InstallSkillBySlug(browser_context, slug, version);
++    }
 +  }
 +
 +  *url = GURL(std::string(extensions::kExtensionScheme) + "://" +

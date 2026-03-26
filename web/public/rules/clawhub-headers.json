@@ -13,5 +13,19 @@
       "urlFilter": "||clawhub.ai",
       "resourceTypes": ["sub_frame"]
     }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Origin", "operation": "remove" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||clawhub.ai/api/",
+      "resourceTypes": ["xmlhttprequest"]
+    }
   }
 ]

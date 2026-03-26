@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/ocbot/BUILD.gn b/chrome/browser/ocbot/BUILD.gn
 new file mode 100644
-index 0000000000000000000000000000000000000000..dd8340a060f4954b95915315aa212e920f4d3ecf
+index 0000000000000000000000000000000000000000..514c66c4c796464e3702d95cdf5e1e905ab3783a
 --- /dev/null
 +++ b/chrome/browser/ocbot/BUILD.gn
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,45 @@
 +# Copyright 2025 The Ocbot Authors
 +# SPDX-License-Identifier: MIT
 +
@@ -16,6 +16,8 @@ index 0000000000000000000000000000000000000000..dd8340a060f4954b95915315aa212e92
 +    "runtime_manager.h",
 +    "runtime_updater.cc",
 +    "runtime_updater.h",
++    "skill_installer.cc",
++    "skill_installer.h",
 +  ]
 +
 +  if (is_mac) {

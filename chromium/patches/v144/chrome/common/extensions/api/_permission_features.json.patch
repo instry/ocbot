@@ -1,0 +1,15 @@
+diff --git a/chrome/common/extensions/api/_permission_features.json b/chrome/common/extensions/api/_permission_features.json
+index 0945d9c927d621ba4ea5067d4c0f89558aef5580..32be027a31dccdf57ed3f711ca95940ea6031885 100644
+--- a/chrome/common/extensions/api/_permission_features.json
++++ b/chrome/common/extensions/api/_permission_features.json
+@@ -766,6 +766,10 @@
+     "location": "component",
+     "platforms": ["chromeos"]
+   },
++  "ocbot": {
++    "channel": "stable",
++    "extension_types": ["extension"]
++  },
+   "pageCapture": {
+     "channel": "stable",
+     "extension_types": ["extension", "legacy_packaged_app"]
