@@ -8,7 +8,12 @@ import time
 import urllib.request
 from pathlib import Path
 from common import get_logger, get_source_dir, get_project_root, get_agent_root
-from openclaw_config import ensure_ocbot_openclaw_config, get_ocbot_config_dir
+from openclaw_config import (
+    ensure_ocbot_openclaw_config,
+    get_ocbot_config_dir,
+    get_ocbot_state_dir,
+    get_ocbot_workspace_dir,
+)
 
 
 def _sync_extension(logger, out_dir):
@@ -107,14 +112,16 @@ def _start_embedded_runtime(logger, out_dir):
 
     logger.info("Found embedded runtime, starting OpenClaw gateway...")
 
-    # Ensure config exists (dev mode uses project-local .openclaw/)
-    os.environ['OCBOT_DEV'] = '1'
+    os.environ.setdefault('OCBOT_RUNTIME_MODE', 'dev')
     config_dir = get_ocbot_config_dir()
-    config_file = ensure_ocbot_openclaw_config(config_dir)
+    state_dir = get_ocbot_state_dir()
+    workspace_dir = get_ocbot_workspace_dir()
+    config_file = ensure_ocbot_openclaw_config(config_dir, workspace_dir)
+    state_dir.mkdir(parents=True, exist_ok=True)
 
     env = os.environ.copy()
     env['OPENCLAW_CONFIG_PATH'] = str(config_file)
-    env['OPENCLAW_STATE_DIR'] = str(config_dir)
+    env['OPENCLAW_STATE_DIR'] = str(state_dir)
     env['OPENCLAW_NO_RESPAWN'] = '1'
 
     # Tell openclaw where bundled plugins live (embedded runtime has no .git/src,
