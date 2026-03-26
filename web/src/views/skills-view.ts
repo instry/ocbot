@@ -453,14 +453,19 @@ export class OcbotSkillsView extends LitElement {
       installUrl.searchParams.set('slug', slug)
       if (version) installUrl.searchParams.set('version', version)
       window.location.href = installUrl.toString()
-      setTimeout(async () => {
+      const start = Date.now()
+      const deadline = start + 15000
+      let installed = false
+      while (Date.now() < deadline) {
         await this.loadLocalSkills()
-        const installed = this.localSkills.some(s => s.skillKey.includes(slug))
-        this.mpInstallResult = {
-          ...this.mpInstallResult,
-          [slug]: installed ? { ok: true, message: 'Installed' } : { ok: false, message: 'Install not detected yet' },
-        }
-      }, 3000)
+        installed = this.localSkills.some(s => s.skillKey.includes(slug))
+        if (installed) break
+        await new Promise(r => setTimeout(r, 1000))
+      }
+      this.mpInstallResult = {
+        ...this.mpInstallResult,
+        [slug]: installed ? { ok: true, message: 'Installed' } : { ok: false, message: 'Install not detected yet' },
+      }
     } catch (err) {
       this.mpInstallResult = {
         ...this.mpInstallResult,

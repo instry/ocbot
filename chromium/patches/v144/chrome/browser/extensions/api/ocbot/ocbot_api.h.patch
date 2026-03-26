@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/extensions/api/ocbot/ocbot_api.h b/chrome/browser/extensions/api/ocbot/ocbot_api.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..d0a70c24c8356b60958ee77f1f57f8038001fdb9
+index 0000000000000000000000000000000000000000..5339fc817d628fe4f87d77c9ebb7d7211302791f
 --- /dev/null
 +++ b/chrome/browser/extensions/api/ocbot/ocbot_api.h
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,27 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -11,6 +11,7 @@ index 0000000000000000000000000000000000000000..d0a70c24c8356b60958ee77f1f57f803
 +#ifndef CHROME_BROWSER_EXTENSIONS_API_OCBOT_OCBOT_API_H_
 +#define CHROME_BROWSER_EXTENSIONS_API_OCBOT_OCBOT_API_H_
 +
++#include "base/values.h"
 +#include "extensions/browser/extension_function.h"
 +
 +namespace extensions {
@@ -24,6 +25,7 @@ index 0000000000000000000000000000000000000000..d0a70c24c8356b60958ee77f1f57f803
 + private:
 +  ~OcbotGetBrowserProfilesFunction() override = default;
 +  ResponseAction Run() override;
++  void OnProfilesScanned(base::Value::List results);
 +};
 +
 +}  // namespace extensions

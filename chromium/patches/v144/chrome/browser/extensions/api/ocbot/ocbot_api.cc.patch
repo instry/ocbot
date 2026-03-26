@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/extensions/api/ocbot/ocbot_api.cc b/chrome/browser/extensions/api/ocbot/ocbot_api.cc
 new file mode 100644
-index 0000000000000000000000000000000000000000..b61583bb3e54b8d723d43e826e1658586098a707
+index 0000000000000000000000000000000000000000..ed33edbdd1ae7e27648906d2ef13b0dbae8cfb44
 --- /dev/null
 +++ b/chrome/browser/extensions/api/ocbot/ocbot_api.cc
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,134 @@
 +// Copyright 2025 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -15,7 +15,9 @@ index 0000000000000000000000000000000000000000..b61583bb3e54b8d723d43e826e165858
 +
 +#include "base/files/file_path.h"
 +#include "base/files/file_util.h"
++#include "base/functional/bind.h"
 +#include "base/path_service.h"
++#include "base/task/thread_pool.h"
 +#include "base/values.h"
 +#include "build/build_config.h"
 +#include "chrome/common/extensions/api/ocbot.h"
@@ -78,9 +80,8 @@ index 0000000000000000000000000000000000000000..b61583bb3e54b8d723d43e826e165858
 +  return candidates;
 +}
 +
-+}  // namespace
-+
-+ExtensionFunction::ResponseAction OcbotGetBrowserProfilesFunction::Run() {
++// Runs on a background thread (MayBlock).
++base::Value::List ScanBrowserProfiles() {
 +  base::Value::List results;
 +
 +  for (const auto& candidate : GetBrowserCandidates()) {
@@ -117,7 +118,23 @@ index 0000000000000000000000000000000000000000..b61583bb3e54b8d723d43e826e165858
 +    results.Append(std::move(entry));
 +  }
 +
-+  return RespondNow(WithArguments(std::move(results)));
++  return results;
++}
++
++}  // namespace
++
++ExtensionFunction::ResponseAction OcbotGetBrowserProfilesFunction::Run() {
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
++      base::BindOnce(&ScanBrowserProfiles),
++      base::BindOnce(
++          &OcbotGetBrowserProfilesFunction::OnProfilesScanned, this));
++  return RespondLater();
++}
++
++void OcbotGetBrowserProfilesFunction::OnProfilesScanned(
++    base::Value::List results) {
++  Respond(WithArguments(std::move(results)));
 +}
 +
 +}  // namespace extensions

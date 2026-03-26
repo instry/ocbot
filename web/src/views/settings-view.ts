@@ -71,7 +71,6 @@ export class OcbotSettingsView extends LitElement {
   }
 
   private async _loadBrowserConfig() {
-    // Load profiles first so we can match saved config
     await this._loadBrowserProfiles()
 
     try {
@@ -81,7 +80,7 @@ export class OcbotSettingsView extends LitElement {
       }>('config.get')
       this.configHash = result?.hash ?? null
 
-      // Restore browser choice
+      // Restore browser choice from executablePath
       const execPath = result?.config?.browser?.executablePath ?? ''
       if (!execPath) {
         this.browserChoice = 'system'
@@ -92,29 +91,27 @@ export class OcbotSettingsView extends LitElement {
         this.customBrowserPath = execPath
       }
 
-      // Restore selected profile
+      // Restore selected profile by matching userDataDir against scanned profiles
       const userProfile = result?.config?.browser?.profiles?.user
       if (userProfile?.userDataDir && userProfile?.driver === 'existing-session') {
+        const savedDir = userProfile.userDataDir
         for (const b of this.browserProfiles) {
-          if (b.browser.userDataDir === userProfile.userDataDir) {
-            // Find the specific profile directory from the config
-            // The userDataDir matches the browser, now find which profile sub-dir
-            for (const p of b.profiles) {
-              const key = `${b.browser.kind}:${p.directory}`
-              this.selectedProfileKey = key
+          for (const p of b.profiles) {
+            if (p.path === savedDir) {
+              this.selectedProfileKey = `${b.browser.kind}:${p.directory}`
               break
             }
-            break
           }
+          if (this.selectedProfileKey) break
         }
       }
 
-      // Save as baseline for dirty detection
+      // Set baseline for dirty detection
       this._savedBrowserChoice = this.browserChoice
       this._savedCustomBrowserPath = this.customBrowserPath
       this._savedProfileKey = this.selectedProfileKey
     } catch {
-      // Gateway not connected yet — keep defaults
+      // Gateway not connected yet
     }
   }
 
@@ -149,22 +146,21 @@ export class OcbotSettingsView extends LitElement {
     if (this.browserSaving) return
     this.browserSaving = true
     try {
-      const value = this.browserChoice === 'ocbot'
+      const executablePath = this.browserChoice === 'ocbot'
         ? this._ocbotBrowserPath
         : this.browserChoice === 'custom'
           ? this.customBrowserPath
           : null
 
-      const browserPatch: Record<string, unknown> = { executablePath: value }
+      const browserPatch: Record<string, unknown> = { executablePath }
 
-      // If a profile is selected and browser is "system", configure existing-session profile
       if (this.browserChoice === 'system' && this.selectedProfileKey) {
         const profileConfig = this._resolveSelectedProfile()
         if (profileConfig) {
           browserPatch.profiles = {
             user: {
               driver: 'existing-session',
-              userDataDir: profileConfig.userDataDir,
+              userDataDir: profileConfig.profilePath,  // full profile dir path
               attachOnly: true,
               color: '#00AA00',
             }
@@ -172,7 +168,6 @@ export class OcbotSettingsView extends LitElement {
           browserPatch.defaultProfile = 'user'
         }
       } else {
-        // Clear profile config when not using system browser
         browserPatch.profiles = { user: null }
         browserPatch.defaultProfile = null
       }
@@ -182,10 +177,11 @@ export class OcbotSettingsView extends LitElement {
         raw: JSON.stringify({ browser: browserPatch }),
       })
 
+      // Refresh hash
       const result = await this.gateway.call<{ hash?: string }>('config.get')
       this.configHash = result?.hash ?? null
 
-      // Update saved baseline
+      // Update baseline
       this._savedBrowserChoice = this.browserChoice
       this._savedCustomBrowserPath = this.customBrowserPath
       this._savedProfileKey = this.selectedProfileKey
@@ -206,7 +202,7 @@ export class OcbotSettingsView extends LitElement {
     this.selectedProfileKey = this._savedProfileKey
   }
 
-  private _resolveSelectedProfile(): { userDataDir: string; directory: string } | null {
+  private _resolveSelectedProfile(): { userDataDir: string; profilePath: string } | null {
     if (!this.selectedProfileKey) return null
     const [kind, ...rest] = this.selectedProfileKey.split(':')
     const directory = rest.join(':')
@@ -214,7 +210,7 @@ export class OcbotSettingsView extends LitElement {
       if (b.browser.kind === kind) {
         const profile = b.profiles.find(p => p.directory === directory)
         if (profile) {
-          return { userDataDir: b.browser.userDataDir, directory: profile.directory }
+          return { userDataDir: b.browser.userDataDir, profilePath: profile.path }
         }
       }
     }
