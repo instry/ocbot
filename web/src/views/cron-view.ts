@@ -47,24 +47,24 @@ type FormMode = 'create' | 'edit'
 type SimpleScheduleMode = 'daily' | 'weekdays' | 'weekly' | 'every-hours' | 'every-days' | 'once' | 'advanced'
 
 const WEEKDAY_OPTIONS = [
-  { value: '1', label: 'Monday' },
-  { value: '2', label: 'Tuesday' },
-  { value: '3', label: 'Wednesday' },
-  { value: '4', label: 'Thursday' },
-  { value: '5', label: 'Friday' },
-  { value: '6', label: 'Saturday' },
-  { value: '0', label: 'Sunday' },
+  { value: '1', label: 'Mon' },
+  { value: '2', label: 'Tue' },
+  { value: '3', label: 'Wed' },
+  { value: '4', label: 'Thu' },
+  { value: '5', label: 'Fri' },
+  { value: '6', label: 'Sat' },
+  { value: '0', label: 'Sun' },
 ] as const
 
-const SIMPLE_SCHEDULE_OPTIONS: Array<{ value: SimpleScheduleMode; label: string; hint: string }> = [
-  { value: 'daily', label: 'Every day', hint: 'Run once each day' },
-  { value: 'weekdays', label: 'Weekdays', hint: 'Only Monday to Friday' },
-  { value: 'weekly', label: 'Every week', hint: 'Pick one day each week' },
-  { value: 'every-hours', label: 'Every few hours', hint: 'Repeat throughout the day' },
-  { value: 'every-days', label: 'Every few days', hint: 'Repeat every N days' },
-  { value: 'once', label: 'One time', hint: 'Run at a specific date and time' },
-  { value: 'advanced', label: 'Advanced', hint: 'Use a cron expression' },
-] as const
+const SCHEDULE_PILLS: Array<{ value: SimpleScheduleMode; label: string }> = [
+  { value: 'daily', label: 'Every day' },
+  { value: 'weekdays', label: 'Weekdays' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'every-hours', label: 'Every N hours' },
+  { value: 'every-days', label: 'Every N days' },
+  { value: 'once', label: 'One time' },
+  { value: 'advanced', label: 'Advanced' },
+]
 
 @customElement('ocbot-cron-view')
 export class OcbotCronView extends LitElement {
@@ -76,9 +76,8 @@ export class OcbotCronView extends LitElement {
   @state() loading = true
   @state() error: string | null = null
 
-  @state() private formOpen = false
-  @state() private formMode: FormMode = 'create'
-  @state() private formEditId: string | null = null
+  @state() private selectedJobId: string | null = null
+  @state() private formMode: FormMode = 'edit'
   @state() private formName = ''
   @state() private formScheduleMode: SimpleScheduleMode = 'daily'
   @state() private formTime = '09:00'
@@ -89,11 +88,12 @@ export class OcbotCronView extends LitElement {
   @state() private formMessage = ''
   @state() private formSaving = false
 
-  @state() private expandedJobId: string | null = null
+  @state() private panelOpen = false
+  @state() private historyOpen = false
   @state() private runs: CronRunEntry[] = []
   @state() private runsLoading = false
 
-  @state() private confirmDeleteId: string | null = null
+  @state() private confirmDelete = false
 
   private unsubCron?: () => void
 
@@ -111,6 +111,8 @@ export class OcbotCronView extends LitElement {
     this.unsubCron?.()
   }
 
+  // ── Data ──────────────────────────────────────────
+
   private async loadJobs() {
     this.loading = true
     this.error = null
@@ -126,15 +128,14 @@ export class OcbotCronView extends LitElement {
     }
   }
 
-  private async runJob(id: string, e: Event) {
-    e.stopPropagation()
+  private async runJob(id: string) {
     try {
       await this.gateway.call('cron.run', { id })
+      await this.loadRuns(id)
     } catch { /* best effort */ }
   }
 
-  private async toggleJob(job: CronJob, e: Event) {
-    e.stopPropagation()
+  private async toggleJob(job: CronJob) {
     try {
       await this.gateway.call('cron.update', {
         id: job.id,
@@ -146,79 +147,51 @@ export class OcbotCronView extends LitElement {
     } catch { /* best effort */ }
   }
 
-  private formatTime(ts?: number): string {
-    if (!ts) return '--'
-    const d = new Date(ts)
-    return d.toLocaleString(undefined, {
-      month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    })
-  }
-
-  private formatSchedule(schedule?: CronSchedule): string {
-    if (!schedule) return ''
-    switch (schedule.kind) {
-      case 'cron': {
-        const expr = schedule.expr?.trim() ?? ''
-        const daily = expr.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*$/)
-        if (daily) return `Every day at ${this.formatClockTime(daily[2], daily[1])}`
-
-        if (/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+(1-5|1,2,3,4,5)$/.test(expr)) {
-          const [, minute, hour] = expr.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+(1-5|1,2,3,4,5)$/) ?? []
-          return `Every weekday at ${this.formatClockTime(hour, minute)}`
-        }
-
-        const weekly = expr.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+([0-6])$/)
-        if (weekly) {
-          const day = WEEKDAY_OPTIONS.find(option => option.value === weekly[3])?.label ?? 'Selected day'
-          return `Every ${day} at ${this.formatClockTime(weekly[2], weekly[1])}`
-        }
-
-        return `Custom schedule · ${expr}`
-      }
-      case 'every': {
-        const ms = schedule.everyMs ?? 0
-        if (ms % 86400000 === 0) {
-          const days = ms / 86400000
-          return days === 1 ? 'Every day' : `Every ${days} days`
-        }
-        if (ms % 3600000 === 0) {
-          const hours = ms / 3600000
-          return hours === 1 ? 'Every hour' : `Every ${hours} hours`
-        }
-        if (ms >= 60000) return `Every ${ms / 60000} minutes`
-        return `Every ${ms / 1000} seconds`
-      }
-      case 'at': return schedule.at ? `Once on ${new Date(schedule.at).toLocaleString()}` : ''
-      default: return ''
+  private async removeJob(id: string) {
+    try {
+      await this.gateway.call('cron.remove', { id })
+      this.closePanel()
+      await this.loadJobs()
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : String(err)
     }
   }
 
-  private formatClockTime(hour: string | number, minute: string | number) {
-    return new Date(2000, 0, 1, Number(hour), Number(minute)).toLocaleTimeString([], {
-      hour: 'numeric',
-      minute: '2-digit',
-    })
-  }
-
-  private statusDot(job: CronJob) {
-    const status = job.state?.lastRunStatus
-    const color = job.enabled
-      ? (status === 'error' ? 'var(--danger, #e53e3e)' : 'var(--ok, #38a169)')
-      : 'var(--warn, #d69e2e)'
-    return html`<span style="
-      display:inline-block; width:8px; height:8px; border-radius:50%;
-      background:${color}; flex-shrink:0;
-    "></span>`
+  private async saveJob() {
+    if (!this.formName.trim() || !this.formMessage.trim()) return
+    this.formSaving = true
+    try {
+      if (this.formMode === 'create') {
+        await this.gateway.call('cron.add', {
+          name: this.formName.trim(),
+          schedule: this.buildSchedule(),
+          payload: { kind: 'agentTurn', message: this.formMessage.trim() },
+          sessionTarget: 'isolated',
+          wakeMode: 'now',
+          enabled: true,
+        })
+      } else if (this.selectedJobId) {
+        await this.gateway.call('cron.update', {
+          id: this.selectedJobId,
+          patch: {
+            name: this.formName.trim(),
+            schedule: this.buildSchedule(),
+            payload: { kind: 'agentTurn', message: this.formMessage.trim() },
+          },
+        })
+      }
+      this.formSaving = false
+      if (this.formMode === 'create') {
+        this.closePanel()
+      }
+      await this.loadJobs()
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : String(err)
+      this.formSaving = false
+    }
   }
 
   private async loadRuns(jobId: string) {
-    if (this.expandedJobId === jobId) {
-      this.expandedJobId = null
-      this.runs = []
-      return
-    }
-    this.expandedJobId = jobId
     this.runsLoading = true
     try {
       const result = await this.gateway.call<{ entries?: CronRunEntry[] }>('cron.runs', {
@@ -234,64 +207,27 @@ export class OcbotCronView extends LitElement {
     }
   }
 
-  private renderRuns(jobId: string) {
-    if (this.expandedJobId !== jobId) return nothing
+  // ── Form helpers ──────────────────────────────────
 
-    if (this.runsLoading) {
-      return html`<div style="padding:8px 16px; font-size:12px; color:var(--muted);">Loading history...</div>`
-    }
-
-    if (this.runs.length === 0) {
-      return html`<div style="padding:8px 16px; font-size:12px; color:var(--muted);">No run history</div>`
-    }
-
-    return html`
-      <div style="padding:8px 16px 4px; border-top:1px solid var(--border); margin-top:8px;">
-        <div style="font-size:11px; font-weight:500; color:var(--muted); margin-bottom:6px;">Recent Runs</div>
-        ${this.runs.map(run => html`
-          <div style="display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px;">
-            <span style="color:${run.status === 'error' ? 'var(--danger, #e53e3e)' : run.status === 'ok' ? 'var(--ok, #38a169)' : 'var(--muted)'}; display:inline-flex; align-items:center;">
-              ${run.status === 'ok'
-                ? svgIcon('circle-check', 16)
-                : run.status === 'error'
-                  ? svgIcon('circle-x', 16)
-                  : svgIcon('circle-dot', 16)}
-            </span>
-            <span style="color:var(--muted); flex-shrink:0;">${this.formatTime(run.ranAtMs)}</span>
-            ${run.durationMs ? html`<span style="color:var(--muted);">${(run.durationMs / 1000).toFixed(1)}s</span>` : nothing}
-            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);">
-              ${run.error ?? run.summary ?? ''}
-            </span>
-          </div>
-        `)}
-      </div>
-    `
-  }
-
-  private openEditForm(job: CronJob) {
-    this.formOpen = true
+  private selectJob(job: CronJob) {
+    this.selectedJobId = job.id
     this.formMode = 'edit'
-    this.formEditId = job.id
+    this.panelOpen = true
+    this.confirmDelete = false
+    this.historyOpen = false
     this.formName = job.name ?? ''
     this.applyScheduleToForm(job.schedule)
     const p = job.payload
     this.formMessage = p?.kind === 'agentTurn' ? (p.message ?? '') : (p?.text ?? '')
+    this.runs = []
   }
 
-  private async removeJob(id: string) {
-    try {
-      await this.gateway.call('cron.remove', { id })
-      this.confirmDeleteId = null
-      await this.loadJobs()
-    } catch (err) {
-      this.error = err instanceof Error ? err.message : String(err)
-    }
-  }
-
-  private openCreateForm() {
-    this.formOpen = true
+  private openCreate() {
+    this.selectedJobId = null
     this.formMode = 'create'
-    this.formEditId = null
+    this.panelOpen = true
+    this.confirmDelete = false
+    this.historyOpen = false
     this.formName = ''
     this.formScheduleMode = 'daily'
     this.formTime = '09:00'
@@ -300,11 +236,15 @@ export class OcbotCronView extends LitElement {
     this.formDateTime = this.toLocalDateTimeInputValue(new Date(Date.now() + 60 * 60 * 1000))
     this.formAdvancedCron = '0 9 * * *'
     this.formMessage = ''
+    this.runs = []
   }
 
-  private closeForm() {
-    this.formOpen = false
+  private closePanel() {
+    this.panelOpen = false
+    this.selectedJobId = null
     this.formSaving = false
+    this.confirmDelete = false
+    this.historyOpen = false
   }
 
   private applyScheduleToForm(schedule?: CronSchedule) {
@@ -372,9 +312,7 @@ export class OcbotCronView extends LitElement {
 
   private buildCronFromTime(dayExpr: string) {
     const [hourRaw = '09', minuteRaw = '00'] = this.formTime.split(':')
-    const hour = Number(hourRaw)
-    const minute = Number(minuteRaw)
-    return `${minute} ${hour} * * ${dayExpr}`
+    return `${Number(minuteRaw)} ${Number(hourRaw)} * * ${dayExpr}`
   }
 
   private buildSchedule(): CronSchedule {
@@ -396,10 +334,6 @@ export class OcbotCronView extends LitElement {
     }
   }
 
-  private getSchedulePreview() {
-    return this.formatSchedule(this.buildSchedule())
-  }
-
   private canSaveForm() {
     if (!this.formName.trim() || !this.formMessage.trim()) return false
     switch (this.formScheduleMode) {
@@ -418,35 +352,76 @@ export class OcbotCronView extends LitElement {
     }
   }
 
-  private async saveJob() {
-    if (!this.formName.trim() || !this.formMessage.trim()) return
-    this.formSaving = true
-    try {
-      if (this.formMode === 'create') {
-        await this.gateway.call('cron.add', {
-          name: this.formName.trim(),
-          schedule: this.buildSchedule(),
-          payload: { kind: 'agentTurn', message: this.formMessage.trim() },
-          sessionTarget: 'isolated',
-          wakeMode: 'now',
-          enabled: true,
-        })
-      } else if (this.formEditId) {
-        await this.gateway.call('cron.update', {
-          id: this.formEditId,
-          patch: {
-            name: this.formName.trim(),
-            schedule: this.buildSchedule(),
-            payload: { kind: 'agentTurn', message: this.formMessage.trim() },
-          },
-        })
+  // ── Format helpers ────────────────────────────────
+
+  private formatTime(ts?: number): string {
+    if (!ts) return '--'
+    const d = new Date(ts)
+    return d.toLocaleString(undefined, {
+      month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+  }
+
+  private formatSchedule(schedule?: CronSchedule): string {
+    if (!schedule) return ''
+    switch (schedule.kind) {
+      case 'cron': {
+        const expr = schedule.expr?.trim() ?? ''
+        const daily = expr.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*$/)
+        if (daily) return `Every day at ${this.formatClockTime(daily[2], daily[1])}`
+
+        if (/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+(1-5|1,2,3,4,5)$/.test(expr)) {
+          const [, minute, hour] = expr.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+(1-5|1,2,3,4,5)$/) ?? []
+          return `Weekdays at ${this.formatClockTime(hour, minute)}`
+        }
+
+        const weekly = expr.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+([0-6])$/)
+        if (weekly) {
+          const day = WEEKDAY_OPTIONS.find(o => o.value === weekly[3])?.label ?? 'day'
+          return `${day} at ${this.formatClockTime(weekly[2], weekly[1])}`
+        }
+
+        return expr
       }
-      this.closeForm()
-      await this.loadJobs()
-    } catch (err) {
-      this.error = err instanceof Error ? err.message : String(err)
-      this.formSaving = false
+      case 'every': {
+        const ms = schedule.everyMs ?? 0
+        if (ms % 86400000 === 0) {
+          const days = ms / 86400000
+          return days === 1 ? 'Every day' : `Every ${days} days`
+        }
+        if (ms % 3600000 === 0) {
+          const hours = ms / 3600000
+          return hours === 1 ? 'Every hour' : `Every ${hours} hours`
+        }
+        if (ms >= 60000) return `Every ${ms / 60000} min`
+        return `Every ${ms / 1000}s`
+      }
+      case 'at': return schedule.at ? `Once: ${new Date(schedule.at).toLocaleString()}` : ''
+      default: return ''
     }
+  }
+
+  private formatClockTime(hour: string | number, minute: string | number) {
+    return new Date(2000, 0, 1, Number(hour), Number(minute)).toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  }
+
+  private getSchedulePreview() {
+    return this.formatSchedule(this.buildSchedule())
+  }
+
+  private statusDot(job: CronJob) {
+    const status = job.state?.lastRunStatus
+    const color = job.enabled
+      ? (status === 'error' ? 'var(--danger, #e53e3e)' : 'var(--ok, #38a169)')
+      : 'var(--warn, #d69e2e)'
+    return html`<span style="
+      display:inline-block; width:8px; height:8px; border-radius:50%;
+      background:${color}; flex-shrink:0; margin-top:5px;
+    "></span>`
   }
 
   private getJobPrompt(job: CronJob) {
@@ -455,38 +430,107 @@ export class OcbotCronView extends LitElement {
       : (job.payload?.text ?? '')
   }
 
-  private renderForm() {
-    if (!this.formOpen) return nothing
+  // ── Render: Job list (left column) ────────────────
+
+  private renderList() {
+    if (this.loading) {
+      return html`<div style="text-align:center; color:var(--muted); padding:40px;">Loading...</div>`
+    }
+    if (this.error) {
+      return html`<div style="text-align:center; color:var(--danger); padding:40px;">${this.error}</div>`
+    }
+    if (this.jobs.length === 0) {
+      return html`
+        <div style="text-align:center; color:var(--muted); padding:60px 20px;">
+          <div style="margin-bottom:12px;">${svgIcon('calendar', 36)}</div>
+          <div style="font-size:15px; color:var(--text-strong);">No automations yet</div>
+          <div style="margin-top:8px; font-size:13px; line-height:1.6;">
+            Create one for things like a morning summary, a weekly check-in, or a reminder.
+          </div>
+        </div>
+      `
+    }
+
+    return html`
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        ${this.jobs.map(job => {
+          const selected = this.selectedJobId === job.id && this.panelOpen
+          return html`
+            <div
+              style="
+                padding:10px 14px; cursor:pointer;
+                border:1px solid ${selected ? 'var(--accent, #7c3aed)' : 'var(--border)'};
+                border-radius:var(--radius-md);
+                background:${selected ? 'var(--accent-subtle, rgba(124,58,237,0.06))' : 'var(--card)'};
+                transition:border-color 0.15s, background 0.15s;
+              "
+              @click=${() => this.selectJob(job)}
+            >
+              <div style="display:flex; align-items:flex-start; gap:10px;">
+                ${this.statusDot(job)}
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-weight:500; font-size:13px; color:var(--text-strong); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">
+                      ${job.name ?? job.id}
+                    </span>
+                    <span style="
+                      font-size:11px; padding:2px 8px; border-radius:999px; flex-shrink:0;
+                      background:${job.enabled ? 'var(--ok-subtle, rgba(56,161,105,0.1))' : 'var(--warn-subtle, rgba(214,158,46,0.1))'};
+                      color:${job.enabled ? 'var(--ok, #38a169)' : 'var(--warn, #d69e2e)'};
+                    ">${job.enabled ? 'Active' : 'Paused'}</span>
+                  </div>
+                  <div style="font-size:12px; color:var(--muted); margin-top:3px;">
+                    ${this.formatSchedule(job.schedule)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `
+        })}
+      </div>
+    `
+  }
+
+  // ── Render: Side panel (right column) ─────────────
+
+  private renderPanel() {
+    if (!this.panelOpen) return nothing
 
     const inputStyle = `
-      width:100%; padding:10px 12px; border:1px solid var(--border);
+      width:100%; padding:8px 10px; border:1px solid var(--border);
       border-radius:var(--radius-md); background:var(--bg); color:var(--text-strong);
-      font-size:13px; outline:none;
+      font-size:13px; outline:none; box-sizing:border-box;
     `
-    const labelStyle = `font-size:12px; font-weight:500; color:var(--muted); margin-bottom:6px;`
+    const labelStyle = `font-size:12px; font-weight:500; color:var(--muted); margin-bottom:5px;`
+    const isEdit = this.formMode === 'edit'
+    const currentJob = isEdit ? this.jobs.find(j => j.id === this.selectedJobId) : null
 
     return html`
       <div style="
-        padding:18px; margin-bottom:16px;
-        border:1px solid var(--border);
-        border-radius:var(--radius-lg); background:var(--card);
-        box-shadow:var(--shadow-sm, none);
+        width:360px; min-width:360px; height:100%; overflow-y:auto;
+        border-left:1px solid var(--border); background:var(--card);
+        display:flex; flex-direction:column;
       ">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px;">
-          <div>
-            <div style="font-weight:600; color:var(--text-strong);">
-              ${this.formMode === 'create' ? 'Create automation' : 'Edit automation'}
-            </div>
-            <div style="margin-top:4px; font-size:13px; color:var(--muted); line-height:1.5;">
-              Use plain language to decide what OCBot should do and when it should happen.
-            </div>
-          </div>
-          <button class="btn btn--sm" @click=${() => this.closeForm()}>Close</button>
+        <!-- Header -->
+        <div style="
+          display:flex; align-items:center; justify-content:space-between;
+          padding:16px 18px 12px; border-bottom:1px solid var(--border);
+        ">
+          <span style="font-weight:600; font-size:14px; color:var(--text-strong);">
+            ${isEdit ? 'Edit automation' : 'New automation'}
+          </span>
+          <button
+            class="btn btn--sm"
+            style="padding:2px 8px; font-size:12px;"
+            @click=${() => this.closePanel()}
+          >${svgIcon('x', 14)}</button>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:14px;">
+        <!-- Form -->
+        <div style="padding:16px 18px; display:flex; flex-direction:column; gap:14px; flex:1; overflow-y:auto;">
+          <!-- Name -->
           <div>
-            <div style="${labelStyle}">What should this automation be called?</div>
+            <div style="${labelStyle}">Name</div>
             <input
               style="${inputStyle}"
               placeholder="Morning summary"
@@ -495,35 +539,35 @@ export class OcbotCronView extends LitElement {
             />
           </div>
 
+          <!-- Schedule pills -->
           <div>
-            <div style="${labelStyle}">When should it run?</div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px;">
-              ${SIMPLE_SCHEDULE_OPTIONS.map(option => {
-                const active = this.formScheduleMode === option.value
+            <div style="${labelStyle}">Schedule</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              ${SCHEDULE_PILLS.map(pill => {
+                const active = this.formScheduleMode === pill.value
                 return html`
                   <button
                     style="
-                      display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-                      padding:12px; border:1px solid ${active ? 'var(--accent)' : 'var(--border)'};
-                      border-radius:var(--radius-lg); background:${active ? 'var(--accent-subtle)' : 'var(--bg)'};
-                      color:${active ? 'var(--text-strong)' : 'var(--text)'}; cursor:pointer; text-align:left;
+                      padding:5px 12px; border-radius:999px; font-size:12px; cursor:pointer;
+                      border:1px solid ${active ? 'var(--accent, #7c3aed)' : 'var(--border)'};
+                      background:${active ? 'var(--accent, #7c3aed)' : 'transparent'};
+                      color:${active ? 'var(--accent-foreground, #fff)' : 'var(--text)'};
+                      transition:all 0.15s;
                     "
-                    @click=${() => { this.formScheduleMode = option.value }}
-                  >
-                    <span style="font-size:13px; font-weight:600;">${option.label}</span>
-                    <span style="font-size:12px; color:var(--muted); line-height:1.4;">${option.hint}</span>
-                  </button>
+                    @click=${() => { this.formScheduleMode = pill.value }}
+                  >${pill.label}</button>
                 `
               })}
             </div>
           </div>
 
+          <!-- Conditional fields -->
           ${this.formScheduleMode === 'daily' || this.formScheduleMode === 'weekdays' ? html`
             <div>
               <div style="${labelStyle}">Time</div>
               <input
                 type="time"
-                style="${inputStyle}; max-width:220px;"
+                style="${inputStyle} max-width:160px;"
                 .value=${this.formTime}
                 @input=${(e: Event) => { this.formTime = (e.target as HTMLInputElement).value }}
               />
@@ -531,18 +575,18 @@ export class OcbotCronView extends LitElement {
           ` : nothing}
 
           ${this.formScheduleMode === 'weekly' ? html`
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <div style="min-width:180px; flex:1;">
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1;">
                 <div style="${labelStyle}">Day</div>
                 <select
                   style="${inputStyle}"
                   .value=${this.formWeekday}
                   @change=${(e: Event) => { this.formWeekday = (e.target as HTMLSelectElement).value }}
                 >
-                  ${WEEKDAY_OPTIONS.map(option => html`<option value=${option.value}>${option.label}</option>`)}
+                  ${WEEKDAY_OPTIONS.map(o => html`<option value=${o.value}>${o.label}</option>`)}
                 </select>
               </div>
-              <div style="min-width:180px; flex:1;">
+              <div style="flex:1;">
                 <div style="${labelStyle}">Time</div>
                 <input
                   type="time"
@@ -557,13 +601,13 @@ export class OcbotCronView extends LitElement {
           ${this.formScheduleMode === 'every-hours' || this.formScheduleMode === 'every-days' ? html`
             <div>
               <div style="${labelStyle}">
-                ${this.formScheduleMode === 'every-hours' ? 'Repeat every how many hours?' : 'Repeat every how many days?'}
+                Every how many ${this.formScheduleMode === 'every-hours' ? 'hours' : 'days'}?
               </div>
               <input
                 type="number"
                 min="1"
                 step="1"
-                style="${inputStyle}; max-width:220px;"
+                style="${inputStyle} max-width:120px;"
                 .value=${this.formEveryValue}
                 @input=${(e: Event) => { this.formEveryValue = (e.target as HTMLInputElement).value }}
               />
@@ -575,7 +619,7 @@ export class OcbotCronView extends LitElement {
               <div style="${labelStyle}">Date and time</div>
               <input
                 type="datetime-local"
-                style="${inputStyle}; max-width:280px;"
+                style="${inputStyle} max-width:240px;"
                 .value=${this.formDateTime}
                 @input=${(e: Event) => { this.formDateTime = (e.target as HTMLInputElement).value }}
               />
@@ -591,147 +635,160 @@ export class OcbotCronView extends LitElement {
                 .value=${this.formAdvancedCron}
                 @input=${(e: Event) => { this.formAdvancedCron = (e.target as HTMLInputElement).value }}
               />
-              <div style="margin-top:6px; font-size:12px; color:var(--muted);">
-                Use advanced mode only if the simple options do not fit.
-              </div>
             </div>
           ` : nothing}
 
+          <!-- Prompt -->
           <div>
             <div style="${labelStyle}">What should OCBot do?</div>
             <textarea
-              style="${inputStyle}; min-height:84px; resize:vertical; font-family:inherit;"
+              style="${inputStyle} min-height:72px; resize:vertical; font-family:inherit;"
               placeholder="Summarize unread emails and list anything urgent."
               .value=${this.formMessage}
               @input=${(e: Event) => { this.formMessage = (e.target as HTMLTextAreaElement).value }}
             ></textarea>
           </div>
 
-          <div style="padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--bg);">
-            <div style="font-size:12px; font-weight:500; color:var(--muted); margin-bottom:6px;">Preview</div>
-            <div style="font-size:14px; color:var(--text-strong);">${this.getSchedulePreview()}</div>
+          <!-- Schedule preview -->
+          <div style="font-size:12px; color:var(--muted); padding:8px 10px; border-radius:var(--radius-md); background:var(--bg);">
+            ${this.getSchedulePreview()}
           </div>
 
-          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:2px;">
-            <button class="btn btn--sm" @click=${() => this.closeForm()}>Cancel</button>
+          <!-- Status info (edit mode only) -->
+          ${isEdit && currentJob ? html`
+            <div style="font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:3px;">
+              ${currentJob.state?.nextRunAtMs ? html`<span>Next run: ${this.formatTime(currentJob.state.nextRunAtMs)}</span>` : nothing}
+              <span>Last run: ${this.formatTime(currentJob.state?.lastRunAtMs)}${currentJob.state?.lastRunStatus ? html` <span style="color:${currentJob.state.lastRunStatus === 'error' ? 'var(--danger, #e53e3e)' : 'var(--ok, #38a169)'}">${currentJob.state.lastRunStatus}</span>` : nothing}</span>
+            </div>
+          ` : nothing}
+        </div>
+
+        <!-- Action bar -->
+        <div style="
+          padding:12px 18px; border-top:1px solid var(--border);
+          display:flex; flex-direction:column; gap:8px;
+        ">
+          <!-- Primary actions -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            ${isEdit ? html`
+              ${this.confirmDelete ? html`
+                <span style="font-size:12px; color:var(--danger, #e53e3e);">Delete?</span>
+                <button
+                  class="btn btn--sm btn--danger"
+                  style="font-size:12px; padding:4px 10px;"
+                  @click=${() => this.removeJob(this.selectedJobId!)}
+                >Yes</button>
+                <button
+                  class="btn btn--sm"
+                  style="font-size:12px; padding:4px 10px;"
+                  @click=${() => { this.confirmDelete = false }}
+                >No</button>
+              ` : html`
+                <button
+                  class="btn btn--sm"
+                  style="font-size:12px; padding:4px 10px; color:var(--danger, #e53e3e);"
+                  @click=${() => { this.confirmDelete = true }}
+                >Delete</button>
+              `}
+              <span style="flex:1;"></span>
+              ${currentJob ? html`
+                <button
+                  class="btn btn--sm"
+                  style="font-size:12px; padding:4px 10px;"
+                  @click=${() => this.runJob(this.selectedJobId!)}
+                  title="Run now"
+                >Run now</button>
+                <button
+                  class="btn btn--sm"
+                  style="font-size:12px; padding:4px 10px;"
+                  @click=${() => this.toggleJob(currentJob)}
+                >${currentJob.enabled ? 'Pause' : 'Resume'}</button>
+              ` : nothing}
+            ` : html`
+              <span style="flex:1;"></span>
+              <button
+                class="btn btn--sm"
+                style="font-size:12px; padding:4px 10px;"
+                @click=${() => this.closePanel()}
+              >Cancel</button>
+            `}
             <button
               class="btn btn--sm"
-              style="background:var(--accent, #7c3aed); color:var(--accent-foreground, #fff); border-color:var(--accent, #7c3aed);"
+              style="font-size:12px; padding:4px 12px; background:var(--accent, #7c3aed); color:var(--accent-foreground, #fff); border-color:var(--accent, #7c3aed);"
               ?disabled=${this.formSaving || !this.canSaveForm()}
               @click=${() => this.saveJob()}
-            >${this.formSaving ? 'Saving...' : (this.formMode === 'create' ? 'Create automation' : 'Save changes')}</button>
+            >${this.formSaving ? 'Saving...' : (isEdit ? 'Save' : 'Create')}</button>
           </div>
+
+          <!-- Run history (edit mode only) -->
+          ${isEdit && this.selectedJobId ? html`
+            <button
+              style="
+                display:flex; align-items:center; gap:6px; width:100%;
+                padding:6px 0; background:none; border:none; cursor:pointer;
+                font-size:12px; color:var(--muted);
+              "
+              @click=${() => {
+                this.historyOpen = !this.historyOpen
+                if (this.historyOpen && this.runs.length === 0) {
+                  this.loadRuns(this.selectedJobId!)
+                }
+              }}
+            >
+              <span style="font-size:10px;">${this.historyOpen ? '\u25BE' : '\u25B8'}</span>
+              Run history${this.runs.length > 0 ? ` (${this.runs.length})` : ''}
+            </button>
+            ${this.historyOpen ? html`
+              <div style="max-height:200px; overflow-y:auto;">
+                ${this.runsLoading ? html`
+                  <div style="font-size:12px; color:var(--muted); padding:4px 0;">Loading...</div>
+                ` : this.runs.length === 0 ? html`
+                  <div style="font-size:12px; color:var(--muted); padding:4px 0;">No history yet</div>
+                ` : this.runs.map(run => html`
+                  <div style="display:flex; align-items:center; gap:6px; padding:3px 0; font-size:12px;">
+                    <span style="color:${run.status === 'error' ? 'var(--danger, #e53e3e)' : run.status === 'ok' ? 'var(--ok, #38a169)' : 'var(--muted)'}; display:inline-flex; align-items:center;">
+                      ${run.status === 'ok'
+                        ? svgIcon('circle-check', 14)
+                        : run.status === 'error'
+                          ? svgIcon('circle-x', 14)
+                          : svgIcon('circle-dot', 14)}
+                    </span>
+                    <span style="color:var(--muted); flex-shrink:0;">${this.formatTime(run.ranAtMs)}</span>
+                    ${run.durationMs ? html`<span style="color:var(--muted);">${(run.durationMs / 1000).toFixed(1)}s</span>` : nothing}
+                    <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);">
+                      ${run.error ?? run.summary ?? ''}
+                    </span>
+                  </div>
+                `)}
+              </div>
+            ` : nothing}
+          ` : nothing}
         </div>
       </div>
     `
   }
 
+  // ── Main render ───────────────────────────────────
+
   override render() {
     return html`
-      <div style="padding:20px; height:100%; overflow-y:auto;">
-        <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:20px;">
-          <div>
-            <h2 style="font-size:20px; font-weight:600; color:var(--text-strong); margin:0;">Automations</h2>
-            <div style="margin-top:6px; font-size:13px; color:var(--muted); line-height:1.5;">
-              Ask OCBot to do something on a schedule, without writing cron syntax.
-            </div>
+      <div style="display:flex; height:100%; overflow:hidden;">
+        <!-- Left: list -->
+        <div style="flex:1; min-width:0; padding:20px; overflow-y:auto;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+            <h2 style="font-size:18px; font-weight:600; color:var(--text-strong); margin:0;">Automations</h2>
+            <span style="flex:1;"></span>
+            <button
+              class="btn btn--sm"
+              style="font-size:12px;"
+              @click=${() => this.openCreate()}
+            >+ New</button>
           </div>
-          <span style="flex:1"></span>
-          <button class="btn btn--sm" @click=${() => this.openCreateForm()} title="Create automation"
-            style="margin-right:8px;"
-          >+ Create</button>
-          <button class="btn btn--sm" @click=${() => this.loadJobs()} title="Refresh">Refresh</button>
+          ${this.renderList()}
         </div>
 
-        ${this.renderForm()}
-
-        ${this.loading ? html`
-          <div style="text-align:center; color:var(--muted); padding:40px;">Loading...</div>
-        ` : this.error ? html`
-          <div style="text-align:center; color:var(--danger); padding:40px;">${this.error}</div>
-        ` : this.jobs.length === 0 ? html`
-          <div style="text-align:center; color:var(--muted); padding:60px 20px;">
-            <div style="margin-bottom:12px; color:var(--muted);">${svgIcon('calendar', 36)}</div>
-            <div style="font-size:15px; color:var(--text-strong);">No automations yet</div>
-            <div style="margin-top:8px; font-size:13px; line-height:1.6;">
-              Create one for things like a morning summary, a weekly check-in, or a reminder.
-            </div>
-          </div>
-        ` : html`
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${this.jobs.map(job => html`
-              <div style="
-                padding:14px 16px;
-                border:1px solid var(--border);
-                border-radius:var(--radius-lg);
-                background:var(--card);
-                cursor:pointer;
-                box-shadow:var(--shadow-sm, none);
-              " @click=${() => this.openEditForm(job)}>
-                <div style="display:flex; align-items:flex-start; gap:12px;">
-                  ${this.statusDot(job)}
-                  <div style="flex:1; min-width:0;">
-                    <div style="font-weight:500; color:var(--text-strong); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                      ${job.name ?? job.id}
-                    </div>
-                    <div style="font-size:12px; color:var(--muted); margin-top:4px;">
-                      ${this.formatSchedule(job.schedule)}
-                    </div>
-                    ${this.getJobPrompt(job) ? html`
-                      <div style="font-size:13px; color:var(--text); margin-top:10px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
-                        ${this.getJobPrompt(job)}
-                      </div>
-                    ` : nothing}
-                  </div>
-
-                  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; font-size:12px; color:var(--muted); flex-shrink:0; margin-right:8px;">
-                    <span>${job.enabled ? 'Active' : 'Paused'}</span>
-                    ${job.state?.nextRunAtMs ? html`<span>Next ${this.formatTime(job.state.nextRunAtMs)}</span>` : nothing}
-                    <span>Last ${this.formatTime(job.state?.lastRunAtMs)}${job.state?.lastRunStatus ? html` <span style="color:${job.state.lastRunStatus === 'error' ? 'var(--danger, #e53e3e)' : 'var(--ok, #38a169)'}">${job.state.lastRunStatus}</span>` : nothing}</span>
-                  </div>
-
-                  <div style="display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;">
-                    <button
-                      class="btn btn--sm"
-                      @click=${(e: Event) => this.runJob(job.id, e)}
-                      title="Run now"
-                    >Run now</button>
-                    <button
-                      class="btn btn--sm"
-                      @click=${(e: Event) => this.toggleJob(job, e)}
-                      title=${job.enabled ? 'Pause' : 'Resume'}
-                      style="color:${job.enabled ? 'var(--ok, #38a169)' : 'var(--muted)'};"
-                    >${job.enabled ? 'Pause' : 'Resume'}</button>
-                    <button
-                      class="btn btn--sm"
-                      @click=${(e: Event) => { e.stopPropagation(); this.loadRuns(job.id) }}
-                      title="Run history"
-                    >History</button>
-                    ${this.confirmDeleteId === job.id ? html`
-                      <button
-                        class="btn btn--sm btn--danger"
-                        @click=${(e: Event) => { e.stopPropagation(); this.removeJob(job.id) }}
-                        title="Confirm delete"
-                      >Yes</button>
-                      <button
-                        class="btn btn--sm"
-                        @click=${(e: Event) => { e.stopPropagation(); this.confirmDeleteId = null }}
-                      >No</button>
-                    ` : html`
-                      <button
-                        class="btn btn--sm"
-                        @click=${(e: Event) => { e.stopPropagation(); this.confirmDeleteId = job.id }}
-                        title="Delete"
-                        style="color:var(--danger, #e53e3e);"
-                      >Delete</button>
-                    `}
-                  </div>
-                </div>
-                ${this.renderRuns(job.id)}
-              </div>
-            `)}
-          </div>
-        `}
+        <!-- Right: panel -->
+        ${this.renderPanel()}
       </div>
     `
   }

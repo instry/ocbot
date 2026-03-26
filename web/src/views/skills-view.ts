@@ -553,12 +553,28 @@ export class OcbotSkillsView extends LitElement {
 
   private getManagedSkillSlug(skill: SkillStatusEntry): string | null {
     if (skill.bundled || skill.source === 'openclaw-bundled') return null
-    const normalized = skill.baseDir.replace(/\\/g, '/')
-    const marker = '/workspace/skills/'
-    const index = normalized.lastIndexOf(marker)
-    if (index === -1) return null
-    const slug = normalized.slice(index + marker.length).split('/')[0]?.trim() ?? ''
-    return slug || null
+    const fromPath = (value: string | null | undefined): string | null => {
+      const normalized = (value ?? '').replace(/\\/g, '/').trim()
+      if (!normalized) return null
+
+      const workspaceMatch = normalized.match(/(?:^|\/)workspace\/skills\/([^/]+)(?:\/|$)/)
+      if (workspaceMatch?.[1]) return workspaceMatch[1]
+
+      const skillsMatch = normalized.match(/(?:^|\/)skills\/([^/]+)(?:\/|$)/)
+      if (skillsMatch?.[1]) return skillsMatch[1]
+
+      const parts = normalized.split('/').filter(Boolean)
+      const last = parts.at(-1) ?? ''
+      if (last && last !== 'skills' && !last.includes('.')) return last
+
+      const parent = parts.at(-2) ?? ''
+      if (parent && parent !== 'skills') return parent
+      return null
+    }
+
+    return fromPath(skill.baseDir) ??
+      fromPath(skill.filePath) ??
+      fromPath(skill.skillKey)
   }
 
   private canUninstallSkill(skill: SkillStatusEntry): boolean {
@@ -593,6 +609,43 @@ export class OcbotSkillsView extends LitElement {
       if (this.selectedSkill?.skillKey === skill.skillKey) {
         this.backToList()
       }
+    } catch (err) {
+      this.localError = err instanceof Error ? err.message : String(err)
+    } finally {
+      this.uninstallingSkill = false
+    }
+  }
+
+  private async uninstallMarketplaceSkill(slug: string, displayName?: string) {
+    if (!slug) return
+    const skill = this.localSkills.find(entry => this.getManagedSkillSlug(entry) === slug) ?? null
+    if (skill) {
+      await this.uninstallSkill(skill)
+      return
+    }
+
+    const confirmed = globalThis.confirm(`Uninstall ${displayName || slug}?`)
+    if (!confirmed) return
+
+    this.uninstallingSkill = true
+    try {
+      const chromeOcbot = getChromeOcbotApi()
+      const uninstallSkill = chromeOcbot?.uninstallSkill
+      if (typeof uninstallSkill !== 'function') {
+        throw new Error('Uninstall API unavailable')
+      }
+      await new Promise<void>((resolve, reject) => {
+        try {
+          uninstallSkill(slug, () => resolve())
+        } catch (err) {
+          reject(err)
+        }
+      })
+      await this.loadLocalSkills({ silent: true })
+      delete this.mpPendingInstall[slug]
+      this.mpPendingInstall = { ...this.mpPendingInstall }
+      delete this.mpInstallResult[slug]
+      this.mpInstallResult = { ...this.mpInstallResult }
     } catch (err) {
       this.localError = err instanceof Error ? err.message : String(err)
     } finally {
@@ -1014,6 +1067,7 @@ export class OcbotSkillsView extends LitElement {
 
   private renderLocalCard(skill: SkillStatusEntry) {
     const status = this.getStatusInfo(skill)
+    const uninstallable = this.canUninstallSkill(skill)
     return html`
       <div
         style="display:flex; flex-direction:column; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; background:var(--card); cursor:pointer; transition:all 0.15s; box-shadow:var(--shadow-sm, none);"
@@ -1046,7 +1100,17 @@ export class OcbotSkillsView extends LitElement {
         </p>
         <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-size:12px; color:var(--muted);">
           <span style="font-family:var(--font-mono, monospace);">${skill.skillKey}</span>
-          ${skill.homepage ? html`<span>\u2197</span>` : nothing}
+          <div style="display:flex; align-items:center; gap:8px;">
+            ${uninstallable ? html`
+              <button
+                class="btn btn--sm"
+                style="padding:3px 12px; font-size:11px; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border));"
+                ?disabled=${this.uninstallingSkill}
+                @click=${(e: Event) => { e.stopPropagation(); this.uninstallSkill(skill) }}
+              >${this.uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+            ` : nothing}
+            ${skill.homepage ? html`<span>\u2197</span>` : nothing}
+          </div>
         </div>
       </div>
     `
@@ -1054,6 +1118,7 @@ export class OcbotSkillsView extends LitElement {
 
   private renderLocalListRow(skill: SkillStatusEntry) {
     const status = this.getStatusInfo(skill)
+    const uninstallable = this.canUninstallSkill(skill)
     return html`
       <div
         class="session-card"
@@ -1073,6 +1138,14 @@ export class OcbotSkillsView extends LitElement {
           ` : nothing}
         </div>
         <span style="font-size:11px; padding:2px 8px; border-radius:4px; border:1px solid var(--border); color:var(--muted); flex-shrink:0;">${this.getSourceLabel(skill.source)}</span>
+        ${uninstallable ? html`
+          <button
+            class="btn btn--sm"
+            style="padding:3px 12px; font-size:11px; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border)); flex-shrink:0;"
+            ?disabled=${this.uninstallingSkill}
+            @click=${(e: Event) => { e.stopPropagation(); this.uninstallSkill(skill) }}
+          >${this.uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+        ` : nothing}
       </div>
     `
   }
@@ -1192,6 +1265,12 @@ export class OcbotSkillsView extends LitElement {
           <div style="display:flex; align-items:center; gap:8px;">
             ${installed ? html`
               <span style="font-size:11px; color:var(--ok);">\u2713 Installed</span>
+              <button
+                class="btn btn--sm"
+                style="padding:3px 12px; font-size:11px; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border));"
+                ?disabled=${this.uninstallingSkill}
+                @click=${(e: Event) => { e.stopPropagation(); this.uninstallMarketplaceSkill(skill.slug, skill.displayName) }}
+              >${this.uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
             ` : html`
               <button
                 class="btn btn--sm"
@@ -1236,6 +1315,12 @@ export class OcbotSkillsView extends LitElement {
         ` : nothing}
         ${installed ? html`
           <span style="font-size:11px; color:var(--ok); flex-shrink:0;">\u2713</span>
+          <button
+            class="btn btn--sm"
+            style="padding:3px 12px; font-size:11px; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border)); flex-shrink:0;"
+            ?disabled=${this.uninstallingSkill}
+            @click=${(e: Event) => { e.stopPropagation(); this.uninstallMarketplaceSkill(skill.slug, skill.displayName) }}
+          >${this.uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
         ` : html`
           <button
             class="btn btn--sm"
@@ -1285,7 +1370,15 @@ export class OcbotSkillsView extends LitElement {
         <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); margin-top:12px; padding-top:12px; font-size:12px; color:var(--muted);">
           <span style="font-family:var(--font-mono, monospace);">${slug}</span>
           ${installed ? html`
-            <span style="font-size:11px; color:var(--ok);">\u2713 Installed</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:11px; color:var(--ok);">\u2713 Installed</span>
+              <button
+                class="btn btn--sm"
+                style="padding:3px 12px; font-size:11px; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border));"
+                ?disabled=${this.uninstallingSkill}
+                @click=${(e: Event) => { e.stopPropagation(); slug && this.uninstallMarketplaceSkill(slug, name) }}
+              >${this.uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+            </div>
           ` : html`
             <button
               class="btn btn--sm"
@@ -1328,6 +1421,12 @@ export class OcbotSkillsView extends LitElement {
         <span style="font-size:11px; padding:2px 8px; border-radius:4px; border:1px solid var(--border); color:var(--muted); flex-shrink:0;">${slug}</span>
         ${installed ? html`
           <span style="font-size:11px; color:var(--ok); flex-shrink:0;">\u2713</span>
+          <button
+            class="btn btn--sm"
+            style="padding:3px 12px; font-size:11px; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border)); flex-shrink:0;"
+            ?disabled=${this.uninstallingSkill}
+            @click=${(e: Event) => { e.stopPropagation(); slug && this.uninstallMarketplaceSkill(slug, name) }}
+          >${this.uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
         ` : html`
           <button
             class="btn btn--sm"
@@ -1642,6 +1741,12 @@ export class OcbotSkillsView extends LitElement {
               <button class="btn" style="padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:500; color:var(--ok); border-color:var(--ok);" disabled>
                 \u2713 Installed
               </button>
+              <button
+                class="btn"
+                style="padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:500; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--border));"
+                ?disabled=${this.uninstallingSkill}
+                @click=${() => this.uninstallMarketplaceSkill(skill.slug, skill.displayName)}
+              >${this.uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
             ` : html`
               <button
                 class="btn primary"

@@ -416,9 +416,6 @@ export class OcbotChannelCredentials extends LitElement {
         <div class="provider-form__qr-divider">
           <span>or configure manually</span>
         </div>
-        <div class="channels__field-help">
-          To reuse an existing bot, enter its App ID and App Secret below instead of scanning.
-        </div>
       </div>
     `
   }

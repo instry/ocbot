@@ -1,8 +1,19 @@
 import { LitElement, html, nothing } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import type { GatewayClient } from '../gateway/client'
-import { CHANNEL_CATALOG, type ChannelCatalogEntry } from '../generated/channel-catalog'
+import { CHANNEL_CATALOG as _GENERATED_CATALOG, type ChannelCatalogEntry } from '../generated/channel-catalog'
 import '../components/channel-form'
+
+// Extra channels not yet in openclaw — shown as "Coming Soon" in the UI
+const EXTRA_CHANNELS: ChannelCatalogEntry[] = [
+  { id: 'wechat', label: 'WeChat', detailLabel: 'WeChat', blurb: 'WeChat Official Account and personal messaging integration.', order: 36 },
+  { id: 'qq', label: 'QQ', detailLabel: 'QQ', blurb: 'QQ bot messaging integration.', order: 37 },
+]
+
+const CHANNEL_CATALOG: ChannelCatalogEntry[] = [
+  ..._GENERATED_CATALOG,
+  ...EXTRA_CHANNELS.filter(e => !_GENERATED_CATALOG.some(g => g.id === e.id)),
+].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))
 import '../components/channel-credentials'
 import '../components/channel-status'
 
@@ -336,9 +347,16 @@ export class OcbotChannelsView extends LitElement {
 
   private getUnconfiguredIds(): string[] {
     const channels = this.status.channels ?? {}
-    return CHANNEL_CATALOG
+    const ids = CHANNEL_CATALOG
       .filter(ch => !channels[ch.id]?.configured)
       .map(ch => ch.id)
+    // Pin feishu to top of unconfigured list
+    const feishuIdx = ids.indexOf('feishu')
+    if (feishuIdx > 0) {
+      ids.splice(feishuIdx, 1)
+      ids.unshift('feishu')
+    }
+    return ids
   }
 
   private getChannelHint(id: string): ChannelCatalogEntry | undefined {
@@ -440,10 +458,34 @@ export class OcbotChannelsView extends LitElement {
     `
   }
 
+  private isComingSoon(id: string): boolean {
+    return id !== 'feishu' && !this.isConfigured(id)
+  }
+
   private renderConfigureContent() {
     const id = this.selectedChannelId!
     const label = this.getChannelLabel(id)
     const hint = this.getChannelHint(id)
+
+    if (this.isComingSoon(id)) {
+      return html`
+        <div style="display:flex; align-items:center; justify-content:center; height:100%; padding:24px;">
+          <div style="text-align:center; max-width:360px;">
+            <div style="font-size:18px; font-weight:600; color:var(--text-strong); margin-bottom:8px;">${label}</div>
+            <p style="font-size:14px; color:var(--muted); line-height:1.6; margin:0 0 6px 0;">
+              ${hint?.blurb ?? ''}
+            </p>
+            <span style="
+              display:inline-block; margin-top:12px; padding:4px 14px;
+              border-radius:999px; font-size:13px; font-weight:500;
+              background:var(--warn-subtle, rgba(214,158,46,0.1));
+              color:var(--warn, #d69e2e);
+            ">Coming Soon</span>
+          </div>
+        </div>
+      `
+    }
+
     const phase = this.getChannelPhase(id)
     const schema = this.getSchema(id)
 
