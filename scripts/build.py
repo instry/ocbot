@@ -1,5 +1,6 @@
 import subprocess
 import hashlib
+import json
 import os
 import shutil
 import sys
@@ -38,6 +39,11 @@ def _get_resources_dir(logger, out_dir):
 
     logger.warning("Framework bundle not found in app bundle")
     return None
+
+
+def _has_openclaw_runtime_deps(openclaw_dir):
+    """Return True when the embedded OpenClaw runtime has its required production deps."""
+    return (openclaw_dir / 'node_modules' / 'tslog' / 'package.json').exists()
 
 
 def _install_node(logger, out_dir):
@@ -125,6 +131,78 @@ def _install_node(logger, out_dir):
     version_marker.write_text(NODE_VERSION)
 
 
+def _install_extension_deps(logger, openclaw_dest):
+    """Build compressed dependency archives for each extension plugin.
+
+    Creates a .deps.tar.gz in each extension directory containing its
+    production node_modules.  These archives are extracted on demand at
+    runtime (by run.py or RuntimeManager) when the user configures the
+    corresponding channel — so the app starts fast and only pays the
+    cost of extraction for channels that are actually used.
+    """
+    extensions_dir = openclaw_dest / 'extensions'
+    if not extensions_dir.is_dir():
+        return
+
+    _shell = sys.platform == 'win32'
+    for ext_dir in sorted(extensions_dir.iterdir()):
+        pkg_json = ext_dir / 'package.json'
+        if not pkg_json.is_file():
+            continue
+        try:
+            pkg = json.loads(pkg_json.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        deps = pkg.get('dependencies', {})
+        if not deps:
+            continue
+
+        # Remove pnpm workspace references (e.g. "openclaw": "workspace:*")
+        clean_deps = {k: v for k, v in deps.items()
+                      if not str(v).startswith('workspace:')}
+        if not clean_deps:
+            continue
+
+        archive_path = ext_dir / '.deps.tar.gz'
+
+        # Remove any leftover node_modules from previous builds
+        ext_node_modules = ext_dir / 'node_modules'
+        if ext_node_modules.exists():
+            shutil.rmtree(ext_node_modules)
+
+        logger.info(f"Building dep archive for {ext_dir.name} ({len(clean_deps)} deps)...")
+        try:
+            import tempfile as _tempfile
+            with _tempfile.TemporaryDirectory(prefix=f'ocbot-ext-{ext_dir.name}-') as tmp:
+                tmp_path = Path(tmp)
+                # Write a minimal package.json with only production deps
+                install_pkg = {'name': pkg.get('name', ext_dir.name),
+                               'version': pkg.get('version', '0.0.0'),
+                               'dependencies': clean_deps}
+                (tmp_path / 'package.json').write_text(json.dumps(install_pkg, indent=2))
+
+                subprocess.run(
+                    ['npm', 'install', '--production'],
+                    cwd=tmp_path, check=True, shell=_shell,
+                    capture_output=True, text=True,
+                )
+
+                tmp_nm = tmp_path / 'node_modules'
+                if not tmp_nm.exists():
+                    logger.warning(f"npm install produced no node_modules for {ext_dir.name}")
+                    continue
+
+                # Create compressed archive
+                with tarfile.open(archive_path, 'w:gz') as tar:
+                    tar.add(str(tmp_nm), arcname='node_modules')
+
+                size_kb = archive_path.stat().st_size / 1024
+                logger.info(f"  {ext_dir.name}: .deps.tar.gz ({size_kb:.0f} KB)")
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            logger.warning(f"Failed to build dep archive for {ext_dir.name}: {e}")
+
+
 def _install_openclaw_runtime(logger, out_dir):
     """Package OpenClaw runtime and install into app bundle Resources/openclaw/."""
     resources_dir = _get_resources_dir(logger, out_dir)
@@ -184,7 +262,13 @@ def _install_openclaw_runtime(logger, out_dir):
             continue
         dest_item = dest / item_name
         if is_dir:
-            shutil.copytree(src_item, dest_item, symlinks=True)
+            # Skip node_modules — pnpm symlinks break outside the monorepo.
+            # Root deps are installed via npm below; extension deps installed
+            # separately in _install_extension_deps().
+            def _ignore_node_modules(directory, contents):
+                return ['node_modules'] if 'node_modules' in contents else []
+            shutil.copytree(src_item, dest_item, symlinks=False,
+                            ignore=_ignore_node_modules)
         else:
             shutil.copy2(src_item, dest_item)
 
@@ -195,17 +279,24 @@ def _install_openclaw_runtime(logger, out_dir):
     pkg_hash = ''
     if pkg_json.exists():
         pkg_hash = hashlib.md5(pkg_json.read_bytes()).hexdigest()
-    if node_modules.exists() and hash_file.exists() and hash_file.read_text().strip() == pkg_hash:
+    if (
+        node_modules.exists()
+        and hash_file.exists()
+        and hash_file.read_text().strip() == pkg_hash
+        and _has_openclaw_runtime_deps(dest)
+    ):
         logger.info("OpenClaw dependencies unchanged, skipping npm install.")
     else:
         logger.info("Installing OpenClaw production dependencies...")
         _shell = sys.platform == 'win32'
+        install_ok = False
         try:
             subprocess.run(
                 ['npm', 'install', '--production', '--prefix', str(dest)],
                 check=True, shell=_shell,
                 capture_output=True, text=True
             )
+            install_ok = True
         except subprocess.CalledProcessError as e:
             logger.warning(f"npm install --production failed: {e.stderr}")
             # Try pnpm deploy as fallback
@@ -217,6 +308,7 @@ def _install_openclaw_runtime(logger, out_dir):
                         cwd=openclaw_src, check=True, shell=_shell,
                         capture_output=True, text=True
                     )
+                    install_ok = True
             except (subprocess.CalledProcessError, FileNotFoundError) as e2:
                 logger.warning(f"pnpm deploy fallback also failed: {e2}")
         except FileNotFoundError:
@@ -227,11 +319,22 @@ def _install_openclaw_runtime(logger, out_dir):
                     cwd=openclaw_src, check=True, shell=_shell,
                     capture_output=True, text=True
                 )
+                install_ok = True
             except (subprocess.CalledProcessError, FileNotFoundError) as e2:
                 logger.warning(f"pnpm deploy also failed: {e2}")
-        # Save hash so next build can skip if unchanged
-        if pkg_hash:
+        if not install_ok or not _has_openclaw_runtime_deps(dest):
+            if hash_file.exists():
+                hash_file.unlink()
+            logger.error(f"OpenClaw runtime dependencies are incomplete at {dest / 'node_modules'}")
+        elif pkg_hash:
             hash_file.write_text(pkg_hash)
+
+    # Install extension-level production dependencies.
+    # Extension plugins (e.g. feishu) have their own package.json with
+    # dependencies that aren't in the root package.json.  In the pnpm
+    # monorepo these are resolved via workspace symlinks, but those
+    # break once copied into the app bundle.
+    _install_extension_deps(logger, dest)
 
     # Clean up incomplete plugin directories in dist/extensions/.
     # The openclaw build may produce extension dirs with only index.js or
