@@ -63,7 +63,7 @@ export function Sidebar() {
       : 'bg-destructive'
 
   return (
-    <aside className="no-drag flex h-full w-[var(--sidebar-width)] flex-col border-r border-border bg-panel pt-[var(--titlebar-height)]">
+    <aside className="flex h-full w-[var(--sidebar-width)] flex-col border-r border-border bg-panel pt-[var(--titlebar-height)]">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-3">
         <img src="./logo.png" alt="" className="h-6 w-6 rounded" />
@@ -72,7 +72,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2">
+      <nav className="no-drag flex flex-1 flex-col gap-0.5 overflow-y-auto px-2">
         {NAV_GROUPS.map((group, gi) => (
           <div key={gi}>
             {gi > 0 && <div className="my-1.5 mx-2 h-px bg-border" />}

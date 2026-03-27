@@ -92,9 +92,9 @@ export function SessionPanel() {
   }, [client, removeSession])
 
   return (
-    <aside className="no-drag flex h-full w-[var(--session-panel-width)] flex-col border-r border-border bg-panel pt-[var(--titlebar-height)]">
+    <aside className="flex h-full w-[var(--session-panel-width)] flex-col border-r border-border bg-panel pt-[var(--titlebar-height)]">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5">
+      <div className="no-drag flex items-center justify-between px-3 py-2.5">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Sessions
         </span>

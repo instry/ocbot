@@ -55,7 +55,7 @@ export function MessageList() {
   const toolCardArray = [...toolCards.values()]
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto">
+    <div ref={scrollRef} className="no-drag flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-3xl flex-col gap-1 px-6 py-4">
         {messages.map((msg, i) => {
           const prev = i > 0 ? messages[i - 1] : null

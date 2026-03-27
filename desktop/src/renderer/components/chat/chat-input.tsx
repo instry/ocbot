@@ -98,8 +98,8 @@ export function ChatInput() {
 
   return (
     <div className="border-t border-border px-4 py-3">
-      <div className="mx-auto flex max-w-3xl items-end gap-2">
-        <div className="flex min-h-[44px] flex-1 flex-col rounded-2xl border border-border bg-bg-muted transition-colors focus-within:border-accent">
+      <div className="mx-auto max-w-3xl">
+        <div className="relative flex min-h-[80px] flex-col rounded-2xl border border-border bg-bg-muted transition-colors focus-within:border-accent">
           <textarea
             ref={textareaRef}
             value={input}
@@ -109,29 +109,28 @@ export function ChatInput() {
             onCompositionEnd={() => { isComposingRef.current = false }}
             placeholder="Send a message..."
             disabled={sending}
-            rows={1}
+            rows={3}
             maxLength={20000}
             className={cn(
-              'flex-1 resize-none bg-transparent px-4 py-3 text-[14px] text-text',
+              'flex-1 resize-none bg-transparent px-4 py-3 pr-12 text-[14px] text-text',
               'placeholder:text-muted-foreground',
-              'focus:outline-none',
-              'max-h-[200px] min-h-[44px]',
+              'outline-none focus:outline-none focus:ring-0 focus:border-transparent',
+              'max-h-[200px] min-h-[80px]',
             )}
           />
+          <button
+            onClick={sending ? handleAbort : handleSend}
+            disabled={!input.trim() && !sending}
+            className={cn(
+              'absolute bottom-2 right-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors',
+              sending
+                ? 'bg-bg-hover text-muted-foreground hover:bg-border'
+                : 'bg-accent text-accent-foreground hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed',
+            )}
+          >
+            {sending ? <Square className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+          </button>
         </div>
-
-        <button
-          onClick={sending ? handleAbort : handleSend}
-          disabled={!input.trim() && !sending}
-          className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
-            sending
-              ? 'bg-bg-muted text-muted-foreground hover:bg-bg-hover'
-              : 'bg-accent text-accent-foreground hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed',
-          )}
-        >
-          {sending ? <Square className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
-        </button>
       </div>
     </div>
   )
