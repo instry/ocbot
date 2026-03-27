@@ -1,35 +1,41 @@
-import { app, BrowserWindow, shell } from 'electron'
-import { RuntimeManager } from './runtime-manager.js'
-import { TrayManager } from './tray.js'
-import { WindowManager } from './window.js'
-
-const GATEWAY_PORT = 18789
+import { app, shell } from 'electron'
+import { RuntimeManager } from './runtime-manager'
+import { TrayManager } from './tray'
+import { WindowManager } from './window'
 
 let runtimeManager: RuntimeManager
 let windowManager: WindowManager
 let trayManager: TrayManager
 
 app.on('ready', async () => {
-  runtimeManager = new RuntimeManager(GATEWAY_PORT)
-  windowManager = new WindowManager(GATEWAY_PORT)
-  trayManager = new TrayManager(() => windowManager.showOrCreate())
+  runtimeManager = new RuntimeManager()
 
-  // Start gateway
+  // Start gateway first, then create UI
+  let port: number
   try {
-    await runtimeManager.start()
-    trayManager.setStatus('running')
+    port = await runtimeManager.start()
   } catch (err) {
     console.error('Failed to start OpenClaw gateway:', err)
+    // Still create window — will show error or retry
+    port = 18789
+  }
+
+  windowManager = new WindowManager(port)
+  trayManager = new TrayManager(() => windowManager.showOrCreate())
+
+  if (runtimeManager.status === 'running') {
+    trayManager.setStatus('running')
+  } else {
     trayManager.setStatus('error')
   }
 
-  // Open main window
   windowManager.showOrCreate()
 })
 
 // Keep running when all windows are closed
-app.on('window-all-closed', (e: Event) => {
+app.on('window-all-closed', () => {
   // Don't quit — gateway keeps running in background
+  trayManager?.notifyBackgroundRunning()
 })
 
 app.on('before-quit', () => {

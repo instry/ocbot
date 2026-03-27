@@ -7,10 +7,6 @@ import { contextBridge, ipcRenderer } from 'electron'
  */
 contextBridge.exposeInMainWorld('ocbot', {
   platform: process.platform,
-  isPackaged: ipcRenderer.sendSync('is-packaged') as boolean,
-
-  // Version info
-  getVersion: () => ipcRenderer.invoke('get-version'),
 
   // Window controls (for custom title bar)
   minimize: () => ipcRenderer.send('window-minimize'),

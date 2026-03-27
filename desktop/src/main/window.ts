@@ -32,7 +32,7 @@ export class WindowManager {
       titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
       trafficLightPosition: { x: 16, y: 16 },
       webPreferences: {
-        preload: join(import.meta.dirname, '..', 'preload', 'index.js'),
+        preload: join(__dirname, '..', 'preload', 'index.js'),
         contextIsolation: true,
         nodeIntegration: false,
       },

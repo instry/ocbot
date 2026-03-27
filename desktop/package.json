@@ -4,13 +4,12 @@
   "description": "Ocbot Desktop — the easiest way to use OpenClaw",
   "private": true,
   "main": "dist/main/index.js",
-  "type": "module",
   "scripts": {
-    "dev": "tsx src/main/dev.ts",
+    "dev": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json && electron .",
     "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
-    "start": "electron dist/main/index.js",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "start": "electron .",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
     "clean": "rm -rf dist out"
   },
   "dependencies": {
@@ -19,7 +18,6 @@
   "devDependencies": {
     "electron": "^35.0.0",
     "electron-builder": "^26.0.0",
-    "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
 }

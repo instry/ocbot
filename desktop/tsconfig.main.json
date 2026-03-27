@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "outDir": "dist/main",
     "rootDir": "src/main",
     "strict": true,
@@ -12,5 +12,6 @@
     "declaration": false,
     "sourceMap": true
   },
-  "include": ["src/main/**/*.ts"]
+  "include": ["src/main/**/*.ts"],
+  "exclude": ["src/main/dev.ts"]
 }
