@@ -1,0 +1,45 @@
+appId: bot.oc.desktop
+productName: Ocbot
+copyright: Copyright 2026 MALA TECH LLC
+
+directories:
+  output: out
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - resources/**/*
+  - "!resources/icons/*"
+
+mac:
+  category: public.app-category.productivity
+  icon: resources/icons/icon.icns
+  target:
+    - dmg
+    - zip
+  hardenedRuntime: true
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+
+win:
+  icon: resources/icons/icon.ico
+  target:
+    - nsis
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+dmg:
+  artifactName: "${productName}-${version}.${ext}"
+
+extraResources:
+  - from: resources/openclaw
+    to: openclaw
+    filter:
+      - "**/*"
+  - from: resources/node
+    to: node
+    filter:
+      - "**/*"

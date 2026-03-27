@@ -10,8 +10,11 @@ backup/
 .apple.json
 dist/
 plans/
-scripts/.env
-scripts/installer/win/Output/
-scripts/installer/win/deps/
+browser/scripts/.env
+browser/scripts/installer/win/Output/
+browser/scripts/installer/win/deps/
+desktop/node_modules/
+desktop/dist/
+desktop/out/
 channel-catalog.hash
 .openclaw/

@@ -52,27 +52,23 @@ ocbot/                              ← 仓库根目录
 │   └── resources/
 │       └── icons/                  ← 应用图标 (icns/ico/png)
 │
-├── chromium/                       ← 现有 Chromium 源码 (Browser 产品)
-├── plans/                          ← 共享的 Plan 文件
-│   ├── 00-openclaw-embedded-runtime.md  ← 既有 plans (Browser)
-│   ├── ...
-│   └── desktop/                    ← 🆕 Desktop 专属 plans
-│       └── 00-architecture.md      → 本文档的链接
-├── scripts/                        ← 构建/发布脚本
-│   ├── dev.py                      ← 现有 (Browser)
-│   └── ...
-├── web/                            ← 现有 WXT 扩展 (Browser)
+├── browser/                        ← Ocbot Browser 产品 (Chromium fork)
+│   ├── chromium/                   ← 源码 + patches
+│   ├── scripts/                    ← dev.py, build.py 等
+│   └── web/                        ← WXT 浏览器扩展
+│
 ├── docs/
 │   └── ocbot-desktop-architecture.md  ← 本文档
 ├── VERSION
+├── LICENSE
 └── README.md
 ```
 
 **关键原则：**
+- `desktop/` 和 `browser/` 是两个独立产品，互不依赖
 - `desktop/` 是完全独立的 Node.js 项目，有自己的 `package.json`
-- `chromium/`、`scripts/`、`web/` 属于 Browser 产品，Desktop 不依赖
-- `plans/` 共享，Desktop 专属 plans 放在 `plans/desktop/`
-- Desktop 依赖 OpenClaw 作为外部项目（`../openclaw/`），不依赖 ocbot 仓库的其他目录
+- `browser/` 内含 Chromium patches、构建脚本、WXT 扩展（维护模式）
+- Desktop 依赖 OpenClaw 作为外部项目（`../openclaw/`），不依赖 `browser/`
 
 ## 4. Architecture
 
@@ -349,21 +345,15 @@ Gateway 子进程启动时设置（与 Browser 版保持一致）：
 - [ ] 错误处理和用户提示（Gateway 启动失败、端口占用等）
 - [ ] 自动启动（开机启动选项）
 
-## 11. What Gets Deleted / Archived
+## 11. What Lives Where
 
-Desktop 不使用以下 Browser 产品的代码，但保留在仓库中：
+Browser 产品的代码全部在 `browser/` 目录下：
 
-- `chromium/` — Chromium 源码和 patches
-- `scripts/build.py` — Chromium 构建脚本
-- `scripts/patch.py` — Patch 管理
-- `scripts/download.py` — Chromium 下载
-- `web/` — WXT 浏览器扩展（Browser 产品的 UI）
+- `browser/chromium/` — Chromium 源码和 patches
+- `browser/scripts/` — Chromium 构建/发布脚本 (dev.py, build.py, patch.py 等)
+- `browser/web/` — WXT 浏览器扩展
 
-共享的资产：
-- `plans/` — Plan 文件（Desktop 新增 `plans/desktop/`）
-- `docs/` — 文档
-- `VERSION` — 版本号
-- `README.md` — 更新为介绍两个产品
+Desktop 产品不使用以上任何代码。
 
 ## 12. Open Questions
 
