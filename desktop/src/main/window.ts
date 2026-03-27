@@ -9,10 +9,12 @@ import { join } from 'node:path'
 export class WindowManager {
   private window: BrowserWindow | null = null
   private readonly port: number
+  private readonly iconPath: string
   private readonly brandCSS: string
 
-  constructor(port: number) {
+  constructor(port: number, iconPath: string) {
     this.port = port
+    this.iconPath = iconPath
     this.brandCSS = this.loadBrandCSS()
     this.registerIPC()
   }
@@ -33,6 +35,7 @@ export class WindowManager {
       minWidth: 480,
       minHeight: 400,
       title: 'Ocbot',
+      icon: this.iconPath,
       titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
       trafficLightPosition: { x: 16, y: 16 },
       webPreferences: {

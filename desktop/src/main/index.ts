@@ -1,13 +1,25 @@
-import { app, shell } from 'electron'
+import { app, nativeImage, shell } from 'electron'
+import { join } from 'node:path'
 import { RuntimeManager } from './runtime-manager'
 import { TrayManager } from './tray'
 import { WindowManager } from './window'
+
+/** Resolve the app icon path (logo.png works on all platforms). */
+function appIconPath(): string {
+  const base = app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources')
+  return join(base, 'icons', 'logo.png')
+}
 
 let runtimeManager: RuntimeManager
 let windowManager: WindowManager
 let trayManager: TrayManager
 
 app.on('ready', async () => {
+  // Set Dock icon on macOS (replaces default Electron icon)
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(nativeImage.createFromPath(appIconPath()))
+  }
+
   runtimeManager = new RuntimeManager()
 
   // Start gateway first, then create UI
@@ -20,7 +32,7 @@ app.on('ready', async () => {
     port = 18789
   }
 
-  windowManager = new WindowManager(port)
+  windowManager = new WindowManager(port, appIconPath())
   trayManager = new TrayManager(() => windowManager.showOrCreate())
 
   if (runtimeManager.status === 'running') {
