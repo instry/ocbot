@@ -115,6 +115,9 @@ export class OcbotChannelCredentials extends LitElement {
 
   @property({ type: String }) channelId = ''
   @property({ attribute: false }) initialConfig: Record<string, unknown> | null = null
+  @property({ attribute: false }) onSave?: (channelId: string, config: Record<string, unknown>) => Promise<void>
+  @property({ attribute: false }) onEdit?: () => void
+  @property({ type: Boolean }) collapsed = false
 
   @state() private formData: Record<string, unknown> = {}
   @state() private saving = false
@@ -300,28 +303,73 @@ export class OcbotChannelCredentials extends LitElement {
 
   // --- Save ---
 
-  private save() {
+  private async save() {
+    if (!this.onSave) {
+      this.error = 'Internal error: save handler not connected'
+      return
+    }
     this.saving = true
     this.error = null
-    this.dispatchEvent(new CustomEvent('credentials-ready', {
-      bubbles: true, composed: true,
-      detail: { channelId: this.channelId, config: { ...this.formData, enabled: true } },
-    }))
-  }
-
-  /** Called by parent when save completes or fails */
-  setSaveResult(result: { ok: boolean; error?: string }) {
-    this.saving = false
-    if (result.ok) {
-      this.success = 'Credentials saved. Connecting...'
-    } else {
-      this.error = result.error ?? 'Failed to save credentials'
+    this.success = null
+    try {
+      await this.onSave(this.channelId, { ...this.formData, enabled: true })
+      // Success feedback is handled by the parent (banner + auto-collapse).
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Failed to save credentials'
+    } finally {
+      this.saving = false
     }
   }
 
   // --- Render ---
 
+  private getCredentialSummary(): string {
+    const spec = CHANNEL_CREDENTIALS[this.channelId]
+    if (!spec) return ''
+    const parts: string[] = []
+    for (const f of spec.fields) {
+      const val = this.initialConfig?.[f.key]
+      if (val === undefined || val === null) continue
+      if (f.sensitive) continue
+      const str = String(val)
+      if (f.type === 'select') {
+        const opt = f.options?.find(o => o.value === str)
+        if (opt) parts.push(opt.label)
+      } else {
+        parts.push(str.length > 20 ? str.slice(0, 18) + '...' : str)
+      }
+    }
+    return parts.join(' · ')
+  }
+
+  private renderCollapsed() {
+    const summary = this.getCredentialSummary()
+    return html`
+      <div style="
+        display:flex; align-items:center; justify-content:space-between; gap:12px;
+        padding:12px 16px; border:1px solid var(--border); border-radius:8px;
+        background:var(--surface, var(--bg));
+      ">
+        <div style="min-width:0;">
+          <div style="font-size:13px; font-weight:500; color:var(--text-strong);">Credentials</div>
+          ${summary ? html`
+            <div style="font-size:12px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              ${summary}
+            </div>
+          ` : nothing}
+        </div>
+        <button
+          class="btn btn--sm"
+          style="flex-shrink:0;"
+          @click=${() => this.onEdit?.()}
+        >Edit</button>
+      </div>
+    `
+  }
+
   override render() {
+    if (this.collapsed) return this.renderCollapsed()
+
     const spec = CHANNEL_CREDENTIALS[this.channelId]
     if (!spec || spec.fields.length === 0) {
       return html`
@@ -362,9 +410,6 @@ export class OcbotChannelCredentials extends LitElement {
             class="provider-form__qr-btn"
             @click=${() => this.startFeishuQr()}
           >Scan QR Code to Connect</button>
-          <div class="channels__field-help">
-            Scan with Feishu app to automatically create and configure a new bot.
-          </div>
           ${this.hasInitialCredentials() ? html`
             <button
               class="provider-form__qr-refresh"

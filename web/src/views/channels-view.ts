@@ -57,8 +57,6 @@ interface ConfigSchemaResult {
   channels?: ChannelSchemaEntry[]
 }
 
-type ChannelPhase = 'credentials' | 'connecting' | 'connected'
-
 const MAX_UNCONFIGURED_VISIBLE = 10
 
 @customElement('ocbot-channels-view')
@@ -80,6 +78,7 @@ export class OcbotChannelsView extends LitElement {
   @state() private pairingError: string | null = null
   @state() private approving = new Set<string>()
   @state() private savingCredentials = false
+  @state() private saveSuccessMessage: string | null = null
   @state() private editingCredentials = false
 
   private refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -168,23 +167,6 @@ export class OcbotChannelsView extends LitElement {
     this.loadStatus()
   }
 
-  private startEditingCredentials() {
-    this.editingCredentials = true
-  }
-
-  private stopEditingCredentials() {
-    this.editingCredentials = false
-  }
-
-  // ── Phase detection ──
-
-  private getChannelPhase(id: string): ChannelPhase {
-    if (this.editingCredentials) return 'credentials'
-    if (!this.isConfigured(id)) return 'credentials'
-    if (this.channelIsConnected(id)) return 'connected'
-    return 'connecting'
-  }
-
   // ── Credentials save ──
 
   private async wait(ms: number): Promise<void> {
@@ -224,22 +206,24 @@ export class OcbotChannelsView extends LitElement {
       await this.wait(800)
     }
 
+    // Reload status and schemas without resetting channelConfig or editingCredentials.
+    // selectChannel would wipe the form state the user is looking at.
     try {
       await this.loadData()
-      if (this.selectedChannelId === channelId) {
-        await this.selectChannel(channelId)
+      if (this.selectedChannelId === channelId && this.isConfigured(channelId)) {
+        const result = await this.gateway.call<{ config?: Record<string, unknown>; hash?: string }>('config.get')
+        const config = result?.config ?? {}
+        const channels = (config as Record<string, unknown>).channels as Record<string, unknown> | undefined
+        this.channelConfig = (channels?.[channelId] as Record<string, unknown>) ?? this.channelConfig
+        this.channelConfigHash = result?.hash ?? null
       }
     } catch {
       // keep optimistic UI state
     }
   }
 
-  private async onCredentialsReady(e: CustomEvent) {
-    const { channelId, config } = e.detail as { channelId: string; config: Record<string, unknown> }
+  private async saveCredentials(channelId: string, config: Record<string, unknown>) {
     this.savingCredentials = true
-    const credentialsEl = this.querySelector('ocbot-channel-credentials') as
-      import('../components/channel-credentials').OcbotChannelCredentials | null
-
     try {
       const freshConfig = await this.gateway.call<{ hash?: string }>('config.get')
       const baseHash = freshConfig?.hash ?? ''
@@ -247,15 +231,13 @@ export class OcbotChannelsView extends LitElement {
       await this.gateway.call('config.patch', { baseHash, raw: JSON.stringify(patch) })
       this.markChannelConfigured(channelId)
       this.channelConfig = { ...config }
-      this.editingCredentials = false
-      credentialsEl?.setSaveResult({ ok: true })
-      await this.selectChannel(channelId)
-      await this.refreshAfterCredentialSave(channelId, baseHash)
-    } catch (err) {
-      credentialsEl?.setSaveResult({
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      })
+      this.editingCredentials = true
+      this.saveSuccessMessage = 'Credentials saved. Connecting...'
+      setTimeout(() => { this.saveSuccessMessage = null }, 4000)
+      // Auto-collapse credentials form after brief delay so status section is visible
+      setTimeout(() => { this.editingCredentials = false }, 2000)
+      this.startPairingPoll(channelId)
+      this.refreshAfterCredentialSave(channelId, baseHash)
     } finally {
       this.savingCredentials = false
     }
@@ -266,7 +248,8 @@ export class OcbotChannelsView extends LitElement {
   private async onStatusChanged(id: string, e: CustomEvent) {
     const { status } = e.detail as { status: string }
     if (status === 'connected') {
-      // Reload schema (plugin is now fully loaded) and config
+      // Channel connected — collapse credentials form, reload schema
+      this.editingCredentials = false
       await this.loadData()
       if (this.selectedChannelId === id) {
         this.selectChannel(id)
@@ -486,68 +469,78 @@ export class OcbotChannelsView extends LitElement {
       `
     }
 
-    const phase = this.getChannelPhase(id)
+    const configured = this.isConfigured(id)
+    const connected = this.channelIsConnected(id)
     const schema = this.getSchema(id)
 
     return html`
       <div style="padding:20px; overflow-y:auto;">
         <div class="settings__page">
-          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:8px;">
-            <div style="min-width:0;">
-              <h2 class="settings__page-title" style="margin-bottom:8px;">${label}</h2>
-              <p class="settings__page-subtitle" style="margin:0;">${hint?.blurb ?? `Configure your ${label} channel connection.`}</p>
-            </div>
-            ${this.isConfigured(id) ? html`
-              <button
-                class="btn btn--sm"
-                style="flex-shrink:0; padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text-strong); cursor:pointer;"
-                @click=${() => phase === 'credentials' ? this.stopEditingCredentials() : this.startEditingCredentials()}
-              >${phase === 'credentials' ? 'Back to Status' : 'Edit Credentials'}</button>
-            ` : nothing}
+          <!-- Header -->
+          <div style="margin-bottom:16px;">
+            <h2 class="settings__page-title" style="margin-bottom:8px;">${label}</h2>
+            <p class="settings__page-subtitle" style="margin:0;">${hint?.blurb ?? `Configure your ${label} channel connection.`}</p>
           </div>
 
-          ${phase === 'credentials' ? html`
-            <div class="settings__form-container">
+          <!-- Success banner -->
+          ${this.saveSuccessMessage ? html`
+            <div style="
+              padding:10px 16px; margin-bottom:16px; border-radius:8px;
+              background:var(--ok-subtle, rgba(56,161,105,0.1));
+              color:var(--ok, #38a169); font-size:13px; font-weight:500;
+            ">${this.saveSuccessMessage}</div>
+          ` : nothing}
+
+          <!-- Status section (visible once configured) -->
+          ${configured ? html`
+            <div style="margin-bottom:20px;">
+              <ocbot-channel-status
+                .gateway=${this.gateway}
+                .channelId=${id}
+                @status-changed=${(e: CustomEvent) => this.onStatusChanged(id, e)}
+              ></ocbot-channel-status>
+            </div>
+          ` : nothing}
+
+          <!-- Pairing section (visible once configured, if requests exist) -->
+          ${configured ? this.renderPairingSection(id) : nothing}
+
+          <!-- Credentials section (always present, collapsed or expanded) -->
+          <div style="margin-bottom:20px;">
+            ${configured && !this.editingCredentials ? html`
               <ocbot-channel-credentials
                 .channelId=${id}
                 .initialConfig=${this.channelConfig}
-                @credentials-ready=${(e: CustomEvent) => this.onCredentialsReady(e)}
+                .collapsed=${true}
+                .onEdit=${() => { this.editingCredentials = true }}
               ></ocbot-channel-credentials>
+            ` : html`
+              <ocbot-channel-credentials
+                .channelId=${id}
+                .initialConfig=${this.channelConfig}
+                .collapsed=${false}
+                .onSave=${(chId: string, config: Record<string, unknown>) => this.saveCredentials(chId, config)}
+              ></ocbot-channel-credentials>
+            `}
+          </div>
+
+          <!-- Advanced settings (visible once connected + schema exists) -->
+          ${connected && schema?.configSchema ? html`
+            <div class="settings__form-container">
+              ${this.channelConfig === null ? html`
+                <div class="settings__empty">Loading configuration...</div>
+              ` : html`
+                <ocbot-channel-form
+                  .gateway=${this.gateway}
+                  .channelId=${id}
+                  .channelConfig=${this.channelConfig}
+                  .configHash=${this.channelConfigHash}
+                  .configSchema=${schema.configSchema ?? null}
+                  .configUiHints=${schema.configUiHints ?? null}
+                  @channel-saved=${() => { this.onChannelSaved(id) }}
+                ></ocbot-channel-form>
+              `}
             </div>
-          ` : nothing}
-
-          ${phase === 'connecting' ? html`
-            <ocbot-channel-status
-              .gateway=${this.gateway}
-              .channelId=${id}
-              @status-changed=${(e: CustomEvent) => this.onStatusChanged(id, e)}
-            ></ocbot-channel-status>
-          ` : nothing}
-
-          ${phase === 'connected' ? html`
-            <ocbot-channel-status
-              .gateway=${this.gateway}
-              .channelId=${id}
-              @status-changed=${(e: CustomEvent) => this.onStatusChanged(id, e)}
-            ></ocbot-channel-status>
-            ${schema?.configSchema ? html`
-              <div class="settings__form-container" style="margin-top:20px;">
-                ${this.channelConfig === null ? html`
-                  <div class="settings__empty">Loading configuration...</div>
-                ` : html`
-                  <ocbot-channel-form
-                    .gateway=${this.gateway}
-                    .channelId=${id}
-                    .channelConfig=${this.channelConfig}
-                    .configHash=${this.channelConfigHash}
-                    .configSchema=${schema.configSchema ?? null}
-                    .configUiHints=${schema.configUiHints ?? null}
-                    @channel-saved=${() => { this.onChannelSaved(id) }}
-                  ></ocbot-channel-form>
-                `}
-              </div>
-            ` : nothing}
-            ${this.renderPairingSection(id)}
           ` : nothing}
         </div>
       </div>

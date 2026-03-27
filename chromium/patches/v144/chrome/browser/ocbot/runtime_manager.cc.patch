@@ -9,8 +9,6 @@ index 0000000000000000000000000000000000000000..1c3dd6399879659a0576a582330c43ca
 +
 +#include "chrome/browser/ocbot/runtime_manager.h"
 +
-+#include <map>
-+
 +#include "base/command_line.h"
 +#include "base/files/file_enumerator.h"
 +#include "base/files/file_path.h"
@@ -232,57 +230,21 @@ index 0000000000000000000000000000000000000000..1c3dd6399879659a0576a582330c43ca
 +  return true;
 +}
 +
-+// Extract pre-built dependency archives for configured channel extensions.
-+// Reads the openclaw config to find which channels are configured,
-+// maps them to extension directories via openclaw.plugin.json,
-+// and extracts .deps.tar.gz if node_modules/ is missing.
-+void ExtractConfiguredExtensionDeps(const base::FilePath& config_file,
-+                                    const base::FilePath& extensions_dir) {
-+  if (!base::PathExists(config_file) || !base::PathExists(extensions_dir)) {
++// Extract pre-built dependency archives for all bundled extensions.
++// Iterates extension directories and extracts .deps.tar.gz if
++// node_modules/ is missing.  Extracts ALL extensions at startup
++// (not just configured channels) so that channels configured later
++// via config.patch + SIGUSR1 restart have their deps ready.
++void ExtractAllExtensionDeps(const base::FilePath& extensions_dir) {
++  if (!base::PathExists(extensions_dir)) {
 +    return;
 +  }
 +
-+  // Read config to find configured channels.
-+  auto config = ReadJsonFile(config_file);
-+  if (!config) {
-+    return;
-+  }
-+  const base::Value::Dict* channels = config->FindDict("channels");
-+  if (!channels) {
-+    return;
-+  }
-+
-+  // Build channel→extension mapping from plugin manifests.
-+  std::map<std::string, base::FilePath> channel_to_ext;
 +  base::FileEnumerator enumerator(extensions_dir, false,
 +                                  base::FileEnumerator::DIRECTORIES);
 +  for (base::FilePath ext_dir = enumerator.Next(); !ext_dir.empty();
 +       ext_dir = enumerator.Next()) {
-+    base::FilePath manifest =
-+        ext_dir.Append(FILE_PATH_LITERAL("openclaw.plugin.json"));
-+    auto manifest_data = ReadJsonFile(manifest);
-+    if (!manifest_data) {
-+      continue;
-+    }
-+    const base::Value::List* channel_ids =
-+        manifest_data->FindList("channels");
-+    if (!channel_ids) {
-+      continue;
-+    }
-+    for (const auto& cid_val : *channel_ids) {
-+      if (cid_val.is_string()) {
-+        channel_to_ext[cid_val.GetString()] = ext_dir;
-+      }
-+    }
-+  }
-+
-+  // Extract deps for each configured channel.
-+  for (auto pair = channels->begin(); pair != channels->end(); ++pair) {
-+    auto it = channel_to_ext.find(pair->first);
-+    if (it == channel_to_ext.end()) {
-+      continue;
-+    }
-+    ExtractDepsArchive(it->second);
++    ExtractDepsArchive(ext_dir);
 +  }
 +}
 +
@@ -558,11 +520,11 @@ index 0000000000000000000000000000000000000000..1c3dd6399879659a0576a582330c43ca
 +        extensions_dir.value();
 +  }
 +
-+  // Extract pre-built dependency archives for configured channels.
++  // Extract pre-built dependency archives for all bundled extensions.
 +  // This ensures extension node_modules are ready before the gateway
-+  // tries to load them.  Archives are created at build time by
-+  // _install_extension_deps() in build.py.
-+  ExtractConfiguredExtensionDeps(config_file_, extensions_dir);
++  // tries to load them — including channels configured later via
++  // config.patch (which triggers SIGUSR1, not a full process restart).
++  ExtractAllExtensionDeps(extensions_dir);
 +
 +  // OTA mode: set NODE_PATH so node can find modules in base layer.
 +  if (using_ota_runtime_ && !ota_runtime_dir_.empty()) {

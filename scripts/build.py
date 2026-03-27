@@ -136,16 +136,10 @@ def _install_extension_deps(logger, openclaw_dest, *, official=False):
 
     Creates a .deps.tar.gz in each extension directory containing its
     production node_modules.  These archives are extracted on demand at
-    runtime (by run.py or RuntimeManager) when the user configures the
-    corresponding channel — so the app starts fast and only pays the
-    cost of extraction for channels that are actually used.
-
-    In dev builds (official=False), skip archive creation to speed up
-    the build cycle — deps will be installed on demand at runtime.
+    runtime (by run.py or RuntimeManager) when a channel is configured —
+    so the app starts fast and only pays the cost of extraction for
+    channels that are actually used.
     """
-    if not official:
-        logger.info("Skipping extension dep archives (dev build).")
-        return
     extensions_dir = openclaw_dest / 'extensions'
     if not extensions_dir.is_dir():
         return
@@ -171,6 +165,17 @@ def _install_extension_deps(logger, openclaw_dest, *, official=False):
             continue
 
         archive_path = ext_dir / '.deps.tar.gz'
+
+        # Skip if archive already exists and package.json hasn't changed
+        if archive_path.exists():
+            try:
+                pkg_mtime = pkg_json.stat().st_mtime
+                archive_mtime = archive_path.stat().st_mtime
+                if archive_mtime >= pkg_mtime:
+                    logger.info(f"  {ext_dir.name}: .deps.tar.gz up to date, skipping")
+                    continue
+            except OSError:
+                pass
 
         # Remove any leftover node_modules from previous builds
         ext_node_modules = ext_dir / 'node_modules'

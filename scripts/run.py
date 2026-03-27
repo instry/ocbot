@@ -1,8 +1,10 @@
+import json
 import os
 import shutil
 import socket
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 import urllib.request
@@ -14,6 +16,82 @@ from openclaw_config import (
     get_ocbot_state_dir,
     get_ocbot_workspace_dir,
 )
+
+
+def _ensure_extension_deps(logger, extensions_dir):
+    """Ensure node_modules are available for all bundled extensions.
+
+    Checks each extension dir for node_modules. If missing:
+    1. Extract .deps.tar.gz if present (official builds)
+    2. Symlink from source openclaw tree (dev builds)
+    3. Fall back to npm install --production
+    """
+    if not extensions_dir.is_dir():
+        return
+
+    openclaw_src = get_project_root().parent / 'openclaw'
+
+    for ext_dir in sorted(extensions_dir.iterdir()):
+        if not ext_dir.is_dir():
+            continue
+        pkg_json = ext_dir / 'package.json'
+        if not pkg_json.is_file():
+            continue
+
+        # Check if this extension has dependencies
+        try:
+            pkg = json.loads(pkg_json.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        deps = pkg.get('dependencies', {})
+        # Filter out workspace references
+        real_deps = {k: v for k, v in deps.items()
+                     if not str(v).startswith('workspace:')}
+        if not real_deps:
+            continue
+
+        node_modules = ext_dir / 'node_modules'
+        if node_modules.exists():
+            continue
+
+        ext_name = ext_dir.name
+
+        # Option 1: Extract .deps.tar.gz archive
+        archive = ext_dir / '.deps.tar.gz'
+        if archive.is_file():
+            logger.info(f"Extracting deps for extension {ext_name}...")
+            try:
+                with tarfile.open(archive, 'r:gz') as tar:
+                    tar.extractall(path=str(ext_dir))
+                if node_modules.exists():
+                    logger.info(f"  {ext_name}: deps extracted from archive")
+                    continue
+            except Exception as e:
+                logger.warning(f"  {ext_name}: archive extraction failed: {e}")
+
+        # Option 2: Symlink from source tree (dev builds)
+        src_nm = openclaw_src / 'extensions' / ext_name / 'node_modules'
+        if src_nm.is_dir():
+            logger.info(f"Symlinking deps for extension {ext_name} from source tree...")
+            try:
+                node_modules.symlink_to(src_nm)
+                logger.info(f"  {ext_name}: symlinked to {src_nm}")
+                continue
+            except OSError as e:
+                logger.warning(f"  {ext_name}: symlink failed: {e}")
+
+        # Option 3: npm install (last resort)
+        logger.info(f"Installing deps for extension {ext_name} via npm...")
+        _shell = sys.platform == 'win32'
+        try:
+            subprocess.run(
+                ['npm', 'install', '--production', '--prefix', str(ext_dir)],
+                check=True, shell=_shell,
+                capture_output=True, text=True,
+            )
+            logger.info(f"  {ext_name}: deps installed via npm")
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            logger.warning(f"  {ext_name}: npm install failed: {e}")
 
 
 def _sync_extension(logger, out_dir):
@@ -129,6 +207,11 @@ def _start_embedded_runtime(logger, out_dir):
     extensions_dir = openclaw_dir / 'extensions'
     if extensions_dir.exists():
         env['OPENCLAW_BUNDLED_PLUGINS_DIR'] = str(extensions_dir)
+
+    # Ensure extension dependencies are available before starting the gateway.
+    # In dev builds, node_modules are not included; this handles extraction,
+    # symlinking from source, or npm install as needed.
+    _ensure_extension_deps(logger, extensions_dir)
 
     gateway_cmd = [
         str(node_path),

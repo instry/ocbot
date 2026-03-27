@@ -15,7 +15,7 @@ const NAV_GROUPS: NavItem[][] = [
     { id: 'chat', label: 'Chat', icon: 'chat' },
   ],
   [
-    { id: 'agents', label: 'Agents', icon: 'bot' },
+    // { id: 'agents', label: 'Agents', icon: 'bot' },
     { id: 'skills', label: 'Skills', icon: 'component' },
     { id: 'cron', label: 'Cron', icon: 'cron' },
   ],
@@ -23,9 +23,9 @@ const NAV_GROUPS: NavItem[][] = [
     { id: 'models', label: 'Models', icon: 'cpu' },
     { id: 'channels', label: 'Channels', icon: 'smartphone' },
   ],
-  [
-    { id: 'usage', label: 'Usage', icon: 'usage' },
-  ],
+  // [
+  //   { id: 'usage', label: 'Usage', icon: 'usage' },
+  // ],
 ]
 
 declare const __OCBOT_VERSION__: string
