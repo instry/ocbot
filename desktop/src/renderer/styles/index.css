@@ -103,6 +103,19 @@ button, input, textarea, select, a, [role="button"] {
   -webkit-app-region: no-drag;
 }
 
+button,
+a,
+[role="button"],
+label[for],
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: default;
+}
+
 button, input, textarea, select {
   font: inherit;
   color: inherit;

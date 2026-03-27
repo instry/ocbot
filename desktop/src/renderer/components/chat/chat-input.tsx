@@ -97,7 +97,7 @@ export function ChatInput() {
   }
 
   return (
-    <div className="border-t border-border px-4 py-3">
+    <div className="px-4 py-3">
       <div className="mx-auto max-w-3xl">
         <div className="relative flex min-h-[80px] flex-col rounded-2xl border border-border bg-bg-muted transition-colors focus-within:border-accent">
           <textarea
@@ -111,10 +111,10 @@ export function ChatInput() {
             disabled={sending}
             rows={3}
             maxLength={20000}
+            style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
             className={cn(
               'flex-1 resize-none bg-transparent px-4 py-3 pr-12 text-[14px] text-text',
               'placeholder:text-muted-foreground',
-              'outline-none focus:outline-none focus:ring-0 focus:border-transparent',
               'max-h-[200px] min-h-[80px]',
             )}
           />
@@ -122,10 +122,11 @@ export function ChatInput() {
             onClick={sending ? handleAbort : handleSend}
             disabled={!input.trim() && !sending}
             className={cn(
-              'absolute bottom-2 right-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors',
+              'absolute bottom-2 right-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all',
+              'shadow-sm',
               sending
-                ? 'bg-bg-hover text-muted-foreground hover:bg-border'
-                : 'bg-accent text-accent-foreground hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed',
+                ? 'bg-black/8 text-gray-600 hover:bg-black/15 dark:bg-white/8 dark:text-gray-400 dark:hover:bg-white/15'
+                : 'bg-accent text-accent-foreground hover:bg-accent-hover disabled:opacity-30 disabled:cursor-default',
             )}
           >
             {sending ? <Square className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}

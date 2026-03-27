@@ -12,4 +12,10 @@ contextBridge.exposeInMainWorld('ocbot', {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
+
+  // Skill management (ClawHub install/uninstall)
+  installSkill: (slug: string, version?: string) =>
+    ipcRenderer.invoke('skill:install', slug, version),
+  uninstallSkill: (slug: string) =>
+    ipcRenderer.invoke('skill:uninstall', slug),
 })

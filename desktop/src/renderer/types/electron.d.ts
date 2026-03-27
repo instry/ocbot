@@ -5,6 +5,8 @@ declare global {
       minimize: () => void
       maximize: () => void
       close: () => void
+      installSkill: (slug: string, version?: string) => Promise<{ ok: boolean; message: string }>
+      uninstallSkill: (slug: string) => Promise<{ ok: boolean; message: string }>
     }
   }
 

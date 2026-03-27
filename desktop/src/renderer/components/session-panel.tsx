@@ -109,22 +109,25 @@ export function SessionPanel() {
 
       {/* Search */}
       <div className="relative px-3 pb-2">
-        <Search className="absolute left-5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-7 w-full rounded-md border border-border bg-bg-muted pl-8 pr-7 text-xs text-text placeholder:text-muted-foreground focus:border-accent focus:outline-none"
-        />
-        {search && (
-          <button
-            className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-text"
-            onClick={() => setSearch('')}
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-7 w-full rounded-md border border-border bg-bg-muted pl-8 pr-7 text-xs text-text placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-0"
+            style={{ outline: 'none', boxShadow: 'none' }}
+          />
+          {search && (
+            <button
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-text"
+              onClick={() => setSearch('')}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* New Chat button */}

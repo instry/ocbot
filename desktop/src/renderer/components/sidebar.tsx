@@ -51,6 +51,15 @@ export function Sidebar() {
         setTab('chat')
         navigate('/')
       }
+    } else if (item.tab === 'models') {
+      setTab('models')
+      navigate('/models')
+    } else if (item.tab === 'channels') {
+      setTab('channels')
+      navigate('/channels')
+    } else if (item.tab === 'skills') {
+      setTab('skills')
+      navigate('/skills')
     } else {
       setTab(item.tab)
     }
@@ -104,15 +113,6 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="flex flex-col gap-1 border-t border-border px-2 py-2">
-        {/* Theme toggle */}
-        <button
-          onClick={toggleThemeMode}
-          className="flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-bg-hover"
-        >
-          {themeMode === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          <span>{themeMode === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-        </button>
-
         {/* Settings */}
         <button
           onClick={() => { setTab('settings'); navigate('/settings') }}

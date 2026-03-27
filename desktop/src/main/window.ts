@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { installSkill, uninstallSkill } from './skill-installer'
 
 /**
  * Manages the main application window.
@@ -30,8 +31,8 @@ export class WindowManager {
 
   private createWindow(): void {
     this.window = new BrowserWindow({
-      width: 1200,
-      height: 800,
+      width: 1440,
+      height: 960,
       minWidth: 480,
       minHeight: 400,
       title: 'Ocbot',
@@ -89,6 +90,14 @@ export class WindowManager {
     })
     ipcMain.on('window-close', () => {
       this.window?.close()
+    })
+
+    // Skill install/uninstall
+    ipcMain.handle('skill:install', async (_event, slug: string, version?: string) => {
+      return installSkill(slug, version ?? '')
+    })
+    ipcMain.handle('skill:uninstall', async (_event, slug: string) => {
+      return uninstallSkill(slug)
     })
   }
 }

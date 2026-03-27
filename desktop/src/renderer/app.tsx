@@ -45,7 +45,7 @@ export function App() {
 
       {/* Main content area */}
       <main className="flex flex-1 flex-col overflow-hidden pt-[var(--titlebar-height)]">
-        {tab === 'chat' || tab === 'settings' ? (
+        {tab === 'chat' || tab === 'settings' || tab === 'models' || tab === 'channels' || tab === 'skills' ? (
           <Outlet />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-2">

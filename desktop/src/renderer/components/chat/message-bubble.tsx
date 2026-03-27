@@ -57,7 +57,7 @@ export const MessageBubble = memo(function MessageBubble({
           {time && <span className="text-[11px] text-muted-foreground">{time}</span>}
         </div>
       )}
-      <div className="group relative pl-9">
+      <div className="relative pl-9">
         <div className="text-[14px] leading-relaxed text-chat-text">
           {displayText ? (
             <MarkdownContent content={displayText} />
@@ -66,15 +66,6 @@ export const MessageBubble = memo(function MessageBubble({
             <span className="ml-0.5 inline-block h-4 w-[2px] animate-[blink_1s_steps(1)_infinite] bg-accent align-text-bottom" />
           )}
         </div>
-        {!isStreaming && text && (
-          <button
-            onClick={handleCopy}
-            className="absolute -right-7 top-0 flex h-6 w-6 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:text-text group-hover:opacity-100"
-            title="Copy"
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
 
       {/* Tool cards */}
