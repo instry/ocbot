@@ -5,19 +5,26 @@
   "private": true,
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json && electron .",
-    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
+    "dev": "npm run build:main && npm run build:renderer && electron .",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
+    "build:renderer": "vite build",
     "start": "electron .",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "clean": "rm -rf dist out"
   },
   "dependencies": {
-    "electron-updater": "^6.3.0"
+    "dompurify": "^3.3.3",
+    "electron-updater": "^6.3.0",
+    "lit": "^3.3.2",
+    "marked": "^17.0.5"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "electron": "^35.0.0",
     "electron-builder": "^26.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vite": "^8.0.3"
   }
 }

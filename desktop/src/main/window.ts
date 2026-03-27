@@ -50,11 +50,10 @@ export class WindowManager {
       if (this.brandCSS) {
         this.window?.webContents.insertCSS(this.brandCSS)
       }
-      // Set document title (overrides "OpenClaw Control")
-      this.window?.webContents.executeJavaScript(`document.title = 'Ocbot'`)
     })
 
-    this.window.loadURL(`http://127.0.0.1:${this.port}/`)
+    // Load local renderer HTML instead of gateway Control UI
+    this.window.loadFile(join(__dirname, '..', 'renderer', 'index.html'))
 
     this.window.on('closed', () => {
       this.window = null
