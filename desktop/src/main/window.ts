@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
 
 /**
@@ -11,6 +11,7 @@ export class WindowManager {
 
   constructor(port: number) {
     this.port = port
+    this.registerIPC()
   }
 
   showOrCreate(): void {
@@ -42,6 +43,22 @@ export class WindowManager {
 
     this.window.on('closed', () => {
       this.window = null
+    })
+  }
+
+  private registerIPC(): void {
+    ipcMain.on('window-minimize', () => {
+      this.window?.minimize()
+    })
+    ipcMain.on('window-maximize', () => {
+      if (this.window?.isMaximized()) {
+        this.window.unmaximize()
+      } else {
+        this.window?.maximize()
+      }
+    })
+    ipcMain.on('window-close', () => {
+      this.window?.close()
     })
   }
 }

@@ -44,11 +44,29 @@ export class RuntimeManager {
   private shutdownRequested = false
 
   constructor() {
-    const userDataPath = app.getPath('userData')
-    const subdir = app.isPackaged ? 'openclaw' : 'openclaw-dev'
-    this.baseDir = path.join(userDataPath, subdir)
-    this.stateDir = path.join(this.baseDir, 'state')
-    this.logsDir = path.join(this.baseDir, 'logs')
+    if (app.isPackaged) {
+      // Production: use Electron userData
+      const userDataPath = app.getPath('userData')
+      this.baseDir = path.join(userDataPath, 'openclaw')
+      this.stateDir = path.join(this.baseDir, 'state')
+      this.logsDir = path.join(this.baseDir, 'logs')
+    } else {
+      // Dev: reuse existing ocbot/.openclaw/ so we get existing config/channels
+      const ocbotRoot = path.resolve(app.getAppPath(), '..')
+      const devState = path.join(ocbotRoot, '.openclaw')
+      if (fs.existsSync(devState)) {
+        this.baseDir = devState
+        this.stateDir = devState
+        this.logsDir = path.join(devState, 'logs')
+      } else {
+        // Fallback if .openclaw doesn't exist
+        const userDataPath = app.getPath('userData')
+        this.baseDir = path.join(userDataPath, 'openclaw-dev')
+        this.stateDir = path.join(this.baseDir, 'state')
+        this.logsDir = path.join(this.baseDir, 'logs')
+      }
+    }
+
     this.configPath = path.join(this.stateDir, 'openclaw.json')
     this.tokenPath = path.join(this.stateDir, 'gateway-token')
     this.portPath = path.join(this.stateDir, 'gateway-port.json')
