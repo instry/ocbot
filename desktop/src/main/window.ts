@@ -1,4 +1,5 @@
-import { BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -8,9 +9,11 @@ import { join } from 'node:path'
 export class WindowManager {
   private window: BrowserWindow | null = null
   private readonly port: number
+  private readonly brandCSS: string
 
   constructor(port: number) {
     this.port = port
+    this.brandCSS = this.loadBrandCSS()
     this.registerIPC()
   }
 
@@ -39,11 +42,36 @@ export class WindowManager {
       },
     })
 
+    // Inject brand CSS as soon as the Control UI DOM is ready
+    this.window.webContents.on('dom-ready', () => {
+      if (this.brandCSS) {
+        this.window?.webContents.insertCSS(this.brandCSS)
+      }
+      // Set document title (overrides "OpenClaw Control")
+      this.window?.webContents.executeJavaScript(`document.title = 'Ocbot'`)
+    })
+
     this.window.loadURL(`http://127.0.0.1:${this.port}/`)
 
     this.window.on('closed', () => {
       this.window = null
     })
+  }
+
+  private loadBrandCSS(): string {
+    try {
+      // In dev: src/renderer/branding/brand.css relative to project root
+      // In prod: bundled alongside the app
+      const candidates = app.isPackaged
+        ? [join(process.resourcesPath, 'branding', 'brand.css')]
+        : [join(app.getAppPath(), 'src', 'renderer', 'branding', 'brand.css')]
+      for (const p of candidates) {
+        try {
+          return readFileSync(p, 'utf8')
+        } catch { /* try next */ }
+      }
+    } catch { /* ignore */ }
+    return ''
   }
 
   private registerIPC(): void {

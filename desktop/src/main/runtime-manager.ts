@@ -224,18 +224,42 @@ export class RuntimeManager {
   // --- Config & Token ---
 
   private ensureConfig(): void {
-    if (!fs.existsSync(this.configPath)) {
-      fs.writeFileSync(this.configPath, JSON.stringify({ gateway: { mode: 'local' } }, null, 2) + '\n')
-      return
+    let config: Record<string, unknown> = {}
+    let dirty = false
+
+    if (fs.existsSync(this.configPath)) {
+      try {
+        config = JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
+      } catch { /* start fresh on parse error */ }
+    } else {
+      dirty = true
     }
-    // Ensure gateway.mode=local even if config already exists
-    try {
-      const config = JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
-      if (!config.gateway?.mode) {
-        config.gateway = { ...config.gateway, mode: 'local' }
-        fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2) + '\n')
-      }
-    } catch { /* ignore parse errors */ }
+
+    // Ensure gateway.mode=local
+    const gw = (config.gateway as Record<string, unknown>) || {}
+    if (!gw.mode) {
+      config.gateway = { ...gw, mode: 'local' }
+      dirty = true
+    }
+
+    // Ensure Ocbot branding in ui.assistant
+    const ui = (config.ui as Record<string, unknown>) || {}
+    const assistant = (ui.assistant as Record<string, unknown>) || {}
+    if (!assistant.name || assistant.name === 'OpenClaw') {
+      assistant.name = 'Ocbot'
+      ui.assistant = assistant
+      config.ui = ui
+      dirty = true
+    }
+    if (!ui.seamColor) {
+      ui.seamColor = '#7c3aed'
+      config.ui = ui
+      dirty = true
+    }
+
+    if (dirty) {
+      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2) + '\n')
+    }
   }
 
   private ensureToken(): string {

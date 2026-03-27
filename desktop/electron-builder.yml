@@ -8,6 +8,7 @@ directories:
 
 files:
   - dist/**/*
+  - src/renderer/branding/**/*
   - resources/**/*
   - "!resources/icons/*"
 
@@ -35,6 +36,10 @@ dmg:
   artifactName: "${productName}-${version}.${ext}"
 
 extraResources:
+  - from: src/renderer/branding
+    to: branding
+    filter:
+      - "**/*.css"
   - from: resources/openclaw
     to: openclaw
     filter:
