@@ -10,6 +10,7 @@ export class OcbotApp extends LitElement {
   @state() private tab = 'chat'
   @state() private gatewayState: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected'
   @state() private sessionKey = ''
+  private gateway = getGatewayClient()
 
   createRenderRoot() {
     return this // No shadow DOM
@@ -21,11 +22,10 @@ export class OcbotApp extends LitElement {
   }
 
   private async connectGateway() {
-    const gateway = getGatewayClient()
-    gateway.onStateChange((state) => {
+    this.gateway.onStateChange((state) => {
       this.gatewayState = state
     })
-    await gateway.connect()
+    await this.gateway.connect()
   }
 
   private handleNavigate(e: CustomEvent) {
@@ -63,6 +63,8 @@ export class OcbotApp extends LitElement {
 
         ${this.tab === 'chat' ? html`
           <ocbot-session-panel
+            .gateway=${this.gateway}
+            .activeSessionKey=${this.sessionKey}
             @new-chat=${this.handleNewChat}
             @select-session=${this.handleSelectSession}
           ></ocbot-session-panel>
@@ -70,7 +72,7 @@ export class OcbotApp extends LitElement {
 
         <main style="flex:1; overflow:hidden;">
           ${this.tab === 'chat' ? html`
-            <ocbot-chat-view .sessionKey=${this.sessionKey}></ocbot-chat-view>
+            <ocbot-chat-view .gateway=${this.gateway} .sessionKey=${this.sessionKey}></ocbot-chat-view>
           ` : html`
             <div style="padding:24px;">
               <h2>${this.tab}</h2>
