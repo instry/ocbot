@@ -137,6 +137,7 @@ export async function installSkill(
   slug: string,
   version?: string,
 ): Promise<{ ok: boolean; message: string }> {
+  console.log('[SkillInstaller] installSkill called:', slug, version)
   if (!isValidSlug(slug)) {
     return { ok: false, message: `Invalid slug: ${slug}` }
   }
@@ -146,12 +147,17 @@ export async function installSkill(
     `${CONVEX_BASE}/api/v1/download?slug=${encodeURIComponent(slug)}` +
     (ver ? `&version=${encodeURIComponent(ver)}` : '')
 
+  console.log('[SkillInstaller] download URL:', url)
+  console.log('[SkillInstaller] skills dir:', getSkillsDir())
+
   const tmpZip = path.join(os.tmpdir(), `skill-${slug}-${Date.now()}.zip`)
   const tmpExtract = path.join(os.tmpdir(), `skill-${slug}-${Date.now()}-extract`)
 
   try {
     // Download
+    console.log('[SkillInstaller] fetching...')
     const res = await fetch(url)
+    console.log('[SkillInstaller] fetch status:', res.status)
     if (!res.ok) {
       return { ok: false, message: `Download failed: HTTP ${res.status}` }
     }

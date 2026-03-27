@@ -94,10 +94,26 @@ export class WindowManager {
 
     // Skill install/uninstall
     ipcMain.handle('skill:install', async (_event, slug: string, version?: string) => {
-      return installSkill(slug, version ?? '')
+      console.log('[IPC] skill:install called:', slug, version)
+      try {
+        const result = await installSkill(slug, version ?? '')
+        console.log('[IPC] skill:install result:', result)
+        return result
+      } catch (err) {
+        console.error('[IPC] skill:install error:', err)
+        return { ok: false, message: err instanceof Error ? err.message : String(err) }
+      }
     })
     ipcMain.handle('skill:uninstall', async (_event, slug: string) => {
-      return uninstallSkill(slug)
+      console.log('[IPC] skill:uninstall called:', slug)
+      try {
+        const result = await uninstallSkill(slug)
+        console.log('[IPC] skill:uninstall result:', result)
+        return result
+      } catch (err) {
+        console.error('[IPC] skill:uninstall error:', err)
+        return { ok: false, message: err instanceof Error ? err.message : String(err) }
+      }
     })
   }
 }

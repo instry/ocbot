@@ -411,16 +411,19 @@ export function SkillsRoute() {
   }
 
   async function installMarketplaceSkill(slug: string, version?: string) {
+    console.log('[Skills] installMarketplaceSkill:', slug, version)
     setMpInstalling(prev => ({ ...prev, [slug]: true }))
     try {
       const result = await window.ocbot!.installSkill(slug, version)
+      console.log('[Skills] install result:', result)
       if (result.ok) {
-        setMpPendingInstall(prev => ({ ...prev, [slug]: true }))
+        setMpInstallResult(prev => ({ ...prev, [slug]: { ok: true, message: 'Installed' } }))
         await loadLocalSkills(true)
       } else {
         setMpInstallResult(prev => ({ ...prev, [slug]: result }))
       }
     } catch (err) {
+      console.error('[Skills] install error:', err)
       setMpInstallResult(prev => ({ ...prev, [slug]: { ok: false, message: err instanceof Error ? err.message : String(err) } }))
     } finally {
       setMpInstalling(prev => ({ ...prev, [slug]: false }))
@@ -622,9 +625,9 @@ export function SkillsRoute() {
   const currentSortLabel = sortOptions.find(o => o.value === currentSort)?.label ?? 'Sort'
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden min-h-0">
       {/* Header */}
-      <div className="px-6 pt-6">
+      <div className="shrink-0 px-6 pt-6">
         <h1 className="text-[22px] font-semibold tracking-tight text-text-strong">Skills</h1>
         <p className="mt-1 text-sm text-muted-foreground">Browse and manage your AI skills</p>
 
