@@ -12,7 +12,8 @@
     "start": "electron .",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
-    "clean": "rm -rf dist out"
+    "clean": "node scripts/dev.js clean",
+    "tool": "node scripts/dev.js"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

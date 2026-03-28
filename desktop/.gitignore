@@ -4,3 +4,5 @@ out/
 *.js
 *.js.map
 !electron-builder.yml
+!scripts/*.js
+!scripts/**/*.js
