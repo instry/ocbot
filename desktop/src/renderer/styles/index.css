@@ -186,5 +186,4 @@ a:hover {
 /* Focus visible styles */
 :focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
 }

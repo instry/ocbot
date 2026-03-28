@@ -401,7 +401,7 @@ function BrowserTab({
                   value={selectedProfileKey}
                   onChange={(event) => setSelectedProfileKey(event.target.value)}
                   disabled={browserSaving || browserLoading}
-                  className="w-full appearance-none rounded-xl border border-border bg-bg px-3 py-2 pr-11 text-sm text-text shadow-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full appearance-none rounded-xl border border-border bg-bg px-3 py-2 pr-11 text-sm text-text shadow-sm outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Auto-detect</option>
                   {browserProfiles.map((browser) => (

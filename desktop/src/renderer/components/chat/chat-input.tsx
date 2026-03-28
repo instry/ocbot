@@ -16,7 +16,6 @@ export function ChatInput() {
   const startSend = useChatStore(s => s.startSend)
   const setError = useChatStore(s => s.setError)
   const setSending = useChatStore(s => s.setSending)
-  const inputHistory = useChatStore(s => s.inputHistory)
   const client = useGatewayStore(s => s.client)
 
   const historyIndexRef = useRef(-1)
@@ -114,7 +113,7 @@ export function ChatInput() {
             rows={3}
             maxLength={20000}
             className={cn(
-              'max-h-[200px] min-h-[80px] resize-none border-none bg-transparent px-4 py-3 pr-12 text-[14px] shadow-none ring-0',
+              'max-h-[200px] min-h-[80px] resize-none border-none bg-transparent px-4 py-3 pr-12 text-[14px] shadow-none ring-0 focus-visible:ring-0',
             )}
           />
           <Button
