@@ -2,6 +2,7 @@
   "name": "ocbot-desktop",
   "version": "0.1.0",
   "description": "Ocbot Desktop — the easiest way to use OpenClaw",
+  "author": "MALA TECH LLC",
   "private": true,
   "main": "dist/main/index.js",
   "scripts": {
