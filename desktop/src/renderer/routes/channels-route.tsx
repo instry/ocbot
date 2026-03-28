@@ -1,60 +1,58 @@
 import { useState, useEffect } from 'react'
-import { Radio, ChevronRight, Loader2 } from 'lucide-react'
+import { Radio, Loader2 } from 'lucide-react'
+import { useChannelStore } from '@/stores/channel-store'
 import { useGatewayStore } from '@/stores/gateway-store'
+import { CHANNEL_PLATFORMS } from '@/types/channel'
+import { ChannelStatusCard } from '@/components/channels/channel-status-card'
+import { ChannelConfigForm } from '@/components/channels/channel-config-form'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-
-interface ChannelAccount {
-  accountId: string
-  name?: string
-  enabled?: boolean
-  configured?: boolean
-  connected?: boolean
-  running?: boolean
-  lastError?: string
-}
-
-interface ChannelsStatus {
-  channels?: Record<string, { configured?: boolean }>
-  channelAccounts?: Record<string, ChannelAccount[]>
-}
-
-const CHANNELS = [
-  { id: 'feishu', label: 'Feishu', desc: 'Feishu/Lark messaging' },
-  { id: 'telegram', label: 'Telegram', desc: 'Telegram bot' },
-  { id: 'discord', label: 'Discord', desc: 'Discord bot' },
-  { id: 'slack', label: 'Slack', desc: 'Slack bot' },
-  { id: 'whatsapp', label: 'WhatsApp', desc: 'WhatsApp messaging' },
-]
 
 export function ChannelsRoute() {
   const client = useGatewayStore(s => s.client)
-  const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState<ChannelsStatus>({})
-  const [selected, setSelected] = useState<string | null>(null)
+  const {
+    selectedPlatform,
+    setSelectedPlatform,
+    configs,
+    statuses,
+    loading,
+    loadConfig,
+    saveConfig,
+    loadStatuses,
+    startGateway,
+    stopGateway,
+  } = useChannelStore()
 
   useEffect(() => {
     if (!client) return
-
-    const load = async () => {
-      try {
-        const result = await client.call('channels.status') as ChannelsStatus
-        setStatus(result || {})
-      } catch (err) {
-        console.error('Failed to load channels:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
-    const timer = setInterval(load, 30000)
+    loadStatuses()
+    const timer = setInterval(loadStatuses, 10000)
     return () => clearInterval(timer)
-  }, [client])
+  }, [client, loadStatuses])
 
-  const isConfigured = (id: string) => status.channels?.[id]?.configured === true
-  const isConnected = (id: string) => {
-    const accounts = status.channelAccounts?.[id] || []
-    return accounts.some(a => a.connected || a.running)
+  useEffect(() => {
+    if (selectedPlatform) {
+      loadConfig(selectedPlatform)
+    }
+  }, [selectedPlatform, loadConfig])
+
+  const selectedChannel = CHANNEL_PLATFORMS.find(c => c.id === selectedPlatform)
+  const currentConfig = selectedPlatform ? configs[selectedPlatform] : undefined
+  const currentStatus = selectedPlatform ? statuses[selectedPlatform] : undefined
+
+  const handleStart = async () => {
+    if (!selectedPlatform) return
+    await startGateway(selectedPlatform)
+  }
+
+  const handleStop = async () => {
+    if (!selectedPlatform) return
+    await stopGateway(selectedPlatform)
+  }
+
+  const handleConfigChange = async (config: any) => {
+    if (!selectedPlatform) return
+    await saveConfig(selectedPlatform, config)
   }
 
   return (
@@ -65,15 +63,15 @@ export function ChannelsRoute() {
           <h2 className="text-sm font-semibold text-text-strong">Channels</h2>
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
-          {CHANNELS.map(ch => {
-            const configured = isConfigured(ch.id)
-            const connected = isConnected(ch.id)
-            const active = selected === ch.id
+          {CHANNEL_PLATFORMS.map(ch => {
+            const status = statuses[ch.id]
+            const connected = status?.connected || false
+            const active = selectedPlatform === ch.id
 
             return (
               <button
                 key={ch.id}
-                onClick={() => setSelected(ch.id)}
+                onClick={() => setSelectedPlatform(ch.id)}
                 className={cn(
                   'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors mb-1',
                   active ? 'bg-accent/10 text-accent' : 'text-text hover:bg-bg-hover'
@@ -81,7 +79,7 @@ export function ChannelsRoute() {
               >
                 <span className={cn(
                   'h-2 w-2 rounded-full',
-                  connected ? 'bg-ok' : configured ? 'bg-warn' : 'bg-muted'
+                  connected ? 'bg-ok' : 'bg-muted'
                 )} />
                 <span className="flex-1 text-left">{ch.label}</span>
               </button>
@@ -92,13 +90,7 @@ export function ChannelsRoute() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : selected ? (
-          <ChannelDetail channelId={selected} status={status} />
-        ) : (
+        {!selectedPlatform ? (
           <div className="flex h-full items-center justify-center p-6">
             <div className="text-center max-w-md">
               <Radio className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -108,52 +100,71 @@ export function ChannelsRoute() {
               </p>
             </div>
           </div>
+        ) : (
+          <div className="p-6 max-w-3xl space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-text-strong mb-2">{selectedChannel?.label}</h2>
+              <p className="text-sm text-muted-foreground">{selectedChannel?.desc}</p>
+            </div>
+
+            {/* Status Section */}
+            {currentStatus && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-text-strong">Status</h3>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className={cn(
+                    'h-2 w-2 rounded-full',
+                    currentStatus.connected ? 'bg-ok' : 'bg-muted'
+                  )} />
+                  <span className="text-text">{currentStatus.connected ? 'Connected' : 'Disconnected'}</span>
+                </div>
+                {currentStatus.botInfo && (
+                  <div className="text-sm text-muted-foreground">
+                    Bot: {currentStatus.botInfo.username || currentStatus.botInfo.name || currentStatus.botInfo.id}
+                  </div>
+                )}
+                {currentStatus.lastError && (
+                  <div className="text-xs text-danger">{currentStatus.lastError}</div>
+                )}
+              </div>
+            )}
+
+            {/* Configuration Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-text-strong">Configuration</h3>
+              <ChannelConfigForm
+                platform={selectedPlatform}
+                config={currentConfig}
+                onChange={handleConfigChange}
+              />
+            </div>
+
+
+            <div className="flex items-center justify-start gap-3 pt-4">
+              <Button
+                onClick={handleStart}
+                disabled={loading || currentStatus?.connected}
+                variant="primary"
+                size="md"
+                className="w-32"
+              >
+                {loading ? 'Starting...' : 'Start'}
+              </Button>
+              <Button
+                onClick={handleStop}
+                disabled={loading || !currentStatus?.connected}
+                variant="secondary"
+                size="md"
+                className="w-32"
+              >
+                Stop
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </div>
   )
 }
 
-function ChannelDetail({ channelId, status }: { channelId: string; status: ChannelsStatus }) {
-  const channel = CHANNELS.find(c => c.id === channelId)
-  const configured = status.channels?.[channelId]?.configured === true
-  const accounts = status.channelAccounts?.[channelId] || []
-  const connected = accounts.some(a => a.connected || a.running)
 
-  return (
-    <div className="p-6 max-w-3xl">
-      <h2 className="text-xl font-semibold text-text-strong mb-2">{channel?.label}</h2>
-      <p className="text-sm text-muted-foreground mb-6">{channel?.desc}</p>
-
-      {configured ? (
-        <div className="space-y-4">
-          <div className="bg-bg-subtle border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-text-strong">Status</h3>
-              <span className={cn(
-                'px-2 py-1 rounded text-xs font-medium',
-                connected ? 'bg-ok/10 text-ok' : 'bg-warn/10 text-warn'
-              )}>
-                {connected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
-            {accounts.map(acc => (
-              <div key={acc.accountId} className="text-sm text-text">
-                {acc.name || acc.accountId}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-bg-subtle border border-border rounded-lg p-6 text-center">
-          <p className="text-sm text-muted-foreground mb-4">
-            This channel is not configured yet.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Configure via browser extension or CLI
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
