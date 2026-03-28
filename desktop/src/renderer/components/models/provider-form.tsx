@@ -167,6 +167,7 @@ const CURATED_PROVIDER_IDS = [
 ]
 
 const LOCAL_PROVIDERS = ['ollama', 'vllm', 'sglang']
+const REDACTED_API_KEY = '__OPENCLAW_REDACTED__'
 
 export interface ConfiguredProvider {
   profileKey: string
@@ -209,6 +210,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
   const [selectedProvider, setSelectedProvider] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [hasStoredApiKey, setHasStoredApiKey] = useState(false)
   const [baseUrl, setBaseUrl] = useState('')
   const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set())
   const [selectedModel, setSelectedModel] = useState('')
@@ -228,8 +230,11 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
 
   useEffect(() => {
     if (!editData) return
+    const initialApiKey = editData.apiKey ?? ''
+    const storedApiKey = Boolean(initialApiKey)
     setSelectedProvider(editData.provider)
-    setApiKey(editData.apiKey ?? '')
+    setApiKey(initialApiKey === REDACTED_API_KEY ? '' : initialApiKey)
+    setHasStoredApiKey(storedApiKey)
     setBaseUrl(editData.baseUrl ?? '')
     setSelectedModel(editData.modelId ?? '')
     setSelectedModels(new Set())
@@ -246,6 +251,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
     if (isEditMode) return
     setSelectedProvider(provider)
     setApiKey('')
+    setHasStoredApiKey(false)
     setBaseUrl('')
     setError(null)
     setSelectedModels(new Set())
@@ -288,7 +294,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
 
   async function save() {
     if (!selectedProvider) return
-    if (!isLocal && !apiKey.trim()) {
+    if (!isLocal && !apiKey.trim() && !(isEditMode && hasStoredApiKey)) {
       setError('API key is required')
       return
     }
@@ -372,7 +378,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
   }
 
   const canSave = selectedProvider
-    && (isLocal || apiKey.trim())
+    && (isLocal || apiKey.trim() || (isEditMode && hasStoredApiKey))
     && (isEditMode || selectedModels.size > 0 || selectedModel.trim())
 
   return (
@@ -448,9 +454,12 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
                 />
                 <Input
                   type="text"
-                  placeholder={hint.apiKeyPlaceholder ?? 'Enter API key'}
+                  placeholder={isEditMode && hasStoredApiKey ? 'Stored API key' : (hint.apiKeyPlaceholder ?? 'Enter API key')}
                   value={apiKey}
-                  onChange={event => setApiKey(event.target.value)}
+                  onChange={(event) => {
+                    setApiKey(event.target.value)
+                    setHasStoredApiKey(Boolean(editData?.apiKey) && event.target.value.trim() === '')
+                  }}
                 />
               </div>
             ) : null}

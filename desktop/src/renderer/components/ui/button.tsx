@@ -7,7 +7,7 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'border-button-primary bg-button-primary text-button-primary-foreground shadow-sm hover:bg-button-primary-hover hover:shadow-md disabled:border-button-primary disabled:bg-button-primary disabled:text-button-primary-foreground disabled:opacity-70',
+        primary: 'border-button-primary bg-button-primary text-white shadow-sm hover:bg-button-primary-hover hover:text-white hover:shadow-md disabled:border-button-primary disabled:bg-button-primary disabled:text-white disabled:opacity-70',
         secondary: 'border-button-secondary-border bg-button-secondary text-button-secondary-foreground shadow-sm hover:border-border-hover hover:bg-button-secondary-hover',
         ghost: 'border-transparent bg-transparent text-muted-foreground shadow-none hover:border-border hover:bg-bg-hover hover:text-text-strong',
         tonal: 'border-button-tonal-border bg-button-tonal text-button-tonal-foreground shadow-sm hover:bg-button-tonal-hover',
@@ -37,11 +37,12 @@ export interface ButtonProps
   VariantProps<typeof buttonVariants> {}
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, type = 'button', ...props }, ref) => (
+  ({ className, variant, size, type = 'button', style, ...props }, ref) => (
     <button
       ref={ref}
       type={type}
       className={cn(buttonVariants({ variant, size }), className)}
+      style={variant === 'primary' ? { color: '#ffffff', ...style } : style}
       {...props}
     />
   ),
