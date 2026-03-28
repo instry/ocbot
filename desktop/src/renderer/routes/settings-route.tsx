@@ -22,8 +22,7 @@ export function SettingsRoute() {
     <div className="flex flex-1 overflow-hidden">
       <aside className="flex w-56 flex-col border-r border-border bg-bg-subtle/80 p-3">
         <div className="px-2 py-2">
-          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Workspace</div>
-          <h2 className="mt-1 text-base font-semibold text-text-strong">Settings</h2>
+          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Settings</div>
         </div>
         <nav className="mt-3 flex flex-1 flex-col gap-1">
           {tabs.map(({ value, label, icon: Icon }) => (
@@ -141,8 +140,8 @@ function AboutTab() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-none">
-        <CardContent className="flex flex-col items-center gap-4 p-5">
+      <Card className="-mt-2 border-transparent bg-transparent shadow-none">
+        <CardContent className="flex flex-col items-center gap-3 p-4">
           <div className="flex gap-3 text-sm">
             <a
               href="https://oc.bot"
@@ -164,7 +163,7 @@ function AboutTab() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-center">
+      <div className="-mt-3 flex justify-center">
         <Badge variant="accent">v{version}</Badge>
       </div>
     </div>
