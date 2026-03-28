@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { useUIStore } from '@/stores/ui-store'
+import { PrimaryActionButton } from '@/components/ui/primary-action-button'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -487,13 +488,11 @@ export function CronRoute() {
               <p className="text-sm text-muted-foreground">Create scheduled prompts and keep recurring work off your plate.</p>
             </div>
             <div className="ml-auto">
-              <Button
+              <PrimaryActionButton
                 onClick={openCreate}
-                variant="primary"
               >
-                <Plus className="h-4 w-4" />
                 New
-              </Button>
+              </PrimaryActionButton>
             </div>
           </div>
         </div>
@@ -774,7 +773,7 @@ export function CronRoute() {
                           variant="secondary"
                         >
                           <Play className="h-3.5 w-3.5" />
-                          Run now
+                          Run
                         </Button>
                         <Button
                           onClick={() => toggleJob(currentJob)}

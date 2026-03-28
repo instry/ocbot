@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { ProviderForm, type ConfiguredProvider } from '@/components/models/provider-form'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { PrimaryActionButton } from '@/components/ui/primary-action-button'
 import { useModelStore } from '@/stores/model-store'
 import { cn } from '@/lib/utils'
 
@@ -114,7 +115,7 @@ export function ModelsRoute() {
 
   if (view === 'add') {
     return (
-      <div className="mx-auto flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
+      <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
         <Button
           onClick={handleCancel}
           variant="ghost"
@@ -124,7 +125,7 @@ export function ModelsRoute() {
           Back to Models
         </Button>
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold text-text-strong">Add Provider</h2>
+          <h2 className="text-2xl font-semibold text-text-strong">Add</h2>
           <p className="text-sm text-muted-foreground">使用统一的表单卡片快速配置模型服务商。</p>
         </div>
         <ProviderForm onSaved={handleSaved} onCancel={handleCancel} />
@@ -134,7 +135,7 @@ export function ModelsRoute() {
 
   if (view === 'edit' && editingProvider) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
+      <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
         <Button
           onClick={handleCancel}
           variant="ghost"
@@ -158,7 +159,7 @@ export function ModelsRoute() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
+    <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="space-y-1">
         <h2 className="text-2xl font-semibold text-text-strong">Models</h2>
         <p className="text-sm text-muted-foreground">Manage your AI model providers and API keys.</p>
@@ -225,14 +226,13 @@ export function ModelsRoute() {
           })
         )}
 
-        <Card className="border-dashed bg-bg-subtle/50 shadow-none transition-colors hover:border-accent/60">
-          <button
+        <PrimaryActionButton
           onClick={() => setView('add')}
-            className="w-full rounded-2xl px-4 py-4 text-sm font-medium text-muted-foreground transition-colors hover:text-accent"
-          >
-            + Add Provider
-          </button>
-        </Card>
+          fullWidth
+          className="justify-center"
+        >
+          Add
+        </PrimaryActionButton>
       </div>
     </div>
   )

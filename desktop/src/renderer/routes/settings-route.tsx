@@ -41,12 +41,6 @@ export function SettingsRoute() {
             </Button>
           ))}
         </nav>
-        <Card className="mt-3 border-dashed bg-card/70 shadow-none">
-          <CardContent className="space-y-2 p-4">
-            <div className="text-sm font-medium text-text-strong">Desktop Theme</div>
-            <div className="text-xs leading-5 text-muted-foreground">统一采用卡片、胶囊和柔和边框层级。</div>
-          </CardContent>
-        </Card>
       </aside>
 
       <div className="flex-1 overflow-y-auto">

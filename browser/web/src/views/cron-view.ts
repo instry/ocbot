@@ -696,8 +696,8 @@ export class OcbotCronView extends LitElement {
                   class="btn btn--sm"
                   style="font-size:12px; padding:4px 10px;"
                   @click=${() => this.runJob(this.selectedJobId!)}
-                  title="Run now"
-                >Run now</button>
+                  title="Run"
+                >Run</button>
                 <button
                   class="btn btn--sm"
                   style="font-size:12px; padding:4px 10px;"

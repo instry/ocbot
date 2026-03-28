@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { Plus, Trash2, Search, X, SquarePen } from 'lucide-react'
+import { Trash2, Search, X, SquarePen } from 'lucide-react'
+import { PrimaryActionButton } from '@/components/ui/primary-action-button'
 import { useChatStore } from '@/stores/chat-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { cn } from '@/lib/utils'
@@ -135,13 +136,13 @@ export function SessionPanel() {
 
       {/* New Chat button */}
       <div className="px-3 pb-2">
-        <button
+        <PrimaryActionButton
           onClick={handleNewChat}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-accent py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent-subtle"
+          fullWidth
+          className="justify-center"
         >
-          <Plus className="h-3.5 w-3.5" />
           New Chat
-        </button>
+        </PrimaryActionButton>
       </div>
 
       {/* Session list */}
