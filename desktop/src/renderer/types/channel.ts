@@ -54,6 +54,26 @@ export interface ChannelTestResult {
   testedAt: number
 }
 
+export interface ChannelPairingRequest {
+  id: string
+  code: string
+  createdAt: string
+  lastSeenAt: string
+  meta?: Record<string, string>
+}
+
+export interface ChannelQrLoginStartResult {
+  qrDataUrl?: string
+  message: string
+  sessionKey?: string
+}
+
+export interface ChannelQrLoginWaitResult {
+  connected: boolean
+  message: string
+  accountId?: string
+}
+
 export interface ChannelInfo {
   id: ChannelPlatform
   label: string

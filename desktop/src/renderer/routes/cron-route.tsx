@@ -47,6 +47,7 @@ interface CronJob {
   enabled: boolean
   schedule: CronSchedule
   payload: CronPayload
+  delivery?: CronDelivery
   state: CronJobState
 }
 
@@ -61,6 +62,15 @@ interface CronRunEntry {
 
 type FormMode = 'create' | 'edit'
 type SimpleScheduleMode = 'daily' | 'weekdays' | 'weekly' | 'every-hours' | 'every-days' | 'once' | 'advanced'
+type CronDeliveryMode = 'announce' | 'silent' | 'none'
+
+interface CronDelivery {
+  mode?: CronDeliveryMode | string
+  channel?: string
+  to?: string
+  accountId?: string
+  bestEffort?: boolean
+}
 
 const WEEKDAY_OPTIONS = [
   { value: '1', label: 'Mon' },
@@ -82,6 +92,31 @@ const SCHEDULE_PILLS: Array<{ value: SimpleScheduleMode; label: string }> = [
   { value: 'advanced', label: 'Advanced' },
 ]
 
+const DELIVERY_MODE_OPTIONS: Array<{ value: CronDeliveryMode; label: string; description: string }> = [
+  { value: 'none', label: 'Off', description: 'Run the automation without sending the result to a chat.' },
+  { value: 'announce', label: 'Send reply', description: 'Deliver the final reply to a channel target after the run completes.' },
+  { value: 'silent', label: 'Silent', description: 'Keep delivery disabled while preserving the automation run.' },
+]
+
+function normalizeDeliveryMode(value: unknown): CronDeliveryMode {
+  return value === 'announce' || value === 'silent' || value === 'none' ? value : 'none'
+}
+
+function getDeliveryTargetPlaceholder(channel: string): string {
+  switch (channel) {
+    case 'feishu':
+      return 'user:ou_xxx 或 chat:oc_xxx'
+    case 'telegram':
+      return '123456789 或 @username'
+    case 'discord':
+      return 'channel:123456789 或 user:123456789'
+    case 'slack':
+      return 'channel:C12345678 或 user:U12345678'
+    default:
+      return '输入聊天目标'
+  }
+}
+
 export function CronRoute() {
   const client = useGatewayStore(s => s.client)
   const setTab = useUIStore(s => s.setTab)
@@ -100,6 +135,11 @@ export function CronRoute() {
   const [formDateTime, setFormDateTime] = useState('')
   const [formAdvancedCron, setFormAdvancedCron] = useState('0 9 * * *')
   const [formMessage, setFormMessage] = useState('')
+  const [formDeliveryMode, setFormDeliveryMode] = useState<CronDeliveryMode>('none')
+  const [formDeliveryChannel, setFormDeliveryChannel] = useState('feishu')
+  const [formDeliveryTarget, setFormDeliveryTarget] = useState('')
+  const [formDeliveryAccountId, setFormDeliveryAccountId] = useState('')
+  const [formDeliveryBestEffort, setFormDeliveryBestEffort] = useState(true)
   const [formSaving, setFormSaving] = useState(false)
 
   const [panelOpen, setPanelOpen] = useState(false)
@@ -258,6 +298,15 @@ export function CronRoute() {
     }
   }
 
+  const applyDeliveryToForm = (delivery?: CronDelivery) => {
+    const normalizedMode = normalizeDeliveryMode(delivery?.mode)
+    setFormDeliveryMode(normalizedMode)
+    setFormDeliveryChannel(delivery?.channel?.trim() || 'feishu')
+    setFormDeliveryTarget(delivery?.to?.trim() || '')
+    setFormDeliveryAccountId(delivery?.accountId?.trim() || '')
+    setFormDeliveryBestEffort(delivery?.bestEffort ?? true)
+  }
+
   const selectJob = (job: CronJob) => {
     setSelectedJobId(job.id)
     setFormMode('edit')
@@ -267,6 +316,7 @@ export function CronRoute() {
     setFormName(job.name ?? '')
     applyScheduleToForm(job.schedule)
     setFormMessage(job.payload?.kind === 'agentTurn' ? (job.payload.message ?? '') : (job.payload?.text ?? ''))
+    applyDeliveryToForm(job.delivery)
     setRuns([])
   }
 
@@ -284,6 +334,7 @@ export function CronRoute() {
     setFormDateTime(toLocalDateTimeInputValue(new Date(Date.now() + 60 * 60 * 1000)))
     setFormAdvancedCron('0 9 * * *')
     setFormMessage('')
+    applyDeliveryToForm()
     setRuns([])
   }
 
@@ -311,8 +362,30 @@ export function CronRoute() {
     }
   }
 
+  const buildDelivery = (forUpdate: boolean): CronDelivery | undefined => {
+    if (formDeliveryMode === 'none') {
+      return forUpdate ? { mode: 'none' } : undefined
+    }
+
+    const delivery: CronDelivery = {
+      mode: formDeliveryMode,
+      bestEffort: formDeliveryBestEffort,
+    }
+
+    const channel = formDeliveryChannel.trim()
+    const target = formDeliveryTarget.trim()
+    const accountId = formDeliveryAccountId.trim()
+
+    if (channel) delivery.channel = channel
+    if (target) delivery.to = target
+    if (accountId) delivery.accountId = accountId
+
+    return delivery
+  }
+
   const canSaveForm = () => {
     if (!formName.trim() || !formMessage.trim()) return false
+    if (formDeliveryMode === 'announce' && (!formDeliveryChannel.trim() || !formDeliveryTarget.trim())) return false
     switch (formScheduleMode) {
       case 'daily':
       case 'weekdays':
@@ -371,6 +444,7 @@ export function CronRoute() {
           name: formName.trim(),
           schedule: buildSchedule(),
           payload: { kind: 'agentTurn', message: formMessage.trim() },
+          delivery: buildDelivery(false),
           sessionTarget: 'isolated',
           wakeMode: 'now',
           enabled: true,
@@ -382,6 +456,7 @@ export function CronRoute() {
             name: formName.trim(),
             schedule: buildSchedule(),
             payload: { kind: 'agentTurn', message: formMessage.trim() },
+            delivery: buildDelivery(true),
           },
         })
       }
@@ -461,6 +536,16 @@ export function CronRoute() {
       ? (job.payload.message ?? '')
       : (job.payload?.text ?? '')
   )
+
+  const getDeliverySummary = (delivery?: CronDelivery) => {
+    const mode = normalizeDeliveryMode(delivery?.mode)
+    if (mode === 'none') return 'Delivery off'
+    if (mode === 'silent') return 'Silent run'
+    const parts = ['Send reply']
+    if (delivery?.channel) parts.push(delivery.channel)
+    if (delivery?.to) parts.push(`→ ${delivery.to}`)
+    return parts.join(' ')
+  }
 
   const getStatusTone = (job: CronJob) => {
     if (!job.enabled) return 'bg-warn'
@@ -557,6 +642,9 @@ export function CronRoute() {
                         <div className="mt-1 text-sm text-muted-foreground">{formatSchedule(job.schedule)}</div>
                         <div className="mt-3 line-clamp-2 text-xs leading-5 text-muted-foreground">
                           {getJobPrompt(job) || 'No prompt'}
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          {getDeliverySummary(job.delivery)}
                         </div>
                         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                           <span className="inline-flex items-center gap-1.5">
@@ -704,6 +792,89 @@ export function CronRoute() {
                 className="min-h-[96px] w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent"
               />
             </Field>
+
+            <div className="space-y-3 rounded-xl border border-border bg-card px-4 py-4">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Delivery</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                  定时任务默认只运行不发送结果。若要推送到飞书，请填写 channel 和 target。
+                </div>
+              </div>
+
+              <Field label="Mode">
+                <div className="grid gap-2">
+                  {DELIVERY_MODE_OPTIONS.map(option => {
+                    const active = formDeliveryMode === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setFormDeliveryMode(option.value)}
+                        className={cn(
+                          'rounded-xl border px-3 py-2 text-left transition-colors',
+                          active ? 'border-accent bg-accent-subtle/50' : 'border-border bg-bg hover:bg-bg-hover',
+                        )}
+                      >
+                        <div className="text-sm font-medium text-text-strong">{option.label}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{option.description}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </Field>
+
+              {formDeliveryMode === 'announce' && (
+                <>
+                  <Field label="Channel">
+                    <input
+                      value={formDeliveryChannel}
+                      onChange={(event) => setFormDeliveryChannel(event.target.value)}
+                      placeholder="feishu"
+                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent"
+                    />
+                  </Field>
+
+                  <Field label="Target">
+                    <input
+                      value={formDeliveryTarget}
+                      onChange={(event) => setFormDeliveryTarget(event.target.value)}
+                      placeholder={getDeliveryTargetPlaceholder(formDeliveryChannel.trim())}
+                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent"
+                    />
+                  </Field>
+
+                  {formDeliveryChannel.trim() === 'feishu' && (
+                    <div className="rounded-lg border border-border bg-bg-subtle px-3 py-2 text-xs leading-5 text-muted-foreground">
+                      Feishu 需要明确 target，格式可以是 user:openId、chat:chatId，或直接填写 chatId。
+                    </div>
+                  )}
+
+                  <Field label="Account ID">
+                    <input
+                      value={formDeliveryAccountId}
+                      onChange={(event) => setFormDeliveryAccountId(event.target.value)}
+                      placeholder="default"
+                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent"
+                    />
+                  </Field>
+
+                  <label className="flex items-start gap-3 rounded-lg border border-border bg-bg-subtle px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={formDeliveryBestEffort}
+                      onChange={(event) => setFormDeliveryBestEffort(event.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <div className="text-sm font-medium text-text-strong">Best effort</div>
+                      <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                        发送失败时仍将本次定时任务记为完成，避免因为渠道错误导致整次任务报错。
+                      </div>
+                    </div>
+                  </label>
+                </>
+              )}
+            </div>
 
             <div className="rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm text-muted-foreground">
               {getSchedulePreview()}

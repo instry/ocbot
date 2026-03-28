@@ -26,6 +26,14 @@ declare global {
     groupPolicy: OcbotChannelPolicy
   }
 
+  interface OcbotChannelPairingRequest {
+    id: string
+    code: string
+    createdAt: string
+    lastSeenAt: string
+    meta?: Record<string, string>
+  }
+
   interface OcbotBrowserProfileInfo {
     directory: string
     name: string
@@ -52,6 +60,12 @@ declare global {
       getOcbotBrowserPath: () => Promise<string>
       getChannelConfig: (platform: OcbotChannelPlatform) => Promise<OcbotChannelConfig>
       saveChannelConfig: (platform: OcbotChannelPlatform, config: OcbotChannelConfig) => Promise<OcbotChannelConfig>
+      listChannelPairingRequests: (platform: OcbotChannelPlatform) => Promise<{
+        requests: OcbotChannelPairingRequest[]
+        allowFrom: string[]
+      }>
+      approveChannelPairingCode: (platform: OcbotChannelPlatform, code: string) => Promise<{ approved: boolean }>
+      rejectChannelPairingRequest: (platform: OcbotChannelPlatform, code: string) => Promise<{ rejected: boolean }>
     }
   }
 

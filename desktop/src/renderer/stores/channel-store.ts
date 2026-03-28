@@ -1,5 +1,13 @@
 import { create } from 'zustand'
-import type { ChannelPlatform, ChannelConfig, ChannelStatus, ChannelTestResult } from '@/types/channel'
+import type {
+  ChannelPlatform,
+  ChannelConfig,
+  ChannelPairingRequest,
+  ChannelQrLoginStartResult,
+  ChannelQrLoginWaitResult,
+  ChannelStatus,
+  ChannelTestResult,
+} from '@/types/channel'
 import { useGatewayStore } from './gateway-store'
 
 type GatewayChannelsStatusResponse = {
@@ -114,9 +122,15 @@ function mapGatewayStatus(payload: GatewayChannelsStatusResponse): Partial<Recor
   return Object.fromEntries(entries)
 }
 
+function supportsQrLogin(platform: ChannelPlatform): boolean {
+  return platform === 'whatsapp' || platform === 'weixin'
+}
+
 interface ChannelStore {
   configs: Partial<Record<ChannelPlatform, ChannelConfig>>
   statuses: Partial<Record<ChannelPlatform, ChannelStatus>>
+  pairingRequests: Partial<Record<ChannelPlatform, ChannelPairingRequest[]>>
+  allowFrom: Partial<Record<ChannelPlatform, string[]>>
   selectedPlatform: ChannelPlatform | null
   loading: boolean
   error: string | null
@@ -128,11 +142,18 @@ interface ChannelStore {
   startGateway: (platform: ChannelPlatform) => Promise<void>
   stopGateway: (platform: ChannelPlatform) => Promise<void>
   testConnection: (platform: ChannelPlatform) => Promise<ChannelTestResult>
+  loadPairingRequests: (platform: ChannelPlatform) => Promise<void>
+  approvePairingCode: (platform: ChannelPlatform, code: string) => Promise<boolean>
+  rejectPairingRequest: (platform: ChannelPlatform, code: string) => Promise<boolean>
+  startQrLogin: (platform: ChannelPlatform) => Promise<ChannelQrLoginStartResult>
+  waitQrLogin: (platform: ChannelPlatform, accountId?: string) => Promise<ChannelQrLoginWaitResult>
 }
 
 export const useChannelStore = create<ChannelStore>((set, get) => ({
   configs: {},
   statuses: {},
+  pairingRequests: {},
+  allowFrom: {},
   selectedPlatform: null,
   loading: false,
   error: null,
@@ -242,6 +263,119 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const result = await client.call('channels.test', { platform }) as ChannelTestResult
+      set({ loading: false })
+      return result
+    } catch (err) {
+      set({ error: String(err), loading: false })
+      throw err
+    }
+  },
+
+  loadPairingRequests: async (platform) => {
+    try {
+      if (!window.ocbot?.listChannelPairingRequests) {
+        throw new Error('Electron pairing bridge not available')
+      }
+      const result = await window.ocbot.listChannelPairingRequests(platform)
+      set((state) => ({
+        pairingRequests: { ...state.pairingRequests, [platform]: result.requests ?? [] },
+        allowFrom: { ...state.allowFrom, [platform]: result.allowFrom ?? [] },
+      }))
+    } catch (err) {
+      set({ error: String(err) })
+    }
+  },
+
+  approvePairingCode: async (platform, code) => {
+    try {
+      set({ loading: true, error: null })
+      if (!window.ocbot?.approveChannelPairingCode) {
+        throw new Error('Electron pairing bridge not available')
+      }
+      const result = await window.ocbot.approveChannelPairingCode(platform, code)
+      if (result.approved) {
+        await get().loadPairingRequests(platform)
+        await get().loadStatuses()
+      }
+      set({ loading: false })
+      return result.approved
+    } catch (err) {
+      set({ error: String(err), loading: false })
+      return false
+    }
+  },
+
+  rejectPairingRequest: async (platform, code) => {
+    try {
+      set({ loading: true, error: null })
+      if (!window.ocbot?.rejectChannelPairingRequest) {
+        throw new Error('Electron pairing bridge not available')
+      }
+      const result = await window.ocbot.rejectChannelPairingRequest(platform, code)
+      if (result.rejected) {
+        await get().loadPairingRequests(platform)
+      }
+      set({ loading: false })
+      return result.rejected
+    } catch (err) {
+      set({ error: String(err), loading: false })
+      return false
+    }
+  },
+
+  startQrLogin: async (platform) => {
+    const client = useGatewayStore.getState().client
+    if (!client) throw new Error('Gateway client not available')
+    if (!supportsQrLogin(platform)) {
+      throw new Error('QR login is not available for this channel')
+    }
+
+    set({ loading: true, error: null })
+    try {
+      const result = await client.call<ChannelQrLoginStartResult>('web.login.start', {
+        force: true,
+        timeoutMs: 300000,
+        verbose: true,
+      }, 310000)
+      set({ loading: false })
+      return result
+    } catch (err) {
+      set({ error: String(err), loading: false })
+      throw err
+    }
+  },
+
+  waitQrLogin: async (platform, accountId) => {
+    const client = useGatewayStore.getState().client
+    if (!client) throw new Error('Gateway client not available')
+    if (!supportsQrLogin(platform)) {
+      throw new Error('QR login is not available for this channel')
+    }
+
+    set({ loading: true, error: null })
+    try {
+      const result = await client.call<ChannelQrLoginWaitResult>('web.login.wait', {
+        timeoutMs: 480000,
+        ...(accountId ? { accountId } : {}),
+      }, 490000)
+      if (result.connected) {
+        const currentConfig = get().configs[platform]
+          ?? await window.ocbot?.getChannelConfig(platform)
+        if (currentConfig && window.ocbot?.saveChannelConfig) {
+          const savedConfig = await window.ocbot.saveChannelConfig(platform, {
+            ...currentConfig,
+            enabled: true,
+            ...(result.accountId ? { accountId: result.accountId } : {}),
+          })
+          set((state) => ({
+            configs: {
+              ...state.configs,
+              [platform]: savedConfig as ChannelConfig,
+            },
+          }))
+        }
+      }
+      await get().loadStatuses()
       set({ loading: false })
       return result
     } catch (err) {

@@ -301,5 +301,22 @@ export class WindowManager {
         config: Parameters<RuntimeManager['saveChannelConfig']>[1],
       ) => this.runtimeManager.saveChannelConfig(platform, config),
     )
+    ipcMain.handle(
+      'channels:listPairingRequests',
+      async (_event, platform: Parameters<RuntimeManager['listPairingRequests']>[0]) =>
+        this.runtimeManager.listPairingRequests(platform),
+    )
+    ipcMain.handle(
+      'channels:approvePairingCode',
+      async (_event, platform: Parameters<RuntimeManager['approvePairingCode']>[0], code: string) => ({
+        approved: await this.runtimeManager.approvePairingCode(platform, code),
+      }),
+    )
+    ipcMain.handle(
+      'channels:rejectPairingRequest',
+      async (_event, platform: Parameters<RuntimeManager['rejectPairingRequest']>[0], code: string) => ({
+        rejected: this.runtimeManager.rejectPairingRequest(platform, code),
+      }),
+    )
   }
 }

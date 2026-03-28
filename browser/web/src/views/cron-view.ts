@@ -31,6 +31,7 @@ interface CronJob {
   enabled: boolean
   schedule: CronSchedule
   payload: CronPayload
+  delivery?: CronDelivery
   state: CronJobState
 }
 
@@ -45,6 +46,15 @@ interface CronRunEntry {
 
 type FormMode = 'create' | 'edit'
 type SimpleScheduleMode = 'daily' | 'weekdays' | 'weekly' | 'every-hours' | 'every-days' | 'once' | 'advanced'
+type CronDeliveryMode = 'announce' | 'silent' | 'none'
+
+interface CronDelivery {
+  mode?: CronDeliveryMode | string
+  channel?: string
+  to?: string
+  accountId?: string
+  bestEffort?: boolean
+}
 
 const WEEKDAY_OPTIONS = [
   { value: '1', label: 'Mon' },
@@ -66,6 +76,31 @@ const SCHEDULE_PILLS: Array<{ value: SimpleScheduleMode; label: string }> = [
   { value: 'advanced', label: 'Advanced' },
 ]
 
+const DELIVERY_MODE_OPTIONS: Array<{ value: CronDeliveryMode; label: string; description: string }> = [
+  { value: 'none', label: 'Off', description: 'Run the automation without sending the result to a chat.' },
+  { value: 'announce', label: 'Send reply', description: 'Deliver the final reply to a channel target after the run completes.' },
+  { value: 'silent', label: 'Silent', description: 'Keep delivery disabled while preserving the automation run.' },
+]
+
+function normalizeDeliveryMode(value: unknown): CronDeliveryMode {
+  return value === 'announce' || value === 'silent' || value === 'none' ? value : 'none'
+}
+
+function getDeliveryTargetPlaceholder(channel: string): string {
+  switch (channel) {
+    case 'feishu':
+      return 'user:ou_xxx or chat:oc_xxx'
+    case 'telegram':
+      return '123456789 or @username'
+    case 'discord':
+      return 'channel:123456789 or user:123456789'
+    case 'slack':
+      return 'channel:C12345678 or user:U12345678'
+    default:
+      return 'Enter target'
+  }
+}
+
 @customElement('ocbot-cron-view')
 export class OcbotCronView extends LitElement {
   override createRenderRoot() { return this }
@@ -86,6 +121,11 @@ export class OcbotCronView extends LitElement {
   @state() private formDateTime = ''
   @state() private formAdvancedCron = '0 9 * * *'
   @state() private formMessage = ''
+  @state() private formDeliveryMode: CronDeliveryMode = 'none'
+  @state() private formDeliveryChannel = 'feishu'
+  @state() private formDeliveryTarget = ''
+  @state() private formDeliveryAccountId = ''
+  @state() private formDeliveryBestEffort = true
   @state() private formSaving = false
 
   @state() private panelOpen = false
@@ -166,6 +206,7 @@ export class OcbotCronView extends LitElement {
           name: this.formName.trim(),
           schedule: this.buildSchedule(),
           payload: { kind: 'agentTurn', message: this.formMessage.trim() },
+          delivery: this.buildDelivery(false),
           sessionTarget: 'isolated',
           wakeMode: 'now',
           enabled: true,
@@ -177,6 +218,7 @@ export class OcbotCronView extends LitElement {
             name: this.formName.trim(),
             schedule: this.buildSchedule(),
             payload: { kind: 'agentTurn', message: this.formMessage.trim() },
+            delivery: this.buildDelivery(true),
           },
         })
       }
@@ -219,6 +261,7 @@ export class OcbotCronView extends LitElement {
     this.applyScheduleToForm(job.schedule)
     const p = job.payload
     this.formMessage = p?.kind === 'agentTurn' ? (p.message ?? '') : (p?.text ?? '')
+    this.applyDeliveryToForm(job.delivery)
     this.runs = []
   }
 
@@ -236,6 +279,7 @@ export class OcbotCronView extends LitElement {
     this.formDateTime = this.toLocalDateTimeInputValue(new Date(Date.now() + 60 * 60 * 1000))
     this.formAdvancedCron = '0 9 * * *'
     this.formMessage = ''
+    this.applyDeliveryToForm()
     this.runs = []
   }
 
@@ -334,8 +378,38 @@ export class OcbotCronView extends LitElement {
     }
   }
 
+  private applyDeliveryToForm(delivery?: CronDelivery) {
+    this.formDeliveryMode = normalizeDeliveryMode(delivery?.mode)
+    this.formDeliveryChannel = delivery?.channel?.trim() || 'feishu'
+    this.formDeliveryTarget = delivery?.to?.trim() || ''
+    this.formDeliveryAccountId = delivery?.accountId?.trim() || ''
+    this.formDeliveryBestEffort = delivery?.bestEffort ?? true
+  }
+
+  private buildDelivery(forUpdate: boolean): CronDelivery | undefined {
+    if (this.formDeliveryMode === 'none') {
+      return forUpdate ? { mode: 'none' } : undefined
+    }
+
+    const delivery: CronDelivery = {
+      mode: this.formDeliveryMode,
+      bestEffort: this.formDeliveryBestEffort,
+    }
+
+    const channel = this.formDeliveryChannel.trim()
+    const target = this.formDeliveryTarget.trim()
+    const accountId = this.formDeliveryAccountId.trim()
+
+    if (channel) delivery.channel = channel
+    if (target) delivery.to = target
+    if (accountId) delivery.accountId = accountId
+
+    return delivery
+  }
+
   private canSaveForm() {
     if (!this.formName.trim() || !this.formMessage.trim()) return false
+    if (this.formDeliveryMode === 'announce' && (!this.formDeliveryChannel.trim() || !this.formDeliveryTarget.trim())) return false
     switch (this.formScheduleMode) {
       case 'daily':
       case 'weekdays':
@@ -424,10 +498,14 @@ export class OcbotCronView extends LitElement {
     "></span>`
   }
 
-  private getJobPrompt(job: CronJob) {
-    return job.payload?.kind === 'agentTurn'
-      ? (job.payload.message ?? '')
-      : (job.payload?.text ?? '')
+  private getDeliverySummary(delivery?: CronDelivery) {
+    const mode = normalizeDeliveryMode(delivery?.mode)
+    if (mode === 'none') return 'Delivery off'
+    if (mode === 'silent') return 'Silent run'
+    const parts = ['Send reply']
+    if (delivery?.channel) parts.push(delivery.channel)
+    if (delivery?.to) parts.push(`→ ${delivery.to}`)
+    return parts.join(' ')
   }
 
   // ── Render: Job list (left column) ────────────────
@@ -481,6 +559,9 @@ export class OcbotCronView extends LitElement {
                   </div>
                   <div style="font-size:12px; color:var(--muted); margin-top:3px;">
                     ${this.formatSchedule(job.schedule)}
+                  </div>
+                  <div style="font-size:12px; color:var(--muted); margin-top:4px;">
+                    ${this.getDeliverySummary(job.delivery)}
                   </div>
                 </div>
               </div>
@@ -647,6 +728,82 @@ export class OcbotCronView extends LitElement {
               .value=${this.formMessage}
               @input=${(e: Event) => { this.formMessage = (e.target as HTMLTextAreaElement).value }}
             ></textarea>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:10px; border:1px solid var(--border); border-radius:var(--radius-lg); padding:12px; background:var(--card);">
+            <div>
+              <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);">Delivery</div>
+              <div style="margin-top:4px; font-size:12px; color:var(--muted); line-height:1.6;">
+                Cron jobs normally just run. To send the final reply to Feishu, provide both a channel and a target.
+              </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              ${DELIVERY_MODE_OPTIONS.map(option => {
+                const active = this.formDeliveryMode === option.value
+                return html`
+                  <button
+                    style="
+                      padding:10px 12px; border-radius:12px; text-align:left; cursor:pointer;
+                      border:1px solid ${active ? 'var(--accent, #7c3aed)' : 'var(--border)'};
+                      background:${active ? 'var(--accent-subtle, rgba(124,58,237,0.08))' : 'var(--bg)'};
+                      color:var(--text);
+                    "
+                    @click=${() => { this.formDeliveryMode = option.value }}
+                  >
+                    <div style="font-size:13px; font-weight:500; color:var(--text-strong);">${option.label}</div>
+                    <div style="margin-top:4px; font-size:12px; line-height:1.5; color:var(--muted);">${option.description}</div>
+                  </button>
+                `
+              })}
+            </div>
+
+            ${this.formDeliveryMode === 'announce' ? html`
+              <div>
+                <div style="${labelStyle}">Channel</div>
+                <input
+                  style="${inputStyle}"
+                  placeholder="feishu"
+                  .value=${this.formDeliveryChannel}
+                  @input=${(e: Event) => { this.formDeliveryChannel = (e.target as HTMLInputElement).value }}
+                />
+              </div>
+
+              <div>
+                <div style="${labelStyle}">Target</div>
+                <input
+                  style="${inputStyle}"
+                  placeholder=${getDeliveryTargetPlaceholder(this.formDeliveryChannel.trim())}
+                  .value=${this.formDeliveryTarget}
+                  @input=${(e: Event) => { this.formDeliveryTarget = (e.target as HTMLInputElement).value }}
+                />
+              </div>
+
+              ${this.formDeliveryChannel.trim() === 'feishu' ? html`
+                <div style="font-size:12px; color:var(--muted); line-height:1.6; border:1px solid var(--border); border-radius:var(--radius-md); padding:8px 10px; background:var(--bg);">
+                  Feishu needs an explicit target, such as user:openId, chat:chatId, or a raw chatId.
+                </div>
+              ` : nothing}
+
+              <div>
+                <div style="${labelStyle}">Account ID</div>
+                <input
+                  style="${inputStyle}"
+                  placeholder="default"
+                  .value=${this.formDeliveryAccountId}
+                  @input=${(e: Event) => { this.formDeliveryAccountId = (e.target as HTMLInputElement).value }}
+                />
+              </div>
+
+              <label style="display:flex; gap:10px; align-items:flex-start; font-size:12px; color:var(--muted); border:1px solid var(--border); border-radius:var(--radius-md); padding:10px; background:var(--bg);">
+                <input
+                  type="checkbox"
+                  .checked=${this.formDeliveryBestEffort}
+                  @change=${(e: Event) => { this.formDeliveryBestEffort = (e.target as HTMLInputElement).checked }}
+                />
+                <span>Best effort: keep the cron run successful even if channel delivery fails.</span>
+              </label>
+            ` : nothing}
           </div>
 
           <!-- Schedule preview -->

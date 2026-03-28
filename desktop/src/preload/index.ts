@@ -24,4 +24,10 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('channels:getConfig', platform),
   saveChannelConfig: (platform: string, config: unknown) =>
     ipcRenderer.invoke('channels:saveConfig', platform, config),
+  listChannelPairingRequests: (platform: string) =>
+    ipcRenderer.invoke('channels:listPairingRequests', platform),
+  approveChannelPairingCode: (platform: string, code: string) =>
+    ipcRenderer.invoke('channels:approvePairingCode', platform, code),
+  rejectChannelPairingRequest: (platform: string, code: string) =>
+    ipcRenderer.invoke('channels:rejectPairingRequest', platform, code),
 })

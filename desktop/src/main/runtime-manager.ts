@@ -56,6 +56,14 @@ type DesktopChannelConfig = {
   groupPolicy: DesktopChannelPolicy
 }
 
+type DesktopPairingRequest = {
+  id: string
+  code: string
+  createdAt: string
+  lastSeenAt: string
+  meta?: Record<string, string>
+}
+
 type ChannelConfigMap = {
   channelKey: string
   credentials: Partial<Record<keyof DesktopChannelConfig, string>>
@@ -68,6 +76,8 @@ const DEFAULT_CHANNEL_CONFIG: DesktopChannelConfig = {
   dmPolicy: 'open',
   groupPolicy: 'open',
 }
+
+const PAIRING_PENDING_TTL_MS = 3_600_000
 
 const CHANNEL_CONFIG_MAP: Record<DesktopChannelPlatform, ChannelConfigMap> = {
   feishu: {
@@ -155,12 +165,16 @@ export class RuntimeManager {
     fs.mkdirSync(this.logsDir, { recursive: true })
 
     const runtime = this.resolveRuntime()
+    if (runtime.root) {
+      this.applyRuntimePatches(runtime.root)
+    }
     this._status = runtime.root ? 'ready' : 'not_installed'
   }
 
   get status(): EngineStatus { return this._status }
   get gatewayPort(): number | null { return this.port }
   get gatewayToken(): string | null { return this.readToken() }
+  getStateDir(): string { return this.stateDir }
 
   getChannelConfig(platform: DesktopChannelPlatform): DesktopChannelConfig {
     this.ensureConfig()
@@ -229,6 +243,64 @@ export class RuntimeManager {
     return this.getChannelConfig(platform)
   }
 
+  listPairingRequests(platform: DesktopChannelPlatform): {
+    requests: DesktopPairingRequest[]
+    allowFrom: string[]
+  } {
+    const channelKey = CHANNEL_CONFIG_MAP[platform].channelKey
+    const requests = this.readPairingFile(channelKey).filter((request) => {
+      const createdAt = new Date(request.createdAt).getTime()
+      return !Number.isNaN(createdAt) && Date.now() - createdAt < PAIRING_PENDING_TTL_MS
+    })
+
+    return {
+      requests,
+      allowFrom: this.readAllowFromFile(channelKey),
+    }
+  }
+
+  async approvePairingCode(platform: DesktopChannelPlatform, code: string): Promise<boolean> {
+    const channelKey = CHANNEL_CONFIG_MAP[platform].channelKey
+    const requests = this.readPairingFile(channelKey)
+    const normalizedCode = code.trim().toUpperCase()
+    const requestIndex = requests.findIndex(request => request.code === normalizedCode)
+
+    if (requestIndex === -1) {
+      return false
+    }
+
+    const [approved] = requests.splice(requestIndex, 1)
+    this.writePairingFile(channelKey, requests)
+
+    const accountId = this.readString(approved.meta?.accountId)
+    const allowFrom = this.readAllowFromFile(channelKey, accountId)
+    if (!allowFrom.includes(approved.id)) {
+      allowFrom.push(approved.id)
+      this.writeAllowFromFile(channelKey, allowFrom, accountId)
+    }
+
+    if (this.status === 'running') {
+      await this.restart()
+    }
+
+    return true
+  }
+
+  rejectPairingRequest(platform: DesktopChannelPlatform, code: string): boolean {
+    const channelKey = CHANNEL_CONFIG_MAP[platform].channelKey
+    const requests = this.readPairingFile(channelKey)
+    const normalizedCode = code.trim().toUpperCase()
+    const requestIndex = requests.findIndex(request => request.code === normalizedCode)
+
+    if (requestIndex === -1) {
+      return false
+    }
+
+    requests.splice(requestIndex, 1)
+    this.writePairingFile(channelKey, requests)
+    return true
+  }
+
   /**
    * Start the gateway. Returns the port it's running on.
    */
@@ -239,6 +311,7 @@ export class RuntimeManager {
       this._status = 'not_installed'
       throw new Error('OpenClaw runtime not found')
     }
+    this.applyRuntimePatches(runtime.root)
 
     // If already running and healthy, return early
     if (this.gateway && this.port) {
@@ -328,6 +401,11 @@ export class RuntimeManager {
     this._status = 'ready'
   }
 
+  async restart(): Promise<number> {
+    this.stop()
+    return await this.start()
+  }
+
   // --- Runtime resolution ---
 
   private resolveRuntime(): RuntimeInfo {
@@ -366,6 +444,34 @@ export class RuntimeManager {
       if (fs.existsSync(c)) return c
     }
     return null
+  }
+
+  private applyRuntimePatches(root: string): void {
+    this.patchWeixinGatewayMethods(root)
+  }
+
+  private patchWeixinGatewayMethods(root: string): void {
+    const filePath = path.join(root, 'extensions', 'openclaw-weixin', 'src', 'channel.ts')
+    if (!fs.existsSync(filePath)) {
+      return
+    }
+
+    const source = fs.readFileSync(filePath, 'utf8')
+    if (source.includes('gatewayMethods')) {
+      return
+    }
+
+    const marker = 'configSchema: {'
+    const index = source.indexOf(marker)
+    if (index === -1) {
+      return
+    }
+
+    const nextSource = source.slice(0, index)
+      + 'gatewayMethods: ["web.login.start", "web.login.wait"],\n  '
+      + source.slice(index)
+
+    fs.writeFileSync(filePath, nextSource, 'utf8')
   }
 
   // --- Config & Token ---
@@ -422,10 +528,7 @@ export class RuntimeManager {
   }
 
   private writeConfigObject(config: Record<string, unknown>): void {
-    const content = JSON.stringify(config, null, 2) + '\n'
-    const tmpPath = `${this.configPath}.tmp-${Date.now()}`
-    fs.writeFileSync(tmpPath, content, 'utf8')
-    fs.renameSync(tmpPath, this.configPath)
+    this.atomicWriteJson(this.configPath, config)
   }
 
   private readString(value: unknown): string {
@@ -451,6 +554,81 @@ export class RuntimeManager {
 
   private hasNestedDmPolicy(channelConfig: Record<string, unknown>): boolean {
     return isRecord(channelConfig.dm)
+  }
+
+  private resolveCredentialsDir(): string {
+    return path.join(this.stateDir, 'credentials')
+  }
+
+  private resolvePairingPath(channelKey: string): string {
+    return path.join(this.resolveCredentialsDir(), `${this.safeChannelKey(channelKey)}-pairing.json`)
+  }
+
+  private resolveAllowFromPath(channelKey: string, accountId?: string): string {
+    const base = this.safeChannelKey(channelKey)
+    const normalizedAccountId = typeof accountId === 'string' ? accountId.trim().toLowerCase() : ''
+    if (!normalizedAccountId || normalizedAccountId === 'default') {
+      return path.join(this.resolveCredentialsDir(), `${base}-allowFrom.json`)
+    }
+
+    const safeAccountId = normalizedAccountId.replace(/[\\/:*?"<>|]/g, '_').replace(/\.\./g, '_')
+    return path.join(this.resolveCredentialsDir(), `${base}-${safeAccountId}-allowFrom.json`)
+  }
+
+  private safeChannelKey(channelKey: string): string {
+    const normalized = channelKey.trim().toLowerCase().replace(/[\\/:*?"<>|]/g, '_').replace(/\.\./g, '_')
+    if (!normalized || normalized === '_') {
+      throw new Error('Invalid pairing channel')
+    }
+    return normalized
+  }
+
+  private readPairingFile(channelKey: string): DesktopPairingRequest[] {
+    const file = this.readJsonFile<{ version: number; requests: DesktopPairingRequest[] }>(
+      this.resolvePairingPath(channelKey),
+      { version: 1, requests: [] },
+    )
+
+    return Array.isArray(file.requests) ? file.requests : []
+  }
+
+  private writePairingFile(channelKey: string, requests: DesktopPairingRequest[]): void {
+    this.atomicWriteJson(this.resolvePairingPath(channelKey), {
+      version: 1,
+      requests,
+    })
+  }
+
+  private readAllowFromFile(channelKey: string, accountId?: string): string[] {
+    const file = this.readJsonFile<{ version: number; allowFrom: string[] }>(
+      this.resolveAllowFromPath(channelKey, accountId),
+      { version: 1, allowFrom: [] },
+    )
+
+    return Array.isArray(file.allowFrom) ? file.allowFrom.filter(value => typeof value === 'string') : []
+  }
+
+  private writeAllowFromFile(channelKey: string, allowFrom: string[], accountId?: string): void {
+    this.atomicWriteJson(this.resolveAllowFromPath(channelKey, accountId), {
+      version: 1,
+      allowFrom,
+    })
+  }
+
+  private readJsonFile<T>(filePath: string, fallback: T): T {
+    try {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T
+    } catch {
+      return fallback
+    }
+  }
+
+  private atomicWriteJson(filePath: string, value: unknown): void {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true })
+    const content = JSON.stringify(value, null, 2) + '\n'
+    const tmpPath = `${filePath}.tmp-${Date.now()}`
+    fs.writeFileSync(tmpPath, content, 'utf8')
+    fs.renameSync(tmpPath, filePath)
   }
 
   private ensureToken(): string {

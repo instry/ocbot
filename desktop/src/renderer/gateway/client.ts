@@ -107,7 +107,7 @@ export class GatewayClient {
   }
 
   /** Send an RPC request. Returns the response payload. */
-  async call<T = unknown>(method: string, params?: unknown): Promise<T> {
+  async call<T = unknown>(method: string, params?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('gateway not connected')
     }
@@ -117,7 +117,7 @@ export class GatewayClient {
       const timer = setTimeout(() => {
         this.pending.delete(id)
         reject(new Error(`gateway request '${method}' timed out`))
-      }, REQUEST_TIMEOUT_MS)
+      }, timeoutMs)
 
       this.pending.set(id, {
         resolve: resolve as (v: unknown) => void,
