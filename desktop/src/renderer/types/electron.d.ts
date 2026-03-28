@@ -16,6 +16,7 @@ declare global {
     enabled: boolean
     appId?: string
     appSecret?: string
+    domain?: string
     botToken?: string
     clientId?: string
     clientSecret?: string
@@ -60,6 +61,23 @@ declare global {
       getOcbotBrowserPath: () => Promise<string>
       getChannelConfig: (platform: OcbotChannelPlatform) => Promise<OcbotChannelConfig>
       supportsChannelQrLogin: (platform: OcbotChannelPlatform) => Promise<boolean>
+      startFeishuInstallQrcode: (isLark: boolean) => Promise<{
+        url: string
+        deviceCode: string
+        interval: number
+        expireIn: number
+      }>
+      pollFeishuInstall: (deviceCode: string) => Promise<{
+        done: boolean
+        appId?: string
+        appSecret?: string
+        domain?: string
+        error?: string
+      }>
+      verifyFeishuCredentials: (appId: string, appSecret: string) => Promise<{
+        success: boolean
+        error?: string
+      }>
       saveChannelConfig: (platform: OcbotChannelPlatform, config: OcbotChannelConfig) => Promise<OcbotChannelConfig>
       listChannelPairingRequests: (platform: OcbotChannelPlatform) => Promise<{
         requests: OcbotChannelPairingRequest[]

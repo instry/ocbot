@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('channels:getConfig', platform),
   supportsChannelQrLogin: (platform: string) =>
     ipcRenderer.invoke('channels:supportsQrLogin', platform),
+  startFeishuInstallQrcode: (isLark: boolean) =>
+    ipcRenderer.invoke('channels:feishuInstallQrcode', isLark),
+  pollFeishuInstall: (deviceCode: string) =>
+    ipcRenderer.invoke('channels:feishuInstallPoll', deviceCode),
+  verifyFeishuCredentials: (appId: string, appSecret: string) =>
+    ipcRenderer.invoke('channels:feishuVerifyCredentials', appId, appSecret),
   saveChannelConfig: (platform: string, config: unknown) =>
     ipcRenderer.invoke('channels:saveConfig', platform, config),
   listChannelPairingRequests: (platform: string) =>

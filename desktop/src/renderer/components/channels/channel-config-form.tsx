@@ -13,6 +13,7 @@ const PLATFORM_FIELDS: Record<ChannelPlatform, Array<{ key: keyof ChannelConfig;
   feishu: [
     { key: 'appId', label: 'App ID' },
     { key: 'appSecret', label: 'App Secret', type: 'password' },
+    { key: 'domain', label: 'Domain' },
   ],
   dingtalk: [
     { key: 'clientId', label: 'Client ID' },
@@ -75,4 +76,3 @@ export function ChannelConfigForm({ platform, config, onChange, className }: Cha
     </div>
   )
 }
-

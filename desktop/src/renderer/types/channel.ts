@@ -20,6 +20,7 @@ export interface ChannelConfig {
   enabled: boolean
   appId?: string
   appSecret?: string
+  domain?: string
   botToken?: string
   clientId?: string
   clientSecret?: string
@@ -85,7 +86,7 @@ export const CHANNEL_PLATFORMS: ChannelInfo[] = [
   { id: 'feishu', label: 'Feishu', desc: 'Feishu/Lark messaging platform' },
   { id: 'dingtalk', label: 'DingTalk', desc: 'DingTalk messaging platform' },
   { id: 'wecom', label: 'WeCom', desc: 'WeChat Work' },
-  { id: 'weixin', label: 'Weixin', desc: 'WeChat' },
+  { id: 'weixin', label: 'WeChat', desc: 'WeChat' },
   { id: 'qq', label: 'QQ', desc: 'QQ Bot' },
   { id: 'telegram', label: 'Telegram', desc: 'Telegram Bot' },
   { id: 'discord', label: 'Discord', desc: 'Discord Bot' },

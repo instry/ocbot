@@ -17,6 +17,29 @@ import path from 'node:path'
 
 type GatewayProcess = UtilityProcess | ChildProcess
 
+type FeishuAuthModule = {
+  FeishuAuth: new (...args: unknown[]) => {
+    setDomain: (isLark: boolean) => void
+    init: () => Promise<void>
+    begin: () => Promise<{
+      verification_uri_complete: string
+      device_code: string
+      interval?: number
+      expire_in?: number
+    }>
+    poll: (deviceCode: string) => Promise<{
+      error?: string
+      error_description?: string
+      client_id?: string
+      client_secret?: string
+      user_info?: {
+        tenant_brand?: string
+      }
+    }>
+  }
+  validateAppCredentials: (appId: string, appSecret: string) => Promise<boolean>
+}
+
 type RuntimeInfo = {
   root: string | null
   version: string | null
@@ -46,6 +69,7 @@ type DesktopChannelConfig = {
   enabled: boolean
   appId?: string
   appSecret?: string
+  domain?: string
   botToken?: string
   clientId?: string
   clientSecret?: string
@@ -133,6 +157,8 @@ export class RuntimeManager {
   private healthTimer: ReturnType<typeof setInterval> | null = null
   private shutdownRequested = false
   private weixinPluginEnsurePromise: Promise<boolean> | null = null
+  private feishuInstallIsLark = false
+  private feishuAuthModulePromise: Promise<FeishuAuthModule> | null = null
 
   constructor() {
     if (app.isPackaged) {
@@ -200,6 +226,13 @@ export class RuntimeManager {
       }
     }
 
+    if (platform === 'feishu') {
+      const domain = this.readString(rawChannel.domain)
+      if (domain) {
+        nextConfig.domain = domain
+      }
+    }
+
     return nextConfig
   }
 
@@ -238,6 +271,15 @@ export class RuntimeManager {
       }
     }
 
+    if (platform === 'feishu') {
+      const domain = typeof nextConfig.domain === 'string' ? nextConfig.domain.trim() : ''
+      if (domain) {
+        nextChannel.domain = domain
+      } else {
+        delete nextChannel.domain
+      }
+    }
+
     channels[mapping.channelKey] = nextChannel
     config.channels = channels
     this.writeConfigObject(config)
@@ -246,6 +288,10 @@ export class RuntimeManager {
 
   async supportsChannelQrLogin(platform: DesktopChannelPlatform): Promise<boolean> {
     if (platform === 'whatsapp') {
+      return true
+    }
+
+    if (platform === 'feishu') {
       return true
     }
 
@@ -260,6 +306,78 @@ export class RuntimeManager {
 
     this.applyRuntimePatches(runtime.root)
     return await this.ensureWeixinPluginReady(runtime.root)
+  }
+
+  async startFeishuInstallQrcode(isLark: boolean): Promise<{
+    url: string
+    deviceCode: string
+    interval: number
+    expireIn: number
+  }> {
+    const { FeishuAuth } = await this.getFeishuAuthModule()
+    this.feishuInstallIsLark = isLark
+    const auth = new FeishuAuth()
+    auth.setDomain(isLark)
+    await auth.init()
+    const response = await auth.begin()
+    return {
+      url: response.verification_uri_complete,
+      deviceCode: response.device_code,
+      interval: response.interval ?? 5,
+      expireIn: response.expire_in ?? 300,
+    }
+  }
+
+  async pollFeishuInstall(deviceCode: string): Promise<{
+    done: boolean
+    appId?: string
+    appSecret?: string
+    domain?: string
+    error?: string
+  }> {
+    const { FeishuAuth } = await this.getFeishuAuthModule()
+    const auth = new FeishuAuth()
+    auth.setDomain(this.feishuInstallIsLark)
+    const response = await auth.poll(deviceCode)
+
+    if (response.error) {
+      if (response.error === 'authorization_pending' || response.error === 'slow_down') {
+        return { done: false }
+      }
+      return {
+        done: false,
+        error: response.error_description || response.error,
+      }
+    }
+
+    if (response.client_id && response.client_secret) {
+      return {
+        done: true,
+        appId: response.client_id,
+        appSecret: response.client_secret,
+        domain: response.user_info?.tenant_brand === 'lark' ? 'lark' : 'feishu',
+      }
+    }
+
+    return { done: false }
+  }
+
+  async verifyFeishuCredentials(appId: string, appSecret: string): Promise<{
+    success: boolean
+    error?: string
+  }> {
+    const { validateAppCredentials } = await this.getFeishuAuthModule()
+    try {
+      const valid = await validateAppCredentials(appId, appSecret)
+      return valid
+        ? { success: true }
+        : { success: false, error: 'Failed to verify Feishu credentials' }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
   }
 
   listPairingRequests(platform: DesktopChannelPlatform): {
@@ -464,6 +582,13 @@ export class RuntimeManager {
       if (fs.existsSync(c)) return c
     }
     return null
+  }
+
+  private async getFeishuAuthModule(): Promise<FeishuAuthModule> {
+    if (!this.feishuAuthModulePromise) {
+      this.feishuAuthModulePromise = import('@larksuite/openclaw-lark-tools/dist/utils/feishu-auth.js') as unknown as Promise<FeishuAuthModule>
+    }
+    return await this.feishuAuthModulePromise
   }
 
   private applyRuntimePatches(root: string): void {

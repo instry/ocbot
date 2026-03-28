@@ -299,6 +299,18 @@ export class WindowManager {
         this.runtimeManager.supportsChannelQrLogin(platform),
     )
     ipcMain.handle(
+      'channels:feishuInstallQrcode',
+      async (_event, isLark: boolean) => this.runtimeManager.startFeishuInstallQrcode(isLark),
+    )
+    ipcMain.handle(
+      'channels:feishuInstallPoll',
+      async (_event, deviceCode: string) => this.runtimeManager.pollFeishuInstall(deviceCode),
+    )
+    ipcMain.handle(
+      'channels:feishuVerifyCredentials',
+      async (_event, appId: string, appSecret: string) => this.runtimeManager.verifyFeishuCredentials(appId, appSecret),
+    )
+    ipcMain.handle(
       'channels:saveConfig',
       async (
         _event,
