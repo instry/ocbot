@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
-import { Check, Globe, Info, Mail, Monitor, Moon, Sliders, Sun } from 'lucide-react'
+import { ChevronDown, Globe, Info, Mail, Monitor, Sliders } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SelectionGroup } from '@/components/ui/selection-group'
 import { cn } from '@/lib/utils'
-import { useUIStore } from '@/stores/ui-store'
-import type { ThemeMode } from '@/stores/ui-store'
 
 type SettingsTab = 'general' | 'browser' | 'about'
 type BrowserChoice = 'ocbot' | 'system' | 'custom'
@@ -47,7 +45,6 @@ function resolveSelectedProfile(
 
 export function SettingsRoute() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
-  const { themeMode, setThemeMode } = useUIStore()
   const [browserChoice, setBrowserChoice] = useState<BrowserChoice>('system')
   const [customBrowserPath, setCustomBrowserPath] = useState('')
   const [selectedProfileKey, setSelectedProfileKey] = useState('')
@@ -268,7 +265,7 @@ export function SettingsRoute() {
       </aside>
 
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'general' && <GeneralTab themeMode={themeMode} setThemeMode={setThemeMode} />}
+        {activeTab === 'general' && <GeneralTab />}
         {activeTab === 'browser' && (
           <BrowserTab
             browserChoice={browserChoice}
@@ -294,47 +291,12 @@ export function SettingsRoute() {
   )
 }
 
-function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThemeMode: (mode: ThemeMode) => void }) {
-  const appearanceOptions = [
-    {
-      value: 'light' as const,
-      label: 'Light',
-      icon: <Sun className="h-4 w-4" />,
-    },
-    {
-      value: 'dark' as const,
-      label: 'Dark',
-      icon: <Moon className="h-4 w-4" />,
-    },
-  ]
-
+function GeneralTab() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <div className="space-y-1">
         <h2 className="text-2xl font-semibold text-text-strong">General</h2>
-        <p className="text-sm text-muted-foreground">管理桌面端的外观和基础体验。</p>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Appearance</CardTitle>
-          <CardDescription>Choose your preferred theme.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm font-medium text-text-strong">Color Scheme</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Switch between light and dark mode.</div>
-            </div>
-            <SelectionGroup
-              value={themeMode}
-              options={appearanceOptions}
-              onChange={setThemeMode}
-              size="compact"
-            />
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
@@ -405,26 +367,29 @@ function BrowserTab({
           </CardHeader>
           <CardContent className="space-y-3">
             {browserProfiles.length > 0 ? (
-              <select
-                value={selectedProfileKey}
-                onChange={(event) => setSelectedProfileKey(event.target.value)}
-                disabled={browserSaving || browserLoading}
-                className="w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm text-text shadow-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">Auto-detect</option>
-                {browserProfiles.map((browser) => (
-                  <optgroup
-                    key={browser.browser.kind}
-                    label={browser.browser.kind.charAt(0).toUpperCase() + browser.browser.kind.slice(1)}
-                  >
-                    {browser.profiles.map((profile) => (
-                      <option key={`${browser.browser.kind}:${profile.directory}`} value={`${browser.browser.kind}:${profile.directory}`}>
-                        {profile.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={selectedProfileKey}
+                  onChange={(event) => setSelectedProfileKey(event.target.value)}
+                  disabled={browserSaving || browserLoading}
+                  className="w-full appearance-none rounded-xl border border-border bg-bg px-3 py-2 pr-11 text-sm text-text shadow-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Auto-detect</option>
+                  {browserProfiles.map((browser) => (
+                    <optgroup
+                      key={browser.browser.kind}
+                      label={browser.browser.kind.charAt(0).toUpperCase() + browser.browser.kind.slice(1)}
+                    >
+                      {browser.profiles.map((profile) => (
+                        <option key={`${browser.browser.kind}:${profile.directory}`} value={`${browser.browser.kind}:${profile.directory}`}>
+                          {profile.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
             ) : (
               <div className="rounded-xl border border-border bg-bg-subtle/60 px-3 py-2 text-sm text-muted-foreground">
                 No local Chromium profiles were detected. The agent will use the system browser without attaching to a saved profile.
@@ -434,21 +399,32 @@ function BrowserTab({
         </Card>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="secondary" onClick={onRefresh} disabled={browserSaving}>
+      <div className="mt-2 flex flex-wrap items-center justify-start gap-3 border-t border-border/80 pt-4">
+        <Button variant="ghost" size="md" className="min-w-[108px]" onClick={onRefresh} disabled={browserSaving}>
           Refresh
         </Button>
-        <Button variant="secondary" onClick={onCancel} disabled={browserSaving || !browserDirty}>
+        <Button
+          variant="secondary"
+          size="md"
+          className="min-w-[108px]"
+          onClick={onCancel}
+          disabled={browserSaving || !browserDirty}
+        >
           Cancel
         </Button>
-        <Button variant="primary" onClick={onSave} disabled={browserSaveDisabled}>
+        <Button
+          variant="primary"
+          size="md"
+          className="min-w-[116px] text-white hover:text-white disabled:text-white disabled:opacity-90"
+          onClick={onSave}
+          disabled={browserSaveDisabled}
+        >
           {browserSaving ? 'Saving...' : 'Save'}
         </Button>
         {browserSaveSuccess ? (
-          <div className="inline-flex items-center gap-1.5 text-sm font-medium text-ok">
-            <Check className="h-4 w-4" />
+          <Badge variant="accent">
             Saved
-          </div>
+          </Badge>
         ) : null}
       </div>
     </div>
