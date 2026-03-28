@@ -151,6 +151,15 @@ export function ModelsRoute() {
     setEditingProvider(null)
   }
 
+  async function setDefaultProvider(provider: ProviderWithModels) {
+    if (provider.isDefault) return
+
+    const firstModelId = provider.models[0]?.id ?? provider.modelId
+    if (!firstModelId) return
+
+    await setDefaultModel(provider.provider, firstModelId)
+  }
+
   async function setDefaultModel(provider: string, modelId: string) {
     const nextModelKey = `${provider}/${modelId}`
     setSwitchingModelKey(nextModelKey)
@@ -241,13 +250,22 @@ export function ModelsRoute() {
           providers.map(p => {
             const initials = p.label.slice(0, 2).toUpperCase()
             const isDefaultProfileKey = p.profileKey === `${p.provider}:default`
+            const providerModelKey = `${p.provider}/${p.models[0]?.id ?? p.modelId ?? ''}`
+            const isSwitchingProvider = Boolean(providerModelKey && switchingModelKey === providerModelKey)
             return (
               <Card
                 key={p.profileKey}
                 className={cn(
-                  'bg-bg-subtle/60 shadow-none',
+                  'bg-bg-subtle/60 shadow-none transition-colors',
+                  !p.isDefault && 'cursor-pointer hover:border-border-hover hover:bg-bg-hover/50',
                   p.isDefault ? 'border-accent/30' : 'border-border',
+                  isSwitchingProvider && 'opacity-60',
                 )}
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest('[data-provider-actions="true"]')) return
+                  setDefaultProvider(p)
+                }}
+                title={p.isDefault ? 'Current default provider' : 'Click to switch provider'}
               >
                 <CardContent className="flex items-center justify-between gap-4 p-4">
                   <div className="flex min-w-0 items-center gap-3">
@@ -267,33 +285,40 @@ export function ModelsRoute() {
                           {p.models.map(model => {
                             const key = `${model.provider}/${model.id}`
                             const isDefaultModel = p.isDefault && p.modelId === model.id
-                            const isSwitching = switchingModelKey === key
                             return (
-                              <button
+                              <div
                                 key={key}
-                                type="button"
-                                disabled={isSwitching}
-                                onClick={() => setDefaultModel(model.provider, model.id)}
                                 className={cn(
                                   'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                                   isDefaultModel
                                     ? 'border-accent/20 bg-accent-subtle text-accent'
                                     : 'border-border bg-bg text-muted-foreground hover:border-border-hover hover:bg-bg-hover hover:text-text-strong',
-                                  isSwitching && 'opacity-60',
                                 )}
                               >
                                 {isDefaultModel ? <Check className="h-3 w-3" /> : null}
                                 <span className="truncate">{getDisplayName(model)}</span>
-                              </button>
+                              </div>
                             )
                           })}
                         </div>
                       ) : p.modelId ? (
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">{p.modelId}</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <div
+                            className={cn(
+                              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                              p.isDefault
+                                ? 'border-accent/20 bg-accent-subtle text-accent'
+                                : 'border-border bg-bg text-muted-foreground hover:border-border-hover hover:bg-bg-hover hover:text-text-strong',
+                            )}
+                          >
+                            {p.isDefault ? <Check className="h-3 w-3" /> : null}
+                            <span className="truncate">{p.modelId}</span>
+                          </div>
+                        </div>
                       ) : null}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" data-provider-actions="true">
                     <Button
                       onClick={() => { setEditingProvider(p); setView('edit') }}
                       variant="secondary"
