@@ -6,3 +6,4 @@ out/
 !electron-builder.yml
 !scripts/*.js
 !scripts/**/*.js
+.npm-cache/

@@ -18,3 +18,4 @@ desktop/dist/
 desktop/out/
 channel-catalog.hash
 .openclaw/
+desktop/.npm-cache/
