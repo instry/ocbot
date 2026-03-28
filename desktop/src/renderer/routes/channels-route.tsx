@@ -148,6 +148,13 @@ export function ChannelsRoute() {
     const remainingChannels = CHANNEL_PLATFORMS.filter(channel => !priorityIds.has(channel.id as (typeof PRIORITY_CHANNELS)[number]))
     return [...priorityChannels, ...remainingChannels]
   }, [])
+
+  useEffect(() => {
+    if (!selectedPlatform && orderedChannels.length > 0) {
+      setSelectedPlatform(orderedChannels[0].id)
+    }
+  }, [orderedChannels, selectedPlatform, setSelectedPlatform])
+
   const currentConfig = selectedPlatform ? configs[selectedPlatform] : undefined
   const currentStatus = selectedPlatform ? statuses[selectedPlatform] : undefined
   const currentPairingRequests = selectedPlatform ? pairingRequests[selectedPlatform] ?? [] : []
