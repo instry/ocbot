@@ -1,0 +1,337 @@
+import { QrCode } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
+
+interface FeishuManualDraft {
+  domain: string
+  appId: string
+  appSecret: string
+}
+
+interface PairingRequestItem {
+  id: string
+  code: string
+}
+
+interface FeishuChannelPanelProps {
+  currentAppId?: string
+  qrFlowStarted: boolean
+  qrWaiting: boolean
+  qrValue: string | null
+  qrMessage: string | null
+  feishuAuthMessage: string | null
+  feishuExpiresIn: number | null
+  feishuQrExpired: boolean
+  feishuQrActionDisabled: boolean
+  feishuManualDraft: FeishuManualDraft
+  feishuManualDirty: boolean
+  feishuConfigured: boolean
+  feishuManualConfigured: boolean
+  pairingCodeInput: string
+  pairingActionMessage: string | null
+  currentPairingRequests: PairingRequestItem[]
+  currentAllowFrom: string[]
+  loading: boolean
+  errorMessage: string | null
+  onStartQrLogin: () => void
+  onFeishuManualChange: (patch: Partial<FeishuManualDraft>) => void
+  onCancelFeishuManualConfig: () => void
+  onSaveFeishuManualConfig: () => void
+  onPairingCodeInputChange: (value: string) => void
+  onApprovePairing: (code?: string) => void
+  onRejectPairing: (code: string) => void
+}
+
+export function FeishuChannelPanel({
+  currentAppId,
+  qrFlowStarted,
+  qrWaiting,
+  qrValue,
+  qrMessage,
+  feishuAuthMessage,
+  feishuExpiresIn,
+  feishuQrExpired,
+  feishuQrActionDisabled,
+  feishuManualDraft,
+  feishuManualDirty,
+  feishuConfigured,
+  feishuManualConfigured,
+  pairingCodeInput,
+  pairingActionMessage,
+  currentPairingRequests,
+  currentAllowFrom,
+  loading,
+  errorMessage,
+  onStartQrLogin,
+  onFeishuManualChange,
+  onCancelFeishuManualConfig,
+  onSaveFeishuManualConfig,
+  onPairingCodeInputChange,
+  onApprovePairing,
+  onRejectPairing,
+}: FeishuChannelPanelProps) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-text-strong">Scan setup</div>
+          <div className="text-xs text-muted-foreground">
+            Create and authorize Feishu app credentials by scanning a QR code.
+          </div>
+        </div>
+
+        {(!qrFlowStarted && !qrWaiting && !qrValue) && (
+          <>
+            <Button
+              onClick={onStartQrLogin}
+              disabled={feishuQrActionDisabled}
+              variant="primary"
+              size="md"
+              className="w-full text-white"
+            >
+              <QrCode className="h-4 w-4" />
+              {currentAppId ? 'Scan to Recreate Credentials' : 'Scan to Create Credentials'}
+            </Button>
+
+            {currentAppId && (
+              <div className="flex items-center gap-1.5 text-xs text-ok">
+                <span className="h-2 w-2 rounded-full bg-ok" />
+                Saved App ID
+                <span className="text-muted-foreground ml-1">· {currentAppId}</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {qrWaiting && !qrValue && (
+          <div className="flex items-center justify-center gap-2 py-4">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+            <span className="text-sm text-muted-foreground">Generating QR code...</span>
+          </div>
+        )}
+
+        {qrValue && (
+          <div className="space-y-3">
+            <div className="flex justify-center">
+              <div className="p-3 bg-white rounded-lg border border-border">
+                <QRCodeSVG value={qrValue} size={192} />
+              </div>
+            </div>
+
+            {feishuExpiresIn !== null && feishuExpiresIn > 0 && (
+              <div className="text-center text-xs text-muted-foreground">
+                Expires in {feishuExpiresIn}s
+              </div>
+            )}
+
+            {feishuQrExpired && (
+              <div className="flex items-center justify-center gap-2 text-xs">
+                <span className="text-danger">This QR code has expired.</span>
+                <button
+                  onClick={onStartQrLogin}
+                  disabled={feishuQrActionDisabled}
+                  className="font-medium text-accent hover:text-accent/80 hover:underline disabled:opacity-50"
+                >
+                  Refresh
+                </button>
+              </div>
+            )}
+
+            {!feishuQrExpired && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <span>Scan with Feishu</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {(qrMessage || feishuAuthMessage) && (
+          <div className="space-y-2">
+            {qrMessage && (
+              <div className="text-xs text-muted-foreground">{qrMessage}</div>
+            )}
+            {feishuAuthMessage && (
+              <div className="text-xs text-muted-foreground">{feishuAuthMessage}</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="relative py-1">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-bg px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">OR Manual configuration</span>
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-border bg-bg-subtle p-4">
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1.5 block text-xs text-muted-foreground">Domain</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: 'feishu', label: 'Feishu (China)' },
+                { value: 'lark', label: 'Lark (Global)' },
+              ].map((option) => {
+                const active = feishuManualDraft.domain === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => onFeishuManualChange({ domain: option.value })}
+                    className={cn(
+                      'rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                      active
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border bg-bg text-text hover:bg-bg-hover',
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs text-muted-foreground">App ID</label>
+            <Input
+              value={feishuManualDraft.appId}
+              onChange={(event) => onFeishuManualChange({ appId: event.target.value })}
+              placeholder="Enter App ID"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs text-muted-foreground">App Secret</label>
+            <Input
+              type="password"
+              value={feishuManualDraft.appSecret}
+              onChange={(event) => onFeishuManualChange({ appSecret: event.target.value })}
+              placeholder="Enter App Secret"
+            />
+          </div>
+
+          <div className="flex items-center justify-start gap-3 pt-2">
+            <Button
+              onClick={onCancelFeishuManualConfig}
+              disabled={loading || !feishuManualDirty}
+              variant="secondary"
+              size="md"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={onSaveFeishuManualConfig}
+              disabled={loading || !feishuManualDirty}
+              variant="primary"
+              size="md"
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {(feishuConfigured || feishuManualConfigured) ? (
+        <div className="space-y-3 rounded-lg border border-border bg-bg-subtle p-4">
+          <div className="space-y-1">
+            <div className="text-sm font-medium text-text-strong">Pairing</div>
+            <div className="text-xs text-muted-foreground">
+              Complete pairing after scan setup or manual configuration.
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Input
+              value={pairingCodeInput}
+              onChange={(event) => onPairingCodeInputChange(event.target.value.toUpperCase())}
+              placeholder="Enter code"
+            />
+            <Button
+              onClick={() => onApprovePairing()}
+              disabled={loading || !pairingCodeInput.trim()}
+              variant="secondary"
+              size="md"
+            >
+              Approve
+            </Button>
+          </div>
+
+          {pairingActionMessage && (
+            <div className="text-xs text-muted-foreground">{pairingActionMessage}</div>
+          )}
+
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">Approved</div>
+            {currentAllowFrom.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {currentAllowFrom.map((entry) => (
+                  <span
+                    key={entry}
+                    className="rounded-full border border-border px-2 py-1 text-xs text-text"
+                  >
+                    {entry}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">No approved sender IDs yet.</div>
+            )}
+          </div>
+
+          {currentPairingRequests.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">Requests</div>
+              {currentPairingRequests.map((request) => (
+                <div
+                  key={`${request.code}-${request.id}`}
+                  className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm text-text-strong">{request.code}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {request.id}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => onApprovePairing(request.code)}
+                      disabled={loading}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      onClick={() => onRejectPairing(request.code)}
+                      disabled={loading}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">
+          Pairing becomes available after you finish scan setup or enter both App ID and App Secret.
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">
+          {errorMessage}
+        </div>
+      )}
+    </div>
+  )
+}
