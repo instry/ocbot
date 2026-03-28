@@ -54,6 +54,29 @@
   --color-danger-subtle: var(--danger-subtle);
   --color-info: var(--info);
 
+  --color-button-primary: var(--button-primary);
+  --color-button-primary-hover: var(--button-primary-hover);
+  --color-button-primary-foreground: var(--button-primary-foreground);
+  --color-button-secondary: var(--button-secondary);
+  --color-button-secondary-hover: var(--button-secondary-hover);
+  --color-button-secondary-foreground: var(--button-secondary-foreground);
+  --color-button-secondary-border: var(--button-secondary-border);
+  --color-button-tonal: var(--button-tonal);
+  --color-button-tonal-hover: var(--button-tonal-hover);
+  --color-button-tonal-foreground: var(--button-tonal-foreground);
+  --color-button-tonal-border: var(--button-tonal-border);
+  --color-button-danger: var(--button-danger);
+  --color-button-danger-hover: var(--button-danger-hover);
+  --color-button-danger-foreground: var(--button-danger-foreground);
+  --color-button-danger-border: var(--button-danger-border);
+  --color-button-danger-solid: var(--button-danger-solid);
+  --color-button-danger-solid-hover: var(--button-danger-solid-hover);
+  --color-button-danger-solid-foreground: var(--button-danger-solid-foreground);
+  --color-button-success: var(--button-success);
+  --color-button-success-hover: var(--button-success-hover);
+  --color-button-success-foreground: var(--button-success-foreground);
+  --color-button-success-border: var(--button-success-border);
+
   --font-sans: var(--font-body);
   --font-mono: var(--mono);
 

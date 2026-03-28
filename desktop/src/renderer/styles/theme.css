@@ -73,6 +73,29 @@
   --danger-subtle: rgba(239, 68, 68, 0.08);
   --info: #3b82f6;
 
+  --button-primary: var(--accent);
+  --button-primary-hover: var(--accent-hover);
+  --button-primary-foreground: var(--accent-foreground);
+  --button-secondary: color-mix(in srgb, var(--card) 92%, var(--bg));
+  --button-secondary-hover: color-mix(in srgb, var(--card) 65%, var(--bg-hover));
+  --button-secondary-foreground: var(--text-strong);
+  --button-secondary-border: var(--border);
+  --button-tonal: color-mix(in srgb, var(--accent) 18%, transparent);
+  --button-tonal-hover: color-mix(in srgb, var(--accent) 25%, transparent);
+  --button-tonal-foreground: color-mix(in srgb, var(--accent) 55%, white);
+  --button-tonal-border: color-mix(in srgb, var(--accent) 26%, transparent);
+  --button-danger: color-mix(in srgb, var(--destructive) 14%, transparent);
+  --button-danger-hover: color-mix(in srgb, var(--destructive) 20%, transparent);
+  --button-danger-foreground: color-mix(in srgb, var(--destructive) 54%, white);
+  --button-danger-border: color-mix(in srgb, var(--destructive) 22%, transparent);
+  --button-danger-solid: var(--destructive);
+  --button-danger-solid-hover: color-mix(in srgb, var(--destructive) 88%, black);
+  --button-danger-solid-foreground: var(--destructive-foreground);
+  --button-success: color-mix(in srgb, var(--ok) 14%, transparent);
+  --button-success-hover: color-mix(in srgb, var(--ok) 20%, transparent);
+  --button-success-foreground: color-mix(in srgb, var(--ok) 54%, white);
+  --button-success-border: color-mix(in srgb, var(--ok) 22%, transparent);
+
   /* Focus */
   --focus: rgba(124, 58, 237, 0.20);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 80%, transparent);
@@ -182,6 +205,10 @@
   --danger-muted: rgba(220, 38, 38, 0.75);
   --danger-subtle: rgba(220, 38, 38, 0.08);
   --info: #2563eb;
+
+  --button-tonal-foreground: color-mix(in srgb, var(--accent) 82%, black);
+  --button-danger-foreground: color-mix(in srgb, var(--destructive) 82%, black);
+  --button-success-foreground: color-mix(in srgb, var(--ok) 82%, black);
 
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 70%, transparent);
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 12px var(--accent-glow);

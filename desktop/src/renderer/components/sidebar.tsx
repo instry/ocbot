@@ -1,10 +1,7 @@
 import { useNavigate } from 'react-router'
 import {
   MessageSquare,
-  List,
   Settings,
-  Sun,
-  Moon,
   Zap,
   Clock,
   Cpu,
@@ -38,8 +35,6 @@ export function Sidebar() {
   const navigate = useNavigate()
   const tab = useUIStore(s => s.tab)
   const setTab = useUIStore(s => s.setTab)
-  const themeMode = useUIStore(s => s.themeMode)
-  const toggleThemeMode = useUIStore(s => s.toggleThemeMode)
   const toggleSessionPanel = useUIStore(s => s.toggleSessionPanel)
   const gatewayStatus = useGatewayStore(s => s.status)
 
@@ -60,6 +55,9 @@ export function Sidebar() {
     } else if (item.tab === 'skills') {
       setTab('skills')
       navigate('/skills')
+    } else if (item.tab === 'cron') {
+      setTab('cron')
+      navigate('/cron')
     } else {
       setTab(item.tab)
     }

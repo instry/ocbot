@@ -6,7 +6,6 @@ import { ConnectionStatus } from '@/components/connection-status'
 import { useGateway } from '@/hooks/use-gateway'
 import { useTheme } from '@/hooks/use-theme'
 import { useUIStore } from '@/stores/ui-store'
-import { useGatewayStore } from '@/stores/gateway-store'
 import { Loader2 } from 'lucide-react'
 
 export function App() {
@@ -43,18 +42,8 @@ export function App() {
       {/* Session panel (conditionally shown) */}
       {tab === 'chat' && sessionPanelOpen && <SessionPanel />}
 
-      {/* Main content area */}
       <main className="flex flex-1 flex-col overflow-hidden pt-[var(--titlebar-height)]">
-        {tab === 'chat' || tab === 'settings' || tab === 'models' || tab === 'channels' || tab === 'skills' ? (
-          <Outlet />
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2">
-            <span className="text-lg font-medium text-text-strong">
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </span>
-            <span className="text-sm text-muted-foreground">Coming soon</span>
-          </div>
-        )}
+        <Outlet />
       </main>
 
       {/* Connection status indicator */}

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  ArrowLeft, Search, RefreshCw, LayoutGrid, List, ChevronDown, Check, X,
+  ArrowLeft, Search, RefreshCw, LayoutGrid, List, ChevronDown, Check,
   Eye, EyeOff, ExternalLink, Download, Star,
 } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { cn } from '@/lib/utils'
+import { Button, buttonVariants } from '@/components/ui/button'
 
 // ── Types ──
 
@@ -659,13 +660,15 @@ export function SkillsRoute() {
 
           {/* Sort dropdown */}
           <div className="relative">
-            <button
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-bg-hover transition-colors"
+            <Button
+              variant="secondary"
+              size="xs"
+              className="text-muted-foreground"
               onClick={e => { e.stopPropagation(); setSortDropdownOpen(!sortDropdownOpen) }}
             >
               {currentSortLabel}
               <ChevronDown className="h-3 w-3" />
-            </button>
+            </Button>
             {sortDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-[99]" onClick={() => setSortDropdownOpen(false)} />
@@ -693,26 +696,32 @@ export function SkillsRoute() {
 
           {/* Refresh (local only) */}
           {tab === 'local' && (
-            <button
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-bg-hover transition-colors disabled:opacity-50"
+            <Button
+              variant="secondary"
+              size="xs"
+              className="text-muted-foreground"
               disabled={localRefreshing}
               onClick={() => loadLocalSkills(true)}
             >
               <RefreshCw className={cn('h-3.5 w-3.5', localRefreshing && 'animate-spin')} />
               {localRefreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
+            </Button>
           )}
 
           {/* Display mode toggle */}
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            <button
-              className={cn('p-1.5 transition-colors', displayMode === 'cards' ? 'bg-accent/10 text-accent' : 'text-muted-foreground')}
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
+            <Button
+              variant={displayMode === 'cards' ? 'segmentActive' : 'ghost'}
+              size="icon"
+              className="h-8 w-8 rounded-lg border-none"
               onClick={() => setDisplayMode('cards')} title="Cards"
-            ><LayoutGrid className="h-4 w-4" /></button>
-            <button
-              className={cn('p-1.5 border-l border-border transition-colors', displayMode === 'list' ? 'bg-accent/10 text-accent' : 'text-muted-foreground')}
+            ><LayoutGrid className="h-4 w-4" /></Button>
+            <Button
+              variant={displayMode === 'list' ? 'segmentActive' : 'ghost'}
+              size="icon"
+              className="h-8 w-8 rounded-lg border-none"
               onClick={() => setDisplayMode('list')} title="List"
-            ><List className="h-4 w-4" /></button>
+            ><List className="h-4 w-4" /></Button>
           </div>
         </div>
       )}
@@ -726,7 +735,7 @@ export function SkillsRoute() {
             searchQuery ? <EmptyState message="No matching skills" /> :
             <div className="flex flex-col items-center gap-3 py-12 text-sm text-muted-foreground">
               <span>No skills installed</span>
-              <button className="rounded-lg border border-accent bg-accent/10 px-4 py-2 text-sm font-medium text-accent hover:bg-accent/20 transition-colors" onClick={() => switchTab('clawhub')}>Browse Marketplace</button>
+              <Button variant="tonal" size="md" onClick={() => switchTab('clawhub')}>Browse Marketplace</Button>
             </div>
           ) : (
             <>
@@ -747,7 +756,7 @@ export function SkillsRoute() {
           mpError && mpSkills.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-12 text-sm">
               <span className="text-destructive">{mpError}</span>
-              <button className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-bg-hover" onClick={() => loadMarketplaceSkills()}>Retry</button>
+              <Button variant="secondary" size="md" className="text-muted-foreground" onClick={() => loadMarketplaceSkills()}>Retry</Button>
             </div>
           ) : mpSearchQuery.trim() ? (
             mpSearching ? <EmptyState message="Searching..." /> :
@@ -773,7 +782,7 @@ export function SkillsRoute() {
                 </div>
               )}
               {mpLoadingMore ? <div className="py-4 text-center text-xs text-muted-foreground">Loading more...</div> :
-               mpHasMore ? <div className="py-4 text-center"><button className="rounded-lg border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-bg-hover" onClick={loadMoreMarketplace}>Load more</button></div> : null}
+               mpHasMore ? <div className="py-4 text-center"><Button variant="secondary" size="xs" className="text-muted-foreground" onClick={loadMoreMarketplace}>Load more</Button></div> : null}
             </>
           )
         )}
@@ -828,11 +837,12 @@ function LocalCard({ skill, onClick, onUninstall, uninstallingSkill }: {
         <span className="font-mono">{skill.skillKey}</span>
         <div className="flex items-center gap-2">
           {canUninstall && (
-            <button
-              className="rounded-md border border-destructive/30 px-3 py-0.5 text-[11px] text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            <Button
+              variant="danger"
+              size="xs"
               disabled={uninstallingSkill}
               onClick={e => { e.stopPropagation(); onUninstall(skill) }}
-            >{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+            >{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</Button>
           )}
           {skill.homepage && <ExternalLink className="h-3.5 w-3.5" />}
         </div>
@@ -862,11 +872,13 @@ function LocalListRow({ skill, onClick, onUninstall, uninstallingSkill }: {
       </div>
       <span className="shrink-0 rounded-md border border-border px-2 py-0.5 text-[11px] text-muted-foreground">{getSourceLabel(skill.source)}</span>
       {canUninstall && (
-        <button
-          className="shrink-0 rounded-md border border-destructive/30 px-3 py-0.5 text-[11px] text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+        <Button
+          variant="danger"
+          size="xs"
+          className="shrink-0"
           disabled={uninstallingSkill}
           onClick={e => { e.stopPropagation(); onUninstall(skill) }}
-        >{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+        >{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</Button>
       )}
     </div>
   )
@@ -912,10 +924,10 @@ function MarketplaceCard({ entry, isInstalled, installing, pendingInstall, insta
           {isInst ? (
             <>
               <span className="text-[11px] text-ok">✓ Installed</span>
-              <button className="rounded-md border border-destructive/30 px-3 py-0.5 text-[11px] text-destructive hover:bg-destructive/10 disabled:opacity-50" disabled={uninstallingSkill} onClick={e => { e.stopPropagation(); onUninstall(skill.slug, skill.displayName) }}>{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+              <Button variant="danger" size="xs" disabled={uninstallingSkill} onClick={e => { e.stopPropagation(); onUninstall(skill.slug, skill.displayName) }}>{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</Button>
             </>
           ) : (
-            <button className="rounded-md border border-accent bg-accent/10 px-3 py-0.5 text-[11px] text-accent hover:bg-accent/20 disabled:opacity-50" disabled={isInstalling} onClick={e => { e.stopPropagation(); onInstall(skill.slug, latestVersion?.version) }}>{isInstalling ? 'Installing...' : 'Install'}</button>
+            <Button variant="tonal" size="xs" disabled={isInstalling} onClick={e => { e.stopPropagation(); onInstall(skill.slug, latestVersion?.version) }}>{isInstalling ? 'Installing...' : 'Install'}</Button>
           )}
         </div>
       </div>
@@ -949,10 +961,10 @@ function MarketplaceListRow({ entry, isInstalled, installing, pendingInstall, un
       {isInst ? (
         <>
           <span className="shrink-0 text-[11px] text-ok">✓</span>
-          <button className="shrink-0 rounded-md border border-destructive/30 px-3 py-0.5 text-[11px] text-destructive hover:bg-destructive/10 disabled:opacity-50" disabled={uninstallingSkill} onClick={e => { e.stopPropagation(); onUninstall(skill.slug, skill.displayName) }}>{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+          <Button variant="danger" size="xs" className="shrink-0" disabled={uninstallingSkill} onClick={e => { e.stopPropagation(); onUninstall(skill.slug, skill.displayName) }}>{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</Button>
         </>
       ) : (
-        <button className="shrink-0 rounded-md border border-accent bg-accent/10 px-3 py-0.5 text-[11px] text-accent hover:bg-accent/20 disabled:opacity-50" disabled={isInstalling} onClick={e => { e.stopPropagation(); onInstall(skill.slug, latestVersion?.version) }}>{isInstalling ? 'Installing...' : 'Install'}</button>
+        <Button variant="tonal" size="xs" className="shrink-0" disabled={isInstalling} onClick={e => { e.stopPropagation(); onInstall(skill.slug, latestVersion?.version) }}>{isInstalling ? 'Installing...' : 'Install'}</Button>
       )}
     </div>
   )
@@ -987,10 +999,10 @@ function SearchResultCard({ result, isInstalled, installing, pendingInstall, ins
         {isInst ? (
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-ok">✓ Installed</span>
-            <button className="rounded-md border border-destructive/30 px-3 py-0.5 text-[11px] text-destructive hover:bg-destructive/10 disabled:opacity-50" disabled={uninstallingSkill} onClick={e => { e.stopPropagation(); slug && onUninstall(slug, name) }}>{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+            <Button variant="danger" size="xs" disabled={uninstallingSkill} onClick={e => { e.stopPropagation(); slug && onUninstall(slug, name) }}>{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</Button>
           </div>
         ) : (
-          <button className="rounded-md border border-accent bg-accent/10 px-3 py-0.5 text-[11px] text-accent hover:bg-accent/20 disabled:opacity-50" disabled={isInstalling} onClick={e => { e.stopPropagation(); slug && onInstall(slug, version) }}>{isInstalling ? 'Installing...' : 'Install'}</button>
+          <Button variant="tonal" size="xs" disabled={isInstalling} onClick={e => { e.stopPropagation(); slug && onInstall(slug, version) }}>{isInstalling ? 'Installing...' : 'Install'}</Button>
         )}
       </div>
     </div>
@@ -1021,10 +1033,10 @@ function SearchResultListRow({ result, isInstalled, installing, pendingInstall, 
       {isInst ? (
         <>
           <span className="shrink-0 text-[11px] text-ok">✓</span>
-          <button className="shrink-0 rounded-md border border-destructive/30 px-3 py-0.5 text-[11px] text-destructive hover:bg-destructive/10 disabled:opacity-50" disabled={uninstallingSkill} onClick={e => { e.stopPropagation(); slug && onUninstall(slug, name) }}>{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</button>
+          <Button variant="danger" size="xs" className="shrink-0" disabled={uninstallingSkill} onClick={e => { e.stopPropagation(); slug && onUninstall(slug, name) }}>{uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}</Button>
         </>
       ) : (
-        <button className="shrink-0 rounded-md border border-accent bg-accent/10 px-3 py-0.5 text-[11px] text-accent hover:bg-accent/20 disabled:opacity-50" disabled={isInstalling} onClick={e => { e.stopPropagation(); slug && onInstall(slug) }}>{isInstalling ? 'Installing...' : 'Install'}</button>
+        <Button variant="tonal" size="xs" className="shrink-0" disabled={isInstalling} onClick={e => { e.stopPropagation(); slug && onInstall(slug) }}>{isInstalling ? 'Installing...' : 'Install'}</Button>
       )}
     </div>
   )
@@ -1045,7 +1057,6 @@ function LocalDetailView({ skill, onBack, onToggle, togglingSkill, onUninstall, 
   installingDep: Record<string, boolean>; installResult: Record<string, { ok: boolean; message: string }>
   onInstallDep: (s: SkillStatusEntry, opt: SkillInstallOption) => void
 }) {
-  const status = getStatusInfo(skill)
   const allBins = skill.requirements.bins ?? []
   const allEnv = skill.requirements.env ?? []
   const allConfig = skill.requirements.config ?? []
@@ -1057,9 +1068,9 @@ function LocalDetailView({ skill, onBack, onToggle, togglingSkill, onUninstall, 
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
-      <button className="flex items-center gap-1.5 border-b border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-text-strong transition-colors" onClick={onBack}>
+      <Button variant="ghost" className="justify-start rounded-none border-x-0 border-t-0 px-4 py-2.5 text-sm" onClick={onBack}>
         <ArrowLeft className="h-4 w-4" /> Back to My Skills
-      </button>
+      </Button>
 
       <div className="flex flex-col gap-6 p-6">
         {/* Header */}
@@ -1081,17 +1092,18 @@ function LocalDetailView({ skill, onBack, onToggle, togglingSkill, onUninstall, 
 
         {/* Actions */}
         <div className="flex items-center gap-3 flex-wrap">
-          <button
-            className={cn('rounded-lg px-5 py-2 text-sm font-medium transition-colors', skill.disabled ? 'border border-border text-muted-foreground hover:bg-bg-hover' : 'bg-accent text-white hover:bg-accent/90')}
+          <Button
+            variant={skill.disabled ? 'primary' : 'secondary'}
+            size="lg"
             disabled={togglingSkill} onClick={() => onToggle(skill)}
-          >{togglingSkill ? '...' : skill.disabled ? 'Enable Skill' : 'Disable Skill'}</button>
+          >{togglingSkill ? '...' : skill.disabled ? 'Enable Skill' : 'Disable Skill'}</Button>
           {canUninstall && (
-            <button className="rounded-lg border border-destructive/30 px-5 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50" disabled={uninstallingSkill} onClick={() => onUninstall(skill)}>
+            <Button variant="danger" size="lg" disabled={uninstallingSkill} onClick={() => onUninstall(skill)}>
               {uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}
-            </button>
+            </Button>
           )}
           {skill.homepage && (
-            <a href={skill.homepage} target="_blank" rel="noopener" className="flex items-center gap-1.5 rounded-lg border border-border px-5 py-2 text-sm text-muted-foreground hover:bg-bg-hover transition-colors no-underline">
+            <a href={skill.homepage} target="_blank" rel="noopener" className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }), 'no-underline text-muted-foreground')}>
               Homepage <ExternalLink className="h-3.5 w-3.5" />
             </a>
           )}
@@ -1138,10 +1150,12 @@ function LocalDetailView({ skill, onBack, onToggle, togglingSkill, onUninstall, 
                 const result = installResult[key]
                 return (
                   <div key={opt.id} className="flex items-center gap-2.5">
-                    <button
-                      className="rounded-lg border border-border px-4 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-bg-hover transition-colors disabled:opacity-50"
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      className="text-[13px] text-muted-foreground"
                       disabled={isInstalling} onClick={() => onInstallDep(skill, opt)}
-                    >{isInstalling ? 'Installing...' : opt.label}</button>
+                    >{isInstalling ? 'Installing...' : opt.label}</Button>
                     {result && <span className={cn('text-xs', result.ok ? 'text-ok' : 'text-destructive')}>{result.message}</span>}
                   </div>
                 )
@@ -1164,12 +1178,12 @@ function LocalDetailView({ skill, onBack, onToggle, togglingSkill, onUninstall, 
                   onChange={e => setApiKeyInput(e.target.value)}
                   className="min-w-0 flex-1 rounded-lg border border-border bg-bg px-3 py-2 text-[13px] text-text-strong outline-none focus:border-accent"
                 />
-                <button className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-bg-hover transition-colors" onClick={() => setApiKeyVisible(!apiKeyVisible)}>
+                <Button variant="secondary" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setApiKeyVisible(!apiKeyVisible)}>
                   {apiKeyVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-                <button className="rounded-lg bg-accent px-4 py-2 text-xs font-medium text-white hover:bg-accent/90 transition-colors disabled:opacity-50" disabled={savingApiKey} onClick={() => onSaveApiKey(skill)}>
+                </Button>
+                <Button variant="primary" size="sm" disabled={savingApiKey} onClick={() => onSaveApiKey(skill)}>
                   {savingApiKey ? 'Saving...' : 'Save'}
-                </button>
+                </Button>
               </div>
             </div>
           </section>
@@ -1213,9 +1227,9 @@ function MarketplaceDetailView({ detail, loading, onBack, readme, readmeLoading,
   if (loading) {
     return (
       <div className="flex flex-1 flex-col">
-        <button className="flex items-center gap-1.5 border-b border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-text-strong transition-colors" onClick={onBack}>
+        <Button variant="ghost" className="justify-start rounded-none border-x-0 border-t-0 px-4 py-2.5 text-sm" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" /> Back to Marketplace
-        </button>
+        </Button>
         <EmptyState message="Loading skill details..." />
       </div>
     )
@@ -1224,9 +1238,9 @@ function MarketplaceDetailView({ detail, loading, onBack, readme, readmeLoading,
   if (!detail) {
     return (
       <div className="flex flex-1 flex-col">
-        <button className="flex items-center gap-1.5 border-b border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-text-strong transition-colors" onClick={onBack}>
+        <Button variant="ghost" className="justify-start rounded-none border-x-0 border-t-0 px-4 py-2.5 text-sm" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" /> Back to Marketplace
-        </button>
+        </Button>
         <EmptyState message="Skill not found" />
       </div>
     )
@@ -1251,9 +1265,9 @@ function MarketplaceDetailView({ detail, loading, onBack, readme, readmeLoading,
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
-      <button className="flex items-center gap-1.5 border-b border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-text-strong transition-colors" onClick={onBack}>
+      <Button variant="ghost" className="justify-start rounded-none border-x-0 border-t-0 px-4 py-2.5 text-sm" onClick={onBack}>
         <ArrowLeft className="h-4 w-4" /> Back to Marketplace
-      </button>
+      </Button>
 
       <div className="flex flex-col gap-6 p-6">
         {/* Header */}
@@ -1284,15 +1298,15 @@ function MarketplaceDetailView({ detail, loading, onBack, readme, readmeLoading,
         <div className="flex items-center gap-3 flex-wrap">
           {isInst ? (
             <>
-              <button className="rounded-lg border border-ok px-5 py-2 text-sm font-medium text-ok" disabled>✓ Installed</button>
-              <button className="rounded-lg border border-destructive/30 px-5 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50" disabled={uninstallingSkill} onClick={() => onUninstall(skill.slug, skill.displayName)}>
+              <Button variant="success" size="lg" disabled>✓ Installed</Button>
+              <Button variant="danger" size="lg" disabled={uninstallingSkill} onClick={() => onUninstall(skill.slug, skill.displayName)}>
                 {uninstallingSkill ? 'Uninstalling...' : 'Uninstall'}
-              </button>
+              </Button>
             </>
           ) : (
-            <button className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-white hover:bg-accent/90 transition-colors disabled:opacity-50" disabled={isInstalling} onClick={() => onInstall(skill.slug, latestVersion?.version)}>
+            <Button variant="primary" size="lg" disabled={isInstalling} onClick={() => onInstall(skill.slug, latestVersion?.version)}>
               {isInstalling ? 'Installing...' : 'Install Skill'}
-            </button>
+            </Button>
           )}
           {result && !result.ok && !isInstalling && <span className="text-[13px] text-destructive">{result.message}</span>}
         </div>
@@ -1400,17 +1414,16 @@ function MarketplaceDetailView({ detail, loading, onBack, readme, readmeLoading,
               {/* File list */}
               <div className="w-[220px] shrink-0 overflow-y-auto border-r border-border bg-bg-subtle">
                 {latestVersion.files.map(f => (
-                  <button
+                  <Button
                     key={f.path}
-                    className={cn(
-                      'flex w-full items-center justify-between border-b border-border px-3 py-2 text-left text-xs transition-colors',
-                      selectedFile === f.path ? 'bg-accent/10 text-accent' : 'text-text hover:bg-bg-hover',
-                    )}
+                    variant={selectedFile === f.path ? 'tonal' : 'ghost'}
+                    size="xs"
+                    className="flex h-auto w-full justify-between rounded-none border-x-0 border-t-0 px-3 py-2 text-left text-xs"
                     onClick={() => onSelectFile(f.path)}
                   >
                     <span className="truncate font-mono">{f.path}</span>
                     {f.size != null && <span className="ml-2 shrink-0 text-[10px] text-muted-foreground">{formatBytes(f.size)}</span>}
-                  </button>
+                  </Button>
                 ))}
               </div>
               {/* File viewer */}
@@ -1439,9 +1452,9 @@ function MarketplaceDetailView({ detail, loading, onBack, readme, readmeLoading,
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-base font-semibold text-text-strong">SKILL.md</h2>
-              <div className="flex overflow-hidden rounded-lg border border-border">
-                <button className={cn('px-3 py-1 text-xs transition-colors', !readmeRaw ? 'bg-accent/10 text-accent' : 'text-muted-foreground')} onClick={() => setReadmeRaw(false)}>Rendered</button>
-                <button className={cn('border-l border-border px-3 py-1 text-xs transition-colors', readmeRaw ? 'bg-accent/10 text-accent' : 'text-muted-foreground')} onClick={() => setReadmeRaw(true)}>Source</button>
+              <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
+                <Button variant={!readmeRaw ? 'segmentActive' : 'ghost'} size="xs" className="rounded-lg border-none" onClick={() => setReadmeRaw(false)}>Rendered</Button>
+                <Button variant={readmeRaw ? 'segmentActive' : 'ghost'} size="xs" className="rounded-lg border-none" onClick={() => setReadmeRaw(true)}>Source</Button>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-bg p-5 text-sm leading-relaxed text-text overflow-x-auto">

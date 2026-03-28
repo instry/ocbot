@@ -5,6 +5,7 @@ import { SettingsRoute } from './settings-route'
 import { ModelsRoute } from './models-route'
 import { ChannelsRoute } from './channels-route'
 import { SkillsRoute } from './skills-route'
+import { CronRoute } from './cron-route'
 
 /**
  * Hash router because Electron loads from file:// protocol.
@@ -38,6 +39,10 @@ export const router = createHashRouter([
       {
         path: 'skills',
         element: <SkillsRoute />,
+      },
+      {
+        path: 'cron',
+        element: <CronRoute />,
       },
     ],
   },
