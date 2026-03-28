@@ -447,17 +447,12 @@ function BrowserTab({
         <Button
           variant="primary"
           size="md"
-          className="min-w-[116px] text-white hover:text-white disabled:text-white disabled:opacity-90"
+          className="min-w-[116px]"
           onClick={onSave}
           disabled={browserSaveDisabled}
         >
           {browserSaving ? 'Saving...' : 'Save'}
         </Button>
-        {browserSaveSuccess ? (
-          <Badge variant="accent">
-            Saved
-          </Badge>
-        ) : null}
       </div>
     </div>
   )
