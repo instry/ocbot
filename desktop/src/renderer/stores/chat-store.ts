@@ -71,7 +71,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   // --- Session actions ---
 
-  setSessions: (sessions) => set({ sessions }),
+  setSessions: (sessions) => set({ sessions: Array.isArray(sessions) ? sessions : [] }),
 
   setActiveSession: (key) => set({
     activeSessionKey: key,
@@ -101,7 +101,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   // --- Message actions ---
 
-  setMessages: (messages) => set({ messages, isLoadingHistory: false }),
+  setMessages: (messages) => set({ messages: Array.isArray(messages) ? messages : [], isLoadingHistory: false }),
 
   addMessage: (message) =>
     set(s => ({ messages: [...s.messages, message] })),

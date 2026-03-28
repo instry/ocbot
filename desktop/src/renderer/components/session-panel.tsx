@@ -22,6 +22,7 @@ export function SessionPanel() {
 
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
+  const safeSessions = Array.isArray(sessions) ? sessions : []
 
   // Load sessions on mount and when gateway connects
   useEffect(() => {
@@ -34,11 +35,13 @@ export function SessionPanel() {
           includeDerivedTitles: true,
           includeLastMessage: true,
         })
-        if (result?.sessions) {
+        if (Array.isArray(result?.sessions)) {
           const sorted = [...result.sessions].sort(
             (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
           )
           setSessions(sorted)
+        } else {
+          setSessions([])
         }
       } catch {
         // ignore
@@ -60,11 +63,11 @@ export function SessionPanel() {
   const filtered = useMemo(
     () =>
       search
-        ? sessions.filter(s =>
+        ? safeSessions.filter(s =>
             sessionTitle(s).toLowerCase().includes(search.toLowerCase())
           )
-        : sessions,
-    [sessions, search]
+        : safeSessions,
+    [safeSessions, search]
   )
 
   const handleNewChat = useCallback(() => {

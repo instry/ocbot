@@ -48,7 +48,7 @@ export const useModelStore = create<ModelStore>()(
       cnProviders: new Set(),
       isLoading: false,
 
-      setModels: (models) => set({ models, isLoading: false }),
+      setModels: (models) => set({ models: Array.isArray(models) ? models : [], isLoading: false }),
       selectModel: (key) => set({ selectedModel: key }),
       setLoading: (loading) => set({ isLoading: loading }),
       setCnProviders: (cn) => set({ cnProviders: cn }),
@@ -60,8 +60,9 @@ export const useModelStore = create<ModelStore>()(
 
       getSelectedDisplay: () => {
         const { selectedModel, models } = get()
+        const safeModels = Array.isArray(models) ? models : []
         if (!selectedModel) return 'Select model'
-        const m = models.find(m => `${m.provider}/${m.id}` === selectedModel)
+        const m = safeModels.find(m => `${m.provider}/${m.id}` === selectedModel)
         return m ? get().getDisplayName(m) : selectedModel.split('/').pop() ?? selectedModel
       },
 

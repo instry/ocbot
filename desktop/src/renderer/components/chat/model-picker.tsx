@@ -21,6 +21,7 @@ export function ModelPicker() {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const popoverRef = useRef<HTMLDivElement>(null)
+  const safeModels = Array.isArray(models) ? models : []
 
   // Load models on mount
   useEffect(() => {
@@ -46,7 +47,7 @@ export function ModelPicker() {
           }
         }
         setCnProviders(cn)
-        const allModels = modelsResult?.models ?? []
+        const allModels = Array.isArray(modelsResult?.models) ? modelsResult.models : []
         setModels(allModels.filter(m => configuredProviders.has(m.provider)))
 
         const primary = config?.agents?.defaults?.model?.primary
@@ -74,7 +75,7 @@ export function ModelPicker() {
   const groups = useMemo(() => {
     const q = search.toLowerCase().trim()
     const result: { provider: string; label: string; items: GatewayModel[] }[] = []
-    for (const m of models) {
+    for (const m of safeModels) {
       const displayName = (m.name || m.id).toLowerCase()
       if (q && !m.provider.toLowerCase().includes(q) && !displayName.includes(q)) continue
       let group = result.find(g => g.provider === m.provider)
@@ -85,9 +86,9 @@ export function ModelPicker() {
       group.items.push(m)
     }
     return result
-  }, [models, search, getProviderLabel])
+  }, [safeModels, search, getProviderLabel])
 
-  if (models.length === 0) return null
+  if (safeModels.length === 0) return null
 
   return (
     <div className="relative" ref={popoverRef}>
@@ -125,7 +126,7 @@ export function ModelPicker() {
           <div className="max-h-[320px] overflow-y-auto py-1">
             {groups.length === 0 ? (
               <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                {models.length === 0 ? (
+                {safeModels.length === 0 ? (
                   <div className="flex flex-col gap-1">
                     <span>No models configured</span>
                     <button
