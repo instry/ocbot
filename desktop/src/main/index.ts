@@ -14,6 +14,12 @@ let runtimeManager: RuntimeManager
 let windowManager: WindowManager
 let trayManager: TrayManager
 
+if (!app.isPackaged && process.env.TRAE_SANDBOX_CLI_PATH) {
+  app.commandLine.appendSwitch('no-sandbox')
+  app.commandLine.appendSwitch('disable-gpu')
+  app.disableHardwareAcceleration()
+}
+
 app.on('ready', async () => {
   // Set Dock icon on macOS (replaces default Electron icon)
   if (process.platform === 'darwin' && app.dock) {

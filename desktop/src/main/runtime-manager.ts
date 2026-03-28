@@ -494,9 +494,15 @@ export class RuntimeManager {
 
     const args = ['gateway', '--bind', 'loopback', '--port', String(port), '--token', token, '--verbose']
 
-    // Windows: spawn with ELECTRON_RUN_AS_NODE (utilityProcess is slow on Windows)
-    // macOS/Linux: utilityProcess.fork for better integration
-    if (process.platform === 'win32') {
+    const nodeExecutable = this.resolveNodeExecutable()
+    if (!app.isPackaged && nodeExecutable) {
+      this.gateway = spawn(nodeExecutable, [entry, ...args], {
+        cwd: runtime.root,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+      })
+    } else if (process.platform === 'win32') {
       this.gateway = spawn(process.execPath, [entry, ...args], {
         cwd: runtime.root,
         env: { ...env, ELECTRON_RUN_AS_NODE: '1' },
@@ -515,12 +521,11 @@ export class RuntimeManager {
     this.attachLogs(this.gateway)
     this.attachExitHandler(this.gateway)
 
-    // Wait for healthy
-    const ready = await this.waitForHealthy(port, BOOT_TIMEOUT_MS)
-    if (!ready) {
+    const startupError = await this.waitForGatewayStartup(this.gateway, port, BOOT_TIMEOUT_MS)
+    if (startupError) {
       this._status = 'error'
       this.killGateway()
-      throw new Error('Gateway did not become healthy in time')
+      throw new Error(startupError)
     }
 
     this._status = 'running'
@@ -581,6 +586,26 @@ export class RuntimeManager {
     for (const c of candidates) {
       if (fs.existsSync(c)) return c
     }
+    return null
+  }
+
+  private resolveNodeExecutable(): string | null {
+    if (app.isPackaged) {
+      return null
+    }
+
+    const candidates = [
+      process.env.npm_node_execpath,
+      process.env.NODE,
+      'node',
+    ]
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate
+      }
+    }
+
     return null
   }
 
@@ -690,11 +715,17 @@ export class RuntimeManager {
     }
 
     return await new Promise((resolve) => {
-      const child = spawn(process.execPath, [entry, ...args], {
-        cwd: root,
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      })
+      const nodeExecutable = this.resolveNodeExecutable()
+      const child = spawn(
+        nodeExecutable ?? process.execPath,
+        [entry, ...args],
+        {
+          cwd: root,
+          env: nodeExecutable ? env : { ...env, ELECTRON_RUN_AS_NODE: '1' },
+          stdio: ['ignore', 'pipe', 'pipe'],
+          windowsHide: true,
+        },
+      )
 
       let output = ''
       child.stdout?.on('data', (chunk) => { output += String(chunk) })
@@ -1075,23 +1106,34 @@ const resolveWebLoginProvider = (params: unknown) => {
   }
 
   private attachExitHandler(child: GatewayProcess): void {
-    const onExit = (code: number | null) => {
-      console.log(`[RuntimeManager] Gateway exited (code ${code})`)
-      this.gateway = null
-      if (!this.shutdownRequested) {
-        console.log('[RuntimeManager] Restarting gateway in 3s...')
-        this._status = 'error'
-        setTimeout(() => {
-          if (!this.shutdownRequested) {
-            this.start().catch((err) => console.error('[RuntimeManager] Restart failed:', err))
-          }
-        }, 3000)
+    const childEvents = child as NodeJS.EventEmitter
+    let restartScheduled = false
+
+    const scheduleRestart = () => {
+      if (restartScheduled || this.shutdownRequested) {
+        return
       }
+      restartScheduled = true
+      console.log('[RuntimeManager] Restarting gateway in 3s...')
+      this._status = 'error'
+      setTimeout(() => {
+        if (!this.shutdownRequested) {
+          this.start().catch((err) => console.error('[RuntimeManager] Restart failed:', err))
+        }
+      }, 3000)
     }
 
-    if ('once' in child && typeof child.once === 'function') {
-      (child as ChildProcess).on('exit', onExit)
-    }
+    childEvents.once('error', (error: unknown) => {
+      console.error('[RuntimeManager] Gateway process error:', error)
+      this.gateway = null
+      scheduleRestart()
+    })
+
+    childEvents.once('exit', (code: number | null, signal: NodeJS.Signals | null) => {
+      console.log(`[RuntimeManager] Gateway exited (code ${code}, signal ${signal ?? 'none'})`)
+      this.gateway = null
+      scheduleRestart()
+    })
   }
 
   private killGateway(): void {
@@ -1122,6 +1164,30 @@ const resolveWebLoginProvider = (params: unknown) => {
       await sleep(800)
     }
     return false
+  }
+
+  private async waitForGatewayStartup(
+    child: GatewayProcess,
+    port: number,
+    timeoutMs: number,
+  ): Promise<string | null> {
+    const childEvents = child as NodeJS.EventEmitter
+    const earlyExit = new Promise<string>((resolve) => {
+      childEvents.once('error', (error: unknown) => {
+        resolve(`Gateway failed to launch: ${error instanceof Error ? error.message : String(error)}`)
+      })
+      childEvents.once('exit', (code: number | null, signal: NodeJS.Signals | null) => {
+        resolve(
+          `Gateway exited before becoming healthy (code=${code ?? 'null'}${signal ? `, signal=${signal}` : ''})`,
+        )
+      })
+    })
+
+    const healthCheck = this.waitForHealthy(port, timeoutMs).then((ready) => {
+      return ready ? null : 'Gateway did not become healthy in time'
+    })
+
+    return await Promise.race([healthCheck, earlyExit])
   }
 
   private startHealthCheck(port: number): void {
