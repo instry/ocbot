@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('browser:getOcbotPath'),
   getChannelConfig: (platform: string) =>
     ipcRenderer.invoke('channels:getConfig', platform),
+  supportsChannelQrLogin: (platform: string) =>
+    ipcRenderer.invoke('channels:supportsQrLogin', platform),
   saveChannelConfig: (platform: string, config: unknown) =>
     ipcRenderer.invoke('channels:saveConfig', platform, config),
   listChannelPairingRequests: (platform: string) =>

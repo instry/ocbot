@@ -294,6 +294,11 @@ export class WindowManager {
       this.runtimeManager.getChannelConfig(platform),
     )
     ipcMain.handle(
+      'channels:supportsQrLogin',
+      async (_event, platform: Parameters<RuntimeManager['supportsChannelQrLogin']>[0]) =>
+        this.runtimeManager.supportsChannelQrLogin(platform),
+    )
+    ipcMain.handle(
       'channels:saveConfig',
       async (
         _event,

@@ -126,6 +126,86 @@ function supportsQrLogin(platform: ChannelPlatform): boolean {
   return platform === 'whatsapp' || platform === 'weixin'
 }
 
+function resolveQrLoginChannel(platform: ChannelPlatform): string {
+  return CHANNEL_STATUS_KEYS[platform]
+}
+
+function shouldRetryWithoutChannel(error: unknown): boolean {
+  const message = String(error)
+  return message.includes('invalid web.login.start params')
+    || message.includes('invalid web.login.wait params')
+    || (message.includes("unexpected property 'channel'") || message.includes('unexpected property "channel"'))
+}
+
+async function callWebLoginStart(
+  platform: ChannelPlatform,
+  timeoutMs: number,
+): Promise<ChannelQrLoginStartResult> {
+  const client = useGatewayStore.getState().client
+  if (!client) throw new Error('Gateway client not available')
+
+  const paramsWithChannel = {
+    channel: resolveQrLoginChannel(platform),
+    force: true,
+    timeoutMs,
+    verbose: true,
+  }
+
+  try {
+    return await client.call<ChannelQrLoginStartResult>('web.login.start', paramsWithChannel, timeoutMs + 10000)
+  } catch (error) {
+    if (!shouldRetryWithoutChannel(error)) {
+      throw error
+    }
+
+    return await client.call<ChannelQrLoginStartResult>('web.login.start', {
+      force: true,
+      timeoutMs,
+      verbose: true,
+    }, timeoutMs + 10000)
+  }
+}
+
+async function callWebLoginWait(
+  platform: ChannelPlatform,
+  timeoutMs: number,
+  accountId?: string,
+): Promise<ChannelQrLoginWaitResult> {
+  const client = useGatewayStore.getState().client
+  if (!client) throw new Error('Gateway client not available')
+
+  const paramsWithChannel = {
+    channel: resolveQrLoginChannel(platform),
+    timeoutMs,
+    ...(accountId ? { accountId } : {}),
+  }
+
+  try {
+    return await client.call<ChannelQrLoginWaitResult>('web.login.wait', paramsWithChannel, timeoutMs + 10000)
+  } catch (error) {
+    if (!shouldRetryWithoutChannel(error)) {
+      throw error
+    }
+
+    return await client.call<ChannelQrLoginWaitResult>('web.login.wait', {
+      timeoutMs,
+      ...(accountId ? { accountId } : {}),
+    }, timeoutMs + 10000)
+  }
+}
+
+async function hasQrLoginProvider(platform: ChannelPlatform): Promise<boolean> {
+  if (!supportsQrLogin(platform)) {
+    return false
+  }
+
+  if (platform === 'whatsapp') {
+    return true
+  }
+
+  return await window.ocbot?.supportsChannelQrLogin?.(platform) === true
+}
+
 interface ChannelStore {
   configs: Partial<Record<ChannelPlatform, ChannelConfig>>
   statuses: Partial<Record<ChannelPlatform, ChannelStatus>>
@@ -326,17 +406,15 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
   startQrLogin: async (platform) => {
     const client = useGatewayStore.getState().client
     if (!client) throw new Error('Gateway client not available')
-    if (!supportsQrLogin(platform)) {
-      throw new Error('QR login is not available for this channel')
+    if (!(await hasQrLoginProvider(platform))) {
+      throw new Error(platform === 'weixin'
+        ? 'WeChat login is unavailable for this runtime'
+        : 'QR login is not available for this channel')
     }
 
     set({ loading: true, error: null })
     try {
-      const result = await client.call<ChannelQrLoginStartResult>('web.login.start', {
-        force: true,
-        timeoutMs: 300000,
-        verbose: true,
-      }, 310000)
+      const result = await callWebLoginStart(platform, 300000)
       set({ loading: false })
       return result
     } catch (err) {
@@ -348,16 +426,15 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
   waitQrLogin: async (platform, accountId) => {
     const client = useGatewayStore.getState().client
     if (!client) throw new Error('Gateway client not available')
-    if (!supportsQrLogin(platform)) {
-      throw new Error('QR login is not available for this channel')
+    if (!(await hasQrLoginProvider(platform))) {
+      throw new Error(platform === 'weixin'
+        ? 'WeChat login is unavailable for this runtime'
+        : 'QR login is not available for this channel')
     }
 
     set({ loading: true, error: null })
     try {
-      const result = await client.call<ChannelQrLoginWaitResult>('web.login.wait', {
-        timeoutMs: 480000,
-        ...(accountId ? { accountId } : {}),
-      }, 490000)
+      const result = await callWebLoginWait(platform, 480000, accountId)
       if (result.connected) {
         const currentConfig = get().configs[platform]
           ?? await window.ocbot?.getChannelConfig(platform)

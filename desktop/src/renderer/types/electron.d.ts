@@ -59,6 +59,7 @@ declare global {
       getBrowserProfiles: () => Promise<OcbotBrowserProfilesResult[]>
       getOcbotBrowserPath: () => Promise<string>
       getChannelConfig: (platform: OcbotChannelPlatform) => Promise<OcbotChannelConfig>
+      supportsChannelQrLogin: (platform: OcbotChannelPlatform) => Promise<boolean>
       saveChannelConfig: (platform: OcbotChannelPlatform, config: OcbotChannelConfig) => Promise<OcbotChannelConfig>
       listChannelPairingRequests: (platform: OcbotChannelPlatform) => Promise<{
         requests: OcbotChannelPairingRequest[]
