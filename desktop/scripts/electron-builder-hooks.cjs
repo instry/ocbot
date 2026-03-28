@@ -7,11 +7,14 @@ const {
   bundledRuntimeRoot,
   commandExists,
   defaultOpenClawSourceRoot,
+  getConfiguredOpenClawVersion,
+  getDesktopVersion,
   normalizeArchName,
   normalizePlatformName,
   readCliOption,
   resolveCommand,
   run,
+  syncPackageVersionFiles,
 } = require('./common.cjs')
 
 function resolvePnpmRunner() {
@@ -73,10 +76,37 @@ function hasBuiltOpenClaw(sourceRoot) {
     && fs.existsSync(controlUiIndex)
 }
 
+function readOpenClawSourceVersion(sourceRoot) {
+  const packageJsonPath = path.join(sourceRoot, 'package.json')
+  if (!fs.existsSync(packageJsonPath)) {
+    throw new Error(`OpenClaw package.json not found: ${packageJsonPath}`)
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+  if (typeof packageJson.version !== 'string' || packageJson.version.trim() === '') {
+    throw new Error(`OpenClaw version is missing in ${packageJsonPath}`)
+  }
+  return packageJson.version.trim()
+}
+
+function ensureConfiguredOpenClawVersion(sourceRoot) {
+  const desktopVersion = getDesktopVersion()
+  const expectedVersion = getConfiguredOpenClawVersion()
+  const actualVersion = readOpenClawSourceVersion(sourceRoot)
+
+  if (actualVersion !== expectedVersion) {
+    throw new Error(
+      `OpenClaw version mismatch for desktop ${desktopVersion}: expected ${expectedVersion}, found ${actualVersion} in ${sourceRoot}`,
+    )
+  }
+}
+
 function ensureOpenClawBuild(sourceRoot) {
+  syncPackageVersionFiles()
   assertPathExists(sourceRoot, 'OpenClaw source directory')
   assertPathExists(path.join(sourceRoot, 'package.json'), 'OpenClaw package.json')
   assertPathExists(path.join(sourceRoot, 'openclaw.mjs'), 'OpenClaw bootstrap entry')
+  ensureConfiguredOpenClawVersion(sourceRoot)
 
   if (hasBuiltOpenClaw(sourceRoot)) {
     console.log(`[OpenClaw bundle] Reusing existing build from ${sourceRoot}`)

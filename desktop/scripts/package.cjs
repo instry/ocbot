@@ -1,4 +1,5 @@
 const {
+  getConfiguredOpenClawVersion,
   getDesktopVersion,
   hasCliFlag,
   macArchitectures,
@@ -8,6 +9,7 @@ const {
   readCliOption,
   resolveCommand,
   run,
+  syncPackageVersionFiles,
   toElectronBuilderPlatformFlag,
   windowsArchitectures,
 } = require('./common.cjs')
@@ -176,7 +178,9 @@ function main() {
   }
 
   const tasks = resolveTasks(options)
+  syncPackageVersionFiles()
   console.log(`[package] Desktop version ${getDesktopVersion()}`)
+  console.log(`[package] OpenClaw version ${getConfiguredOpenClawVersion()}`)
   console.log(`[package] Planned tasks: ${tasks.map((task) => getTaskLabel(task)).join(', ')}`)
 
   if (!options.skipBuild) {

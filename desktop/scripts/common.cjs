@@ -5,6 +5,8 @@ const { spawnSync } = require('node:child_process')
 const projectRoot = path.resolve(__dirname, '..')
 const defaultOpenClawSourceRoot = path.resolve(projectRoot, '..', '..', 'openclaw')
 const bundledRuntimeRoot = path.resolve(projectRoot, 'resources', 'openclaw')
+const versionFilePath = path.join(projectRoot, 'VERSION')
+const versionMapFilePath = path.join(projectRoot, 'version_map.json')
 
 const macArchitectures = ['x64', 'arm64']
 const windowsArchitectures = ['x64', 'arm64', 'ia32']
@@ -33,12 +35,82 @@ function commandExists(command, args = ['--version']) {
   return !result.error && result.status === 0
 }
 
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+}
+
+function writeJson(filePath, value) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
+}
+
 function getDesktopPackageJson() {
-  return JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
+  return readJson(path.join(projectRoot, 'package.json'))
+}
+
+function getPackageLockJson() {
+  return readJson(path.join(projectRoot, 'package-lock.json'))
 }
 
 function getDesktopVersion() {
-  return String(getDesktopPackageJson().version || '0.1.0')
+  return fs.readFileSync(versionFilePath, 'utf8').trim()
+}
+
+function getVersionMap() {
+  return readJson(versionMapFilePath)
+}
+
+function getDesktopVersionConfig() {
+  const version = getDesktopVersion()
+  const versionMap = getVersionMap()
+  const config = versionMap[version]
+  if (!config || typeof config !== 'object') {
+    throw new Error(`Missing desktop version_map entry for version ${version}`)
+  }
+  return config
+}
+
+function getConfiguredOpenClawVersion() {
+  const config = getDesktopVersionConfig()
+  if (typeof config.openclaw !== 'string' || config.openclaw.trim() === '') {
+    throw new Error(`Missing openclaw version for desktop version ${getDesktopVersion()}`)
+  }
+  return config.openclaw.trim()
+}
+
+function syncPackageVersionFiles() {
+  const version = getDesktopVersion()
+  const packageJsonPath = path.join(projectRoot, 'package.json')
+  const packageJson = getDesktopPackageJson()
+  let changed = false
+
+  if (packageJson.version !== version) {
+    packageJson.version = version
+    writeJson(packageJsonPath, packageJson)
+    changed = true
+  }
+
+  const packageLockPath = path.join(projectRoot, 'package-lock.json')
+  if (fs.existsSync(packageLockPath)) {
+    const packageLockJson = getPackageLockJson()
+    let lockChanged = false
+
+    if (packageLockJson.version !== version) {
+      packageLockJson.version = version
+      lockChanged = true
+    }
+
+    if (packageLockJson.packages && packageLockJson.packages[''] && packageLockJson.packages[''].version !== version) {
+      packageLockJson.packages[''].version = version
+      lockChanged = true
+    }
+
+    if (lockChanged) {
+      writeJson(packageLockPath, packageLockJson)
+      changed = true
+    }
+  }
+
+  return changed
 }
 
 function readCliOption(argv, name) {
@@ -141,8 +213,12 @@ module.exports = {
   bundledRuntimeRoot,
   commandExists,
   defaultOpenClawSourceRoot,
+  getConfiguredOpenClawVersion,
   getDesktopPackageJson,
+  getDesktopVersionConfig,
   getDesktopVersion,
+  getPackageLockJson,
+  getVersionMap,
   hasCliFlag,
   macArchitectures,
   normalizeArchName,
@@ -151,7 +227,10 @@ module.exports = {
   readCliOption,
   resolveCommand,
   run,
+  syncPackageVersionFiles,
   toElectronBuilderPlatformFlag,
+  versionFilePath,
+  versionMapFilePath,
   windowsArchitectures,
   assertSupportedRuntimeTarget,
 }
