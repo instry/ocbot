@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
 import { Check } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface SelectionOption<T extends string = string> {
@@ -28,7 +28,7 @@ export function SelectionGroup<T extends string = string>({
   return (
     <div
       className={cn(
-        'grid gap-1.5 rounded-xl border border-border bg-card p-1.5',
+        'grid gap-2 rounded-2xl border border-border bg-card/80 p-2 shadow-sm backdrop-blur-sm',
         options.length <= 2 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2',
         className,
       )}
@@ -43,17 +43,17 @@ export function SelectionGroup<T extends string = string>({
             onClick={() => onChange(option.value)}
             aria-pressed={selected}
             className={cn(
-              'group flex w-full gap-2.5 rounded-lg border text-left transition-all duration-150',
+              'group flex w-full gap-3 rounded-xl border text-left transition-all duration-150',
               hasDescription ? 'items-start' : 'items-center',
               size === 'compact' ? 'min-h-[52px] px-3 py-2.5' : 'min-h-[64px] px-3.5 py-3',
               selected
                 ? 'border-button-tonal-border bg-button-tonal text-button-tonal-foreground shadow-sm'
-                : 'border-transparent bg-transparent text-text hover:border-border hover:bg-bg-hover',
+                : 'border-transparent bg-transparent text-text hover:border-border hover:bg-bg-hover/80',
             )}
           >
             <span
               className={cn(
-                'flex shrink-0 items-center justify-center rounded-lg border transition-colors',
+                'flex shrink-0 items-center justify-center rounded-xl border transition-colors',
                 hasDescription && 'mt-0.5',
                 size === 'compact' ? 'h-7 w-7' : 'h-8 w-8',
                 selected

@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, type KeyboardEvent } from 'react'
 import { ArrowUp, Square } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { useChatStore } from '@/stores/chat-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { cn } from '@/lib/utils'
@@ -99,8 +101,8 @@ export function ChatInput() {
   return (
     <div className="px-4 py-3">
       <div className="mx-auto max-w-3xl">
-        <div className="relative flex min-h-[80px] flex-col rounded-2xl border border-border bg-bg-muted transition-colors focus-within:border-accent">
-          <textarea
+        <div className="relative flex min-h-[80px] flex-col rounded-[1.25rem] border border-border bg-card/90 p-1 shadow-sm transition-colors focus-within:border-accent">
+          <Textarea
             ref={textareaRef}
             value={input}
             onChange={handleChange}
@@ -111,26 +113,23 @@ export function ChatInput() {
             disabled={sending}
             rows={3}
             maxLength={20000}
-            style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
             className={cn(
-              'flex-1 resize-none bg-transparent px-4 py-3 pr-12 text-[14px] text-text',
-              'placeholder:text-muted-foreground',
-              'max-h-[200px] min-h-[80px]',
+              'max-h-[200px] min-h-[80px] resize-none border-none bg-transparent px-4 py-3 pr-12 text-[14px] shadow-none ring-0',
             )}
           />
-          <button
+          <Button
             onClick={sending ? handleAbort : handleSend}
             disabled={!input.trim() && !sending}
+            variant={sending ? 'secondary' : 'primary'}
+            size="icon"
             className={cn(
-              'absolute bottom-2 right-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all',
-              'shadow-sm',
-              sending
-                ? 'bg-black/8 text-gray-600 hover:bg-black/15 dark:bg-white/8 dark:text-gray-400 dark:hover:bg-white/15'
-                : 'bg-accent text-accent-foreground hover:bg-accent-hover disabled:opacity-30 disabled:cursor-default',
+              'absolute bottom-3 right-3 h-9 w-9 rounded-full',
+              sending && 'border-border bg-bg text-muted-foreground',
+              !sending && 'disabled:cursor-default',
             )}
           >
             {sending ? <Square className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

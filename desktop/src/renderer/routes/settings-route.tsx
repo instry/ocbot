@@ -1,49 +1,54 @@
 import { useState } from 'react'
 import { Sliders, Info, Sun, Moon, Globe, Mail } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { SelectionGroup } from '@/components/ui/selection-group'
+import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { ThemeMode } from '@/stores/ui-store'
-import { SelectionGroup } from '@/components/ui/selection-group'
 
 type SettingsTab = 'general' | 'about'
 
 export function SettingsRoute() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const { themeMode, setThemeMode } = useUIStore()
+  const tabs = [
+    { value: 'general' as const, label: 'General', icon: Sliders },
+    { value: 'about' as const, label: 'About', icon: Info },
+  ]
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-48 border-r border-border bg-bg-subtle flex flex-col">
-        <div className="px-4 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold text-text-strong">Settings</h2>
+      <aside className="flex w-56 flex-col border-r border-border bg-bg-subtle/80 p-3">
+        <div className="px-2 py-2">
+          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Workspace</div>
+          <h2 className="mt-1 text-base font-semibold text-text-strong">Settings</h2>
         </div>
-        <nav className="flex-1 p-2">
-          <button
-            onClick={() => setActiveTab('general')}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              activeTab === 'general'
-                ? 'bg-accent/10 text-accent'
-                : 'text-text hover:bg-bg-hover'
-            }`}
-          >
-            <Sliders className="h-4 w-4" />
-            General
-          </button>
-          <button
-            onClick={() => setActiveTab('about')}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              activeTab === 'about'
-                ? 'bg-accent/10 text-accent'
-                : 'text-text hover:bg-bg-hover'
-            }`}
-          >
-            <Info className="h-4 w-4" />
-            About
-          </button>
+        <nav className="mt-3 flex flex-1 flex-col gap-1">
+          {tabs.map(({ value, label, icon: Icon }) => (
+            <Button
+              key={value}
+              variant={activeTab === value ? 'tonal' : 'ghost'}
+              className={cn(
+                'justify-start rounded-xl px-3',
+                activeTab !== value && 'border-transparent text-text hover:border-border',
+              )}
+              onClick={() => setActiveTab(value)}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </Button>
+          ))}
         </nav>
-      </div>
+        <Card className="mt-3 border-dashed bg-card/70 shadow-none">
+          <CardContent className="space-y-2 p-4">
+            <div className="text-sm font-medium text-text-strong">Desktop Theme</div>
+            <div className="text-xs leading-5 text-muted-foreground">统一采用卡片、胶囊和柔和边框层级。</div>
+          </CardContent>
+        </Card>
+      </aside>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'general' && <GeneralTab themeMode={themeMode} setThemeMode={setThemeMode} />}
         {activeTab === 'about' && <AboutTab />}
@@ -67,29 +72,32 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
   ]
 
   return (
-    <div className="p-6 max-w-3xl">
-      <h2 className="text-xl font-semibold text-text-strong mb-6">General</h2>
-
-      <div className="space-y-6">
-        {/* Appearance */}
-        <div>
-          <h3 className="text-sm font-medium text-text-strong mb-3">Appearance</h3>
-          <div className="bg-bg-subtle border border-border rounded-lg p-4">
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm font-medium text-text-strong">Color Scheme</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Choose your preferred theme</div>
-              </div>
-              <SelectionGroup
-                value={themeMode}
-                options={appearanceOptions}
-                onChange={setThemeMode}
-                size="compact"
-              />
-            </div>
-          </div>
-        </div>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+      <div className="space-y-1">
+        <h2 className="text-2xl font-semibold text-text-strong">General</h2>
+        <p className="text-sm text-muted-foreground">管理桌面端的外观和基础体验。</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>Choose your preferred theme.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <div className="text-sm font-medium text-text-strong">Color Scheme</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Switch between light and dark mode.</div>
+            </div>
+            <SelectionGroup
+              value={themeMode}
+              options={appearanceOptions}
+              onChange={setThemeMode}
+              size="compact"
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -104,69 +112,65 @@ function AboutTab() {
     { q: 'Will you leak my data?', a: "Nope! All your data is stored locally. I don't phone home. Your conversations, your settings — all yours." },
   ]
 
-  // const socials = [
-  //   { name: 'X', url: 'https://x.com/ocbot_ai' },
-  //   { name: 'Instagram', url: 'https://instagram.com/ocbot_ai' },
-  //   { name: 'YouTube', url: 'https://youtube.com/@ocbot_ai' },
-  //   { name: 'Discord', url: 'https://discord.gg/ocbot_ai' },
-  //   { name: 'TikTok', url: 'https://tiktok.com/@ocbot_ai' },
-  // ]
-
   return (
-    <div className="p-6 max-w-3xl">
-      <div className="flex flex-col items-center text-center mb-8">
-        <img src="./logo.png" alt="Ocbot" className="w-16 h-16 mb-4" />
-        <h1 className="text-2xl font-bold text-text-strong mb-2">ocbot</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+      <div className="flex flex-col items-center text-center">
+        <img src="./logo.png" alt="Ocbot" className="mb-4 h-16 w-16" />
+        <h1 className="mb-2 text-2xl font-bold text-text-strong">ocbot</h1>
         <p className="text-sm text-muted-foreground">Got brains, got arms, up before the alarm.</p>
+        <Badge variant="accent" className="mt-4">v{version}</Badge>
       </div>
 
-      <div className="bg-bg-subtle border border-border rounded-lg p-4 mb-6">
-        <p className="text-sm text-text leading-relaxed">
-          My name is ocbot. I'm super smart and super quick at getting things done.
-          I live inside your browser with eight nimble arms ready to handle any task.
-          Ask me to find info, fill forms, compare products, or automate your online work.
-          I don't sleep, I don't forget, and I'm always ready.
-        </p>
-      </div>
+      <Card>
+        <CardContent className="p-5">
+          <p className="text-sm leading-relaxed text-text">
+            My name is ocbot. I'm super smart and super quick at getting things done.
+            I live inside your browser with eight nimble arms ready to handle any task.
+            Ask me to find info, fill forms, compare products, or automate your online work.
+            I don't sleep, I don't forget, and I'm always ready.
+          </p>
+        </CardContent>
+      </Card>
 
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-text-strong mb-3">FAQ</h2>
-        <div className="space-y-3">
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle>FAQ</CardTitle>
+          <CardDescription>关于 ocbot 的几个简短说明。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
           {faqs.map((f, i) => (
-            <div key={i} className="bg-bg-subtle border border-border rounded-lg p-4">
-              <p className="text-sm font-medium text-text-strong mb-1">Q: {f.q}</p>
-              <p className="text-sm text-text">{f.a}</p>
-            </div>
+            <Card key={i} className="bg-bg-subtle/60 shadow-none">
+              <CardContent className="space-y-1 p-4">
+                <p className="text-sm font-medium text-text-strong">Q: {f.q}</p>
+                <p className="text-sm text-text">{f.a}</p>
+              </CardContent>
+            </Card>
           ))}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="flex flex-col items-center gap-4 pt-4 border-t border-border">
-        <div className="flex gap-4 text-sm">
-          <a href="https://oc.bot" target="_blank" rel="noopener" className="flex items-center gap-1.5 text-accent hover:text-accent/80 transition-colors no-underline">
-            <Globe className="h-3.5 w-3.5" />
-            oc.bot
-          </a>
-          <a href="mailto:hi@oc.bot" className="flex items-center gap-1.5 text-accent hover:text-accent/80 transition-colors no-underline">
-            <Mail className="h-3.5 w-3.5" />
-            hi@oc.bot
-          </a>
-        </div>
-        {/* <div className="flex flex-wrap gap-2 justify-center">
-          {socials.map(s => (
+      <Card className="shadow-none">
+        <CardContent className="flex flex-col items-center gap-4 p-5">
+          <div className="flex gap-3 text-sm">
             <a
-              key={s.name}
-              href={s.url}
+              href="https://oc.bot"
               target="_blank"
               rel="noopener"
-              className="px-3 py-1 text-xs bg-bg-subtle border border-border rounded-full text-text hover:bg-bg-hover transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-accent no-underline transition-colors hover:bg-bg-hover"
             >
-              {s.name}
+              <Globe className="h-3.5 w-3.5" />
+              oc.bot
             </a>
-          ))}
-        </div> */}
-        <div className="text-xs text-muted-foreground">v{version}</div>
-      </div>
+            <a
+              href="mailto:hi@oc.bot"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-accent no-underline transition-colors hover:bg-bg-hover"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              hi@oc.bot
+            </a>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

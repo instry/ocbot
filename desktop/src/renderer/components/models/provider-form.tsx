@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
-import { ExternalLink } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Check, ExternalLink } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
-import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { SelectionGroup } from '@/components/ui/selection-group'
-
-// --- Static provider configuration ---
+import { cn } from '@/lib/utils'
 
 interface ProviderHint {
   label: string
@@ -184,6 +186,26 @@ interface ProviderFormProps {
   onCancel: () => void
 }
 
+function FieldHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string
+  description?: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-text-strong">{title}</div>
+        {description ? <div className="text-xs leading-5 text-muted-foreground">{description}</div> : null}
+      </div>
+      {action}
+    </div>
+  )
+}
+
 export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: ProviderFormProps) {
   const isEditMode = !!editProfileKey
   const preferredRegion = navigator.language.startsWith('zh') ? 'cn' : 'global'
@@ -200,8 +222,16 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
   const isLocal = LOCAL_PROVIDERS.includes(selectedProvider)
   const hint = PROVIDER_HINTS[selectedProvider] ?? { label: selectedProvider, api: '', defaultBaseUrl: '' }
   const models = Array.isArray(hint.models) ? [...hint.models].reverse() : []
+  const providerOptions = CURATED_PROVIDER_IDS.map(provider => {
+    const providerHint = PROVIDER_HINTS[provider]
+    return {
+      value: provider,
+      label: providerHint.label,
+      description: LOCAL_PROVIDERS.includes(provider) ? 'Local runtime' : 'Hosted API',
+      badge: LOCAL_PROVIDERS.includes(provider) ? 'Local' : 'Cloud',
+    }
+  })
 
-  // Populate form in edit mode
   useEffect(() => {
     if (!editData) return
     setSelectedProvider(editData.provider)
@@ -211,12 +241,12 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
     setSelectedModels(new Set())
     setError(null)
 
-    const h = PROVIDER_HINTS[editData.provider]
-    if (h?.regions?.length) {
-      const matched = h.regions.find(r => r.baseUrl === editData.baseUrl)
+    const providerHint = PROVIDER_HINTS[editData.provider]
+    if (providerHint?.regions?.length) {
+      const matched = providerHint.regions.find(region => region.baseUrl === editData.baseUrl)
       setSelectedRegion(matched?.id ?? preferredRegion)
     }
-  }, [editData])
+  }, [editData, preferredRegion])
 
   function selectProvider(provider: string) {
     if (isEditMode) return
@@ -227,19 +257,18 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
     setSelectedModels(new Set())
     setSelectedModel('')
 
-    const h = PROVIDER_HINTS[provider]
-    if (h?.regions?.length) {
-      const preferred = h.regions.find(r => r.id === preferredRegion) ?? h.regions[0]
+    const providerHint = PROVIDER_HINTS[provider]
+    if (providerHint?.regions?.length) {
+      const preferred = providerHint.regions.find(region => region.id === preferredRegion) ?? providerHint.regions[0]
       setSelectedRegion(preferred.id)
       setBaseUrl(preferred.baseUrl)
     } else {
       setSelectedRegion('')
-      setBaseUrl(h?.defaultBaseUrl ?? '')
+      setBaseUrl(providerHint?.defaultBaseUrl ?? '')
     }
 
-    // Pre-select newest model
-    if (h?.models?.length) {
-      const newest = h.models[h.models.length - 1]
+    if (providerHint?.models?.length) {
+      const newest = providerHint.models[providerHint.models.length - 1]
       setSelectedModels(new Set([newest.id]))
       setSelectedModel(newest.id)
     }
@@ -247,7 +276,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
 
   function handleRegionChange(regionId: string) {
     setSelectedRegion(regionId)
-    const region = hint.regions?.find(r => r.id === regionId)
+    const region = hint.regions?.find(item => item.id === regionId)
     if (region) setBaseUrl(region.baseUrl)
   }
 
@@ -277,27 +306,24 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
       const gw = getGatewayClient()
       const patch: Record<string, any> = {}
 
-      // Provider config
       const providerConfig: Record<string, any> = {
         api: hint.api,
         baseUrl: baseUrl.trim() || hint.defaultBaseUrl,
       }
+
       if (!isLocal && apiKey.trim()) {
         providerConfig.apiKey = apiKey.trim()
       }
 
-      // Models
       const modelIds = isEditMode
         ? (selectedModel ? [selectedModel] : [])
-        : (hint.models?.length
-          ? Array.from(selectedModels)
-          : [selectedModel.trim()])
+        : (hint.models?.length ? Array.from(selectedModels) : Array.from(selectedModels).filter(Boolean))
 
       if (modelIds.length) {
         const allModels = [...(hint.models ?? [])].reverse()
         providerConfig.models = modelIds.filter(Boolean).map(id => {
-          const m = allModels.find(m => m.id === id)
-          return { id, name: m?.name ?? id }
+          const model = allModels.find(item => item.id === id)
+          return { id, name: model?.name ?? id }
         })
       }
 
@@ -306,7 +332,6 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
         providers: { [selectedProvider]: providerConfig },
       }
 
-      // Auth profile
       if (!isLocal) {
         const profileKey = editProfileKey ?? `${selectedProvider}:default`
         patch.auth = {
@@ -319,7 +344,6 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
         }
       }
 
-      // Default model
       if (isEditMode) {
         if (selectedModel) {
           patch.agents = {
@@ -329,7 +353,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
       } else {
         const firstModel = hint.models?.length
           ? Array.from(selectedModels)[0]
-          : selectedModel.trim()
+          : Array.from(selectedModels).find(Boolean) ?? selectedModel.trim()
         if (firstModel) {
           patch.agents = {
             defaults: { model: { primary: `${selectedProvider}/${firstModel}` } },
@@ -359,190 +383,176 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
 
   return (
     <div className="space-y-5">
-      {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error ? (
+        <Card className="border-destructive/30 bg-destructive/10 shadow-none">
+          <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      ) : null}
 
-      {/* Provider grid (add mode only) */}
-      {!isEditMode && (
-        <div>
-          <label className="block text-sm font-medium text-text-strong mb-2">Provider</label>
-          <div className="grid grid-cols-4 gap-2">
-            {CURATED_PROVIDER_IDS.map(p => {
-              const h = PROVIDER_HINTS[p]
-              if (!h) return null
-              return (
-                <button
-                  key={p}
-                  onClick={() => selectProvider(p)}
-                  className={cn(
-                    'rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                    selectedProvider === p
-                      ? 'border-accent bg-accent/10 text-accent'
-                      : 'border-border bg-bg-subtle text-text hover:bg-bg-hover',
-                  )}
-                >
-                  {h.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {selectedProvider && (
-        <>
-          {/* Region toggle */}
-          {hint.regions && hint.regions.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-text-strong mb-2">Region</label>
-              <SelectionGroup
-                value={selectedRegion}
-                size="compact"
-                options={[...hint.regions]
-                  .sort((a, b) => a.id === preferredRegion ? -1 : b.id === preferredRegion ? 1 : 0)
-                  .map(r => ({
-                    value: r.id,
-                    label: r.label,
-                  }))}
-                onChange={handleRegionChange}
-              />
-            </div>
-          )}
-
-          {/* API Key */}
-          {!isLocal && (
-            <div>
-              <label className="block text-sm font-medium text-text-strong mb-2">
-                <span>API Key</span>
-                {hint.apiKeyUrl && (
-                  <a
-                    href={hint.apiKeyUrl}
-                    target="_blank"
-                    rel="noopener"
-                    className="ml-2 inline-flex items-center gap-1 text-xs text-accent hover:text-accent/80"
-                  >
-                    Get key <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
-              </label>
-              <input
-                type="text"
-                className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                placeholder={hint.apiKeyPlaceholder ?? 'Enter API key'}
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-              />
-            </div>
-          )}
-
-          {/* Base URL */}
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Base URL</label>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              placeholder="https://..."
-              value={baseUrl}
-              onChange={e => setBaseUrl(e.target.value)}
+      {!isEditMode ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Provider</CardTitle>
+            <CardDescription>选择一个模型服务商，后续字段会自动填充默认值。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SelectionGroup
+              value={selectedProvider}
+              onChange={selectProvider}
+              options={providerOptions}
+              className="lg:grid-cols-3"
             />
-          </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
-          {/* Model selection */}
-          <div>
-            <label className="block text-sm font-medium text-text-strong mb-2">
-              {!isEditMode && models.length > 1 ? 'Models' : 'Model'}
-            </label>
-            {models.length > 0 ? (
-              isEditMode ? (
-                // Edit mode: single select grid
-                <div className="grid grid-cols-3 gap-2">
-                  {models.map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => setSelectedModel(m.id)}
-                      className={cn(
-                        'rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                        selectedModel === m.id
-                          ? 'border-accent bg-accent/10 text-accent'
-                          : 'border-border bg-bg-subtle text-text hover:bg-bg-hover',
-                      )}
-                    >
-                      {m.name || m.id}
-                    </button>
-                  ))}
+      {selectedProvider ? (
+        <>
+          <Card>
+            <CardHeader className="gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle>{hint.label}</CardTitle>
+                <Badge variant={isLocal ? 'outline' : 'accent'}>{isLocal ? 'Local' : 'Cloud'}</Badge>
+              </div>
+              <CardDescription>统一使用紧凑表单卡片，减少重复样式代码。</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {hint.regions?.length ? (
+                <div className="space-y-3">
+                  <FieldHeader
+                    title="Region"
+                    description="根据网络区域切换预设网关地址。"
+                  />
+                  <SelectionGroup
+                    value={selectedRegion}
+                    size="compact"
+                    options={[...hint.regions]
+                      .sort((a, b) => a.id === preferredRegion ? -1 : b.id === preferredRegion ? 1 : 0)
+                      .map(region => ({
+                        value: region.id,
+                        label: region.label,
+                      }))}
+                    onChange={handleRegionChange}
+                  />
                 </div>
-              ) : (
-                // Add mode: multi-select chips
-                <div className="flex flex-wrap gap-2">
-                  {models.map(m => {
-                    const selected = selectedModels.has(m.id)
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => toggleModel(m.id)}
-                        className={cn(
-                          'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                          selected
-                            ? 'border-accent bg-accent/10 text-accent'
-                            : 'border-border bg-bg-subtle text-text hover:bg-bg-hover',
-                        )}
+              ) : null}
+
+              {!isLocal ? (
+                <div className="space-y-3">
+                  <FieldHeader
+                    title="API Key"
+                    description="密钥只会写入当前本地配置。"
+                    action={hint.apiKeyUrl ? (
+                      <a
+                        href={hint.apiKeyUrl}
+                        target="_blank"
+                        rel="noopener"
+                        className="inline-flex items-center gap-1 text-xs text-accent no-underline transition-colors hover:text-accent/80"
                       >
-                        <span className={cn(
-                          'flex h-4 w-4 items-center justify-center rounded border text-xs',
-                          selected
-                            ? 'border-accent bg-accent text-white'
-                            : 'border-border',
-                        )}>
-                          {selected && '✓'}
-                        </span>
-                        {m.name || m.id}
-                      </button>
-                    )
-                  })}
+                        Get key
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ) : undefined}
+                  />
+                  <Input
+                    type="text"
+                    placeholder={hint.apiKeyPlaceholder ?? 'Enter API key'}
+                    value={apiKey}
+                    onChange={event => setApiKey(event.target.value)}
+                  />
                 </div>
-              )
-            ) : (
-              // Free text input for providers without catalog
-              <input
-                type="text"
-                className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                placeholder="e.g. gpt-4o"
-                value={isEditMode ? selectedModel : (selectedModels.size ? Array.from(selectedModels)[0] : '')}
-                onChange={e => {
-                  const val = e.target.value
-                  if (isEditMode) setSelectedModel(val)
-                  else setSelectedModels(new Set([val]))
-                }}
-              />
-            )}
-          </div>
+              ) : null}
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              onClick={onCancel}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text hover:bg-bg-hover transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={save}
-              disabled={saving || !canSave}
-              className={cn(
-                'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                canSave && !saving
-                  ? 'bg-accent text-white hover:bg-accent/90'
-                  : 'bg-accent/30 text-white/50 cursor-not-allowed',
+              <div className="space-y-3">
+                <FieldHeader
+                  title="Base URL"
+                  description="可选覆盖默认网关地址，兼容代理或自托管入口。"
+                />
+                <Input
+                  type="text"
+                  placeholder="https://..."
+                  value={baseUrl}
+                  onChange={event => setBaseUrl(event.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{!isEditMode && models.length > 1 ? 'Models' : 'Model'}</CardTitle>
+              <CardDescription>默认会把首个选中的模型写入 agent 默认配置。</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {models.length > 0 ? (
+                isEditMode ? (
+                  <SelectionGroup
+                    value={selectedModel}
+                    onChange={setSelectedModel}
+                    size="compact"
+                    options={models.map(model => ({
+                      value: model.id,
+                      label: model.name || model.id,
+                    }))}
+                  />
+                ) : (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      {models.map(model => {
+                        const selected = selectedModels.has(model.id)
+                        return (
+                          <Button
+                            key={model.id}
+                            onClick={() => toggleModel(model.id)}
+                            variant={selected ? 'tonal' : 'secondary'}
+                            size="sm"
+                            className={cn('h-auto rounded-full px-3 py-2', !selected && 'text-text')}
+                          >
+                            <span
+                              className={cn(
+                                'flex h-4 w-4 items-center justify-center rounded-full border',
+                                selected
+                                  ? 'border-button-tonal-border bg-card text-button-tonal-foreground'
+                                  : 'border-border bg-bg text-transparent',
+                              )}
+                            >
+                              <Check className="h-3 w-3" />
+                            </span>
+                            {model.name || model.id}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from(selectedModels).map(id => (
+                        <Badge key={id} variant="accent">{id}</Badge>
+                      ))}
+                    </div>
+                  </>
+                )
+              ) : (
+                <Input
+                  type="text"
+                  placeholder="e.g. gpt-4o"
+                  value={isEditMode ? selectedModel : (selectedModels.size ? Array.from(selectedModels)[0] : '')}
+                  onChange={event => {
+                    const value = event.target.value
+                    if (isEditMode) setSelectedModel(value)
+                    else setSelectedModels(new Set([value]))
+                  }}
+                />
               )}
-            >
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-end gap-3">
+            <Button onClick={onCancel} variant="secondary" size="md">Cancel</Button>
+            <Button onClick={save} disabled={saving || !canSave} variant="primary" size="md">
               {saving ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }

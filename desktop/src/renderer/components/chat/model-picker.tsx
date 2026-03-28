@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { ChevronDown, Check, Search, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useModelStore, CN_URLS } from '@/stores/model-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { cn } from '@/lib/utils'
@@ -92,37 +94,39 @@ export function ModelPicker() {
 
   return (
     <div className="relative" ref={popoverRef}>
-      <button
+      <Button
         onClick={() => { setOpen(!open); setSearch('') }}
-        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-bg-hover hover:text-text"
+        variant="ghost"
+        size="xs"
+        className="rounded-lg border-transparent px-2 text-xs text-muted-foreground hover:border-border"
       >
         <span className="max-w-[200px] truncate">{getSelectedDisplay()}</span>
         <ChevronDown className="h-3 w-3" />
-      </button>
+      </Button>
 
       {open && (
-        <div className="absolute left-0 top-full z-[100] mt-1.5 w-[280px] animate-scale-in rounded-xl border border-border bg-popover shadow-lg">
-          {/* Search */}
+        <div className="absolute left-0 top-full z-[100] mt-1.5 w-[280px] animate-scale-in rounded-2xl border border-border bg-popover shadow-lg">
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <Search className="h-3.5 w-3.5 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               placeholder="Search models..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="flex-1 bg-transparent text-xs text-text placeholder:text-muted-foreground focus:outline-none"
+              className="h-8 border-none bg-transparent px-0 text-xs shadow-none focus-visible:ring-0"
               autoFocus
             />
-            <button
-              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-text"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-lg border-transparent text-muted-foreground hover:border-border"
               title="Add model"
               onClick={() => { setOpen(false); window.location.hash = '#/settings' }}
             >
               <Plus className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           </div>
 
-          {/* Model list */}
           <div className="max-h-[320px] overflow-y-auto py-1">
             {groups.length === 0 ? (
               <div className="px-3 py-4 text-center text-xs text-muted-foreground">

@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { ProviderForm, type ConfiguredProvider } from '@/components/models/provider-form'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { useModelStore } from '@/stores/model-store'
 import { cn } from '@/lib/utils'
 
@@ -111,15 +114,19 @@ export function ModelsRoute() {
 
   if (view === 'add') {
     return (
-      <div className="flex-1 overflow-y-auto p-6 max-w-3xl">
-        <button
+      <div className="mx-auto flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
+        <Button
           onClick={handleCancel}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-text mb-4 transition-colors"
+          variant="ghost"
+          className="w-fit px-0 text-muted-foreground hover:border-transparent hover:bg-transparent"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Models
-        </button>
-        <h2 className="text-xl font-semibold text-text-strong mb-6">Add Provider</h2>
+        </Button>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold text-text-strong">Add Provider</h2>
+          <p className="text-sm text-muted-foreground">使用统一的表单卡片快速配置模型服务商。</p>
+        </div>
         <ProviderForm onSaved={handleSaved} onCancel={handleCancel} />
       </div>
     )
@@ -127,16 +134,19 @@ export function ModelsRoute() {
 
   if (view === 'edit' && editingProvider) {
     return (
-      <div className="flex-1 overflow-y-auto p-6 max-w-3xl">
-        <button
+      <div className="mx-auto flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
+        <Button
           onClick={handleCancel}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-text mb-4 transition-colors"
+          variant="ghost"
+          className="w-fit px-0 text-muted-foreground hover:border-transparent hover:bg-transparent"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Models
-        </button>
-        <h2 className="text-xl font-semibold text-text-strong mb-2">Edit Provider</h2>
-        <p className="text-sm text-muted-foreground mb-6">{editingProvider.label}</p>
+        </Button>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold text-text-strong">Edit Provider</h2>
+          <p className="text-sm text-muted-foreground">{editingProvider.label}</p>
+        </div>
         <ProviderForm
           editProfileKey={editingProvider.profileKey}
           editData={editingProvider}
@@ -148,74 +158,81 @@ export function ModelsRoute() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 max-w-3xl">
-      <h2 className="text-xl font-semibold text-text-strong mb-2">Models</h2>
-      <p className="text-sm text-muted-foreground mb-6">Manage your AI model providers and API keys.</p>
+    <div className="mx-auto flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
+      <div className="space-y-1">
+        <h2 className="text-2xl font-semibold text-text-strong">Models</h2>
+        <p className="text-sm text-muted-foreground">Manage your AI model providers and API keys.</p>
+      </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {loading ? (
-          <div className="text-sm text-muted-foreground">Loading...</div>
+          <Card className="shadow-none">
+            <CardContent className="p-5 text-sm text-muted-foreground">Loading...</CardContent>
+          </Card>
         ) : providers.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No providers configured yet. Add one to get started.</div>
+          <Card className="shadow-none">
+            <CardContent className="p-5 text-sm text-muted-foreground">No providers configured yet. Add one to get started.</CardContent>
+          </Card>
         ) : (
           providers.map(p => {
             const initials = p.label.slice(0, 2).toUpperCase()
             return (
-              <div
+              <Card
                 key={p.profileKey}
                 className={cn(
-                  'flex items-center justify-between rounded-lg border bg-bg-subtle p-4',
+                  'bg-bg-subtle/60 shadow-none',
                   p.isDefault ? 'border-accent/30' : 'border-border',
                 )}
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-sm font-semibold text-accent">
-                    {initials}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-text-strong">{p.profileKey}</span>
-                      <span className="rounded-full bg-bg px-2 py-0.5 text-xs text-muted-foreground">
-                        {p.label}
-                      </span>
-                      {p.isDefault && (
-                        <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent">
-                          ★ Default
-                        </span>
+                <CardContent className="flex items-center justify-between gap-4 p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-sm font-semibold text-accent">
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-medium text-text-strong">{p.profileKey}</span>
+                        <Badge>{p.label}</Badge>
+                        {p.isDefault && <Badge variant="accent">★ Default</Badge>}
+                      </div>
+                      {p.modelId && (
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">{p.modelId}</div>
                       )}
                     </div>
-                    {p.modelId && (
-                      <div className="text-xs text-muted-foreground mt-0.5">{p.modelId}</div>
-                    )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => { setEditingProvider(p); setView('edit') }}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-bg-hover hover:text-text transition-colors"
-                    title="Edit"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => deleteProvider(p.profileKey)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => { setEditingProvider(p); setView('edit') }}
+                      variant="secondary"
+                      size="icon"
+                      className="text-muted-foreground"
+                      title="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      onClick={() => deleteProvider(p.profileKey)}
+                      variant="danger"
+                      size="icon"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             )
           })
         )}
 
-        <button
+        <Card className="border-dashed bg-bg-subtle/50 shadow-none transition-colors hover:border-accent/60">
+          <button
           onClick={() => setView('add')}
-          className="w-full rounded-lg border border-dashed border-border bg-bg-subtle px-4 py-3 text-sm font-medium text-muted-foreground hover:border-accent hover:text-accent transition-colors"
-        >
-          + Add Provider
-        </button>
+            className="w-full rounded-2xl px-4 py-4 text-sm font-medium text-muted-foreground transition-colors hover:text-accent"
+          >
+            + Add Provider
+          </button>
+        </Card>
       </div>
     </div>
   )
