@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Sliders, Info, Monitor, Sun, Moon, Globe, Mail } from 'lucide-react'
+import { Sliders, Info, Sun, Moon, Globe, Mail } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
 import type { ThemeMode } from '@/stores/ui-store'
+import { SelectionGroup } from '@/components/ui/selection-group'
 
 type SettingsTab = 'general' | 'about'
 
@@ -52,6 +53,19 @@ export function SettingsRoute() {
 }
 
 function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThemeMode: (mode: ThemeMode) => void }) {
+  const appearanceOptions = [
+    {
+      value: 'light' as const,
+      label: 'Light',
+      icon: <Sun className="h-4 w-4" />,
+    },
+    {
+      value: 'dark' as const,
+      label: 'Dark',
+      icon: <Moon className="h-4 w-4" />,
+    },
+  ]
+
   return (
     <div className="p-6 max-w-3xl">
       <h2 className="text-xl font-semibold text-text-strong mb-6">General</h2>
@@ -61,35 +75,17 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
         <div>
           <h3 className="text-sm font-medium text-text-strong mb-3">Appearance</h3>
           <div className="bg-bg-subtle border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between">
+            <div className="space-y-4">
               <div>
                 <div className="text-sm font-medium text-text-strong">Color Scheme</div>
                 <div className="text-xs text-muted-foreground mt-0.5">Choose your preferred theme</div>
               </div>
-              <div className="inline-flex gap-2">
-                <button
-                  onClick={() => setThemeMode('light')}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    themeMode === 'light'
-                      ? 'bg-accent text-white'
-                      : 'bg-bg-subtle text-text hover:bg-bg-hover'
-                  }`}
-                >
-                  <Sun className="h-3.5 w-3.5" />
-                  Light
-                </button>
-                <button
-                  onClick={() => setThemeMode('dark')}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    themeMode === 'dark'
-                      ? 'bg-accent text-white'
-                      : 'bg-bg-subtle text-text hover:bg-bg-hover'
-                  }`}
-                >
-                  <Moon className="h-3.5 w-3.5" />
-                  Dark
-                </button>
-              </div>
+              <SelectionGroup
+                value={themeMode}
+                options={appearanceOptions}
+                onChange={setThemeMode}
+                size="compact"
+              />
             </div>
           </div>
         </div>

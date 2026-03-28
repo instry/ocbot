@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { cn } from '@/lib/utils'
+import { SelectionGroup } from '@/components/ui/selection-group'
 
 // --- Static provider configuration ---
 
@@ -397,24 +398,17 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
           {hint.regions && hint.regions.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-text-strong mb-2">Region</label>
-              <div className="inline-flex gap-2">
-                {[...hint.regions]
+              <SelectionGroup
+                value={selectedRegion}
+                size="compact"
+                options={[...hint.regions]
                   .sort((a, b) => a.id === preferredRegion ? -1 : b.id === preferredRegion ? 1 : 0)
-                  .map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => handleRegionChange(r.id)}
-                      className={cn(
-                        'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                        selectedRegion === r.id
-                          ? 'bg-accent text-white'
-                          : 'bg-bg-subtle text-text hover:bg-bg-hover',
-                      )}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-              </div>
+                  .map(r => ({
+                    value: r.id,
+                    label: r.label,
+                  }))}
+                onChange={handleRegionChange}
+              />
             </div>
           )}
 
