@@ -240,6 +240,7 @@ export function ModelsRoute() {
         ) : (
           providers.map(p => {
             const initials = p.label.slice(0, 2).toUpperCase()
+            const isDefaultProfileKey = p.profileKey === `${p.provider}:default`
             return (
               <Card
                 key={p.profileKey}
@@ -255,10 +256,12 @@ export function ModelsRoute() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-sm font-medium text-text-strong">{p.profileKey}</span>
-                        <Badge>{p.label}</Badge>
+                        <span className="truncate text-sm font-medium text-text-strong">{p.label}</span>
                         {p.isDefault && <Badge variant="accent">★ Default</Badge>}
                       </div>
+                      {!isDefaultProfileKey ? (
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">{p.profileKey}</div>
+                      ) : null}
                       {p.models.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {p.models.map(model => {
