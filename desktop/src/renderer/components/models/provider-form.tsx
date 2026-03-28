@@ -292,6 +292,15 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
     })
   }
 
+  function selectKnownModel(id: string) {
+    if (isEditMode) {
+      setSelectedModel(id)
+      return
+    }
+
+    toggleModel(id)
+  }
+
   async function save() {
     if (!selectedProvider) return
     if (!isLocal && !apiKey.trim() && !(isEditMode && hasStoredApiKey)) {
@@ -380,6 +389,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
   const canSave = selectedProvider
     && (isLocal || apiKey.trim() || (isEditMode && hasStoredApiKey))
     && (isEditMode || selectedModels.size > 0 || selectedModel.trim())
+  const activeModelIds = isEditMode ? new Set(selectedModel ? [selectedModel] : []) : selectedModels
 
   return (
     <div className="space-y-5">
@@ -477,44 +487,32 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
             <div className="space-y-4">
               <FieldHeader title={!isEditMode && models.length > 1 ? 'Models' : 'Model'} />
               {models.length > 0 ? (
-                isEditMode ? (
-                  <SelectionGroup
-                    value={selectedModel}
-                    onChange={setSelectedModel}
-                    size="compact"
-                    options={models.map(model => ({
-                      value: model.id,
-                      label: model.name || model.id,
-                    }))}
-                  />
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {models.map(model => {
-                      const selected = selectedModels.has(model.id)
-                      return (
-                        <Button
-                          key={model.id}
-                          onClick={() => toggleModel(model.id)}
-                          variant={selected ? 'tonal' : 'secondary'}
-                          size="sm"
-                          className={cn('h-auto rounded-full px-3 py-2', !selected && 'text-text')}
+                <div className="flex flex-wrap gap-2">
+                  {models.map(model => {
+                    const selected = activeModelIds.has(model.id)
+                    return (
+                      <Button
+                        key={model.id}
+                        onClick={() => selectKnownModel(model.id)}
+                        variant={selected ? 'tonal' : 'secondary'}
+                        size="sm"
+                        className={cn('h-auto rounded-full px-3 py-2', !selected && 'text-text')}
+                      >
+                        <span
+                          className={cn(
+                            'flex h-4 w-4 items-center justify-center rounded-full border',
+                            selected
+                              ? 'border-button-tonal-border bg-card text-button-tonal-foreground'
+                              : 'border-border bg-bg text-transparent',
+                          )}
                         >
-                          <span
-                            className={cn(
-                              'flex h-4 w-4 items-center justify-center rounded-full border',
-                              selected
-                                ? 'border-button-tonal-border bg-card text-button-tonal-foreground'
-                                : 'border-border bg-bg text-transparent',
-                            )}
-                          >
-                            <Check className="h-3 w-3" />
-                          </span>
-                          {model.name || model.id}
-                        </Button>
-                      )
-                    })}
-                  </div>
-                )
+                          <Check className="h-3 w-3" />
+                        </span>
+                        {model.name || model.id}
+                      </Button>
+                    )
+                  })}
+                </div>
               ) : (
                 <Input
                   type="text"

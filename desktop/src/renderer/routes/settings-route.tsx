@@ -309,26 +309,23 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
   ]
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+    <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="space-y-1">
         <h2 className="text-2xl font-semibold text-text-strong">General</h2>
       </div>
 
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <div>
-            <div className="text-sm font-medium text-text-strong">Color Scheme</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">Choose your preferred theme.</div>
-          </div>
-          <SelectionGroup
-            value={themeMode}
-            options={colorOptions}
-            onChange={setThemeMode}
-            size="compact"
-            className="grid-cols-2 sm:grid-cols-2"
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div>
+          <div className="text-sm font-medium text-text-strong">Color Scheme</div>
+        </div>
+        <SelectionGroup
+          value={themeMode}
+          options={colorOptions}
+          onChange={setThemeMode}
+          size="compact"
+          className="border-0 bg-transparent p-0 shadow-none backdrop-blur-none grid-cols-2 sm:grid-cols-2"
+        />
+      </div>
     </div>
   )
 }
