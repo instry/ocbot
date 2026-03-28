@@ -625,8 +625,8 @@ export function SkillsRoute() {
   const currentSortLabel = sortOptions.find(o => o.value === currentSort)?.label ?? 'Sort'
 
   return (
-    <div className="relative flex-1">
-      <div className="absolute inset-0 overflow-y-auto p-6" onScroll={handleScroll}>
+    <div className="relative flex-1 min-h-0">
+      <div className="no-drag absolute inset-0 overflow-y-auto p-6" onScroll={handleScroll}>
       {/* Header */}
       <h1 className="text-[22px] font-semibold tracking-tight text-text-strong">Skills</h1>
       <p className="mt-1 text-sm text-muted-foreground">Browse and manage your AI skills</p>
