@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
+
+const version = readFileSync(path.resolve(__dirname, '../browser/VERSION'), 'utf-8').trim()
 
 export default defineConfig({
   root: 'src/renderer',
@@ -11,7 +14,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   define: {
-    __OCBOT_VERSION__: JSON.stringify(process.env.npm_package_version || '0.1.0'),
+    __OCBOT_VERSION__: JSON.stringify(version),
   },
   resolve: {
     alias: {

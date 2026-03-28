@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { ChevronDown, Globe, Info, Mail, Monitor, Moon, Sliders, Sun } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SelectionGroup } from '@/components/ui/selection-group'
+import { OCBOT_VERSION } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { ThemeMode } from '@/stores/ui-store'
@@ -456,8 +456,6 @@ function BrowserTab({
 }
 
 function AboutTab() {
-  const version = typeof __OCBOT_VERSION__ !== 'undefined' ? __OCBOT_VERSION__ : 'dev'
-
   const faqs = [
     { q: 'What are you exactly?', a: "I'm a new species! Part browser, part AI agent. Think of me as a very helpful octopus that lives in your browser tabs." },
     { q: 'Why the name "ocbot"?', a: 'Because "octo" means 8! I\'m an octopus-inspired bot with eight arms ready to multitask across the web.' },
@@ -520,12 +518,9 @@ function AboutTab() {
               hi@oc.bot
             </a>
           </div>
+          <div className="text-sm text-muted-foreground">v{OCBOT_VERSION}</div>
         </CardContent>
       </Card>
-
-      <div className="-mt-3 flex justify-center">
-        <Badge variant="accent">v{version}</Badge>
-      </div>
     </div>
   )
 }

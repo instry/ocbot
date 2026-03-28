@@ -5,6 +5,8 @@
  * Protocol: connect.challenge → connect → hello-ok, then req/res + events.
  */
 
+import { OCBOT_VERSION } from '@/lib/constants'
+
 export type GatewayState = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 export type GatewayEventHandler = (event: string, payload: unknown) => void
@@ -178,7 +180,7 @@ export class GatewayClient {
       maxProtocol: 3,
       client: {
         id: 'openclaw-control-ui',
-        version: __OCBOT_VERSION__ ?? '0.0.0',
+        version: OCBOT_VERSION,
         platform: navigator.platform ?? 'web',
         mode: 'webchat',
         instanceId: this.getInstanceId(),

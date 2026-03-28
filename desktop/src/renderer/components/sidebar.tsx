@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useUIStore, type Tab } from '@/stores/ui-store'
 import { useGatewayStore } from '@/stores/gateway-store'
+import { OCBOT_VERSION } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -126,7 +127,7 @@ export function Sidebar() {
 
         {/* Version */}
         <div className="px-3 pt-1 text-[11px] text-muted-foreground/50">
-          v{typeof __OCBOT_VERSION__ !== 'undefined' ? __OCBOT_VERSION__ : '0.1.0'}
+          v{OCBOT_VERSION}
         </div>
       </div>
     </aside>
