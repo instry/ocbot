@@ -625,101 +625,100 @@ export function SkillsRoute() {
   const currentSortLabel = sortOptions.find(o => o.value === currentSort)?.label ?? 'Sort'
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+    <div className="relative flex-1">
+      <div className="absolute inset-0 overflow-y-auto p-6" onScroll={handleScroll}>
       {/* Header */}
-      <div className="shrink-0 px-6 pt-6">
-        <h1 className="text-[22px] font-semibold tracking-tight text-text-strong">Skills</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Browse and manage your AI skills</p>
+      <h1 className="text-[22px] font-semibold tracking-tight text-text-strong">Skills</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Browse and manage your AI skills</p>
 
-        {/* Tabs */}
-        <div className="mt-4 flex gap-4 border-b border-border">
-          <button
-            className={cn('pb-2 text-sm border-b-2 transition-colors', tab === 'local' ? 'border-accent font-semibold text-text-strong' : 'border-transparent text-muted-foreground hover:text-text')}
-            onClick={() => switchTab('local')}
-          >My Skills ({localSkills.length})</button>
-          <button
-            className={cn('pb-2 text-sm border-b-2 transition-colors', tab === 'clawhub' ? 'border-accent font-semibold text-text-strong' : 'border-transparent text-muted-foreground hover:text-text')}
-            onClick={() => switchTab('clawhub')}
-          >Marketplace</button>
-        </div>
-
-        {/* Toolbar */}
-        {showToolbar && (
-          <div className="mt-4 flex items-center gap-2.5">
-            <div className="relative max-w-[400px] flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                placeholder={tab === 'local' ? 'Search skills...' : 'Search marketplace...'}
-                value={tab === 'local' ? searchQuery : mpSearchQuery}
-                onChange={e => handleSearchInput(e.target.value)}
-                className="w-full rounded-lg border border-border bg-bg py-2 pl-9 pr-3 text-sm text-text-strong outline-none transition-colors focus:border-accent"
-              />
-            </div>
-
-            {/* Sort dropdown */}
-            <div className="relative">
-              <button
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-bg-hover transition-colors"
-                onClick={e => { e.stopPropagation(); setSortDropdownOpen(!sortDropdownOpen) }}
-              >
-                {currentSortLabel}
-                <ChevronDown className="h-3 w-3" />
-              </button>
-              {sortDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-[99]" onClick={() => setSortDropdownOpen(false)} />
-                  <div className="absolute right-0 top-full z-[100] mt-1 min-w-[160px] rounded-lg border border-border bg-bg-subtle py-1 shadow-lg">
-                    {sortOptions.map(opt => (
-                      <button
-                        key={opt.value}
-                        className={cn(
-                          'flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors',
-                          opt.value === currentSort ? 'bg-accent/10 text-accent' : 'text-text-strong hover:bg-bg-hover',
-                        )}
-                        onClick={() => {
-                          if (tab === 'local') { setLocalSort(opt.value as LocalSort); setSortDropdownOpen(false); setLocalVisible(LOAD_BATCH) }
-                          else onMpSortChange(opt.value as MarketplaceSort)
-                        }}
-                      >
-                        {opt.value === currentSort ? <Check className="h-3.5 w-3.5" /> : <span className="w-3.5" />}
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Refresh (local only) */}
-            {tab === 'local' && (
-              <button
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-bg-hover transition-colors disabled:opacity-50"
-                disabled={localRefreshing}
-                onClick={() => loadLocalSkills(true)}
-              >
-                <RefreshCw className={cn('h-3.5 w-3.5', localRefreshing && 'animate-spin')} />
-                {localRefreshing ? 'Refreshing...' : 'Refresh'}
-              </button>
-            )}
-
-            {/* Display mode toggle */}
-            <div className="flex rounded-lg border border-border overflow-hidden">
-              <button
-                className={cn('p-1.5 transition-colors', displayMode === 'cards' ? 'bg-accent/10 text-accent' : 'text-muted-foreground')}
-                onClick={() => setDisplayMode('cards')} title="Cards"
-              ><LayoutGrid className="h-4 w-4" /></button>
-              <button
-                className={cn('p-1.5 border-l border-border transition-colors', displayMode === 'list' ? 'bg-accent/10 text-accent' : 'text-muted-foreground')}
-                onClick={() => setDisplayMode('list')} title="List"
-              ><List className="h-4 w-4" /></button>
-            </div>
-          </div>
-        )}
+      {/* Tabs */}
+      <div className="mt-4 flex gap-4 border-b border-border">
+        <button
+          className={cn('pb-2 text-sm border-b-2 transition-colors', tab === 'local' ? 'border-accent font-semibold text-text-strong' : 'border-transparent text-muted-foreground hover:text-text')}
+          onClick={() => switchTab('local')}
+        >My Skills ({localSkills.length})</button>
+        <button
+          className={cn('pb-2 text-sm border-b-2 transition-colors', tab === 'clawhub' ? 'border-accent font-semibold text-text-strong' : 'border-transparent text-muted-foreground hover:text-text')}
+          onClick={() => switchTab('clawhub')}
+        >Marketplace</button>
       </div>
 
+      {/* Toolbar */}
+      {showToolbar && (
+        <div className="mt-4 flex items-center gap-2.5">
+          <div className="relative max-w-[400px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder={tab === 'local' ? 'Search skills...' : 'Search marketplace...'}
+              value={tab === 'local' ? searchQuery : mpSearchQuery}
+              onChange={e => handleSearchInput(e.target.value)}
+              className="w-full rounded-lg border border-border bg-bg py-2 pl-9 pr-3 text-sm text-text-strong outline-none transition-colors focus:border-accent"
+            />
+          </div>
+
+          {/* Sort dropdown */}
+          <div className="relative">
+            <button
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-bg-hover transition-colors"
+              onClick={e => { e.stopPropagation(); setSortDropdownOpen(!sortDropdownOpen) }}
+            >
+              {currentSortLabel}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {sortDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-[99]" onClick={() => setSortDropdownOpen(false)} />
+                <div className="absolute right-0 top-full z-[100] mt-1 min-w-[160px] rounded-lg border border-border bg-bg-subtle py-1 shadow-lg">
+                  {sortOptions.map(opt => (
+                    <button
+                      key={opt.value}
+                      className={cn(
+                        'flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors',
+                        opt.value === currentSort ? 'bg-accent/10 text-accent' : 'text-text-strong hover:bg-bg-hover',
+                      )}
+                      onClick={() => {
+                        if (tab === 'local') { setLocalSort(opt.value as LocalSort); setSortDropdownOpen(false); setLocalVisible(LOAD_BATCH) }
+                        else onMpSortChange(opt.value as MarketplaceSort)
+                      }}
+                    >
+                      {opt.value === currentSort ? <Check className="h-3.5 w-3.5" /> : <span className="w-3.5" />}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Refresh (local only) */}
+          {tab === 'local' && (
+            <button
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-bg-hover transition-colors disabled:opacity-50"
+              disabled={localRefreshing}
+              onClick={() => loadLocalSkills(true)}
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', localRefreshing && 'animate-spin')} />
+              {localRefreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          )}
+
+          {/* Display mode toggle */}
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            <button
+              className={cn('p-1.5 transition-colors', displayMode === 'cards' ? 'bg-accent/10 text-accent' : 'text-muted-foreground')}
+              onClick={() => setDisplayMode('cards')} title="Cards"
+            ><LayoutGrid className="h-4 w-4" /></button>
+            <button
+              className={cn('p-1.5 border-l border-border transition-colors', displayMode === 'list' ? 'bg-accent/10 text-accent' : 'text-muted-foreground')}
+              onClick={() => setDisplayMode('list')} title="List"
+            ><List className="h-4 w-4" /></button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-3 pb-6" onScroll={handleScroll}>
+      <div className="mt-3">
         {tab === 'local' ? (
           localLoading ? <EmptyState message="Loading..." /> :
           localError ? <div className="py-12 text-center text-sm text-destructive">{localError}</div> :
@@ -779,6 +778,7 @@ export function SkillsRoute() {
           )
         )}
       </div>
+    </div>
     </div>
   )
 }

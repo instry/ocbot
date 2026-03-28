@@ -52,7 +52,7 @@ export function MessageList() {
   }
 
   // Collect tool cards as array
-  const toolCardArray = [...toolCards.values()]
+  const toolCardArray = toolCards instanceof Map ? [...toolCards.values()] : []
 
   return (
     <div ref={scrollRef} className="no-drag flex-1 overflow-y-auto">
