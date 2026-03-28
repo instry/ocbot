@@ -1787,6 +1787,15 @@ ocbot-skills-view {
   border-color: var(--border-strong);
 }
 
+.settings__provider-card--clickable {
+  cursor: pointer;
+}
+
+.settings__provider-card--clickable:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
 .settings__provider-card--default {
   border-color: var(--accent);
   background: var(--accent-subtle);

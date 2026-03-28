@@ -39,6 +39,7 @@ export function ModelsRoute() {
       ])
       const config = configResult?.config ?? {}
       const profiles: Record<string, any> = config?.auth?.profiles ?? {}
+      const providerConfigs: Record<string, { models?: Array<{ id?: string; name?: string }> }> = config?.models?.providers ?? {}
       const defaultModel: string = config?.agents?.defaults?.model?.primary ?? ''
       const gatewayModels = Array.isArray(modelsResult)
         ? modelsResult
@@ -54,6 +55,19 @@ export function ModelsRoute() {
         if (cnUrl && baseUrl.startsWith(cnUrl)) {
           cnProviders.add(provider)
         }
+        const configuredModels = Array.isArray(providerConfigs[provider]?.models)
+          ? providerConfigs[provider].models
+            .filter((model): model is { id: string; name?: string } => Boolean(model?.id))
+            .map(model => ({
+              id: model.id,
+              name: model.name ?? model.id,
+              provider,
+            }))
+          : []
+        const runtimeModels = gatewayModels.filter(model => model.provider === provider)
+        const models = [...configuredModels, ...runtimeModels].filter((model, index, array) => (
+          array.findIndex(item => item.provider === model.provider && item.id === model.id) === index
+        ))
         list.push({
           profileKey: key,
           provider,
@@ -62,7 +76,7 @@ export function ModelsRoute() {
           baseUrl,
           modelId: defaultModel.startsWith(`${provider}/`) ? defaultModel.split('/').slice(1).join('/') : undefined,
           isDefault: defaultModel.startsWith(`${provider}/`),
-          models: gatewayModels.filter(model => model.provider === provider),
+          models,
         })
       }
       setProviders(list)

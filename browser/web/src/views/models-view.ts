@@ -62,6 +62,44 @@ export class OcbotModelsView extends LitElement {
     return labels[provider] ?? provider
   }
 
+  private async setDefaultProvider(p: ConfiguredProvider) {
+    if (p.isDefault) return
+
+    try {
+      const result = await this.gateway.call<{ config?: Record<string, any>; hash?: string }>('config.get')
+      const config = result?.config ?? {}
+      const hash = result?.hash ?? ''
+
+      // Get first model from provider config
+      const providerConfig = config?.models?.providers?.[p.provider]
+      const models = providerConfig?.models ?? []
+      const firstModel = models[0]?.id ?? p.modelId
+
+      if (!firstModel) {
+        console.warn('No model found for provider:', p.provider)
+        return
+      }
+
+      const patch = {
+        agents: {
+          defaults: {
+            model: { primary: `${p.provider}/${firstModel}` },
+          },
+        },
+      }
+
+      await this.gateway.call('config.patch', {
+        baseHash: hash,
+        raw: JSON.stringify(patch),
+      })
+
+      this.dispatchEvent(new CustomEvent('models-changed', { bubbles: true, composed: true }))
+      await this.loadProviders()
+    } catch (err) {
+      console.error('Failed to set default provider:', err)
+    }
+  }
+
   private async deleteProvider(profileKey: string) {
     if (!confirm(`Are you sure you want to delete "${profileKey}"?`)) return
 
@@ -175,7 +213,15 @@ export class OcbotModelsView extends LitElement {
   private _renderProviderCard(p: ConfiguredProvider) {
     const initials = p.label.slice(0, 2).toUpperCase()
     return html`
-      <div class="settings__provider-card ${p.isDefault ? 'settings__provider-card--default' : ''}">
+      <div
+        class="settings__provider-card ${p.isDefault ? 'settings__provider-card--default' : 'settings__provider-card--clickable'}"
+        @click=${(e: Event) => {
+          // Don't trigger if clicking action buttons
+          if ((e.target as HTMLElement).closest('.settings__provider-actions')) return
+          this.setDefaultProvider(p)
+        }}
+        title=${p.isDefault ? 'Current default model' : 'Click to set as default'}
+      >
         <div class="settings__provider-info">
           <div class="settings__provider-avatar">${initials}</div>
           <div class="settings__provider-details">

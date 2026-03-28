@@ -428,7 +428,6 @@ export class OcbotProviderForm extends LitElement {
           <div class="provider-form__error">${this.error}</div>
         ` : nothing}
 
-        <!-- Provider selection (add mode only) -->
         ${!this.isEditMode ? html`
           <div class="provider-form__field">
             <label class="provider-form__label">Provider</label>
@@ -453,7 +452,6 @@ export class OcbotProviderForm extends LitElement {
     const models = [...(this.modelsByProvider[this.selectedProvider] ?? [])].reverse()
 
     return html`
-      <!-- Region selector -->
       ${hint.regions?.length ? html`
         <div class="provider-form__field">
           <label class="provider-form__label">Region</label>
@@ -470,7 +468,6 @@ export class OcbotProviderForm extends LitElement {
         </div>
       ` : nothing}
 
-      <!-- API Key -->
       ${!this.isLocal ? html`
         <div class="provider-form__field">
           <label class="provider-form__label">
@@ -489,7 +486,6 @@ export class OcbotProviderForm extends LitElement {
         </div>
       ` : nothing}
 
-      <!-- Base URL -->
       <div class="provider-form__field">
         <label class="provider-form__label provider-form__label--muted">Base URL</label>
         <input
@@ -501,14 +497,12 @@ export class OcbotProviderForm extends LitElement {
         />
       </div>
 
-      <!-- Model selection -->
       <div class="provider-form__field">
         <label class="provider-form__label">
           ${!this.isEditMode && models.length > 1 ? 'Models' : 'Model'}
         </label>
         ${models.length > 0 ? (
           this.isEditMode ? html`
-            <!-- Edit mode: single select grid -->
             <div class="provider-form__model-grid">
               ${models.map(m => html`
                 <button
@@ -520,7 +514,6 @@ export class OcbotProviderForm extends LitElement {
               `)}
             </div>
           ` : html`
-            <!-- Add mode: multi-select with checkboxes -->
             <div class="provider-form__model-chips">
               ${models.map(m => {
                 const selected = this.selectedModels.has(m.id)
@@ -553,7 +546,6 @@ export class OcbotProviderForm extends LitElement {
         `}
       </div>
 
-      <!-- Actions -->
       <div class="provider-form__actions">
         <button
           class="provider-form__cancel-btn"

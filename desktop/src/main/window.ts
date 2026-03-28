@@ -1,7 +1,177 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { installSkill, uninstallSkill } from './skill-installer'
+
+interface BrowserProfileInfo {
+  directory: string
+  name: string
+  path: string
+}
+
+interface BrowserProfilesResult {
+  browser: {
+    kind: string
+    userDataDir: string
+  }
+  profiles: BrowserProfileInfo[]
+}
+
+interface BrowserCandidate {
+  kind: string
+  userDataDir: string
+}
+
+function getBrowserCandidates(): BrowserCandidate[] {
+  const home = homedir()
+
+  if (process.platform === 'darwin') {
+    const appSupport = join(home, 'Library', 'Application Support')
+    return [
+      { kind: 'chrome', userDataDir: join(appSupport, 'Google', 'Chrome') },
+      { kind: 'brave', userDataDir: join(appSupport, 'BraveSoftware', 'Brave-Browser') },
+      { kind: 'edge', userDataDir: join(appSupport, 'Microsoft Edge') },
+      { kind: 'chromium', userDataDir: join(appSupport, 'Chromium') },
+    ]
+  }
+
+  if (process.platform === 'linux') {
+    const configDir = join(home, '.config')
+    return [
+      { kind: 'chrome', userDataDir: join(configDir, 'google-chrome') },
+      { kind: 'brave', userDataDir: join(configDir, 'BraveSoftware', 'Brave-Browser') },
+      { kind: 'edge', userDataDir: join(configDir, 'microsoft-edge') },
+      { kind: 'chromium', userDataDir: join(configDir, 'chromium') },
+    ]
+  }
+
+  if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
+    const localAppData = process.env.LOCALAPPDATA
+    return [
+      { kind: 'chrome', userDataDir: join(localAppData, 'Google', 'Chrome', 'User Data') },
+      { kind: 'brave', userDataDir: join(localAppData, 'BraveSoftware', 'Brave-Browser', 'User Data') },
+      { kind: 'edge', userDataDir: join(localAppData, 'Microsoft', 'Edge', 'User Data') },
+      { kind: 'chromium', userDataDir: join(localAppData, 'Chromium', 'User Data') },
+    ]
+  }
+
+  return []
+}
+
+function fallbackProfileName(directory: string): string {
+  return directory === 'Default' ? 'Default' : directory
+}
+
+function sortProfileDirectories(left: string, right: string): number {
+  const rank = (value: string) => {
+    if (value === 'Default') return -1
+    const match = /^Profile (\d+)$/.exec(value)
+    if (match) return Number(match[1])
+    return Number.MAX_SAFE_INTEGER
+  }
+
+  const leftRank = rank(left)
+  const rightRank = rank(right)
+
+  if (leftRank !== rightRank) return leftRank - rightRank
+  return left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+function readProfileInfoCache(userDataDir: string): Record<string, string> {
+  const localStatePath = join(userDataDir, 'Local State')
+  if (!existsSync(localStatePath)) return {}
+
+  try {
+    const state = JSON.parse(readFileSync(localStatePath, 'utf8')) as {
+      profile?: { info_cache?: Record<string, { name?: string; shortcut_name?: string; gaia_name?: string }> }
+    }
+    const infoCache = state.profile?.info_cache ?? {}
+    return Object.fromEntries(
+      Object.entries(infoCache).map(([directory, value]) => [
+        directory,
+        value.name || value.shortcut_name || value.gaia_name || fallbackProfileName(directory),
+      ]),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function listProfileDirectories(userDataDir: string, knownDirectories: string[]): string[] {
+  const directories = new Set(knownDirectories)
+
+  try {
+    for (const entry of readdirSync(userDataDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      if (existsSync(join(userDataDir, entry.name, 'Preferences'))) {
+        directories.add(entry.name)
+      }
+    }
+  } catch {
+    return Array.from(directories).sort(sortProfileDirectories)
+  }
+
+  return Array.from(directories).sort(sortProfileDirectories)
+}
+
+function scanBrowserProfiles(): BrowserProfilesResult[] {
+  const results: BrowserProfilesResult[] = []
+
+  for (const candidate of getBrowserCandidates()) {
+    if (!existsSync(candidate.userDataDir)) continue
+
+    const infoCache = readProfileInfoCache(candidate.userDataDir)
+    const directories = listProfileDirectories(candidate.userDataDir, Object.keys(infoCache))
+    const profiles = directories.map((directory) => ({
+      directory,
+      name: infoCache[directory] || fallbackProfileName(directory),
+      path: join(candidate.userDataDir, directory),
+    }))
+
+    if (profiles.length === 0) continue
+
+    results.push({
+      browser: {
+        kind: candidate.kind,
+        userDataDir: candidate.userDataDir,
+      },
+      profiles,
+    })
+  }
+
+  return results
+}
+
+function resolveOcbotBrowserPath(): string {
+  const candidates = new Set<string>()
+
+  if (process.platform === 'darwin') {
+    candidates.add('/Applications/Ocbot.app/Contents/MacOS/Ocbot')
+    candidates.add('/Applications/ocbot.app/Contents/MacOS/ocbot')
+
+    try {
+      const repoRoot = resolve(app.getAppPath(), '..')
+      const version = readFileSync(join(repoRoot, 'browser', 'VERSION'), 'utf8').trim()
+      const versionMap = JSON.parse(readFileSync(join(repoRoot, 'browser', 'version_map.json'), 'utf8')) as Record<string, { chromium?: string }>
+      const chromiumVersion = versionMap[version]?.chromium
+      const major = chromiumVersion?.split('.')[0]
+      if (major) {
+        candidates.add(join(repoRoot, 'browser', 'chromium', `v${major}`, 'src', 'out', 'Default', 'Ocbot.app', 'Contents', 'MacOS', 'Ocbot'))
+      }
+    } catch {}
+  }
+
+  if (process.platform === 'linux') {
+    candidates.add('/usr/bin/ocbot')
+  }
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate
+  }
+
+  return ''
+}
 
 /**
  * Manages the main application window.
@@ -115,5 +285,7 @@ export class WindowManager {
         return { ok: false, message: err instanceof Error ? err.message : String(err) }
       }
     })
+    ipcMain.handle('browser:getProfiles', async () => scanBrowserProfiles())
+    ipcMain.handle('browser:getOcbotPath', async () => resolveOcbotBrowserPath())
   }
 }

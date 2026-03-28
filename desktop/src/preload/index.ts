@@ -8,14 +8,16 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('ocbot', {
   platform: process.platform,
 
-  // Window controls (for custom title bar)
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
 
-  // Skill management (ClawHub install/uninstall)
   installSkill: (slug: string, version?: string) =>
     ipcRenderer.invoke('skill:install', slug, version),
   uninstallSkill: (slug: string) =>
     ipcRenderer.invoke('skill:uninstall', slug),
+  getBrowserProfiles: () =>
+    ipcRenderer.invoke('browser:getProfiles'),
+  getOcbotBrowserPath: () =>
+    ipcRenderer.invoke('browser:getOcbotPath'),
 })
