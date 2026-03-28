@@ -32,7 +32,7 @@ app.on('ready', async () => {
     port = 18789
   }
 
-  windowManager = new WindowManager(port, appIconPath())
+  windowManager = new WindowManager(port, appIconPath(), runtimeManager)
   trayManager = new TrayManager(() => windowManager.showOrCreate())
 
   if (runtimeManager.status === 'running') {

@@ -14,9 +14,10 @@ export type ChannelPlatform =
   | 'wecom'
   | 'weixin'
 
+export type ChannelPolicy = 'open' | 'disabled' | 'pairing' | 'allowlist'
+
 export interface ChannelConfig {
   enabled: boolean
-  // 认证凭据（根据平台不同使用不同字段）
   appId?: string
   appSecret?: string
   botToken?: string
@@ -25,9 +26,8 @@ export interface ChannelConfig {
   botId?: string
   secret?: string
   accountId?: string
-  // 基础策略
-  dmPolicy: 'open' | 'disabled'
-  groupPolicy: 'open' | 'disabled'
+  dmPolicy: ChannelPolicy
+  groupPolicy: ChannelPolicy
 }
 
 export interface ChannelStatus {

@@ -29,6 +29,86 @@ const PORT_SCAN_LIMIT = 80
 const BOOT_TIMEOUT_MS = 120_000
 const HEALTH_INTERVAL_MS = 30_000
 
+type DesktopChannelPlatform =
+  | 'feishu'
+  | 'telegram'
+  | 'discord'
+  | 'slack'
+  | 'whatsapp'
+  | 'dingtalk'
+  | 'qq'
+  | 'wecom'
+  | 'weixin'
+
+type DesktopChannelPolicy = 'open' | 'disabled' | 'pairing' | 'allowlist'
+
+type DesktopChannelConfig = {
+  enabled: boolean
+  appId?: string
+  appSecret?: string
+  botToken?: string
+  clientId?: string
+  clientSecret?: string
+  botId?: string
+  secret?: string
+  accountId?: string
+  dmPolicy: DesktopChannelPolicy
+  groupPolicy: DesktopChannelPolicy
+}
+
+type ChannelConfigMap = {
+  channelKey: string
+  credentials: Partial<Record<keyof DesktopChannelConfig, string>>
+  supportsDmPolicy?: boolean
+  supportsGroupPolicy?: boolean
+}
+
+const DEFAULT_CHANNEL_CONFIG: DesktopChannelConfig = {
+  enabled: false,
+  dmPolicy: 'open',
+  groupPolicy: 'open',
+}
+
+const CHANNEL_CONFIG_MAP: Record<DesktopChannelPlatform, ChannelConfigMap> = {
+  feishu: {
+    channelKey: 'feishu',
+    credentials: { appId: 'appId', appSecret: 'appSecret' },
+  },
+  telegram: {
+    channelKey: 'telegram',
+    credentials: { botToken: 'botToken' },
+  },
+  discord: {
+    channelKey: 'discord',
+    credentials: { botToken: 'token' },
+  },
+  slack: {
+    channelKey: 'slack',
+    credentials: { botToken: 'botToken' },
+  },
+  whatsapp: {
+    channelKey: 'whatsapp',
+    credentials: {},
+    supportsGroupPolicy: false,
+  },
+  dingtalk: {
+    channelKey: 'dingtalk-connector',
+    credentials: { clientId: 'clientId', clientSecret: 'clientSecret' },
+  },
+  qq: {
+    channelKey: 'qqbot',
+    credentials: { appId: 'appId', appSecret: 'clientSecret' },
+  },
+  wecom: {
+    channelKey: 'wecom',
+    credentials: { botId: 'botId', secret: 'secret' },
+  },
+  weixin: {
+    channelKey: 'openclaw-weixin',
+    credentials: { accountId: 'accountId' },
+  },
+}
+
 export class RuntimeManager {
   private readonly baseDir: string
   private readonly stateDir: string
@@ -81,6 +161,73 @@ export class RuntimeManager {
   get status(): EngineStatus { return this._status }
   get gatewayPort(): number | null { return this.port }
   get gatewayToken(): string | null { return this.readToken() }
+
+  getChannelConfig(platform: DesktopChannelPlatform): DesktopChannelConfig {
+    this.ensureConfig()
+    const mapping = CHANNEL_CONFIG_MAP[platform]
+    const config = this.readConfigObject()
+    const channels = asRecord(config.channels)
+    const rawChannel = asRecord(channels[mapping.channelKey])
+    const dmPolicy = this.readPolicy(rawChannel.dmPolicy, this.readNestedDmPolicy(rawChannel))
+    const groupPolicy = this.readPolicy(rawChannel.groupPolicy, DEFAULT_CHANNEL_CONFIG.groupPolicy)
+
+    const nextConfig: DesktopChannelConfig = {
+      ...DEFAULT_CHANNEL_CONFIG,
+      enabled: rawChannel.enabled !== false && Object.keys(rawChannel).length > 0,
+      dmPolicy,
+      groupPolicy,
+    }
+
+    for (const [uiKey, rawKey] of Object.entries(mapping.credentials)) {
+      const value = this.readString(rawChannel[rawKey])
+      if (value) {
+        ;(nextConfig as Record<string, unknown>)[uiKey] = value
+      }
+    }
+
+    return nextConfig
+  }
+
+  saveChannelConfig(platform: DesktopChannelPlatform, nextConfig: DesktopChannelConfig): DesktopChannelConfig {
+    this.ensureConfig()
+    const mapping = CHANNEL_CONFIG_MAP[platform]
+    const config = this.readConfigObject()
+    const channels = { ...asRecord(config.channels) }
+    const currentChannel = asRecord(channels[mapping.channelKey])
+    const nextChannel: Record<string, unknown> = {
+      ...currentChannel,
+      enabled: nextConfig.enabled,
+    }
+
+    if (mapping.supportsDmPolicy !== false) {
+      nextChannel.dmPolicy = nextConfig.dmPolicy
+      if (this.hasNestedDmPolicy(currentChannel)) {
+        nextChannel.dm = {
+          ...asRecord(currentChannel.dm),
+          policy: nextConfig.dmPolicy,
+        }
+      }
+    }
+
+    if (mapping.supportsGroupPolicy !== false) {
+      nextChannel.groupPolicy = nextConfig.groupPolicy
+    }
+
+    for (const [uiKey, rawKey] of Object.entries(mapping.credentials)) {
+      const rawValue = (nextConfig as Record<string, unknown>)[uiKey]
+      const value = typeof rawValue === 'string' ? rawValue.trim() : ''
+      if (value) {
+        nextChannel[rawKey] = value
+      } else {
+        delete nextChannel[rawKey]
+      }
+    }
+
+    channels[mapping.channelKey] = nextChannel
+    config.channels = channels
+    this.writeConfigObject(config)
+    return this.getChannelConfig(platform)
+  }
 
   /**
    * Start the gateway. Returns the port it's running on.
@@ -258,8 +405,52 @@ export class RuntimeManager {
     }
 
     if (dirty) {
-      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2) + '\n')
+      this.writeConfigObject(config)
     }
+  }
+
+  private readConfigObject(): Record<string, unknown> {
+    if (!fs.existsSync(this.configPath)) {
+      return {}
+    }
+
+    try {
+      return JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
+    } catch {
+      return {}
+    }
+  }
+
+  private writeConfigObject(config: Record<string, unknown>): void {
+    const content = JSON.stringify(config, null, 2) + '\n'
+    const tmpPath = `${this.configPath}.tmp-${Date.now()}`
+    fs.writeFileSync(tmpPath, content, 'utf8')
+    fs.renameSync(tmpPath, this.configPath)
+  }
+
+  private readString(value: unknown): string {
+    return typeof value === 'string' ? value : ''
+  }
+
+  private readPolicy(value: unknown, fallback: DesktopChannelPolicy): DesktopChannelPolicy {
+    if (
+      value === 'open'
+      || value === 'disabled'
+      || value === 'pairing'
+      || value === 'allowlist'
+    ) {
+      return value
+    }
+    return fallback
+  }
+
+  private readNestedDmPolicy(channelConfig: Record<string, unknown>): DesktopChannelPolicy {
+    const dm = asRecord(channelConfig.dm)
+    return this.readPolicy(dm.policy, DEFAULT_CHANNEL_CONFIG.dmPolicy)
+  }
+
+  private hasNestedDmPolicy(channelConfig: Record<string, unknown>): boolean {
+    return isRecord(channelConfig.dm)
   }
 
   private ensureToken(): string {
@@ -407,4 +598,12 @@ function isPortAvailable(port: number): Promise<boolean> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {}
 }

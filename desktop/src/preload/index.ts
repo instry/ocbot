@@ -20,4 +20,8 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('browser:getProfiles'),
   getOcbotBrowserPath: () =>
     ipcRenderer.invoke('browser:getOcbotPath'),
+  getChannelConfig: (platform: string) =>
+    ipcRenderer.invoke('channels:getConfig', platform),
+  saveChannelConfig: (platform: string, config: unknown) =>
+    ipcRenderer.invoke('channels:saveConfig', platform, config),
 })

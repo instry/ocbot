@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Radio, Loader2 } from 'lucide-react'
+import { Radio } from 'lucide-react'
 import { useChannelStore } from '@/stores/channel-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { CHANNEL_PLATFORMS } from '@/types/channel'
-import { ChannelStatusCard } from '@/components/channels/channel-status-card'
 import { ChannelConfigForm } from '@/components/channels/channel-config-form'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -16,6 +15,7 @@ export function ChannelsRoute() {
     configs,
     statuses,
     loading,
+    error,
     loadConfig,
     saveConfig,
     loadStatuses,
@@ -139,11 +139,16 @@ export function ChannelsRoute() {
               />
             </div>
 
+            {error && (
+              <div className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
+                {error}
+              </div>
+            )}
 
             <div className="flex items-center justify-start gap-3 pt-4">
               <Button
                 onClick={handleStart}
-                disabled={loading || currentStatus?.connected}
+                disabled={loading || currentConfig?.enabled}
                 variant="primary"
                 size="md"
                 className="w-32"
@@ -152,7 +157,7 @@ export function ChannelsRoute() {
               </Button>
               <Button
                 onClick={handleStop}
-                disabled={loading || !currentStatus?.connected}
+                disabled={loading || !currentConfig?.enabled}
                 variant="secondary"
                 size="md"
                 className="w-32"
@@ -166,5 +171,3 @@ export function ChannelsRoute() {
     </div>
   )
 }
-
-

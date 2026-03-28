@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { RuntimeManager } from './runtime-manager'
 import { installSkill, uninstallSkill } from './skill-installer'
 
 interface BrowserProfileInfo {
@@ -182,10 +183,12 @@ export class WindowManager {
   private readonly port: number
   private readonly iconPath: string
   private readonly brandCSS: string
+  private readonly runtimeManager: RuntimeManager
 
-  constructor(port: number, iconPath: string) {
+  constructor(port: number, iconPath: string, runtimeManager: RuntimeManager) {
     this.port = port
     this.iconPath = iconPath
+    this.runtimeManager = runtimeManager
     this.brandCSS = this.loadBrandCSS()
     this.registerIPC()
   }
@@ -287,5 +290,16 @@ export class WindowManager {
     })
     ipcMain.handle('browser:getProfiles', async () => scanBrowserProfiles())
     ipcMain.handle('browser:getOcbotPath', async () => resolveOcbotBrowserPath())
+    ipcMain.handle('channels:getConfig', async (_event, platform: Parameters<RuntimeManager['getChannelConfig']>[0]) =>
+      this.runtimeManager.getChannelConfig(platform),
+    )
+    ipcMain.handle(
+      'channels:saveConfig',
+      async (
+        _event,
+        platform: Parameters<RuntimeManager['saveChannelConfig']>[0],
+        config: Parameters<RuntimeManager['saveChannelConfig']>[1],
+      ) => this.runtimeManager.saveChannelConfig(platform, config),
+    )
   }
 }
