@@ -3,9 +3,21 @@
   "version": "0.1.0",
   "description": "Ocbot Desktop — the easiest way to use OpenClaw",
   "private": true,
+  "author": {
+    "name": "MALA TECH LLC"
+  },
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "npm run build:main && npm run build:renderer && electron .",
+    "prepare:openclaw": "node scripts/electron-builder-hooks.cjs --prepare-only",
+    "package:mac:x64": "node scripts/package.cjs --platform mac --arch x64",
+    "package:mac:arm64": "node scripts/package.cjs --platform mac --arch arm64",
+    "package:mac:all": "node scripts/package.cjs --platform mac --arch all",
+    "package:win:x64": "node scripts/package.cjs --platform win --arch x64",
+    "package:win:arm64": "node scripts/package.cjs --platform win --arch arm64",
+    "package:win:ia32": "node scripts/package.cjs --platform win --arch ia32",
+    "package:win:all": "node scripts/package.cjs --platform win --arch all",
+    "package:all": "node scripts/package.cjs --platform all --arch all",
     "build": "npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",

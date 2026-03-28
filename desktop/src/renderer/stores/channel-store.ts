@@ -246,7 +246,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     try {
       set({ loading: true, error: null })
       if (!window.ocbot?.getChannelConfig) {
-        throw new Error('Electron channel config bridge not available')
+        throw new Error('Ocbot desktop bridge not available')
       }
       const config = await window.ocbot.getChannelConfig(platform) as ChannelConfig
       set((state) => ({
@@ -262,7 +262,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     try {
       set({ loading: true, error: null })
       if (!window.ocbot?.saveChannelConfig) {
-        throw new Error('Electron channel config bridge not available')
+        throw new Error('Ocbot desktop bridge not available')
       }
       const savedConfig = await window.ocbot.saveChannelConfig(platform, config) as ChannelConfig
       set((state) => ({
@@ -354,7 +354,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
   loadPairingRequests: async (platform) => {
     try {
       if (!window.ocbot?.listChannelPairingRequests) {
-        throw new Error('Electron pairing bridge not available')
+        throw new Error('Ocbot pairing bridge not available')
       }
       const result = await window.ocbot.listChannelPairingRequests(platform)
       set((state) => ({
@@ -370,7 +370,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     try {
       set({ loading: true, error: null })
       if (!window.ocbot?.approveChannelPairingCode) {
-        throw new Error('Electron pairing bridge not available')
+        throw new Error('Ocbot pairing bridge not available')
       }
       const result = await window.ocbot.approveChannelPairingCode(platform, code)
       if (result.approved) {
@@ -389,7 +389,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     try {
       set({ loading: true, error: null })
       if (!window.ocbot?.rejectChannelPairingRequest) {
-        throw new Error('Electron pairing bridge not available')
+        throw new Error('Ocbot pairing bridge not available')
       }
       const result = await window.ocbot.rejectChannelPairingRequest(platform, code)
       if (result.rejected) {

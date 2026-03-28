@@ -222,7 +222,7 @@ export function ChannelsRoute() {
       setQrWaiting(true)
       try {
         if (!window.ocbot) {
-          throw new Error('Electron channel bridge not available')
+          throw new Error('Ocbot desktop bridge not available')
         }
         const isLark = (currentConfig?.domain ?? '').trim().toLowerCase() === 'lark'
         const startResult = await window.ocbot.startFeishuInstallQrcode(isLark)

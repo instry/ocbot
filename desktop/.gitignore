@@ -1,6 +1,7 @@
 node_modules/
 dist/
 out/
+resources/openclaw/
 *.js
 *.js.map
 !electron-builder.yml

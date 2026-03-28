@@ -1,14 +1,16 @@
 appId: bot.oc.desktop
 productName: Ocbot
+executableName: Ocbot
 copyright: Copyright 2026 MALA TECH LLC
 
 directories:
   output: out
   buildResources: resources
 
+beforePack: scripts/electron-builder-hooks.cjs
+
 files:
   - dist/**/*
-  - src/renderer/branding/**/*
   - resources/**/*
   - "!resources/icons/*"
 
@@ -36,15 +38,7 @@ dmg:
   artifactName: "${productName}-${version}.${ext}"
 
 extraResources:
-  - from: src/renderer/branding
-    to: branding
-    filter:
-      - "**/*.css"
   - from: resources/openclaw
     to: openclaw
-    filter:
-      - "**/*"
-  - from: resources/node
-    to: node
     filter:
       - "**/*"
