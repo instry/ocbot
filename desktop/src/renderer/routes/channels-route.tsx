@@ -9,59 +9,9 @@ import { GenericChannelPanel } from '@/components/channels/generic-channel-panel
 import { WeixinChannelPanel } from '@/components/channels/weixin-channel-panel'
 import { cn } from '@/lib/utils'
 
-function normalizeQrPayload(rawValue?: string | null): {
-  imageSrc: string | null
-  svgMarkup: string | null
-  qrValue: string | null
-} {
-  const value = rawValue?.trim()
-  if (!value) {
-    return { imageSrc: null, svgMarkup: null, qrValue: null }
-  }
-
-  if (value.startsWith('data:') || value.startsWith('blob:') || value.startsWith('http://') || value.startsWith('https://')) {
-    return { imageSrc: value, svgMarkup: null, qrValue: null }
-  }
-
-  if (value.startsWith('<svg') || value.startsWith('<?xml')) {
-    return { imageSrc: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(value)}`, svgMarkup: value, qrValue: null }
-  }
-
-  const sanitized = value.replace(/\s+/g, '')
-  if (/^[A-Za-z0-9+/=]+$/.test(sanitized)) {
-    try {
-      const decoded = atob(sanitized)
-      const trimmedDecoded = decoded.trimStart()
-      if (trimmedDecoded.startsWith('<svg') || trimmedDecoded.startsWith('<?xml')) {
-        return {
-          imageSrc: `data:image/svg+xml;base64,${sanitized}`,
-          svgMarkup: decoded,
-          qrValue: null,
-        }
-      }
-      if (
-        trimmedDecoded.startsWith('data:')
-        || trimmedDecoded.startsWith('http://')
-        || trimmedDecoded.startsWith('https://')
-      ) {
-        return {
-          imageSrc: trimmedDecoded,
-          svgMarkup: null,
-          qrValue: null,
-        }
-      }
-    } catch {}
-
-    if (sanitized.length > 120) {
-      return { imageSrc: `data:image/png;base64,${sanitized}`, svgMarkup: null, qrValue: null }
-    }
-  }
-
-  return { imageSrc: null, svgMarkup: null, qrValue: value }
-}
-
 const WEIXIN_QR_EXPIRES_IN_SECONDS = 300
 const DEFAULT_FEISHU_DOMAIN = 'feishu'
+const PRIORITY_CHANNELS = ['weixin', 'feishu'] as const
 
 export function ChannelsRoute() {
   const client = useGatewayStore(s => s.client)
@@ -77,16 +27,12 @@ export function ChannelsRoute() {
     loadConfig,
     saveConfig,
     loadStatuses,
-    startGateway,
-    stopGateway,
     loadPairingRequests,
     approvePairingCode,
     rejectPairingRequest,
     startQrLogin,
     waitQrLogin,
   } = useChannelStore()
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
-  const [qrSvgMarkup, setQrSvgMarkup] = useState<string | null>(null)
   const [qrValue, setQrValue] = useState<string | null>(null)
   const [qrMessage, setQrMessage] = useState<string | null>(null)
   const [pairingCodeInput, setPairingCodeInput] = useState('')
@@ -142,8 +88,6 @@ export function ChannelsRoute() {
   }, [selectedPlatform, loadConfig, loadPairingRequests])
 
   useEffect(() => {
-    setQrDataUrl(null)
-    setQrSvgMarkup(null)
     setQrValue(null)
     setQrMessage(null)
     setFeishuAuthMessage(null)
@@ -196,14 +140,18 @@ export function ChannelsRoute() {
   }, [selectedPlatform])
 
   const selectedChannel = CHANNEL_PLATFORMS.find(c => c.id === selectedPlatform)
+  const orderedChannels = useMemo(() => {
+    const priorityIds = new Set(PRIORITY_CHANNELS)
+    const priorityChannels = PRIORITY_CHANNELS
+      .map(id => CHANNEL_PLATFORMS.find(channel => channel.id === id))
+      .filter((channel): channel is (typeof CHANNEL_PLATFORMS)[number] => Boolean(channel))
+    const remainingChannels = CHANNEL_PLATFORMS.filter(channel => !priorityIds.has(channel.id as (typeof PRIORITY_CHANNELS)[number]))
+    return [...priorityChannels, ...remainingChannels]
+  }, [])
   const currentConfig = selectedPlatform ? configs[selectedPlatform] : undefined
   const currentStatus = selectedPlatform ? statuses[selectedPlatform] : undefined
   const currentPairingRequests = selectedPlatform ? pairingRequests[selectedPlatform] ?? [] : []
   const currentAllowFrom = selectedPlatform ? allowFrom[selectedPlatform] ?? [] : []
-  const supportsPairing = useMemo(() => {
-    if (!selectedPlatform || !currentConfig) return false
-    return currentConfig.dmPolicy === 'pairing' || currentConfig.groupPolicy === 'pairing' || currentPairingRequests.length > 0
-  }, [currentConfig, currentPairingRequests.length, selectedPlatform])
   const isFeishu = selectedPlatform === 'feishu'
   const isWeixin = selectedPlatform === 'weixin'
   const weixinLoginUnavailable = selectedPlatform === 'weixin' && !supportsQrLogin
@@ -224,21 +172,6 @@ export function ChannelsRoute() {
       appSecret: currentConfig?.appSecret ?? '',
     })
   }, [currentConfig?.appId, currentConfig?.appSecret, currentConfig?.domain, feishuManualDirty, isFeishu])
-
-  const handleStart = async () => {
-    if (!selectedPlatform) return
-    await startGateway(selectedPlatform)
-  }
-
-  const handleStop = async () => {
-    if (!selectedPlatform) return
-    await stopGateway(selectedPlatform)
-  }
-
-  const handleConfigChange = async (config: any) => {
-    if (!selectedPlatform) return
-    await saveConfig(selectedPlatform, config)
-  }
 
   const handleFeishuManualChange = (patch: Partial<typeof feishuManualDraft>) => {
     setFeishuManualDraft((current) => ({
@@ -278,8 +211,6 @@ export function ChannelsRoute() {
     weixinQrAttemptRef.current = attemptId
     setQrFlowStarted(true)
     setPairingActionMessage(null)
-    setQrDataUrl(null)
-    setQrSvgMarkup(null)
     setQrValue(null)
     setWeixinQrExpired(false)
     setWeixinQrExpiresIn(null)
@@ -375,32 +306,30 @@ export function ChannelsRoute() {
       return
     }
 
-    if (selectedPlatform === 'weixin') {
-      setQrValue(startResult.qrDataUrl.trim())
-      setWeixinQrExpiresIn(WEIXIN_QR_EXPIRES_IN_SECONDS)
-      clearWeixinExpiryTimer()
-      weixinExpiryTimerRef.current = window.setInterval(() => {
-        setWeixinQrExpiresIn((current) => {
-          if (current === null) return current
-          if (current <= 1) {
-            clearWeixinExpiryTimer()
-            if (weixinQrAttemptRef.current === attemptId) {
-              weixinQrAttemptRef.current += 1
-              setQrWaiting(false)
-              setWeixinQrExpired(true)
-              setQrMessage('This QR code has expired. Click Refresh to generate a new one.')
-            }
-            return 0
-          }
-          return current - 1
-        })
-      }, 1000)
-    } else {
-      const normalizedQr = normalizeQrPayload(startResult.qrDataUrl)
-      setQrDataUrl(normalizedQr.imageSrc)
-      setQrSvgMarkup(normalizedQr.svgMarkup)
-      setQrValue(normalizedQr.qrValue)
+    if (selectedPlatform !== 'weixin') {
+      setQrFlowStarted(false)
+      return
     }
+
+    setQrValue(startResult.qrDataUrl.trim())
+    setWeixinQrExpiresIn(WEIXIN_QR_EXPIRES_IN_SECONDS)
+    clearWeixinExpiryTimer()
+    weixinExpiryTimerRef.current = window.setInterval(() => {
+      setWeixinQrExpiresIn((current) => {
+        if (current === null) return current
+        if (current <= 1) {
+          clearWeixinExpiryTimer()
+          if (weixinQrAttemptRef.current === attemptId) {
+            weixinQrAttemptRef.current += 1
+            setQrWaiting(false)
+            setWeixinQrExpired(true)
+            setQrMessage('This QR code has expired. Click Refresh to generate a new one.')
+          }
+          return 0
+        }
+        return current - 1
+      })
+    }, 1000)
     setQrWaiting(true)
     try {
       const waitResult = await waitQrLogin(selectedPlatform, startResult.sessionKey)
@@ -410,8 +339,6 @@ export function ChannelsRoute() {
       setQrMessage(waitResult.message)
       if (waitResult.connected) {
         clearWeixinExpiryTimer()
-        setQrDataUrl(null)
-        setQrSvgMarkup(null)
         setQrValue(null)
         setQrFlowStarted(false)
         setWeixinQrExpired(false)
@@ -453,7 +380,7 @@ export function ChannelsRoute() {
           <h2 className="text-sm font-semibold text-text-strong">Channels</h2>
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
-          {CHANNEL_PLATFORMS.map(ch => {
+          {orderedChannels.map(ch => {
             const status = statuses[ch.id]
             const connected = status?.connected || false
             const active = selectedPlatform === ch.id
@@ -542,28 +469,6 @@ export function ChannelsRoute() {
             ) : selectedPlatform ? (
               <GenericChannelPanel
                 selectedPlatform={selectedPlatform}
-                currentConfig={currentConfig}
-                currentStatus={currentStatus}
-                currentPairingRequests={currentPairingRequests}
-                currentAllowFrom={currentAllowFrom}
-                supportsQrLogin={supportsQrLogin}
-                supportsPairing={supportsPairing}
-                qrWaiting={qrWaiting}
-                qrDataUrl={qrDataUrl}
-                qrSvgMarkup={qrSvgMarkup}
-                qrValue={qrValue}
-                qrMessage={qrMessage}
-                pairingCodeInput={pairingCodeInput}
-                pairingActionMessage={pairingActionMessage}
-                loading={loading}
-                error={error}
-                onConfigChange={handleConfigChange}
-                onStartQrLogin={handleStartQrLogin}
-                onPairingCodeInputChange={setPairingCodeInput}
-                onApprovePairing={handleApprovePairing}
-                onRejectPairing={handleRejectPairing}
-                onStart={handleStart}
-                onStop={handleStop}
               />
             ) : null}
           </div>
