@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { cancelActiveDownload, checkForAppUpdate, downloadAppUpdate, installAppUpdate, type AppUpdateAsset } from './app-update'
 import { RuntimeManager } from './runtime-manager'
 import { installSkill, uninstallSkill } from './skill-installer'
 
@@ -290,6 +291,25 @@ export class WindowManager {
     })
     ipcMain.handle('browser:getProfiles', async () => scanBrowserProfiles())
     ipcMain.handle('browser:getOcbotPath', async () => resolveOcbotBrowserPath())
+    ipcMain.handle('appUpdate:check', async () => checkForAppUpdate())
+    ipcMain.handle(
+      'appUpdate:download',
+      async (event, payload: { asset: AppUpdateAsset; version: string }) => {
+        const filePath = await downloadAppUpdate(payload.asset, payload.version, (progress) => {
+          if (!event.sender.isDestroyed()) {
+            event.sender.send('appUpdate:downloadProgress', progress)
+          }
+        })
+        return { filePath }
+      },
+    )
+    ipcMain.handle('appUpdate:cancelDownload', async () => ({
+      cancelled: cancelActiveDownload(),
+    }))
+    ipcMain.handle('appUpdate:install', async (_event, filePath: string) => {
+      await installAppUpdate(filePath)
+      return { accepted: true }
+    })
     ipcMain.handle('channels:getConfig', async (_event, platform: Parameters<RuntimeManager['getChannelConfig']>[0]) =>
       this.runtimeManager.getChannelConfig(platform),
     )

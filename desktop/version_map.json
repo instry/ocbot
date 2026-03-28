@@ -1,7 +1,14 @@
 {
   "2026.3.28": {
     "openclaw": "2026.3.25",
-    "date": "2026-03-28",
-    "notes": ""
+    "publishedAt": "2026-03-28T00:00:00Z",
+    "releaseTag": "v2026.3.28",
+    "channel": "stable",
+    "cdnPath": "2026.3.28",
+    "notes": [
+      "Add desktop in-app update support backed by a Cloudflare-hosted JSON manifest.",
+      "Download platform-specific installers from GitHub Release assets with sha512 integrity verification.",
+      "Expose manual update check, download progress, and install actions in the desktop settings page."
+    ]
   }
 }

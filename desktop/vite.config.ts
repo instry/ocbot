@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-const version = readFileSync(path.resolve(__dirname, '../browser/VERSION'), 'utf-8').trim()
+const version = readFileSync(path.resolve(__dirname, 'VERSION'), 'utf-8').trim()
 
 export default defineConfig({
   root: 'src/renderer',

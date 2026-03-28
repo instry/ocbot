@@ -28,14 +28,14 @@ win:
   icon: resources/icons/icon.ico
   target:
     - nsis
-  artifactName: "${productName}-Setup-${version}.${ext}"
+  artifactName: "${productName}-Setup-${version}-${arch}.${ext}"
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 
 dmg:
-  artifactName: "${productName}-${version}.${ext}"
+  artifactName: "${productName}-${version}-${arch}.${ext}"
 
 extraResources:
   - from: resources/openclaw

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
-import { ChevronDown, Globe, Info, Mail, Monitor, Moon, Sliders, Sun } from 'lucide-react'
+import { ArrowDownToLine, CheckCircle2, ChevronDown, ExternalLink, Globe, Info, LoaderCircle, Mail, Monitor, Moon, RefreshCw, Sliders, Sun } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -455,6 +455,42 @@ function BrowserTab({
   )
 }
 
+function formatUpdateDate(value: string): string {
+  if (!value) return 'Pending release'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(date)
+}
+
+function formatBytes(value?: number): string {
+  if (!value || value <= 0) return 'Unknown size'
+
+  const units = ['B', 'KB', 'MB', 'GB']
+  let size = value
+  let unitIndex = 0
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+
+  const digits = size >= 100 || unitIndex === 0 ? 0 : 1
+  return `${size.toFixed(digits)} ${units[unitIndex]}`
+}
+
+function formatSpeed(value?: number): string | null {
+  if (!value || value <= 0) return null
+  return `${formatBytes(value)}/s`
+}
+
 function AboutTab() {
   const faqs = [
     { q: 'What are you exactly?', a: "I'm a new species! Part browser, part AI agent. Think of me as a very helpful octopus that lives in your browser tabs." },
@@ -462,6 +498,113 @@ function AboutTab() {
     { q: 'Why purple?', a: "Because I'm hitting the big time — only royalty gets to be purple. Plus it's the color of a certain deep-sea creature." },
     { q: 'Will you leak my data?', a: "Nope! All your data is stored locally. I don't phone home. Your conversations, your settings — all yours." },
   ]
+  const [checking, setChecking] = useState(true)
+  const [updateInfo, setUpdateInfo] = useState<OcbotAppUpdateInfo | null>(null)
+  const [updateError, setUpdateError] = useState<string | null>(null)
+  const [updateNotice, setUpdateNotice] = useState<string | null>(null)
+  const [downloadProgress, setDownloadProgress] = useState<OcbotAppUpdateDownloadProgress | null>(null)
+  const [downloadFilePath, setDownloadFilePath] = useState('')
+  const [downloading, setDownloading] = useState(false)
+  const [installing, setInstalling] = useState(false)
+  const [upToDate, setUpToDate] = useState(false)
+
+  useEffect(() => {
+    const unsubscribe = window.ocbot?.appUpdate.onDownloadProgress((progress) => {
+      setDownloadProgress(progress)
+    })
+
+    return () => {
+      unsubscribe?.()
+    }
+  }, [])
+
+  useEffect(() => {
+    void checkForUpdates(false)
+  }, [])
+
+  async function checkForUpdates(triggeredByUser: boolean) {
+    setChecking(true)
+    setUpdateError(null)
+    setUpdateNotice(null)
+    setDownloadFilePath('')
+    setDownloadProgress(null)
+
+    try {
+      const result = await window.ocbot?.appUpdate.check()
+      setUpdateInfo(result ?? null)
+      setUpToDate(!result)
+      if (!result && triggeredByUser) {
+        setUpdateNotice('You are already on the latest version.')
+      }
+    } catch (err) {
+      setUpdateInfo(null)
+      setUpToDate(false)
+      setUpdateError(err instanceof Error ? err.message : 'Failed to check for updates.')
+    } finally {
+      setChecking(false)
+      setDownloading(false)
+      setInstalling(false)
+    }
+  }
+
+  async function downloadUpdate() {
+    if (!updateInfo || downloading) return
+
+    setDownloading(true)
+    setUpdateError(null)
+    setUpdateNotice(null)
+    setDownloadProgress(null)
+
+    try {
+      const result = await window.ocbot?.appUpdate.download(updateInfo.download, updateInfo.latestVersion)
+      setDownloadFilePath(result?.filePath ?? '')
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : 'Failed to download update.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  async function cancelDownload() {
+    if (!downloading) return
+
+    try {
+      await window.ocbot?.appUpdate.cancelDownload()
+    } finally {
+      setDownloading(false)
+      setDownloadProgress(null)
+    }
+  }
+
+  async function installUpdate() {
+    if (!downloadFilePath || installing) return
+
+    setInstalling(true)
+    setUpdateError(null)
+    setUpdateNotice(null)
+
+    try {
+      await window.ocbot?.appUpdate.install(downloadFilePath)
+    } catch (err) {
+      setInstalling(false)
+      setUpdateError(err instanceof Error ? err.message : 'Failed to install update.')
+    }
+  }
+
+  const progressPercent = typeof downloadProgress?.percent === 'number'
+    ? Math.max(0, Math.min(100, Math.round(downloadProgress.percent * 100)))
+    : null
+  const progressSpeed = formatSpeed(downloadProgress?.speed)
+  const latestVersionLabel = updateInfo?.latestVersion ?? OCBOT_VERSION
+  const updateStatus = checking
+    ? 'Checking for updates...'
+    : updateInfo
+      ? downloadFilePath
+        ? `Version ${updateInfo.latestVersion} is ready to install.`
+        : `Version ${updateInfo.latestVersion} is available.`
+      : upToDate
+        ? 'You are on the latest version.'
+        : 'No update information available yet.'
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -479,6 +622,129 @@ function AboutTab() {
             Ask me to find info, fill forms, compare products, or automate your online work.
             I don't sleep, I don't forget, and I'm always ready.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="gap-2">
+          <CardTitle>Updates</CardTitle>
+          <CardDescription>Checks the Cloudflare release manifest and downloads the matching GitHub Release package for this device.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-bg-subtle/60 p-4">
+              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Current</div>
+              <div className="mt-2 text-lg font-semibold text-text-strong">v{OCBOT_VERSION}</div>
+            </div>
+            <div className="rounded-2xl border border-border bg-bg-subtle/60 p-4">
+              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Latest</div>
+              <div className="mt-2 text-lg font-semibold text-text-strong">v{latestVersionLabel}</div>
+            </div>
+            <div className="rounded-2xl border border-border bg-bg-subtle/60 p-4">
+              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Released</div>
+              <div className="mt-2 text-lg font-semibold text-text-strong">
+                {formatUpdateDate(updateInfo?.publishedAt ?? '')}
+              </div>
+            </div>
+          </div>
+
+          <div className={cn(
+            'rounded-2xl border px-4 py-3 text-sm',
+            updateInfo
+              ? 'border-button-success-border bg-button-success text-button-success-foreground'
+              : 'border-border bg-bg-subtle/60 text-text',
+          )}>
+            <div className="flex items-center gap-2">
+              {checking ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              <span>{updateStatus}</span>
+            </div>
+          </div>
+
+          {updateError ? (
+            <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {updateError}
+            </div>
+          ) : null}
+
+          {updateNotice ? (
+            <div className="rounded-2xl border border-border bg-bg-subtle/60 px-4 py-3 text-sm text-text">
+              {updateNotice}
+            </div>
+          ) : null}
+
+          {downloading ? (
+            <div className="space-y-3 rounded-2xl border border-border bg-bg-subtle/60 p-4">
+              <div className="flex items-center justify-between gap-3 text-sm text-text">
+                <span>Downloading update</span>
+                <span>{progressPercent !== null ? `${progressPercent}%` : 'Preparing...'}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-border/60">
+                <div
+                  className="h-full rounded-full bg-accent transition-[width]"
+                  style={{ width: `${progressPercent ?? 8}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>{formatBytes(downloadProgress?.received ?? 0)} / {formatBytes(downloadProgress?.total)}</span>
+                {progressSpeed ? <span>{progressSpeed}</span> : null}
+              </div>
+            </div>
+          ) : null}
+
+          {updateInfo?.notes.length ? (
+            <div className="space-y-3 rounded-2xl border border-border bg-bg-subtle/60 p-4">
+              <div className="text-sm font-medium text-text-strong">Release notes</div>
+              <ul className="space-y-2 text-sm text-text">
+                {updateInfo.notes.map((note, index) => (
+                  <li key={`${index}-${note}`} className="flex gap-2">
+                    <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-accent" />
+                    <span>{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" size="md" onClick={() => void checkForUpdates(true)} disabled={checking || downloading || installing}>
+              {checking ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Check again
+            </Button>
+            {updateInfo && !downloadFilePath ? (
+              <Button
+                variant={downloading ? 'danger' : 'primary'}
+                size="md"
+                onClick={() => {
+                  if (downloading) {
+                    void cancelDownload()
+                    return
+                  }
+                  void downloadUpdate()
+                }}
+                disabled={checking || installing}
+              >
+                {downloading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ArrowDownToLine className="h-4 w-4" />}
+                {downloading ? 'Cancel download' : `Download ${formatBytes(updateInfo.download.size)}`}
+              </Button>
+            ) : null}
+            {downloadFilePath ? (
+              <Button variant="primary" size="md" onClick={() => void installUpdate()} disabled={installing || checking}>
+                {installing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {installing ? 'Installing...' : 'Install update'}
+              </Button>
+            ) : null}
+            {updateInfo?.releaseUrl ? (
+              <a
+                href={updateInfo.releaseUrl}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-accent no-underline transition-colors hover:bg-bg-hover"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View release
+              </a>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
 

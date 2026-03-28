@@ -19,6 +19,7 @@
     "package:win:ia32": "node scripts/package.cjs --platform win --arch ia32",
     "package:win:all": "node scripts/package.cjs --platform win --arch all",
     "package:all": "node scripts/package.cjs --platform all --arch all",
+    "manifest:update": "node scripts/generate-update-manifest.cjs",
     "build": "npm run sync:version && npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",

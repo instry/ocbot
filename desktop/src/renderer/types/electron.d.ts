@@ -49,9 +49,34 @@ declare global {
     profiles: OcbotBrowserProfileInfo[]
   }
 
+  interface OcbotAppUpdateAsset {
+    url: string
+    sha512?: string
+    size?: number
+    fileName?: string
+  }
+
+  interface OcbotAppUpdateInfo {
+    currentVersion: string
+    latestVersion: string
+    publishedAt: string
+    notes: string[]
+    releaseUrl?: string
+    manifestUrl: string
+    download: OcbotAppUpdateAsset
+  }
+
+  interface OcbotAppUpdateDownloadProgress {
+    received: number
+    total: number | undefined
+    percent: number | undefined
+    speed: number | undefined
+  }
+
   interface Window {
     ocbot?: {
       platform: string
+      arch: string
       minimize: () => void
       maximize: () => void
       close: () => void
@@ -59,6 +84,15 @@ declare global {
       uninstallSkill: (slug: string) => Promise<{ ok: boolean; message: string }>
       getBrowserProfiles: () => Promise<OcbotBrowserProfilesResult[]>
       getOcbotBrowserPath: () => Promise<string>
+      appUpdate: {
+        check: () => Promise<OcbotAppUpdateInfo | null>
+        download: (asset: OcbotAppUpdateAsset, version: string) => Promise<{ filePath: string }>
+        cancelDownload: () => Promise<{ cancelled: boolean }>
+        install: (filePath: string) => Promise<{ accepted: boolean }>
+        onDownloadProgress: (
+          handler: (progress: OcbotAppUpdateDownloadProgress) => void,
+        ) => () => void
+      }
       getChannelConfig: (platform: OcbotChannelPlatform) => Promise<OcbotChannelConfig>
       supportsChannelQrLogin: (platform: OcbotChannelPlatform) => Promise<boolean>
       startFeishuInstallQrcode: (isLark: boolean) => Promise<{

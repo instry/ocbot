@@ -7,6 +7,7 @@ import { contextBridge, ipcRenderer } from 'electron'
  */
 contextBridge.exposeInMainWorld('ocbot', {
   platform: process.platform,
+  arch: process.arch,
 
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
@@ -20,6 +21,21 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('browser:getProfiles'),
   getOcbotBrowserPath: () =>
     ipcRenderer.invoke('browser:getOcbotPath'),
+  appUpdate: {
+    check: () =>
+      ipcRenderer.invoke('appUpdate:check'),
+    download: (asset: unknown, version: string) =>
+      ipcRenderer.invoke('appUpdate:download', { asset, version }),
+    cancelDownload: () =>
+      ipcRenderer.invoke('appUpdate:cancelDownload'),
+    install: (filePath: string) =>
+      ipcRenderer.invoke('appUpdate:install', filePath),
+    onDownloadProgress: (handler: (progress: unknown) => void) => {
+      const listener = (_event: unknown, progress: unknown) => handler(progress)
+      ipcRenderer.on('appUpdate:downloadProgress', listener)
+      return () => ipcRenderer.removeListener('appUpdate:downloadProgress', listener)
+    },
+  },
   getChannelConfig: (platform: string) =>
     ipcRenderer.invoke('channels:getConfig', platform),
   supportsChannelQrLogin: (platform: string) =>

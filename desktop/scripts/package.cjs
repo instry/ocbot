@@ -161,6 +161,18 @@ function runElectronBuilder(task, options) {
   })
 }
 
+function generateUpdateManifest(options) {
+  if (options.dryRun) {
+    return
+  }
+
+  console.log('[package] Generating update manifest')
+  run(resolveCommand('node'), ['scripts/generate-update-manifest.cjs'], {
+    cwd: projectRoot,
+    env: process.env,
+  })
+}
+
 function main() {
   if (hasCliFlag(argv, '--help')) {
     printHelp()
@@ -190,6 +202,8 @@ function main() {
   for (const task of tasks) {
     runElectronBuilder(task, options)
   }
+
+  generateUpdateManifest(options)
 }
 
 main()
