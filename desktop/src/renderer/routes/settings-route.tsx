@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
-import { ChevronDown, Globe, Info, Mail, Monitor, Sliders } from 'lucide-react'
+import { ChevronDown, Globe, Info, Mail, Monitor, Moon, Sliders, Sun } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SelectionGroup } from '@/components/ui/selection-group'
 import { cn } from '@/lib/utils'
+import { useUIStore } from '@/stores/ui-store'
+import type { ThemeMode } from '@/stores/ui-store'
 
 type SettingsTab = 'general' | 'browser' | 'about'
 type BrowserChoice = 'ocbot' | 'system' | 'custom'
@@ -45,6 +47,7 @@ function resolveSelectedProfile(
 
 export function SettingsRoute() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const { themeMode, setThemeMode } = useUIStore()
   const [browserChoice, setBrowserChoice] = useState<BrowserChoice>('system')
   const [customBrowserPath, setCustomBrowserPath] = useState('')
   const [selectedProfileKey, setSelectedProfileKey] = useState('')
@@ -265,7 +268,7 @@ export function SettingsRoute() {
       </aside>
 
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'general' && <GeneralTab />}
+        {activeTab === 'general' && <GeneralTab themeMode={themeMode} setThemeMode={setThemeMode} />}
         {activeTab === 'browser' && (
           <BrowserTab
             browserChoice={browserChoice}
@@ -291,12 +294,41 @@ export function SettingsRoute() {
   )
 }
 
-function GeneralTab() {
+function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThemeMode: (mode: ThemeMode) => void }) {
+  const colorOptions = [
+    {
+      value: 'light' as const,
+      label: 'Light',
+      icon: <Sun className="h-4 w-4" />,
+    },
+    {
+      value: 'dark' as const,
+      label: 'Dark',
+      icon: <Moon className="h-4 w-4" />,
+    },
+  ]
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <div className="space-y-1">
         <h2 className="text-2xl font-semibold text-text-strong">General</h2>
       </div>
+
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <div>
+            <div className="text-sm font-medium text-text-strong">Color Scheme</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">Choose your preferred theme.</div>
+          </div>
+          <SelectionGroup
+            value={themeMode}
+            options={colorOptions}
+            onChange={setThemeMode}
+            size="compact"
+            className="grid-cols-2 sm:grid-cols-2"
+          />
+        </CardContent>
+      </Card>
     </div>
   )
 }
