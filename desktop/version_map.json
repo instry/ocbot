@@ -1,6 +1,7 @@
 {
   "2026.3.28": {
     "openclaw": "2026.3.25",
+    "openclawCommit": "883239a560ecc7e83860439a4adacba5c7b0ec78",
     "publishedAt": "2026-03-28T00:00:00Z",
     "releaseTag": "v2026.3.28",
     "channel": "stable",

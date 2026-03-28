@@ -2,6 +2,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const {
+  getConfiguredOpenClawCommit,
   getConfiguredOpenClawVersion,
   getDesktopVersion,
   hasCliFlag,
@@ -229,6 +230,7 @@ function main() {
   syncPackageVersionFiles()
   console.log(`[package] Desktop version ${getDesktopVersion()}`)
   console.log(`[package] OpenClaw version ${getConfiguredOpenClawVersion()}`)
+  console.log(`[package] OpenClaw commit ${getConfiguredOpenClawCommit()}`)
   console.log(`[package] Planned tasks: ${tasks.map((task) => getTaskLabel(task)).join(', ')}`)
 
   if (!options.skipBuild) {

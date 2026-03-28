@@ -6,6 +6,7 @@ const {
   assertSupportedRuntimeTarget,
   bundledRuntimeRoot,
   commandExists,
+  getConfiguredOpenClawCommit,
   defaultOpenClawSourceRoot,
   getConfiguredOpenClawVersion,
   getDesktopVersion,
@@ -16,6 +17,25 @@ const {
   run,
   syncPackageVersionFiles,
 } = require('./common.cjs')
+
+function runAndRead(command, args, options = {}) {
+  const result = require('node:child_process').spawnSync(command, args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    ...options,
+  })
+
+  if (result.error) {
+    throw result.error
+  }
+
+  if (result.status !== 0) {
+    const stderr = typeof result.stderr === 'string' ? result.stderr.trim() : ''
+    throw new Error(`${command} ${args.join(' ')} exited with code ${result.status ?? 1}${stderr ? `: ${stderr}` : ''}`)
+  }
+
+  return typeof result.stdout === 'string' ? result.stdout.trim() : ''
+}
 
 function resolvePnpmRunner() {
   const corepack = resolveCommand('corepack')
@@ -101,12 +121,50 @@ function ensureConfiguredOpenClawVersion(sourceRoot) {
   }
 }
 
+function readOpenClawGitHead(sourceRoot) {
+  return runAndRead(resolveCommand('git'), ['-C', sourceRoot, 'rev-parse', 'HEAD'])
+}
+
+function readOpenClawGitStatus(sourceRoot) {
+  return runAndRead(resolveCommand('git'), ['-C', sourceRoot, 'status', '--short', '--untracked-files=all'])
+}
+
+function ensureConfiguredOpenClawCommit(sourceRoot) {
+  const desktopVersion = getDesktopVersion()
+  const expectedCommit = getConfiguredOpenClawCommit()
+  const actualCommit = readOpenClawGitHead(sourceRoot)
+
+  if (actualCommit !== expectedCommit) {
+    throw new Error(
+      `OpenClaw commit mismatch for desktop ${desktopVersion}: expected ${expectedCommit}, found ${actualCommit} in ${sourceRoot}`,
+    )
+  }
+}
+
+function ensureOpenClawGitClean(sourceRoot) {
+  const statusOutput = readOpenClawGitStatus(sourceRoot)
+  if (!statusOutput) {
+    return
+  }
+
+  const preview = statusOutput
+    .split('\n')
+    .slice(0, 10)
+    .join('\n')
+
+  throw new Error(
+    `OpenClaw source tree has uncommitted changes in ${sourceRoot}. Commit or discard them before packaging.\n${preview}`,
+  )
+}
+
 function ensureOpenClawBuild(sourceRoot) {
   syncPackageVersionFiles()
   assertPathExists(sourceRoot, 'OpenClaw source directory')
   assertPathExists(path.join(sourceRoot, 'package.json'), 'OpenClaw package.json')
   assertPathExists(path.join(sourceRoot, 'openclaw.mjs'), 'OpenClaw bootstrap entry')
   ensureConfiguredOpenClawVersion(sourceRoot)
+  ensureConfiguredOpenClawCommit(sourceRoot)
+  ensureOpenClawGitClean(sourceRoot)
 
   if (hasBuiltOpenClaw(sourceRoot)) {
     console.log(`[OpenClaw bundle] Reusing existing build from ${sourceRoot}`)

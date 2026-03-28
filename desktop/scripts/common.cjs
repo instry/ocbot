@@ -77,6 +77,14 @@ function getConfiguredOpenClawVersion() {
   return config.openclaw.trim()
 }
 
+function getConfiguredOpenClawCommit() {
+  const config = getDesktopVersionConfig()
+  if (typeof config.openclawCommit !== 'string' || config.openclawCommit.trim() === '') {
+    throw new Error(`Missing openclaw commit for desktop version ${getDesktopVersion()}`)
+  }
+  return config.openclawCommit.trim()
+}
+
 function syncPackageVersionFiles() {
   const version = getDesktopVersion()
   const packageJsonPath = path.join(projectRoot, 'package.json')
@@ -213,6 +221,7 @@ module.exports = {
   bundledRuntimeRoot,
   commandExists,
   defaultOpenClawSourceRoot,
+  getConfiguredOpenClawCommit,
   getConfiguredOpenClawVersion,
   getDesktopPackageJson,
   getDesktopVersionConfig,
