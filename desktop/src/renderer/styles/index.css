@@ -89,7 +89,12 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  -webkit-app-region: drag;
+  -webkit-app-region: no-drag;
+}
+
+#root {
+  height: 100%;
+  -webkit-app-region: no-drag;
 }
 
 @media (min-width: 1600px) {
