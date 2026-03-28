@@ -1,9 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Check, ExternalLink } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { SelectionGroup } from '@/components/ui/selection-group'
 import { cn } from '@/lib/utils'
@@ -188,18 +187,15 @@ interface ProviderFormProps {
 
 function FieldHeader({
   title,
-  description,
   action,
 }: {
   title: string
-  description?: string
   action?: ReactNode
 }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div className="space-y-1">
+      <div>
         <div className="text-sm font-medium text-text-strong">{title}</div>
-        {description ? <div className="text-xs leading-5 text-muted-foreground">{description}</div> : null}
       </div>
       {action}
     </div>
@@ -227,8 +223,6 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
     return {
       value: provider,
       label: providerHint.label,
-      description: LOCAL_PROVIDERS.includes(provider) ? 'Local runtime' : 'Hosted API',
-      badge: LOCAL_PROVIDERS.includes(provider) ? 'Local' : 'Cloud',
     }
   })
 
@@ -390,100 +384,89 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
       ) : null}
 
       {!isEditMode ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Provider</CardTitle>
-            <CardDescription>选择一个模型服务商，后续字段会自动填充默认值。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SelectionGroup
-              value={selectedProvider}
-              onChange={selectProvider}
-              options={providerOptions}
-              className="lg:grid-cols-3"
-            />
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {providerOptions.map(option => {
+              const selected = option.value === selectedProvider
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => selectProvider(option.value)}
+                  aria-pressed={selected}
+                  className={cn(
+                    'flex items-center justify-center rounded-xl border px-3 py-2.5 text-center text-sm font-medium transition-colors',
+                    selected
+                      ? 'border-button-tonal-border bg-button-tonal text-button-tonal-foreground'
+                      : 'border-border bg-card text-text-strong hover:border-border-hover hover:bg-bg-hover',
+                  )}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       ) : null}
 
       {selectedProvider ? (
         <>
-          <Card>
-            <CardHeader className="gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <CardTitle>{hint.label}</CardTitle>
-                <Badge variant={isLocal ? 'outline' : 'accent'}>{isLocal ? 'Local' : 'Cloud'}</Badge>
+          <div className="space-y-5">
+            {hint.regions?.length ? (
+              <div className="space-y-3">
+                <FieldHeader title="Region" />
+                <SelectionGroup
+                  value={selectedRegion}
+                  size="compact"
+                  className="border-0 bg-transparent p-0 shadow-none backdrop-blur-none"
+                  options={[...hint.regions]
+                    .sort((a, b) => a.id === preferredRegion ? -1 : b.id === preferredRegion ? 1 : 0)
+                    .map(region => ({
+                      value: region.id,
+                      label: region.label,
+                    }))}
+                  onChange={handleRegionChange}
+                />
               </div>
-              <CardDescription>统一使用紧凑表单卡片，减少重复样式代码。</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {hint.regions?.length ? (
-                <div className="space-y-3">
-                  <FieldHeader
-                    title="Region"
-                    description="根据网络区域切换预设网关地址。"
-                  />
-                  <SelectionGroup
-                    value={selectedRegion}
-                    size="compact"
-                    options={[...hint.regions]
-                      .sort((a, b) => a.id === preferredRegion ? -1 : b.id === preferredRegion ? 1 : 0)
-                      .map(region => ({
-                        value: region.id,
-                        label: region.label,
-                      }))}
-                    onChange={handleRegionChange}
-                  />
-                </div>
-              ) : null}
+            ) : null}
 
-              {!isLocal ? (
-                <div className="space-y-3">
-                  <FieldHeader
-                    title="API Key"
-                    description="密钥只会写入当前本地配置。"
-                    action={hint.apiKeyUrl ? (
-                      <a
-                        href={hint.apiKeyUrl}
-                        target="_blank"
-                        rel="noopener"
-                        className="inline-flex items-center gap-1 text-xs text-accent no-underline transition-colors hover:text-accent/80"
-                      >
-                        Get key
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    ) : undefined}
-                  />
-                  <Input
-                    type="text"
-                    placeholder={hint.apiKeyPlaceholder ?? 'Enter API key'}
-                    value={apiKey}
-                    onChange={event => setApiKey(event.target.value)}
-                  />
-                </div>
-              ) : null}
-
+            {!isLocal ? (
               <div className="space-y-3">
                 <FieldHeader
-                  title="Base URL"
-                  description="可选覆盖默认网关地址，兼容代理或自托管入口。"
+                  title="API Key"
+                  action={hint.apiKeyUrl ? (
+                    <a
+                      href={hint.apiKeyUrl}
+                      target="_blank"
+                      rel="noopener"
+                      className="inline-flex items-center gap-1 text-xs text-accent no-underline transition-colors hover:text-accent/80"
+                    >
+                      Get key
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  ) : undefined}
                 />
                 <Input
                   type="text"
-                  placeholder="https://..."
-                  value={baseUrl}
-                  onChange={event => setBaseUrl(event.target.value)}
+                  placeholder={hint.apiKeyPlaceholder ?? 'Enter API key'}
+                  value={apiKey}
+                  onChange={event => setApiKey(event.target.value)}
                 />
               </div>
-            </CardContent>
-          </Card>
+            ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{!isEditMode && models.length > 1 ? 'Models' : 'Model'}</CardTitle>
-              <CardDescription>默认会把首个选中的模型写入 agent 默认配置。</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <FieldHeader title="Base URL" />
+              <Input
+                type="text"
+                placeholder="https://..."
+                value={baseUrl}
+                onChange={event => setBaseUrl(event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <FieldHeader title={!isEditMode && models.length > 1 ? 'Models' : 'Model'} />
               {models.length > 0 ? (
                 isEditMode ? (
                   <SelectionGroup
@@ -496,39 +479,32 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
                     }))}
                   />
                 ) : (
-                  <>
-                    <div className="flex flex-wrap gap-2">
-                      {models.map(model => {
-                        const selected = selectedModels.has(model.id)
-                        return (
-                          <Button
-                            key={model.id}
-                            onClick={() => toggleModel(model.id)}
-                            variant={selected ? 'tonal' : 'secondary'}
-                            size="sm"
-                            className={cn('h-auto rounded-full px-3 py-2', !selected && 'text-text')}
+                  <div className="flex flex-wrap gap-2">
+                    {models.map(model => {
+                      const selected = selectedModels.has(model.id)
+                      return (
+                        <Button
+                          key={model.id}
+                          onClick={() => toggleModel(model.id)}
+                          variant={selected ? 'tonal' : 'secondary'}
+                          size="sm"
+                          className={cn('h-auto rounded-full px-3 py-2', !selected && 'text-text')}
+                        >
+                          <span
+                            className={cn(
+                              'flex h-4 w-4 items-center justify-center rounded-full border',
+                              selected
+                                ? 'border-button-tonal-border bg-card text-button-tonal-foreground'
+                                : 'border-border bg-bg text-transparent',
+                            )}
                           >
-                            <span
-                              className={cn(
-                                'flex h-4 w-4 items-center justify-center rounded-full border',
-                                selected
-                                  ? 'border-button-tonal-border bg-card text-button-tonal-foreground'
-                                  : 'border-border bg-bg text-transparent',
-                              )}
-                            >
-                              <Check className="h-3 w-3" />
-                            </span>
-                            {model.name || model.id}
-                          </Button>
-                        )
-                      })}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from(selectedModels).map(id => (
-                        <Badge key={id} variant="accent">{id}</Badge>
-                      ))}
-                    </div>
-                  </>
+                            <Check className="h-3 w-3" />
+                          </span>
+                          {model.name || model.id}
+                        </Button>
+                      )
+                    })}
+                  </div>
                 )
               ) : (
                 <Input
@@ -542,12 +518,12 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
                   }}
                 />
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <div className="flex items-center justify-end gap-3">
-            <Button onClick={onCancel} variant="secondary" size="md">Cancel</Button>
-            <Button onClick={save} disabled={saving || !canSave} variant="primary" size="md">
+          <div className="flex items-center justify-start gap-3 pt-4">
+            <Button onClick={onCancel} variant="secondary" size="md" className="w-32">Cancel</Button>
+            <Button onClick={save} disabled={saving || !canSave} variant="primary" size="md" className="w-32">
               {saving ? 'Saving...' : 'Save'}
             </Button>
           </div>

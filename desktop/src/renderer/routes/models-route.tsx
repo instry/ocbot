@@ -39,7 +39,11 @@ export function ModelsRoute() {
       ])
       const config = configResult?.config ?? {}
       const profiles: Record<string, any> = config?.auth?.profiles ?? {}
-      const providerConfigs: Record<string, { models?: Array<{ id?: string; name?: string }> }> = config?.models?.providers ?? {}
+      const providerConfigs: Record<string, {
+        apiKey?: string
+        baseUrl?: string
+        models?: Array<{ id?: string; name?: string }>
+      }> = config?.models?.providers ?? {}
       const defaultModel: string = config?.agents?.defaults?.model?.primary ?? ''
       const gatewayModels = Array.isArray(modelsResult)
         ? modelsResult
@@ -50,13 +54,15 @@ export function ModelsRoute() {
       for (const [key, profile] of Object.entries(profiles)) {
         const provider = profile.provider ?? key.split(':')[0] ?? ''
         const hint = getProviderLabel(provider)
-        const baseUrl: string = profile.baseUrl ?? ''
+        const providerConfig = providerConfigs[provider]
+        const apiKey: string = providerConfig?.apiKey ?? profile.apiKey ?? ''
+        const baseUrl: string = providerConfig?.baseUrl ?? profile.baseUrl ?? ''
         const cnUrl = CN_URLS[provider]
         if (cnUrl && baseUrl.startsWith(cnUrl)) {
           cnProviders.add(provider)
         }
-        const configuredModels = Array.isArray(providerConfigs[provider]?.models)
-          ? providerConfigs[provider].models
+        const configuredModels = Array.isArray(providerConfig?.models)
+          ? providerConfig.models
             .filter((model): model is { id: string; name?: string } => Boolean(model?.id))
             .map(model => ({
               id: model.id,
@@ -72,7 +78,7 @@ export function ModelsRoute() {
           profileKey: key,
           provider,
           label: hint,
-          apiKey: profile.apiKey ?? '',
+          apiKey,
           baseUrl,
           modelId: defaultModel.startsWith(`${provider}/`) ? defaultModel.split('/').slice(1).join('/') : undefined,
           isDefault: defaultModel.startsWith(`${provider}/`),
@@ -184,8 +190,7 @@ export function ModelsRoute() {
           Back to Models
         </Button>
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold text-text-strong">Add</h2>
-          <p className="text-sm text-muted-foreground">使用统一的表单卡片快速配置模型服务商。</p>
+          <h2 className="text-2xl font-semibold text-text-strong">Add Provider</h2>
         </div>
         <ProviderForm onSaved={handleSaved} onCancel={handleCancel} />
       </div>
@@ -204,8 +209,7 @@ export function ModelsRoute() {
           Back to Models
         </Button>
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold text-text-strong">Edit Provider</h2>
-          <p className="text-sm text-muted-foreground">{editingProvider.label}</p>
+          <h2 className="text-2xl font-semibold text-text-strong">Edit</h2>
         </div>
         <ProviderForm
           editProfileKey={editingProvider.profileKey}

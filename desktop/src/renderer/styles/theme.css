@@ -75,7 +75,7 @@
 
   --button-primary: var(--accent);
   --button-primary-hover: var(--accent-hover);
-  --button-primary-foreground: var(--accent-foreground);
+  --button-primary-foreground: #ffffff;
   --button-secondary: color-mix(in srgb, var(--card) 92%, var(--bg));
   --button-secondary-hover: color-mix(in srgb, var(--card) 65%, var(--bg-hover));
   --button-secondary-foreground: var(--text-strong);
