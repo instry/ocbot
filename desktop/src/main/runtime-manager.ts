@@ -739,10 +739,6 @@ export class RuntimeManager {
     }
 
     const source = fs.readFileSync(filePath, 'utf8')
-    if (source.includes('resolveRequestedProviderId')) {
-      return
-    }
-
     const currentBlock = `const resolveWebLoginProvider = () =>
   listChannelPlugins().find((plugin) =>
     (plugin.gatewayMethods ?? []).some((method) => WEB_LOGIN_METHODS.has(method)),
@@ -767,13 +763,24 @@ const resolveWebLoginProvider = (params: unknown) => {
 };
 `
 
-    if (!source.includes(currentBlock)) {
-      return
+    let nextSource = source
+
+    if (!nextSource.includes('resolveRequestedProviderId')) {
+      if (!nextSource.includes(currentBlock)) {
+        return
+      }
+
+      nextSource = nextSource.replace(currentBlock, nextBlock)
     }
 
-    const nextSource = source
-      .replace(currentBlock, nextBlock)
-      .replace('const provider = resolveWebLoginProvider();', 'const provider = resolveWebLoginProvider(params);')
+    nextSource = nextSource.replace(
+      'const provider = resolveWebLoginProvider();',
+      'const provider = resolveWebLoginProvider(params);',
+    )
+
+    if (nextSource === source) {
+      return
+    }
 
     fs.writeFileSync(filePath, nextSource, 'utf8')
   }
