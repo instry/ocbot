@@ -1,3 +1,6 @@
+const fs = require('node:fs')
+const path = require('node:path')
+
 const {
   getConfiguredOpenClawVersion,
   getDesktopVersion,
@@ -138,6 +141,37 @@ function runDesktopBuild() {
   run(resolveCommand('npm'), ['run', 'build'], { cwd: projectRoot })
 }
 
+function getMacAppOutputDir(arch) {
+  return path.join(projectRoot, 'out', `mac-${arch}`)
+}
+
+function getVersionedAppName(version, arch) {
+  return `Ocbot-${version}-${arch}.app`
+}
+
+function renameMacAppBundle(task) {
+  if (task.platform !== 'darwin' || task.target !== 'app') {
+    return
+  }
+
+  const version = getDesktopVersion()
+  const outputDir = getMacAppOutputDir(task.arch)
+  const sourcePath = path.join(outputDir, 'Ocbot.app')
+  const targetPath = path.join(outputDir, getVersionedAppName(version, task.arch))
+
+  if (!fs.existsSync(sourcePath)) {
+    return
+  }
+
+  if (sourcePath === targetPath) {
+    return
+  }
+
+  fs.rmSync(targetPath, { recursive: true, force: true })
+  fs.renameSync(sourcePath, targetPath)
+  console.log(`[package] Renamed mac app bundle to ${path.basename(targetPath)}`)
+}
+
 function runElectronBuilder(task, options) {
   const args = buildElectronBuilderArgs(task, options.publish)
   const env = {
@@ -159,6 +193,8 @@ function runElectronBuilder(task, options) {
     cwd: projectRoot,
     env,
   })
+
+  renameMacAppBundle(task)
 }
 
 function generateUpdateManifest(options) {

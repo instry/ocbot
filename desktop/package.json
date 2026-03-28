@@ -1,7 +1,7 @@
 {
-  "name": "ocbot-desktop",
+  "name": "ocbot",
   "version": "2026.3.28",
-  "description": "Ocbot Desktop — the easiest way to use OpenClaw",
+  "description": "Ocbot — Your Web4 Agent",
   "private": true,
   "author": {
     "name": "MALA TECH LLC"

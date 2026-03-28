@@ -8,6 +8,7 @@ directories:
   buildResources: resources
 
 beforePack: scripts/electron-builder-hooks.cjs
+afterPack: scripts/electron-builder-after-pack.cjs
 
 files:
   - dist/**/*
