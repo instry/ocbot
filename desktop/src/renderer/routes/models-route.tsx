@@ -1,23 +1,29 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, Pencil, Trash2 } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { ProviderForm, type ConfiguredProvider } from '@/components/models/provider-form'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { PrimaryActionButton } from '@/components/ui/primary-action-button'
-import { useModelStore } from '@/stores/model-store'
+import { CN_URLS, useModelStore } from '@/stores/model-store'
 import { cn } from '@/lib/utils'
+import type { GatewayModel } from '@/types/chat'
 
 type ModelsView = 'list' | 'add' | 'edit'
+type ProviderWithModels = ConfiguredProvider & { models: GatewayModel[] }
 
 export function ModelsRoute() {
   const [view, setView] = useState<ModelsView>('list')
-  const [providers, setProviders] = useState<ConfiguredProvider[]>([])
+  const [providers, setProviders] = useState<ProviderWithModels[]>([])
   const [loading, setLoading] = useState(true)
   const [editingProvider, setEditingProvider] = useState<ConfiguredProvider | null>(null)
+  const [switchingModelKey, setSwitchingModelKey] = useState<string | null>(null)
 
   const refreshModels = useModelStore(s => s.setModels)
+  const selectModel = useModelStore(s => s.selectModel)
+  const setCnProviders = useModelStore(s => s.setCnProviders)
+  const getDisplayName = useModelStore(s => s.getDisplayName)
 
   useEffect(() => {
     loadProviders()
@@ -27,30 +33,42 @@ export function ModelsRoute() {
     setLoading(true)
     try {
       const gw = getGatewayClient()
-      const result = await gw.call<{ config?: Record<string, any>; hash?: string }>('config.get')
-      const config = result?.config ?? {}
+      const [configResult, modelsResult] = await Promise.all([
+        gw.call<{ config?: Record<string, any>; hash?: string }>('config.get'),
+        gw.call<GatewayModel[] | { models?: GatewayModel[] }>('models.list'),
+      ])
+      const config = configResult?.config ?? {}
       const profiles: Record<string, any> = config?.auth?.profiles ?? {}
       const defaultModel: string = config?.agents?.defaults?.model?.primary ?? ''
+      const gatewayModels = Array.isArray(modelsResult)
+        ? modelsResult
+        : (Array.isArray(modelsResult?.models) ? modelsResult.models : [])
+      const cnProviders = new Set<string>()
 
-      const list: ConfiguredProvider[] = []
+      const list: ProviderWithModels[] = []
       for (const [key, profile] of Object.entries(profiles)) {
         const provider = profile.provider ?? key.split(':')[0] ?? ''
         const hint = getProviderLabel(provider)
+        const baseUrl: string = profile.baseUrl ?? ''
+        const cnUrl = CN_URLS[provider]
+        if (cnUrl && baseUrl.startsWith(cnUrl)) {
+          cnProviders.add(provider)
+        }
         list.push({
           profileKey: key,
           provider,
           label: hint,
           apiKey: profile.apiKey ?? '',
-          baseUrl: profile.baseUrl,
+          baseUrl,
           modelId: defaultModel.startsWith(`${provider}/`) ? defaultModel.split('/').slice(1).join('/') : undefined,
           isDefault: defaultModel.startsWith(`${provider}/`),
+          models: gatewayModels.filter(model => model.provider === provider),
         })
       }
       setProviders(list)
+      setCnProviders(cnProviders)
 
-      // Refresh model store
-      const models = await gw.call<any[]>('models.list')
-      refreshModels(models ?? [])
+      refreshModels(gatewayModels)
     } catch {
       setProviders([])
     } finally {
@@ -111,6 +129,33 @@ export function ModelsRoute() {
   function handleCancel() {
     setView('list')
     setEditingProvider(null)
+  }
+
+  async function setDefaultModel(provider: string, modelId: string) {
+    const nextModelKey = `${provider}/${modelId}`
+    setSwitchingModelKey(nextModelKey)
+    try {
+      const gw = getGatewayClient()
+      const result = await gw.call<{ hash?: string }>('config.get')
+      await gw.call('config.patch', {
+        baseHash: result?.hash ?? '',
+        raw: JSON.stringify({
+          agents: {
+            defaults: {
+              model: {
+                primary: nextModelKey,
+              },
+            },
+          },
+        }),
+      })
+      selectModel(nextModelKey)
+      await loadProviders()
+    } catch (err) {
+      console.error('Failed to switch default model:', err)
+    } finally {
+      setSwitchingModelKey(null)
+    }
   }
 
   if (view === 'add') {
@@ -196,9 +241,35 @@ export function ModelsRoute() {
                         <Badge>{p.label}</Badge>
                         {p.isDefault && <Badge variant="accent">★ Default</Badge>}
                       </div>
-                      {p.modelId && (
+                      {p.models.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {p.models.map(model => {
+                            const key = `${model.provider}/${model.id}`
+                            const isDefaultModel = p.isDefault && p.modelId === model.id
+                            const isSwitching = switchingModelKey === key
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                disabled={isSwitching}
+                                onClick={() => setDefaultModel(model.provider, model.id)}
+                                className={cn(
+                                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                                  isDefaultModel
+                                    ? 'border-accent/20 bg-accent-subtle text-accent'
+                                    : 'border-border bg-bg text-muted-foreground hover:border-border-hover hover:bg-bg-hover hover:text-text-strong',
+                                  isSwitching && 'opacity-60',
+                                )}
+                              >
+                                {isDefaultModel ? <Check className="h-3 w-3" /> : null}
+                                <span className="truncate">{getDisplayName(model)}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : p.modelId ? (
                         <div className="mt-0.5 truncate text-xs text-muted-foreground">{p.modelId}</div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

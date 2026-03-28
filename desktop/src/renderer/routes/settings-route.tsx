@@ -112,7 +112,6 @@ function AboutTab() {
         <img src="./logo.png" alt="Ocbot" className="mb-4 h-16 w-16" />
         <h1 className="mb-2 text-2xl font-bold text-text-strong">ocbot</h1>
         <p className="text-sm text-muted-foreground">Got brains, got arms, up before the alarm.</p>
-        <Badge variant="accent" className="mt-4">v{version}</Badge>
       </div>
 
       <Card>
@@ -129,7 +128,6 @@ function AboutTab() {
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>FAQ</CardTitle>
-          <CardDescription>关于 ocbot 的几个简短说明。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {faqs.map((f, i) => (
@@ -165,6 +163,10 @@ function AboutTab() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex justify-center">
+        <Badge variant="accent">v{version}</Badge>
+      </div>
     </div>
   )
 }
