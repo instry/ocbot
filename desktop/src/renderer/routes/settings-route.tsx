@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { ThemeMode } from '@/stores/ui-store'
 
-type SettingsTab = 'general' | 'browser' | 'about'
+type SettingsTab = 'general' | 'browser' | 'updates' | 'about'
 type BrowserChoice = 'ocbot' | 'system' | 'custom'
 
 interface BrowserConfigResult {
@@ -65,6 +65,7 @@ export function SettingsRoute() {
   const tabs = [
     { value: 'general' as const, label: 'General', icon: Sliders },
     { value: 'browser' as const, label: 'Browser', icon: Globe },
+    { value: 'updates' as const, label: 'Updates', icon: ArrowDownToLine },
     { value: 'about' as const, label: 'About', icon: Info },
   ]
 
@@ -288,6 +289,7 @@ export function SettingsRoute() {
             onSave={saveBrowserConfig}
           />
         )}
+        {activeTab === 'updates' && <UpdatesTab />}
         {activeTab === 'about' && <AboutTab />}
       </div>
     </div>
@@ -491,13 +493,15 @@ function formatSpeed(value?: number): string | null {
   return `${formatBytes(value)}/s`
 }
 
-function AboutTab() {
-  const faqs = [
-    { q: 'What are you exactly?', a: "I'm a new species! Part browser, part AI agent. Think of me as a very helpful octopus that lives in your browser tabs." },
-    { q: 'Why the name "ocbot"?', a: 'Because "octo" means 8! I\'m an octopus-inspired bot with eight arms ready to multitask across the web.' },
-    { q: 'Why purple?', a: "Because I'm hitting the big time — only royalty gets to be purple. Plus it's the color of a certain deep-sea creature." },
-    { q: 'Will you leak my data?', a: "Nope! All your data is stored locally. I don't phone home. Your conversations, your settings — all yours." },
-  ]
+function isUnavailableUpdateError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return error.message.includes('Updates are not available yet.')
+    || error.message.includes('Failed to load update manifest (404)')
+}
+
+const UPDATE_INFO_UNAVAILABLE_NOTICE = 'No update information is available yet.'
+
+function UpdatesTab() {
   const [checking, setChecking] = useState(true)
   const [updateInfo, setUpdateInfo] = useState<OcbotAppUpdateInfo | null>(null)
   const [updateError, setUpdateError] = useState<string | null>(null)
@@ -539,7 +543,13 @@ function AboutTab() {
     } catch (err) {
       setUpdateInfo(null)
       setUpToDate(false)
-      setUpdateError(err instanceof Error ? err.message : 'Failed to check for updates.')
+      if (isUnavailableUpdateError(err)) {
+        if (triggeredByUser) {
+          setUpdateNotice(UPDATE_INFO_UNAVAILABLE_NOTICE)
+        }
+      } else {
+        setUpdateError(err instanceof Error ? err.message : 'Failed to check for updates.')
+      }
     } finally {
       setChecking(false)
       setDownloading(false)
@@ -596,6 +606,8 @@ function AboutTab() {
     : null
   const progressSpeed = formatSpeed(downloadProgress?.speed)
   const latestVersionLabel = updateInfo?.latestVersion ?? OCBOT_VERSION
+  const releaseDateLabel = formatUpdateDate(updateInfo?.publishedAt ?? '')
+  const showPlainUpdateNotice = updateNotice === UPDATE_INFO_UNAVAILABLE_NOTICE
   const updateStatus = checking
     ? 'Checking for updates...'
     : updateInfo
@@ -607,58 +619,38 @@ function AboutTab() {
         : 'No update information available yet.'
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-      <div className="flex flex-col items-center text-center">
-        <img src="./logo.png" alt="Ocbot" className="mb-4 h-16 w-16" />
-        <h1 className="mb-2 text-2xl font-bold text-text-strong">ocbot</h1>
-        <p className="text-sm text-muted-foreground">Got brains, got arms, up before the alarm.</p>
+    <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
+      <div className="space-y-1">
+        <h2 className="text-2xl font-semibold text-text-strong">Updates</h2>
+        <p className="text-sm text-muted-foreground">Check, download, and install the latest version.</p>
       </div>
 
       <Card>
-        <CardContent className="p-5">
-          <p className="text-sm leading-relaxed text-text">
-            My name is ocbot. I'm super smart and super quick at getting things done.
-            I live inside your browser with eight nimble arms ready to handle any task.
-            Ask me to find info, fill forms, compare products, or automate your online work.
-            I don't sleep, I don't forget, and I'm always ready.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
         <CardHeader className="gap-2">
-          <CardTitle>Updates</CardTitle>
-          <CardDescription>Checks the Cloudflare release manifest and downloads the matching GitHub Release package for this device.</CardDescription>
+          <CardTitle>Version v{OCBOT_VERSION}</CardTitle>
+          <CardDescription>
+            Latest v{latestVersionLabel}
+            {releaseDateLabel !== '—' ? ` • Released ${releaseDateLabel}` : ''}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-bg-subtle/60 p-4">
-              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Current</div>
-              <div className="mt-2 text-lg font-semibold text-text-strong">v{OCBOT_VERSION}</div>
-            </div>
-            <div className="rounded-2xl border border-border bg-bg-subtle/60 p-4">
-              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Latest</div>
-              <div className="mt-2 text-lg font-semibold text-text-strong">v{latestVersionLabel}</div>
-            </div>
-            <div className="rounded-2xl border border-border bg-bg-subtle/60 p-4">
-              <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Released</div>
-              <div className="mt-2 text-lg font-semibold text-text-strong">
-                {formatUpdateDate(updateInfo?.publishedAt ?? '')}
+          {!showPlainUpdateNotice ? (
+            <div className={cn(
+              'rounded-2xl border px-4 py-3 text-sm',
+              checking
+                ? 'border-border bg-bg-subtle/60 text-text'
+                : updateInfo
+                ? 'border-button-success-border bg-button-success text-button-success-foreground'
+                : upToDate
+                  ? 'border-border bg-bg-subtle/60 text-text'
+                  : 'border-border bg-bg-subtle/60 text-text',
+            )}>
+              <div className="flex items-center gap-2">
+                {checking ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                <span>{updateStatus}</span>
               </div>
             </div>
-          </div>
-
-          <div className={cn(
-            'rounded-2xl border px-4 py-3 text-sm',
-            updateInfo
-              ? 'border-button-success-border bg-button-success text-button-success-foreground'
-              : 'border-border bg-bg-subtle/60 text-text',
-          )}>
-            <div className="flex items-center gap-2">
-              {checking ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              <span>{updateStatus}</span>
-            </div>
-          </div>
+          ) : null}
 
           {updateError ? (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -667,7 +659,10 @@ function AboutTab() {
           ) : null}
 
           {updateNotice ? (
-            <div className="rounded-2xl border border-border bg-bg-subtle/60 px-4 py-3 text-sm text-text">
+            <div className={cn(
+              'px-1 text-sm',
+              showPlainUpdateNotice ? 'text-muted-foreground' : 'rounded-2xl border border-border bg-bg-subtle/60 px-4 py-3 text-text',
+            )}>
               {updateNotice}
             </div>
           ) : null}
@@ -692,7 +687,7 @@ function AboutTab() {
           ) : null}
 
           {updateInfo?.notes.length ? (
-            <div className="space-y-3 rounded-2xl border border-border bg-bg-subtle/60 p-4">
+            <div className="space-y-3 border-t border-border pt-4">
               <div className="text-sm font-medium text-text-strong">Release notes</div>
               <ul className="space-y-2 text-sm text-text">
                 {updateInfo.notes.map((note, index) => (
@@ -745,6 +740,36 @@ function AboutTab() {
               </a>
             ) : null}
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function AboutTab() {
+  const faqs = [
+    { q: 'What are you exactly?', a: "I'm a new species! Part browser, part AI agent. Think of me as a very helpful octopus that lives in your browser tabs." },
+    { q: 'Why the name "ocbot"?', a: 'Because "octo" means 8! I\'m an octopus-inspired bot with eight arms ready to multitask across the web.' },
+    { q: 'Why purple?', a: "Because I'm hitting the big time — only royalty gets to be purple. Plus it's the color of a certain deep-sea creature." },
+    { q: 'Will you leak my data?', a: "Nope! All your data is stored locally. I don't phone home. Your conversations, your settings — all yours." },
+  ]
+
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+      <div className="flex flex-col items-center text-center">
+        <img src="./logo.png" alt="Ocbot" className="mb-4 h-16 w-16" />
+        <h1 className="mb-2 text-2xl font-bold text-text-strong">ocbot</h1>
+        <p className="text-sm text-muted-foreground">Got brains, got arms, up before the alarm.</p>
+      </div>
+
+      <Card>
+        <CardContent className="p-5">
+          <p className="text-sm leading-relaxed text-text">
+            My name is ocbot. I'm super smart and super quick at getting things done.
+            I live inside your browser with eight nimble arms ready to handle any task.
+            Ask me to find info, fill forms, compare products, or automate your online work.
+            I don't sleep, I don't forget, and I'm always ready.
+          </p>
         </CardContent>
       </Card>
 

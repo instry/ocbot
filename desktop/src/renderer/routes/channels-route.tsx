@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo, useState } from 'react'
-import { Radio } from 'lucide-react'
+import { Smartphone } from 'lucide-react'
 import { useChannelStore } from '@/stores/channel-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import type { ChannelConfig } from '@/types/channel'
@@ -377,7 +377,7 @@ export function ChannelsRoute() {
       {/* Sidebar */}
       <div className="w-64 border-r border-border bg-bg-subtle flex flex-col">
         <div className="px-4 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold text-text-strong">Channels</h2>
+          <h2 className="text-sm font-semibold text-text-strong">Mobile</h2>
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
           {orderedChannels.map(ch => {
@@ -410,8 +410,8 @@ export function ChannelsRoute() {
         {!selectedPlatform ? (
           <div className="flex h-full items-center justify-center p-6">
             <div className="text-center max-w-md">
-              <Radio className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold text-text-strong mb-2">Channels</h3>
+              <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold text-text-strong mb-2">Mobile</h3>
               <p className="text-sm text-muted-foreground">
                 Connect your agent to messaging platforms. Select a channel to configure.
               </p>

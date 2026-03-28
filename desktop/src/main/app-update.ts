@@ -168,6 +168,9 @@ export async function checkForAppUpdate(currentVersion = app.getVersion()): Prom
   })
 
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Updates are not available yet.')
+    }
     throw new Error(`Failed to load update manifest (${response.status})`)
   }
 

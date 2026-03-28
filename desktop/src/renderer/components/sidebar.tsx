@@ -5,7 +5,7 @@ import {
   Zap,
   Clock,
   Cpu,
-  Radio,
+  Smartphone,
 } from 'lucide-react'
 import { useUIStore, type Tab } from '@/stores/ui-store'
 import { useGatewayStore } from '@/stores/gateway-store'
@@ -28,7 +28,7 @@ const NAV_GROUPS: NavItem[][] = [
   ],
   [
     { icon: Cpu, label: 'Models', tab: 'models' },
-    { icon: Radio, label: 'Channels', tab: 'channels' },
+    { icon: Smartphone, label: 'Mobile', tab: 'channels' },
   ],
 ]
 
