@@ -1,12 +1,16 @@
 import { useState, useRef, useCallback, type KeyboardEvent } from 'react'
+import { useNavigate } from 'react-router'
 import { ArrowUp, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useChatStore } from '@/stores/chat-store'
 import { useGatewayStore } from '@/stores/gateway-store'
+import { useSetupStore } from '@/stores/setup-store'
+import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
 
 export function ChatInput() {
+  const navigate = useNavigate()
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isComposingRef = useRef(false)
@@ -17,11 +21,24 @@ export function ChatInput() {
   const setError = useChatStore(s => s.setError)
   const setSending = useChatStore(s => s.setSending)
   const client = useGatewayStore(s => s.client)
+  const setupStatus = useSetupStore(s => s.status)
+  const setTab = useUIStore(s => s.setTab)
 
   const historyIndexRef = useRef(-1)
 
+  const openSetup = useCallback(() => {
+    setError('No AI provider is configured yet. Open Models and add your first provider to finish setup.')
+    setTab('models')
+    navigate('/models?onboard=1')
+  }, [setError, setTab, navigate])
+
   const handleSend = useCallback(async () => {
     const text = input.trim()
+    if (setupStatus === 'needs_onboarding') {
+      openSetup()
+      return
+    }
+
     if (!text || sending || !client) return
 
     setInput('')
@@ -40,7 +57,7 @@ export function ChatInput() {
       setError(err instanceof Error ? err.message : String(err))
       setSending(false)
     }
-  }, [input, sending, client, activeSessionKey, startSend, setError, setSending])
+  }, [input, sending, client, activeSessionKey, startSend, setError, setSending, setupStatus, openSetup])
 
   const handleAbort = useCallback(async () => {
     if (!client) return
@@ -108,7 +125,7 @@ export function ChatInput() {
             onKeyDown={handleKeyDown}
             onCompositionStart={() => { isComposingRef.current = true }}
             onCompositionEnd={() => { isComposingRef.current = false }}
-            placeholder="Send a message..."
+            placeholder={setupStatus === 'needs_onboarding' ? 'Add a provider in Models to start chatting...' : 'Send a message...'}
             disabled={sending}
             rows={3}
             maxLength={20000}
@@ -117,8 +134,8 @@ export function ChatInput() {
             )}
           />
           <Button
-            onClick={sending ? handleAbort : handleSend}
-            disabled={!input.trim() && !sending}
+            onClick={sending ? handleAbort : (setupStatus === 'needs_onboarding' ? openSetup : handleSend)}
+            disabled={setupStatus === 'needs_onboarding' ? false : (!input.trim() && !sending)}
             variant={sending ? 'secondary' : 'primary'}
             size="icon"
             className={cn(

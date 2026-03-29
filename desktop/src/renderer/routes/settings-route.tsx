@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
-import { ArrowDownToLine, CheckCircle2, ChevronDown, ExternalLink, Globe, Info, LoaderCircle, Mail, Monitor, Moon, RefreshCw, Sliders, Sun } from 'lucide-react'
+import { ArrowDownToLine, CheckCircle2, ChevronDown, ExternalLink, Globe, Info, LoaderCircle, Mail, Monitor, Moon, RefreshCw, Sliders, Sun, X } from 'lucide-react'
 import { getGatewayClient } from '@/gateway'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -299,7 +299,6 @@ export function SettingsRoute() {
 function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThemeMode: (mode: ThemeMode) => void }) {
   const [startupAvailable, setStartupAvailable] = useState(false)
   const [startupEnabled, setStartupEnabled] = useState(false)
-  const [savedStartupEnabled, setSavedStartupEnabled] = useState(false)
   const [startupLoading, setStartupLoading] = useState(true)
   const [startupSaving, setStartupSaving] = useState(false)
   const [startupError, setStartupError] = useState<string | null>(null)
@@ -321,17 +320,15 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
   const startupOptions = [
     {
       value: 'off',
-      label: 'Disabled',
-      icon: <Moon className="h-4 w-4" />,
+      label: 'Off',
+      icon: <X className="h-4 w-4" />,
     },
     {
       value: 'on',
-      label: 'Enabled',
+      label: 'On',
       icon: <CheckCircle2 className="h-4 w-4" />,
     },
   ]
-
-  const startupDirty = startupEnabled !== savedStartupEnabled
 
   useEffect(() => {
     void loadStartupSettings()
@@ -348,43 +345,38 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
 
       setStartupAvailable(available)
       setStartupEnabled(openAtLogin)
-      setSavedStartupEnabled(openAtLogin)
     } catch (err) {
       console.error('Failed to load startup settings:', err)
       setStartupAvailable(false)
       setStartupEnabled(false)
-      setSavedStartupEnabled(false)
       setStartupError('Failed to load startup settings.')
     } finally {
       setStartupLoading(false)
     }
   }
 
-  function cancelStartupSettings() {
-    setStartupEnabled(savedStartupEnabled)
-    setStartupError(null)
-  }
-
-  async function saveStartupSettings() {
-    if (!startupAvailable || startupSaving || !startupDirty) {
+  async function setStartupOpenAtLogin(nextValue: boolean) {
+    if (!startupAvailable || startupLoading || startupSaving || nextValue === startupEnabled) {
       return
     }
 
+    const previousValue = startupEnabled
+    setStartupEnabled(nextValue)
     setStartupSaving(true)
     setStartupError(null)
 
     try {
-      const result = await window.ocbot?.startup.setOpenAtLogin(startupEnabled)
+      const result = await window.ocbot?.startup.setOpenAtLogin(nextValue)
       const available = result?.available ?? false
       const openAtLogin = Boolean(result?.openAtLogin)
 
       setStartupAvailable(available)
       setStartupEnabled(openAtLogin)
-      setSavedStartupEnabled(openAtLogin)
       setStartupSaveSuccess(true)
       window.setTimeout(() => setStartupSaveSuccess(false), 2500)
     } catch (err) {
       console.error('Failed to save startup settings:', err)
+      setStartupEnabled(previousValue)
       setStartupError('Failed to save startup settings.')
     } finally {
       setStartupSaving(false)
@@ -410,69 +402,35 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Launch at Login</CardTitle>
-          <CardDescription>Start Ocbot automatically after you sign in. When launched this way, Ocbot stays in the background until you open it.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {startupError ? (
-            <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {startupError}
-            </div>
-          ) : null}
-
-          {!startupAvailable && !startupLoading ? (
-            <div className="rounded-2xl border border-border bg-bg-subtle/60 px-4 py-3 text-sm text-muted-foreground">
-              Launch at login is available in the packaged desktop app.
-            </div>
-          ) : null}
-
-          <SelectionGroup
-            value={startupEnabled ? 'on' : 'off'}
-            options={startupOptions}
-            onChange={(value) => {
-              if (!startupLoading && !startupSaving && startupAvailable) {
-                setStartupEnabled(value === 'on')
-              }
-            }}
-            className={cn(
-              'grid-cols-2 sm:grid-cols-2',
-              (startupLoading || startupSaving || !startupAvailable) && 'pointer-events-none opacity-60',
-            )}
-          />
-
-          <div className="flex flex-wrap items-center gap-3 border-t border-border/80 pt-4">
-            <Button variant="ghost" size="md" className="min-w-[108px]" onClick={loadStartupSettings} disabled={startupSaving}>
-              Refresh
-            </Button>
-            <Button
-              variant="secondary"
-              size="md"
-              className="min-w-[108px]"
-              onClick={cancelStartupSettings}
-              disabled={startupSaving || !startupDirty}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              className="min-w-[116px]"
-              onClick={saveStartupSettings}
-              disabled={!startupAvailable || startupLoading || startupSaving || !startupDirty}
-            >
-              {startupSaving ? 'Saving...' : 'Save'}
-            </Button>
-            {startupSaveSuccess ? (
-              <div className="inline-flex items-center gap-2 text-sm text-ok">
-                <CheckCircle2 className="h-4 w-4" />
-                Saved
-              </div>
-            ) : null}
+      <div className="space-y-4">
+        <div>
+          <div className="text-sm font-medium text-text-strong">Launch at Login</div>
+        </div>
+        <SelectionGroup
+          value={startupEnabled ? 'on' : 'off'}
+          options={startupOptions}
+          onChange={(value) => {
+            void setStartupOpenAtLogin(value === 'on')
+          }}
+          size="compact"
+          className="border-0 bg-transparent p-0 shadow-none backdrop-blur-none grid-cols-2 sm:grid-cols-2"
+        />
+        {startupError ? (
+          <div className="text-sm text-destructive">{startupError}</div>
+        ) : null}
+        {!startupAvailable && !startupLoading ? (
+          <div className="text-sm text-muted-foreground">Packaged app only.</div>
+        ) : null}
+        {startupSaving ? (
+          <div className="text-sm text-muted-foreground">Saving…</div>
+        ) : null}
+        {startupSaveSuccess && !startupSaving ? (
+          <div className="inline-flex items-center gap-2 text-sm text-ok">
+            <CheckCircle2 className="h-4 w-4" />
+            Saved
           </div>
-        </CardContent>
-      </Card>
+        ) : null}
+      </div>
     </div>
   )
 }

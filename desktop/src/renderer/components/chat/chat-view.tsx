@@ -1,18 +1,25 @@
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router'
 import { MessageList } from './message-list'
 import { ChatInput } from './chat-input'
 import { ModelPicker } from './model-picker'
+import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
 import { useGatewayStore } from '@/stores/gateway-store'
+import { useSetupStore } from '@/stores/setup-store'
+import { useUIStore } from '@/stores/ui-store'
 import { messageText } from '@/types/chat'
 import type { ChatEventPayload, AgentEventPayload } from '@/types/chat'
 
 export function ChatView() {
+  const navigate = useNavigate()
   const client = useGatewayStore(s => s.client)
   const status = useGatewayStore(s => s.status)
   const activeSessionKey = useChatStore(s => s.activeSessionKey)
   const sending = useChatStore(s => s.sending)
   const error = useChatStore(s => s.error)
+  const setupStatus = useSetupStore(s => s.status)
+  const setTab = useUIStore(s => s.setTab)
 
   // Load history when session changes
   useEffect(() => {
@@ -97,8 +104,20 @@ export function ChatView() {
       {/* Error display */}
       {error && (
         <div className="mx-auto max-w-3xl px-6 pb-2">
-          <div className="rounded-lg bg-danger-subtle px-4 py-2 text-[13px] text-destructive">
-            {error}
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-danger-subtle px-4 py-3 text-[13px] text-destructive">
+            <span>{error}</span>
+            {setupStatus === 'needs_onboarding' || error.includes('Open Models') ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setTab('models')
+                  navigate('/models?onboard=1')
+                }}
+              >
+                Open Models
+              </Button>
+            ) : null}
           </div>
         </div>
       )}

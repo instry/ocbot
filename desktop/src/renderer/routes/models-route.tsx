@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Check, Pencil, Trash2 } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router'
 import { getGatewayClient } from '@/gateway'
 import { ProviderForm, type ConfiguredProvider } from '@/components/models/provider-form'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PrimaryActionButton } from '@/components/ui/primary-action-button'
 import { CN_URLS, useModelStore } from '@/stores/model-store'
+import { useSetupStore } from '@/stores/setup-store'
+import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
 import type { GatewayModel } from '@/types/chat'
 
@@ -14,20 +17,32 @@ type ModelsView = 'list' | 'add' | 'edit'
 type ProviderWithModels = ConfiguredProvider & { models: GatewayModel[] }
 
 export function ModelsRoute() {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [view, setView] = useState<ModelsView>('list')
   const [providers, setProviders] = useState<ProviderWithModels[]>([])
   const [loading, setLoading] = useState(true)
   const [editingProvider, setEditingProvider] = useState<ConfiguredProvider | null>(null)
   const [switchingModelKey, setSwitchingModelKey] = useState<string | null>(null)
+  const setupStatus = useSetupStore(s => s.status)
+  const refreshSetup = useSetupStore(s => s.refresh)
+  const setTab = useUIStore(s => s.setTab)
 
   const refreshModels = useModelStore(s => s.setModels)
   const selectModel = useModelStore(s => s.selectModel)
   const setCnProviders = useModelStore(s => s.setCnProviders)
   const getDisplayName = useModelStore(s => s.getDisplayName)
+  const isOnboarding = searchParams.get('onboard') === '1'
 
   useEffect(() => {
     loadProviders()
   }, [])
+
+  useEffect(() => {
+    if (!loading && providers.length === 0 && isOnboarding) {
+      setView('add')
+    }
+  }, [loading, providers.length, isOnboarding])
 
   async function loadProviders() {
     setLoading(true)
@@ -140,10 +155,18 @@ export function ModelsRoute() {
     }
   }
 
-  function handleSaved() {
+  async function handleSaved() {
+    await loadProviders()
+    await refreshSetup(getGatewayClient())
+
+    if (isOnboarding) {
+      setTab('chat')
+      setSearchParams({})
+      navigate('/')
+      return
+    }
     setView('list')
     setEditingProvider(null)
-    loadProviders()
   }
 
   function handleCancel() {
@@ -190,16 +213,21 @@ export function ModelsRoute() {
   if (view === 'add') {
     return (
       <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
-        <Button
-          onClick={handleCancel}
-          variant="ghost"
-          className="w-fit px-0 text-muted-foreground hover:border-transparent hover:bg-transparent"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Models
-        </Button>
+        {!isOnboarding ? (
+          <Button
+            onClick={handleCancel}
+            variant="ghost"
+            className="w-fit px-0 text-muted-foreground hover:border-transparent hover:bg-transparent"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Models
+          </Button>
+        ) : null}
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold text-text-strong">Add Provider</h2>
+          <h2 className="text-2xl font-semibold text-text-strong">{isOnboarding ? 'Set Up Your First Provider' : 'Add Provider'}</h2>
+          {isOnboarding ? (
+            <p className="text-sm text-muted-foreground">Add one model provider to finish setup and unlock chat.</p>
+          ) : null}
         </div>
         <ProviderForm onSaved={handleSaved} onCancel={handleCancel} />
       </div>
@@ -236,6 +264,15 @@ export function ModelsRoute() {
         <h2 className="text-2xl font-semibold text-text-strong">Models</h2>
         <p className="text-sm text-muted-foreground">Manage your AI model providers and API keys.</p>
       </div>
+
+      {isOnboarding || (setupStatus === 'needs_onboarding' && providers.length === 0 && !loading) ? (
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle>Complete setup</CardTitle>
+            <CardDescription>Add your first provider before using chat.</CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
 
       <div className="space-y-4">
         {loading ? (

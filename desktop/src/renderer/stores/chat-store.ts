@@ -179,7 +179,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
       case 'error': {
         set({
-          error: payload.errorMessage ?? 'An error occurred',
+          error: formatChatError(payload.errorMessage ?? 'An error occurred'),
           streamText: '',
           runId: null,
           sending: false,
@@ -240,7 +240,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ historyIndex: -1 })
   },
 
-  setError: (error) => set({ error }),
+  setError: (error) => set({ error: formatChatError(error) }),
   setSending: (sending) => set({ sending }),
 
   // --- Tool card actions ---
@@ -265,3 +265,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   resetHistoryIndex: () => set({ historyIndex: -1 }),
 }))
+
+function formatChatError(error: string | null): string | null {
+  if (!error) {
+    return null
+  }
+
+  if (error.includes('No API key found for provider "anthropic"')) {
+    return 'No AI provider is configured yet. Open Models and add your first provider to finish setup.'
+  }
+
+  if (error.includes('Configure auth for this agent')) {
+    return 'Your current model provider still needs credentials. Open Models to finish setup.'
+  }
+
+  return error
+}
