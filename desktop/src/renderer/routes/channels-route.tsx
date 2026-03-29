@@ -234,8 +234,6 @@ export function ChannelsRoute() {
         const isLark = (currentConfig?.domain ?? '').trim().toLowerCase() === 'lark'
         const startResult = await window.ocbot.startFeishuInstallQrcode(isLark)
         setQrValue(startResult.url)
-        setQrMessage('Scan the QR code in Feishu to authorize bot creation.')
-        setFeishuAuthMessage(`Waiting for authorization${isLark ? ' (Lark)' : ' (Feishu)'}`)
         setFeishuExpiresIn(startResult.expireIn)
 
         feishuCountdownTimerRef.current = window.setInterval(() => {

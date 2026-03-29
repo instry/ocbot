@@ -181,6 +181,53 @@ function ensureOpenClawBuild(sourceRoot) {
   }
 }
 
+function prepareBundledExternalPlugin({
+  tempRoot,
+  outputRoot,
+  runtimeTarget,
+  pluginId,
+  npmSpec,
+}) {
+  const packDir = path.join(tempRoot, `pack-${pluginId}`)
+  const extractDir = path.join(tempRoot, `extract-${pluginId}`)
+  fs.mkdirSync(packDir, { recursive: true })
+  fs.mkdirSync(extractDir, { recursive: true })
+
+  console.log(`[OpenClaw bundle] Packing ${npmSpec}`)
+  run(resolveCommand('npm'), ['pack', npmSpec, '--pack-destination', packDir])
+
+  const tarballName = fs.readdirSync(packDir).find((entry) => entry.endsWith('.tgz'))
+  if (!tarballName) {
+    throw new Error(`No tarball produced for ${npmSpec} in ${packDir}`)
+  }
+
+  const tarballPath = path.join(packDir, tarballName)
+  run('tar', ['-xzf', tarballPath, '-C', extractDir])
+
+  const packageRoot = path.join(extractDir, 'package')
+  assertPathExists(packageRoot, `${pluginId} package`)
+
+  const targetDir = path.join(outputRoot, 'extensions', pluginId)
+  fs.rmSync(targetDir, { recursive: true, force: true })
+  fs.mkdirSync(path.dirname(targetDir), { recursive: true })
+  fs.cpSync(packageRoot, targetDir, { recursive: true, force: true })
+
+  assertPathExists(path.join(targetDir, 'package.json'), `${pluginId} package.json`)
+  assertPathExists(path.join(targetDir, 'openclaw.plugin.json'), `${pluginId} manifest`)
+  assertPathExists(path.join(targetDir, 'index.ts'), `${pluginId} entry`)
+
+  console.log(`[OpenClaw bundle] Installing production dependencies for ${pluginId}`)
+  run(resolveCommand('npm'), ['install', '--omit=dev', '--no-audit', '--no-fund'], {
+    cwd: targetDir,
+    env: {
+      ...process.env,
+      npm_config_platform: runtimeTarget.platform,
+      npm_config_arch: runtimeTarget.arch,
+      npm_config_loglevel: process.env.npm_config_loglevel || 'warn',
+    },
+  })
+}
+
 function prepareBundledRuntime(sourceRoot, outputRoot, runtimeTarget) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocbot-openclaw-runtime-'))
   const packDir = path.join(tempRoot, 'pack')
@@ -241,6 +288,14 @@ function prepareBundledRuntime(sourceRoot, outputRoot, runtimeTarget) {
     if (!fs.existsSync(runtimeNodeModules)) {
       throw new Error(`Bundled runtime is missing node_modules: ${outputRoot}`)
     }
+
+    prepareBundledExternalPlugin({
+      tempRoot,
+      outputRoot,
+      runtimeTarget,
+      pluginId: 'openclaw-weixin',
+      npmSpec: '@tencent-weixin/openclaw-weixin',
+    })
 
     console.log(`[OpenClaw bundle] Bundled runtime ready at ${outputRoot}`)
   } finally {

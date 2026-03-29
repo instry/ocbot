@@ -65,6 +65,20 @@ function readLastError(snapshot: Record<string, unknown>, summary: Record<string
   return readString(lastDisconnect.error) ?? null
 }
 
+function formatChannelError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+
+  if (message.includes('web login provider is not available')) {
+    return 'WeChat QR login is still being prepared. Please try again in a moment.'
+  }
+
+  if (message.includes('web login is not supported by provider openclaw-weixin')) {
+    return 'This WeChat plugin version does not expose QR login in the current runtime.'
+  }
+
+  return message
+}
+
 function pickDefaultAccount(
   accounts: unknown,
   defaultAccountId: unknown,
@@ -408,7 +422,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     if (!client) throw new Error('Gateway client not available')
     if (!(await hasQrLoginProvider(platform))) {
       throw new Error(platform === 'weixin'
-        ? 'WeChat login is unavailable for this runtime'
+        ? 'WeChat QR login is still being prepared. Please try again in a moment.'
         : 'QR login is not available for this channel')
     }
 
@@ -418,7 +432,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
       set({ loading: false })
       return result
     } catch (err) {
-      set({ error: String(err), loading: false })
+      set({ error: formatChannelError(err), loading: false })
       throw err
     }
   },
@@ -428,7 +442,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     if (!client) throw new Error('Gateway client not available')
     if (!(await hasQrLoginProvider(platform))) {
       throw new Error(platform === 'weixin'
-        ? 'WeChat login is unavailable for this runtime'
+        ? 'WeChat QR login is still being prepared. Please try again in a moment.'
         : 'QR login is not available for this channel')
     }
 
@@ -456,7 +470,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
       set({ loading: false })
       return result
     } catch (err) {
-      set({ error: String(err), loading: false })
+      set({ error: formatChannelError(err), loading: false })
       throw err
     }
   },

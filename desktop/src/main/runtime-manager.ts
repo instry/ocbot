@@ -173,7 +173,7 @@ export class RuntimeManager {
   private _status: EngineStatus = 'not_installed'
   private healthTimer: ReturnType<typeof setInterval> | null = null
   private shutdownRequested = false
-  private weixinPluginEnsurePromise: Promise<boolean> | null = null
+  private weixinPluginEnsurePromise: Promise<{ ready: boolean; changed: boolean }> | null = null
   private feishuInstallIsLark = false
   private feishuAuthModulePromise: Promise<FeishuAuthModule> | null = null
 
@@ -304,8 +304,14 @@ export class RuntimeManager {
       return false
     }
 
-    this.applyRuntimePatches(runtime.root)
-    return await this.ensureWeixinPluginReady(runtime.root)
+    const patchesChanged = this.applyRuntimePatches(runtime.root)
+    const weixin = await this.ensureWeixinPluginReady(runtime.root)
+
+    if (weixin.ready && (patchesChanged || weixin.changed) && this.gateway && this.port) {
+      await this.restart()
+    }
+
+    return weixin.ready
   }
 
   async startFeishuInstallQrcode(isLark: boolean): Promise<{
@@ -616,22 +622,33 @@ export class RuntimeManager {
     return await this.feishuAuthModulePromise
   }
 
-  private applyRuntimePatches(root: string): void {
-    this.patchWeixinGatewayMethods(root)
-    this.patchWebLoginProviderSelection(root)
-    this.patchWebLoginParamSchema(root)
+  private applyRuntimePatches(root: string): boolean {
+    const changed = [
+      this.patchWeixinGatewayMethods(root),
+      this.patchWebLoginProviderSelection(root),
+      this.patchWebLoginParamSchema(root),
+    ]
+
+    return changed.some(Boolean)
   }
 
   private async ensureDefaultPlugins(root: string): Promise<void> {
     await this.ensureWeixinPluginReady(root)
   }
 
-  private async ensureWeixinPluginReady(root: string): Promise<boolean> {
+  private async ensureWeixinPluginReady(root: string): Promise<{ ready: boolean; changed: boolean }> {
     const filePath = this.resolvePluginSourceFile(root, 'openclaw-weixin', ['src', 'channel.ts'])
     if (fs.existsSync(filePath)) {
-      this.ensurePluginEnabled('openclaw-weixin')
-      this.patchWeixinGatewayMethods(root)
-      return this.hasWeixinGatewayMethods(filePath)
+      const enabledChanged = this.ensurePluginEnabled('openclaw-weixin')
+      const patchedChanged = this.patchWeixinGatewayMethods(root)
+      return {
+        ready: this.hasWeixinGatewayMethods(filePath),
+        changed: enabledChanged || patchedChanged,
+      }
+    }
+
+    if (app.isPackaged) {
+      return { ready: false, changed: false }
     }
 
     if (this.weixinPluginEnsurePromise) {
@@ -655,37 +672,40 @@ export class RuntimeManager {
     return source.includes('web.login.start') && source.includes('web.login.wait')
   }
 
-  private async installWeixinPlugin(root: string): Promise<boolean> {
+  private async installWeixinPlugin(root: string): Promise<{ ready: boolean; changed: boolean }> {
     const entry = this.resolveEntry(root)
     if (!entry) {
-      return false
+      return { ready: false, changed: false }
     }
 
     const pluginSpec = '@tencent-weixin/openclaw-weixin'
     const result = await this.runOpenClawCommand(root, entry, ['plugins', 'install', pluginSpec])
     if (!result.ok) {
       console.warn(`[RuntimeManager] Failed to install ${pluginSpec}: ${result.output}`)
-      return false
+      return { ready: false, changed: false }
     }
 
     const filePath = this.resolvePluginSourceFile(root, 'openclaw-weixin', ['src', 'channel.ts'])
     if (!fs.existsSync(filePath)) {
-      return false
+      return { ready: false, changed: true }
     }
 
     this.ensurePluginEnabled('openclaw-weixin')
     this.patchWeixinGatewayMethods(root)
-    return this.hasWeixinGatewayMethods(filePath)
+    return {
+      ready: this.hasWeixinGatewayMethods(filePath),
+      changed: true,
+    }
   }
 
-  private ensurePluginEnabled(pluginId: string): void {
+  private ensurePluginEnabled(pluginId: string): boolean {
     this.ensureConfig()
     const config = this.readConfigObject()
     const plugins = asRecord(config.plugins)
     const entries = { ...asRecord(plugins.entries) }
     const currentEntry = asRecord(entries[pluginId])
     if (currentEntry.enabled === true) {
-      return
+      return false
     }
 
     entries[pluginId] = {
@@ -697,6 +717,7 @@ export class RuntimeManager {
       entries,
     }
     this.writeConfigObject(config)
+    return true
   }
 
   private async runOpenClawCommand(
@@ -739,21 +760,21 @@ export class RuntimeManager {
     })
   }
 
-  private patchWeixinGatewayMethods(root: string): void {
+  private patchWeixinGatewayMethods(root: string): boolean {
     const filePath = this.resolvePluginSourceFile(root, 'openclaw-weixin', ['src', 'channel.ts'])
     if (!fs.existsSync(filePath)) {
-      return
+      return false
     }
 
     const source = fs.readFileSync(filePath, 'utf8')
     if (source.includes('gatewayMethods')) {
-      return
+      return false
     }
 
     const marker = 'configSchema: {'
     const index = source.indexOf(marker)
     if (index === -1) {
-      return
+      return false
     }
 
     const nextSource = source.slice(0, index)
@@ -761,12 +782,13 @@ export class RuntimeManager {
       + source.slice(index)
 
     fs.writeFileSync(filePath, nextSource, 'utf8')
+    return true
   }
 
-  private patchWebLoginProviderSelection(root: string): void {
+  private patchWebLoginProviderSelection(root: string): boolean {
     const filePath = path.join(root, 'src', 'gateway', 'server-methods', 'web.ts')
     if (!fs.existsSync(filePath)) {
-      return
+      return false
     }
 
     const source = fs.readFileSync(filePath, 'utf8')
@@ -798,7 +820,7 @@ const resolveWebLoginProvider = (params: unknown) => {
 
     if (!nextSource.includes('resolveRequestedProviderId')) {
       if (!nextSource.includes(currentBlock)) {
-        return
+        return false
       }
 
       nextSource = nextSource.replace(currentBlock, nextBlock)
@@ -810,21 +832,22 @@ const resolveWebLoginProvider = (params: unknown) => {
     )
 
     if (nextSource === source) {
-      return
+      return false
     }
 
     fs.writeFileSync(filePath, nextSource, 'utf8')
+    return true
   }
 
-  private patchWebLoginParamSchema(root: string): void {
+  private patchWebLoginParamSchema(root: string): boolean {
     const filePath = path.join(root, 'src', 'gateway', 'protocol', 'schema', 'channels.ts')
     if (!fs.existsSync(filePath)) {
-      return
+      return false
     }
 
     const source = fs.readFileSync(filePath, 'utf8')
     if (source.includes('channel: Type.Optional(Type.String())')) {
-      return
+      return false
     }
 
     const nextSource = source
@@ -872,6 +895,7 @@ const resolveWebLoginProvider = (params: unknown) => {
       )
 
     fs.writeFileSync(filePath, nextSource, 'utf8')
+    return true
   }
 
   private resolvePluginSourceFile(root: string, pluginId: string, pathParts: string[]): string {
