@@ -2,7 +2,7 @@ import { app, nativeImage, shell } from 'electron'
 import { join } from 'node:path'
 import { RuntimeManager } from './runtime-manager'
 import { TrayManager } from './tray'
-import { WindowManager } from './window'
+import { WindowManager, wasOpenedAtStartup } from './window'
 
 /** Resolve the app icon path (logo.png works on all platforms). */
 function appIconPath(): string {
@@ -47,7 +47,9 @@ app.on('ready', async () => {
     trayManager.setStatus('error')
   }
 
-  windowManager.showOrCreate()
+  if (!wasOpenedAtStartup()) {
+    windowManager.showOrCreate()
+  }
 })
 
 // Keep running when all windows are closed

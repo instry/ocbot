@@ -21,6 +21,12 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('browser:getProfiles'),
   getOcbotBrowserPath: () =>
     ipcRenderer.invoke('browser:getOcbotPath'),
+  startup: {
+    getSettings: () =>
+      ipcRenderer.invoke('startup:getSettings'),
+    setOpenAtLogin: (openAtLogin: boolean) =>
+      ipcRenderer.invoke('startup:setOpenAtLogin', openAtLogin),
+  },
   appUpdate: {
     check: () =>
       ipcRenderer.invoke('appUpdate:check'),

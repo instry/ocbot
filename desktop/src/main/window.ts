@@ -25,6 +25,60 @@ interface BrowserCandidate {
   userDataDir: string
 }
 
+type StartupSettings = {
+  available: boolean
+  openAtLogin: boolean
+}
+
+const STARTUP_LAUNCH_ARG = '--ocbot-startup-launch'
+
+function buildStartupSettings(): StartupSettings {
+  if (!app.isPackaged) {
+    return {
+      available: false,
+      openAtLogin: false,
+    }
+  }
+
+  const loginItemSettings = app.getLoginItemSettings() as { openAtLogin?: boolean }
+  return {
+    available: true,
+    openAtLogin: Boolean(loginItemSettings.openAtLogin),
+  }
+}
+
+function updateStartupOpenAtLogin(openAtLogin: boolean): StartupSettings {
+  if (!app.isPackaged) {
+    return buildStartupSettings()
+  }
+
+  const settings: Record<string, unknown> = {
+    openAtLogin,
+    path: process.execPath,
+    args: [STARTUP_LAUNCH_ARG],
+  }
+
+  if (process.platform === 'darwin') {
+    settings.openAsHidden = true
+  }
+
+  app.setLoginItemSettings(settings as Electron.Settings)
+  return buildStartupSettings()
+}
+
+export function wasOpenedAtStartup(): boolean {
+  if (process.argv.includes(STARTUP_LAUNCH_ARG)) {
+    return true
+  }
+
+  const loginItemSettings = app.getLoginItemSettings() as {
+    wasOpenedAtLogin?: boolean
+    wasOpenedAsHidden?: boolean
+  }
+
+  return Boolean(loginItemSettings.wasOpenedAtLogin || loginItemSettings.wasOpenedAsHidden)
+}
+
 function getBrowserCandidates(): BrowserCandidate[] {
   const home = homedir()
 
@@ -291,6 +345,8 @@ export class WindowManager {
     })
     ipcMain.handle('browser:getProfiles', async () => scanBrowserProfiles())
     ipcMain.handle('browser:getOcbotPath', async () => resolveOcbotBrowserPath())
+    ipcMain.handle('startup:getSettings', async () => buildStartupSettings())
+    ipcMain.handle('startup:setOpenAtLogin', async (_event, openAtLogin: boolean) => updateStartupOpenAtLogin(openAtLogin))
     ipcMain.handle('appUpdate:check', async () => checkForAppUpdate())
     ipcMain.handle(
       'appUpdate:download',

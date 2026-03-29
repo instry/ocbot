@@ -73,6 +73,11 @@ declare global {
     speed: number | undefined
   }
 
+  interface OcbotStartupSettings {
+    available: boolean
+    openAtLogin: boolean
+  }
+
   interface Window {
     ocbot?: {
       platform: string
@@ -84,6 +89,10 @@ declare global {
       uninstallSkill: (slug: string) => Promise<{ ok: boolean; message: string }>
       getBrowserProfiles: () => Promise<OcbotBrowserProfilesResult[]>
       getOcbotBrowserPath: () => Promise<string>
+      startup: {
+        getSettings: () => Promise<OcbotStartupSettings>
+        setOpenAtLogin: (openAtLogin: boolean) => Promise<OcbotStartupSettings>
+      }
       appUpdate: {
         check: () => Promise<OcbotAppUpdateInfo | null>
         download: (asset: OcbotAppUpdateAsset, version: string) => Promise<{ filePath: string }>
