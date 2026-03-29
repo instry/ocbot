@@ -52,6 +52,24 @@ const PORT_SCAN_LIMIT = 80
 const BOOT_TIMEOUT_MS = 120_000
 const HEALTH_INTERVAL_MS = 30_000
 
+function createInitialConfig(): Record<string, unknown> {
+  return {
+    gateway: {
+      mode: 'local',
+      controlUi: {
+        allowedOrigins: ['null'],
+        allowInsecureAuth: true,
+      },
+    },
+    ui: {
+      assistant: {
+        name: 'Ocbot',
+      },
+      seamColor: '#7c3aed',
+    },
+  }
+}
+
 type DesktopChannelPlatform =
   | 'feishu'
   | 'telegram'
@@ -144,7 +162,6 @@ const CHANNEL_CONFIG_MAP: Record<DesktopChannelPlatform, ChannelConfigMap> = {
 }
 
 export class RuntimeManager {
-  private readonly baseDir: string
   private readonly stateDir: string
   private readonly logsDir: string
   private readonly configPath: string
@@ -162,16 +179,10 @@ export class RuntimeManager {
 
   constructor() {
     const userDataPath = app.getPath('userData')
+    const runtimeRoot = path.join(userDataPath, app.isPackaged ? 'openclaw' : 'openclaw-dev')
 
-    if (app.isPackaged) {
-      // Production: use Electron userData
-      this.baseDir = path.join(userDataPath, 'openclaw')
-    } else {
-      this.baseDir = path.join(userDataPath, 'openclaw-dev')
-    }
-
-    this.stateDir = path.join(this.baseDir, 'state')
-    this.logsDir = path.join(this.baseDir, 'logs')
+    this.stateDir = path.join(runtimeRoot, 'state')
+    this.logsDir = path.join(this.stateDir, 'logs')
 
     this.configPath = path.join(this.stateDir, 'openclaw.json')
     this.tokenPath = path.join(this.stateDir, 'gateway-token')
@@ -875,13 +886,16 @@ const resolveWebLoginProvider = (params: unknown) => {
   // --- Config & Token ---
 
   private ensureConfig(): void {
-    let config: Record<string, unknown> = {}
+    let config = createInitialConfig()
     let dirty = false
 
     if (fs.existsSync(this.configPath)) {
       try {
         config = JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
-      } catch { /* start fresh on parse error */ }
+      } catch {
+        config = createInitialConfig()
+        dirty = true
+      }
     } else {
       dirty = true
     }
@@ -890,6 +904,27 @@ const resolveWebLoginProvider = (params: unknown) => {
     const gw = (config.gateway as Record<string, unknown>) || {}
     if (!gw.mode) {
       config.gateway = { ...gw, mode: 'local' }
+      dirty = true
+    }
+
+    const controlUi = asRecord((config.gateway as Record<string, unknown>)?.controlUi)
+    const allowedOrigins = Array.isArray(controlUi.allowedOrigins)
+      ? controlUi.allowedOrigins.filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+      : []
+    const nextAllowedOrigins = allowedOrigins.includes('null') ? allowedOrigins : [...allowedOrigins, 'null']
+
+    if (
+      nextAllowedOrigins.length !== allowedOrigins.length
+      || controlUi.allowInsecureAuth !== true
+    ) {
+      config.gateway = {
+        ...asRecord(config.gateway),
+        controlUi: {
+          ...controlUi,
+          allowedOrigins: nextAllowedOrigins,
+          allowInsecureAuth: true,
+        },
+      }
       dirty = true
     }
 

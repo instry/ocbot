@@ -12,14 +12,8 @@ const MAX_ZIP_BYTES = 200 * 1024 * 1024
 // ---------------------------------------------------------------------------
 
 function getWorkspaceDir(): string {
-  if (app.isPackaged) {
-    return path.join(app.getPath('userData'), 'openclaw', 'workspace')
-  }
-  const devBase = path.join(path.resolve(app.getAppPath(), '..'), '.openclaw')
-  if (fs.existsSync(devBase)) {
-    return path.join(devBase, 'workspace')
-  }
-  return path.join(app.getPath('userData'), 'openclaw-dev', 'workspace')
+  const runtimeRoot = path.join(app.getPath('userData'), app.isPackaged ? 'openclaw' : 'openclaw-dev')
+  return path.join(runtimeRoot, 'state', 'workspace')
 }
 
 function getSkillsDir(): string {

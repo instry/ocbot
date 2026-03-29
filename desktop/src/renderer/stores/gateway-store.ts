@@ -6,6 +6,7 @@ interface GatewayStore {
   client: GatewayClient | null
   status: GatewayState
   reconnectAttempt: number
+  initializing: boolean
 
   connect: () => void
   disconnect: () => void
@@ -15,24 +16,36 @@ export const useGatewayStore = create<GatewayStore>((set, get) => ({
   client: null,
   status: 'disconnected',
   reconnectAttempt: 0,
+  initializing: false,
 
   connect: () => {
-    if (get().client) return
+    if (get().client || get().initializing) return
 
-    const client = connectGateway()
+    set({ initializing: true, status: 'connecting' })
 
-    client.onStateChange((state) => {
-      set({
-        status: state,
-        reconnectAttempt: state === 'connected'
-          ? 0
-          : state === 'error'
-            ? get().reconnectAttempt + 1
-            : get().reconnectAttempt,
+    void window.ocbot?.getGatewayConnectionInfo()
+      .then((info) => {
+        const url = info?.url ?? 'http://127.0.0.1:18789'
+        const token = info?.token ?? null
+        const client = connectGateway(url, token)
+
+        client.onStateChange((state) => {
+          set({
+            status: state,
+            reconnectAttempt: state === 'connected'
+              ? 0
+              : state === 'error'
+                ? get().reconnectAttempt + 1
+                : get().reconnectAttempt,
+          })
+        })
+
+        set({ client, status: client.state, initializing: false })
       })
-    })
-
-    set({ client, status: client.state })
+      .catch((error) => {
+        console.error('Failed to initialize gateway client:', error)
+        set({ status: 'error', initializing: false })
+      })
   },
 
   disconnect: () => {
@@ -40,6 +53,6 @@ export const useGatewayStore = create<GatewayStore>((set, get) => ({
     if (client) {
       client.disconnect()
     }
-    set({ client: null, status: 'disconnected', reconnectAttempt: 0 })
+    set({ client: null, status: 'disconnected', reconnectAttempt: 0, initializing: false })
   },
 }))

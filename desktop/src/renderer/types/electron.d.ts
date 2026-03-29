@@ -73,6 +73,11 @@ declare global {
     speed: number | undefined
   }
 
+  interface OcbotGatewayConnectionInfo {
+    url: string
+    token: string | null
+  }
+
   interface OcbotStartupSettings {
     available: boolean
     openAtLogin: boolean
@@ -87,6 +92,7 @@ declare global {
       close: () => void
       installSkill: (slug: string, version?: string) => Promise<{ ok: boolean; message: string }>
       uninstallSkill: (slug: string) => Promise<{ ok: boolean; message: string }>
+      getGatewayConnectionInfo: () => Promise<OcbotGatewayConnectionInfo>
       getBrowserProfiles: () => Promise<OcbotBrowserProfilesResult[]>
       getOcbotBrowserPath: () => Promise<string>
       startup: {

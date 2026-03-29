@@ -6,15 +6,24 @@ import { GatewayClient, type GatewayState } from './client'
 
 let _client: GatewayClient | null = null
 
+function configureGatewayClient(url: string, token?: string | null): GatewayClient {
+  if (_client) {
+    return _client
+  }
+
+  _client = new GatewayClient(url, token ?? undefined)
+  return _client
+}
+
 export function getGatewayClient(): GatewayClient {
   if (!_client) {
-    _client = new GatewayClient('http://127.0.0.1:18789')
+    throw new Error('Gateway client not initialized')
   }
   return _client
 }
 
-export function connectGateway(): GatewayClient {
-  const client = getGatewayClient()
+export function connectGateway(url: string, token?: string | null): GatewayClient {
+  const client = configureGatewayClient(url, token)
   if (client.state === 'disconnected' || client.state === 'error') {
     client.connect()
   }

@@ -30,6 +30,11 @@ type StartupSettings = {
   openAtLogin: boolean
 }
 
+type GatewayConnectionInfo = {
+  url: string
+  token: string | null
+}
+
 const STARTUP_LAUNCH_ARG = '--ocbot-startup-launch'
 
 function buildStartupSettings(): StartupSettings {
@@ -77,6 +82,14 @@ export function wasOpenedAtStartup(): boolean {
   }
 
   return Boolean(loginItemSettings.wasOpenedAtLogin || loginItemSettings.wasOpenedAsHidden)
+}
+
+function resolveGatewayConnectionInfo(runtimeManager: RuntimeManager): GatewayConnectionInfo {
+  const port = runtimeManager.gatewayPort ?? 18789
+  return {
+    url: `http://127.0.0.1:${port}`,
+    token: runtimeManager.gatewayToken,
+  }
 }
 
 function getBrowserCandidates(): BrowserCandidate[] {
@@ -345,6 +358,7 @@ export class WindowManager {
     })
     ipcMain.handle('browser:getProfiles', async () => scanBrowserProfiles())
     ipcMain.handle('browser:getOcbotPath', async () => resolveOcbotBrowserPath())
+    ipcMain.handle('gateway:getConnectionInfo', async () => resolveGatewayConnectionInfo(this.runtimeManager))
     ipcMain.handle('startup:getSettings', async () => buildStartupSettings())
     ipcMain.handle('startup:setOpenAtLogin', async (_event, openAtLogin: boolean) => updateStartupOpenAtLogin(openAtLogin))
     ipcMain.handle('appUpdate:check', async () => checkForAppUpdate())
