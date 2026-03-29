@@ -75,13 +75,6 @@ export function FeishuChannelPanel({
   return (
     <div className="space-y-4">
       <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-text-strong">Scan setup</div>
-          <div className="text-xs text-muted-foreground">
-            Create and authorize Feishu app credentials by scanning a QR code.
-          </div>
-        </div>
-
         {(!qrFlowStarted && !qrWaiting && !qrValue) && (
           <>
             <Button

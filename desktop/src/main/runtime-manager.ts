@@ -4,6 +4,14 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
+import { CHANNEL_CONFIG_MAP, DEFAULT_CHANNEL_CONFIG } from './channels/registry'
+import { WeixinRuntime } from './channels/weixin-runtime'
+import type {
+  DesktopChannelConfig,
+  DesktopChannelPlatform,
+  DesktopChannelPolicy,
+  DesktopPairingRequest,
+} from './channels/types'
 
 /**
  * Manages the OpenClaw Gateway lifecycle.
@@ -70,96 +78,7 @@ function createInitialConfig(): Record<string, unknown> {
   }
 }
 
-type DesktopChannelPlatform =
-  | 'feishu'
-  | 'telegram'
-  | 'discord'
-  | 'slack'
-  | 'whatsapp'
-  | 'dingtalk'
-  | 'qq'
-  | 'wecom'
-  | 'weixin'
-
-type DesktopChannelPolicy = 'open' | 'disabled' | 'pairing' | 'allowlist'
-
-type DesktopChannelConfig = {
-  enabled: boolean
-  appId?: string
-  appSecret?: string
-  domain?: string
-  botToken?: string
-  clientId?: string
-  clientSecret?: string
-  botId?: string
-  secret?: string
-  accountId?: string
-  dmPolicy: DesktopChannelPolicy
-  groupPolicy: DesktopChannelPolicy
-}
-
-type DesktopPairingRequest = {
-  id: string
-  code: string
-  createdAt: string
-  lastSeenAt: string
-  meta?: Record<string, string>
-}
-
-type ChannelConfigMap = {
-  channelKey: string
-  credentials: Partial<Record<keyof DesktopChannelConfig, string>>
-  supportsDmPolicy?: boolean
-  supportsGroupPolicy?: boolean
-}
-
-const DEFAULT_CHANNEL_CONFIG: DesktopChannelConfig = {
-  enabled: false,
-  dmPolicy: 'open',
-  groupPolicy: 'open',
-}
-
 const PAIRING_PENDING_TTL_MS = 3_600_000
-
-const CHANNEL_CONFIG_MAP: Record<DesktopChannelPlatform, ChannelConfigMap> = {
-  feishu: {
-    channelKey: 'feishu',
-    credentials: { appId: 'appId', appSecret: 'appSecret' },
-  },
-  telegram: {
-    channelKey: 'telegram',
-    credentials: { botToken: 'botToken' },
-  },
-  discord: {
-    channelKey: 'discord',
-    credentials: { botToken: 'token' },
-  },
-  slack: {
-    channelKey: 'slack',
-    credentials: { botToken: 'botToken' },
-  },
-  whatsapp: {
-    channelKey: 'whatsapp',
-    credentials: {},
-    supportsGroupPolicy: false,
-  },
-  dingtalk: {
-    channelKey: 'dingtalk-connector',
-    credentials: { clientId: 'clientId', clientSecret: 'clientSecret' },
-  },
-  qq: {
-    channelKey: 'qqbot',
-    credentials: { appId: 'appId', appSecret: 'clientSecret' },
-  },
-  wecom: {
-    channelKey: 'wecom',
-    credentials: { botId: 'botId', secret: 'secret' },
-  },
-  weixin: {
-    channelKey: 'openclaw-weixin',
-    credentials: { accountId: 'accountId' },
-  },
-}
 
 export class RuntimeManager {
   private readonly stateDir: string
@@ -173,13 +92,15 @@ export class RuntimeManager {
   private _status: EngineStatus = 'not_installed'
   private healthTimer: ReturnType<typeof setInterval> | null = null
   private shutdownRequested = false
-  private weixinPluginEnsurePromise: Promise<{ ready: boolean; changed: boolean }> | null = null
   private feishuInstallIsLark = false
   private feishuAuthModulePromise: Promise<FeishuAuthModule> | null = null
+  private readonly weixinRuntime: WeixinRuntime
 
   constructor() {
     const userDataPath = app.getPath('userData')
-    const runtimeRoot = path.join(userDataPath, app.isPackaged ? 'openclaw' : 'openclaw-dev')
+    const runtimeRoot = app.isPackaged
+      ? path.join(userDataPath, 'openclaw')
+      : path.join(app.getAppPath(), '.ocbot-dev-runtime')
 
     this.stateDir = path.join(runtimeRoot, 'state')
     this.logsDir = path.join(this.stateDir, 'logs')
@@ -187,6 +108,10 @@ export class RuntimeManager {
     this.configPath = path.join(this.stateDir, 'openclaw.json')
     this.tokenPath = path.join(this.stateDir, 'gateway-token')
     this.portPath = path.join(this.stateDir, 'gateway-port.json')
+    this.weixinRuntime = new WeixinRuntime({
+      ensurePluginEnabled: (pluginId) => this.ensurePluginEnabled(pluginId),
+      resolvePluginSourceFile: (root, pluginId, pathParts) => this.resolvePluginSourceFile(root, pluginId, pathParts),
+    })
 
     fs.mkdirSync(this.stateDir, { recursive: true })
     fs.mkdirSync(this.logsDir, { recursive: true })
@@ -304,14 +229,7 @@ export class RuntimeManager {
       return false
     }
 
-    const patchesChanged = this.applyRuntimePatches(runtime.root)
-    const weixin = await this.ensureWeixinPluginReady(runtime.root)
-
-    if (weixin.ready && (patchesChanged || weixin.changed) && this.gateway && this.port) {
-      await this.restart()
-    }
-
-    return weixin.ready
+    return await this.weixinRuntime.isQrLoginSupported(runtime.root)
   }
 
   async startFeishuInstallQrcode(isLark: boolean): Promise<{
@@ -454,16 +372,19 @@ export class RuntimeManager {
       this._status = 'not_installed'
       throw new Error('OpenClaw runtime not found')
     }
-    await this.ensureDefaultPlugins(runtime.root)
-    this.applyRuntimePatches(runtime.root)
+    const pluginsChanged = await this.ensureDefaultPlugins(runtime.root)
+    const patchesChanged = this.applyRuntimePatches(runtime.root)
 
     // If already running and healthy, return early
     if (this.gateway && this.port) {
       if (await this.isHealthy(this.port)) {
-        this._status = 'running'
-        return this.port
+        if (!pluginsChanged && !patchesChanged) {
+          this._status = 'running'
+          return this.port
+        }
+      } else {
+        this.killGateway()
       }
-      this.killGateway()
     }
 
     this._status = 'starting'
@@ -561,6 +482,8 @@ export class RuntimeManager {
     const candidates = app.isPackaged
       ? [path.join(process.resourcesPath, 'openclaw')]
       : [
+          // Dev: bundled runtime prepared into desktop/resources
+          path.join(app.getAppPath(), 'resources', 'openclaw'),
           // Dev: built runtime in vendor/
           path.join(app.getAppPath(), 'vendor', 'openclaw-runtime', 'current'),
           // Dev: direct sibling openclaw repo
@@ -624,78 +547,15 @@ export class RuntimeManager {
 
   private applyRuntimePatches(root: string): boolean {
     const changed = [
-      this.patchWeixinGatewayMethods(root),
-      this.patchWebLoginProviderSelection(root),
-      this.patchWebLoginParamSchema(root),
+      this.weixinRuntime.applyGatewayPatches(),
+      this.patchChannelSetupErrorMessage(root),
     ]
-
     return changed.some(Boolean)
   }
 
-  private async ensureDefaultPlugins(root: string): Promise<void> {
-    await this.ensureWeixinPluginReady(root)
-  }
-
-  private async ensureWeixinPluginReady(root: string): Promise<{ ready: boolean; changed: boolean }> {
-    const filePath = this.resolvePluginSourceFile(root, 'openclaw-weixin', ['src', 'channel.ts'])
-    if (fs.existsSync(filePath)) {
-      const enabledChanged = this.ensurePluginEnabled('openclaw-weixin')
-      const patchedChanged = this.patchWeixinGatewayMethods(root)
-      return {
-        ready: this.hasWeixinGatewayMethods(filePath),
-        changed: enabledChanged || patchedChanged,
-      }
-    }
-
-    if (app.isPackaged) {
-      return { ready: false, changed: false }
-    }
-
-    if (this.weixinPluginEnsurePromise) {
-      return await this.weixinPluginEnsurePromise
-    }
-
-    this.weixinPluginEnsurePromise = this.installWeixinPlugin(root)
-    try {
-      return await this.weixinPluginEnsurePromise
-    } finally {
-      this.weixinPluginEnsurePromise = null
-    }
-  }
-
-  private hasWeixinGatewayMethods(filePath: string): boolean {
-    if (!fs.existsSync(filePath)) {
-      return false
-    }
-
-    const source = fs.readFileSync(filePath, 'utf8')
-    return source.includes('web.login.start') && source.includes('web.login.wait')
-  }
-
-  private async installWeixinPlugin(root: string): Promise<{ ready: boolean; changed: boolean }> {
-    const entry = this.resolveEntry(root)
-    if (!entry) {
-      return { ready: false, changed: false }
-    }
-
-    const pluginSpec = '@tencent-weixin/openclaw-weixin'
-    const result = await this.runOpenClawCommand(root, entry, ['plugins', 'install', pluginSpec])
-    if (!result.ok) {
-      console.warn(`[RuntimeManager] Failed to install ${pluginSpec}: ${result.output}`)
-      return { ready: false, changed: false }
-    }
-
-    const filePath = this.resolvePluginSourceFile(root, 'openclaw-weixin', ['src', 'channel.ts'])
-    if (!fs.existsSync(filePath)) {
-      return { ready: false, changed: true }
-    }
-
-    this.ensurePluginEnabled('openclaw-weixin')
-    this.patchWeixinGatewayMethods(root)
-    return {
-      ready: this.hasWeixinGatewayMethods(filePath),
-      changed: true,
-    }
+  private async ensureDefaultPlugins(root: string): Promise<boolean> {
+    const weixin = await this.weixinRuntime.ensurePluginReady(root)
+    return weixin.changed
   }
 
   private ensurePluginEnabled(pluginId: string): boolean {
@@ -720,191 +580,57 @@ export class RuntimeManager {
     return true
   }
 
-  private async runOpenClawCommand(
-    root: string,
-    entry: string,
-    args: string[],
-  ): Promise<{ ok: boolean; output: string }> {
-    const env: NodeJS.ProcessEnv = {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: '1',
-      OPENCLAW_HOME: root,
-      OPENCLAW_STATE_DIR: this.stateDir,
-      OPENCLAW_CONFIG_PATH: this.configPath,
-      OPENCLAW_NO_RESPAWN: '1',
-      OPENCLAW_BUNDLED_PLUGINS_DIR: path.join(root, 'extensions'),
-    }
-
-    return await new Promise((resolve) => {
-      const nodeExecutable = this.resolveNodeExecutable()
-      const child = spawn(
-        nodeExecutable ?? process.execPath,
-        [entry, ...args],
-        {
-          cwd: root,
-          env: nodeExecutable ? env : { ...env, ELECTRON_RUN_AS_NODE: '1' },
-          stdio: ['ignore', 'pipe', 'pipe'],
-          windowsHide: true,
-        },
-      )
-
-      let output = ''
-      child.stdout?.on('data', (chunk) => { output += String(chunk) })
-      child.stderr?.on('data', (chunk) => { output += String(chunk) })
-      child.on('error', (error) => {
-        resolve({ ok: false, output: `${output}\n${String(error)}`.trim() })
-      })
-      child.on('close', (code) => {
-        resolve({ ok: code === 0, output: output.trim() })
-      })
-    })
-  }
-
-  private patchWeixinGatewayMethods(root: string): boolean {
-    const filePath = this.resolvePluginSourceFile(root, 'openclaw-weixin', ['src', 'channel.ts'])
-    if (!fs.existsSync(filePath)) {
-      return false
-    }
-
-    const source = fs.readFileSync(filePath, 'utf8')
-    if (source.includes('gatewayMethods')) {
-      return false
-    }
-
-    const marker = 'configSchema: {'
-    const index = source.indexOf(marker)
-    if (index === -1) {
-      return false
-    }
-
-    const nextSource = source.slice(0, index)
-      + 'gatewayMethods: ["web.login.start", "web.login.wait"],\n  '
-      + source.slice(index)
-
-    fs.writeFileSync(filePath, nextSource, 'utf8')
-    return true
-  }
-
-  private patchWebLoginProviderSelection(root: string): boolean {
-    const filePath = path.join(root, 'src', 'gateway', 'server-methods', 'web.ts')
-    if (!fs.existsSync(filePath)) {
-      return false
-    }
-
-    const source = fs.readFileSync(filePath, 'utf8')
-    const currentBlock = `const resolveWebLoginProvider = () =>
-  listChannelPlugins().find((plugin) =>
-    (plugin.gatewayMethods ?? []).some((method) => WEB_LOGIN_METHODS.has(method)),
-  ) ?? null;
-`
-
-    const nextBlock = `function resolveRequestedProviderId(params: unknown): string | undefined {
-  return typeof (params as { channel?: unknown }).channel === "string"
-    ? (params as { channel?: string }).channel?.trim() || undefined
-    : undefined;
-}
-
-const resolveWebLoginProvider = (params: unknown) => {
-  const requestedProviderId = resolveRequestedProviderId(params);
-  const providers = listChannelPlugins().filter((plugin) =>
-    (plugin.gatewayMethods ?? []).some((method) => WEB_LOGIN_METHODS.has(method)),
-  );
-  if (requestedProviderId) {
-    return providers.find((plugin) => plugin.id === requestedProviderId) ?? null;
-  }
-  return providers[0] ?? null;
-};
-`
-
-    let nextSource = source
-
-    if (!nextSource.includes('resolveRequestedProviderId')) {
-      if (!nextSource.includes(currentBlock)) {
-        return false
-      }
-
-      nextSource = nextSource.replace(currentBlock, nextBlock)
-    }
-
-    nextSource = nextSource.replace(
-      'const provider = resolveWebLoginProvider();',
-      'const provider = resolveWebLoginProvider(params);',
-    )
-
-    if (nextSource === source) {
-      return false
-    }
-
-    fs.writeFileSync(filePath, nextSource, 'utf8')
-    return true
-  }
-
-  private patchWebLoginParamSchema(root: string): boolean {
-    const filePath = path.join(root, 'src', 'gateway', 'protocol', 'schema', 'channels.ts')
-    if (!fs.existsSync(filePath)) {
-      return false
-    }
-
-    const source = fs.readFileSync(filePath, 'utf8')
-    if (source.includes('channel: Type.Optional(Type.String())')) {
-      return false
-    }
-
-    const nextSource = source
-      .replace(
-        `export const WebLoginStartParamsSchema = Type.Object(
-  {
-    force: Type.Optional(Type.Boolean()),
-    timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
-    verbose: Type.Optional(Type.Boolean()),
-    accountId: Type.Optional(Type.String()),
-  },
-  { additionalProperties: false },
-);
-`,
-        `export const WebLoginStartParamsSchema = Type.Object(
-  {
-    force: Type.Optional(Type.Boolean()),
-    timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
-    verbose: Type.Optional(Type.Boolean()),
-    accountId: Type.Optional(Type.String()),
-    channel: Type.Optional(Type.String()),
-  },
-  { additionalProperties: false },
-);
-`,
-      )
-      .replace(
-        `export const WebLoginWaitParamsSchema = Type.Object(
-  {
-    timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
-    accountId: Type.Optional(Type.String()),
-  },
-  { additionalProperties: false },
-);
-`,
-        `export const WebLoginWaitParamsSchema = Type.Object(
-  {
-    timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
-    accountId: Type.Optional(Type.String()),
-    channel: Type.Optional(Type.String()),
-  },
-  { additionalProperties: false },
-);
-`,
-      )
-
-    fs.writeFileSync(filePath, nextSource, 'utf8')
-    return true
-  }
-
   private resolvePluginSourceFile(root: string, pluginId: string, pathParts: string[]): string {
     const candidates = [
-      path.join(this.stateDir, 'extensions', pluginId, ...pathParts),
       path.join(root, 'extensions', pluginId, ...pathParts),
+      path.join(this.stateDir, 'extensions', pluginId, ...pathParts),
     ]
 
     return candidates.find(candidate => fs.existsSync(candidate)) ?? candidates[0]
+  }
+
+  private patchChannelSetupErrorMessage(root: string): boolean {
+    const filePath = path.join(root, 'src', 'auto-reply', 'reply', 'agent-runner-execution.ts')
+    if (!fs.existsSync(filePath)) {
+      return false
+    }
+
+    const source = fs.readFileSync(filePath, 'utf8')
+    if (source.includes('Ocbot is not set up yet — open the desktop app, go to Models, and add a provider before using channel replies.')) {
+      return false
+    }
+
+    const currentBlock = `const fallbackText = isBilling
+        ? BILLING_ERROR_USER_MESSAGE
+        : isRateLimit
+          ? buildRateLimitCooldownMessage(err)
+          : isContextOverflow
+            ? "⚠️ Context overflow — prompt too large for this model. Try a shorter message or a larger-context model."
+            : isRoleOrderingError
+              ? "⚠️ Message ordering conflict - please try again. If this persists, use /new to start a fresh session."
+              : \`⚠️ Agent failed before reply: \${trimmedMessage}.\\nLogs: openclaw logs --follow\`;`
+
+    const nextBlock = `const missingProviderAuth =
+        trimmedMessage.includes("No API key found for provider")
+        || trimmedMessage.includes("Configure auth for this agent");
+      const fallbackText = isBilling
+        ? BILLING_ERROR_USER_MESSAGE
+        : isRateLimit
+          ? buildRateLimitCooldownMessage(err)
+          : isContextOverflow
+            ? "⚠️ Context overflow — prompt too large for this model. Try a shorter message or a larger-context model."
+            : isRoleOrderingError
+              ? "⚠️ Message ordering conflict - please try again. If this persists, use /new to start a fresh session."
+              : missingProviderAuth
+                ? "⚠️ Ocbot is not set up yet — open the desktop app, go to Models, and add a provider before using channel replies."
+                : \`⚠️ Agent failed before reply: \${trimmedMessage}.\\nLogs: openclaw logs --follow\`;`
+
+    if (!source.includes(currentBlock)) {
+      return false
+    }
+
+    fs.writeFileSync(filePath, source.replace(currentBlock, nextBlock), 'utf8')
+    return true
   }
 
   // --- Config & Token ---
@@ -967,6 +693,13 @@ const resolveWebLoginProvider = (params: unknown) => {
       dirty = true
     }
 
+    const runtime = this.resolveRuntime()
+    const sanitizedConfig = this.sanitizeRuntimeConfig(config, runtime.root)
+    if (sanitizedConfig !== config) {
+      config = sanitizedConfig
+      dirty = true
+    }
+
     if (dirty) {
       this.writeConfigObject(config)
     }
@@ -1019,6 +752,70 @@ const resolveWebLoginProvider = (params: unknown) => {
 
   private resolvePairingPath(channelKey: string): string {
     return path.join(this.resolveCredentialsDir(), `${this.safeChannelKey(channelKey)}-pairing.json`)
+  }
+
+  private sanitizeRuntimeConfig(config: Record<string, unknown>, runtimeRoot: string | null): Record<string, unknown> {
+    const nextConfig = { ...config }
+    let changed = false
+
+    const plugins = asRecord(nextConfig.plugins)
+    const pluginEntries = { ...asRecord(plugins.entries) }
+    const channels = { ...asRecord(nextConfig.channels) }
+
+    const bundledWeixinDir = runtimeRoot ? path.join(runtimeRoot, 'extensions', 'openclaw-weixin') : ''
+    const stateWeixinDir = path.join(this.stateDir, 'extensions', 'openclaw-weixin')
+    if (bundledWeixinDir && fs.existsSync(bundledWeixinDir) && fs.existsSync(stateWeixinDir)) {
+      try {
+        fs.rmSync(stateWeixinDir, { recursive: true, force: true })
+        changed = true
+      } catch (error) {
+        console.warn('[RuntimeManager] Failed to remove stale state plugin override:', error)
+      }
+    }
+
+    for (const pluginId of Object.keys(pluginEntries)) {
+      if (this.hasRuntimePlugin(runtimeRoot, pluginId)) {
+        continue
+      }
+
+      delete pluginEntries[pluginId]
+      changed = true
+
+      if (pluginId in channels) {
+        delete channels[pluginId]
+      }
+    }
+
+    for (const channelKey of Object.keys(channels)) {
+      if (this.hasRuntimePlugin(runtimeRoot, channelKey)) {
+        continue
+      }
+
+      delete channels[channelKey]
+      changed = true
+    }
+
+    if (!changed) {
+      return config
+    }
+
+    nextConfig.plugins = {
+      ...plugins,
+      entries: pluginEntries,
+    }
+    nextConfig.channels = channels
+    return nextConfig
+  }
+
+  private hasRuntimePlugin(runtimeRoot: string | null, pluginId: string): boolean {
+    const candidates = [
+      runtimeRoot ? path.join(runtimeRoot, 'extensions', pluginId) : '',
+      path.join(this.stateDir, 'extensions', pluginId),
+    ]
+
+    return candidates.some((candidate) =>
+      Boolean(candidate) && fs.existsSync(path.join(candidate, 'openclaw.plugin.json')),
+    )
   }
 
   private resolveAllowFromPath(channelKey: string, accountId?: string): string {

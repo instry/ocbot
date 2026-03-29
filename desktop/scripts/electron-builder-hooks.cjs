@@ -142,6 +142,11 @@ function ensureConfiguredOpenClawCommit(sourceRoot) {
 }
 
 function ensureOpenClawGitClean(sourceRoot) {
+  if (process.env.OCBOT_ALLOW_DIRTY_OPENCLAW === '1') {
+    console.log('[OpenClaw bundle] Allowing dirty OpenClaw source tree for local bundled runtime preparation')
+    return
+  }
+
   const statusOutput = readOpenClawGitStatus(sourceRoot)
   if (!statusOutput) {
     return
@@ -228,6 +233,147 @@ function prepareBundledExternalPlugin({
   })
 }
 
+function patchFileIfNeeded(filePath, transform) {
+  assertPathExists(filePath, filePath)
+  const source = fs.readFileSync(filePath, 'utf8')
+  const nextSource = transform(source)
+  if (nextSource === source) {
+    return false
+  }
+  fs.writeFileSync(filePath, nextSource, 'utf8')
+  return true
+}
+
+function patchOptionalFile(filePath, transform) {
+  if (!fs.existsSync(filePath)) {
+    return false
+  }
+  return patchFileIfNeeded(filePath, transform)
+}
+
+function patchBundledWeixinPlugin(outputRoot) {
+  const changed = []
+  const readyMarkerPath = path.join(outputRoot, '.ocbot-weixin-ready.json')
+
+  const weixinChannelPath = path.join(outputRoot, 'extensions', 'openclaw-weixin', 'src', 'channel.ts')
+  changed.push(patchFileIfNeeded(weixinChannelPath, (source) => {
+    if (source.includes('gatewayMethods')) {
+      return source
+    }
+
+    const marker = 'configSchema: {'
+    const index = source.indexOf(marker)
+    if (index === -1) {
+      throw new Error(`Unable to inject gatewayMethods into ${weixinChannelPath}`)
+    }
+
+    return source.slice(0, index)
+      + 'gatewayMethods: ["web.login.start", "web.login.wait"],\n  '
+      + source.slice(index)
+  }))
+
+  const webMethodsPath = path.join(outputRoot, 'src', 'gateway', 'server-methods', 'web.ts')
+  changed.push(patchOptionalFile(webMethodsPath, (source) => {
+    const currentBlock = `const resolveWebLoginProvider = () =>
+  listChannelPlugins().find((plugin) =>
+    (plugin.gatewayMethods ?? []).some((method) => WEB_LOGIN_METHODS.has(method)),
+  ) ?? null;
+`
+
+    const nextBlock = `function resolveRequestedProviderId(params: unknown): string | undefined {
+  return typeof (params as { channel?: unknown }).channel === "string"
+    ? (params as { channel?: string }).channel?.trim() || undefined
+    : undefined;
+}
+
+const resolveWebLoginProvider = (params: unknown) => {
+  const requestedProviderId = resolveRequestedProviderId(params);
+  const providers = listChannelPlugins().filter((plugin) =>
+    (plugin.gatewayMethods ?? []).some((method) => WEB_LOGIN_METHODS.has(method)),
+  );
+  if (requestedProviderId) {
+    return providers.find((plugin) => plugin.id === requestedProviderId) ?? null;
+  }
+  return providers[0] ?? null;
+};
+`
+
+    let nextSource = source
+
+    if (!nextSource.includes('resolveRequestedProviderId')) {
+      if (!nextSource.includes(currentBlock)) {
+        throw new Error(`Unable to patch provider selection in ${webMethodsPath}`)
+      }
+      nextSource = nextSource.replace(currentBlock, nextBlock)
+    }
+
+    return nextSource.replace(
+      'const provider = resolveWebLoginProvider();',
+      'const provider = resolveWebLoginProvider(params);',
+    )
+  }))
+
+  const schemaPath = path.join(outputRoot, 'src', 'gateway', 'protocol', 'schema', 'channels.ts')
+  changed.push(patchOptionalFile(schemaPath, (source) => {
+    if (source.includes('channel: Type.Optional(Type.String())')) {
+      return source
+    }
+
+    return source
+      .replace(
+        `export const WebLoginStartParamsSchema = Type.Object(
+  {
+    force: Type.Optional(Type.Boolean()),
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
+    verbose: Type.Optional(Type.Boolean()),
+    accountId: Type.Optional(Type.String()),
+  },
+  { additionalProperties: false },
+);
+`,
+        `export const WebLoginStartParamsSchema = Type.Object(
+  {
+    force: Type.Optional(Type.Boolean()),
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
+    verbose: Type.Optional(Type.Boolean()),
+    accountId: Type.Optional(Type.String()),
+    channel: Type.Optional(Type.String()),
+  },
+  { additionalProperties: false },
+);
+`,
+      )
+      .replace(
+        `export const WebLoginWaitParamsSchema = Type.Object(
+  {
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
+    accountId: Type.Optional(Type.String()),
+  },
+  { additionalProperties: false },
+);
+`,
+        `export const WebLoginWaitParamsSchema = Type.Object(
+  {
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 0 })),
+    accountId: Type.Optional(Type.String()),
+    channel: Type.Optional(Type.String()),
+  },
+  { additionalProperties: false },
+);
+`,
+      )
+  }))
+
+  fs.writeFileSync(readyMarkerPath, `${JSON.stringify({
+    pluginId: 'openclaw-weixin',
+    preparedAt: new Date().toISOString(),
+  }, null, 2)}\n`, 'utf8')
+
+  if (changed.some(Boolean)) {
+    console.log('[OpenClaw bundle] Patched bundled Weixin plugin/runtime for channel-specific QR login')
+  }
+}
+
 function prepareBundledRuntime(sourceRoot, outputRoot, runtimeTarget) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocbot-openclaw-runtime-'))
   const packDir = path.join(tempRoot, 'pack')
@@ -296,6 +442,7 @@ function prepareBundledRuntime(sourceRoot, outputRoot, runtimeTarget) {
       pluginId: 'openclaw-weixin',
       npmSpec: '@tencent-weixin/openclaw-weixin',
     })
+    patchBundledWeixinPlugin(outputRoot)
 
     console.log(`[OpenClaw bundle] Bundled runtime ready at ${outputRoot}`)
   } finally {

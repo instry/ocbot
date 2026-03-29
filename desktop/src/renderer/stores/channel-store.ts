@@ -8,24 +8,17 @@ import type {
   ChannelStatus,
   ChannelTestResult,
 } from '@/types/channel'
+import {
+  CHANNEL_STATUS_KEYS,
+  resolveQrLoginChannel,
+  supportsBuiltInQrLogin,
+} from '@/lib/channel-platforms'
 import { useGatewayStore } from './gateway-store'
 
 type GatewayChannelsStatusResponse = {
   channels?: Record<string, unknown>
   channelAccounts?: Record<string, unknown>
   channelDefaultAccountId?: Record<string, unknown>
-}
-
-const CHANNEL_STATUS_KEYS: Record<ChannelPlatform, string> = {
-  feishu: 'feishu',
-  telegram: 'telegram',
-  discord: 'discord',
-  slack: 'slack',
-  whatsapp: 'whatsapp',
-  dingtalk: 'dingtalk-connector',
-  qq: 'qqbot',
-  wecom: 'wecom',
-  weixin: 'openclaw-weixin',
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -69,11 +62,11 @@ function formatChannelError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
 
   if (message.includes('web login provider is not available')) {
-    return 'WeChat QR login is still being prepared. Please try again in a moment.'
+    return 'This build does not include a ready WeChat runtime. Rebuild the bundled OpenClaw runtime and try again.'
   }
 
   if (message.includes('web login is not supported by provider openclaw-weixin')) {
-    return 'This WeChat plugin version does not expose QR login in the current runtime.'
+    return 'The bundled WeChat plugin is missing QR login support. Rebuild the bundled OpenClaw runtime and try again.'
   }
 
   return message
@@ -134,14 +127,6 @@ function mapGatewayStatus(payload: GatewayChannelsStatusResponse): Partial<Recor
   })
 
   return Object.fromEntries(entries)
-}
-
-function supportsQrLogin(platform: ChannelPlatform): boolean {
-  return platform === 'whatsapp' || platform === 'weixin'
-}
-
-function resolveQrLoginChannel(platform: ChannelPlatform): string {
-  return CHANNEL_STATUS_KEYS[platform]
 }
 
 function shouldRetryWithoutChannel(error: unknown): boolean {
@@ -209,7 +194,7 @@ async function callWebLoginWait(
 }
 
 async function hasQrLoginProvider(platform: ChannelPlatform): Promise<boolean> {
-  if (!supportsQrLogin(platform)) {
+  if (!supportsBuiltInQrLogin(platform)) {
     return false
   }
 
@@ -422,7 +407,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     if (!client) throw new Error('Gateway client not available')
     if (!(await hasQrLoginProvider(platform))) {
       throw new Error(platform === 'weixin'
-        ? 'WeChat QR login is still being prepared. Please try again in a moment.'
+        ? 'This build does not include a ready WeChat runtime.'
         : 'QR login is not available for this channel')
     }
 
@@ -442,13 +427,16 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
     if (!client) throw new Error('Gateway client not available')
     if (!(await hasQrLoginProvider(platform))) {
       throw new Error(platform === 'weixin'
-        ? 'WeChat QR login is still being prepared. Please try again in a moment.'
+        ? 'This build does not include a ready WeChat runtime.'
         : 'QR login is not available for this channel')
     }
 
     set({ loading: true, error: null })
     try {
-      const result = await callWebLoginWait(platform, 480000, accountId)
+      const resolvedAccountId = platform === 'weixin'
+        ? (typeof accountId === 'string' ? accountId.trim() : '')
+        : accountId
+      const result = await callWebLoginWait(platform, 480000, resolvedAccountId || undefined)
       if (result.connected) {
         const currentConfig = get().configs[platform]
           ?? await window.ocbot?.getChannelConfig(platform)

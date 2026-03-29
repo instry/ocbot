@@ -16,4 +16,5 @@ browser/scripts/installer/win/deps/
 desktop/node_modules/
 desktop/dist/
 desktop/out/
+desktop/.ocbot-dev-runtime/
 channel-catalog.hash

@@ -7,11 +7,11 @@ import { CHANNEL_PLATFORMS } from '@/types/channel'
 import { FeishuChannelPanel } from '@/components/channels/feishu-channel-panel'
 import { GenericChannelPanel } from '@/components/channels/generic-channel-panel'
 import { WeixinChannelPanel } from '@/components/channels/weixin-channel-panel'
+import { PRIORITY_CHANNELS, requiresDesktopQrCapability } from '@/lib/channel-platforms'
 import { cn } from '@/lib/utils'
 
 const WEIXIN_QR_EXPIRES_IN_SECONDS = 300
 const DEFAULT_FEISHU_DOMAIN = 'feishu'
-const PRIORITY_CHANNELS = ['weixin', 'feishu'] as const
 
 export function ChannelsRoute() {
   const client = useGatewayStore(s => s.client)
@@ -124,7 +124,7 @@ export function ChannelsRoute() {
         return
       }
 
-      if (selectedPlatform !== 'weixin') {
+      if (!requiresDesktopQrCapability(selectedPlatform)) {
         if (active) setSupportsQrLogin(false)
         return
       }
@@ -285,7 +285,6 @@ export function ChannelsRoute() {
           setQrFlowStarted(false)
           setQrValue(null)
           setFeishuExpiresIn(null)
-          setFeishuAuthMessage('Feishu app created and credentials saved.')
           setQrMessage('Feishu authorization completed.')
         }
 

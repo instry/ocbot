@@ -8,8 +8,9 @@
   },
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "npm run build:main && npm run build:renderer && electron .",
+    "dev": "npm run ensure:openclaw && npm run build:main && npm run build:renderer && electron .",
     "sync:version": "node scripts/sync-version.cjs",
+    "ensure:openclaw": "node -e \"const fs=require('node:fs');process.env.OCBOT_ALLOW_DIRTY_OPENCLAW='1';const run=require('./scripts/electron-builder-hooks.cjs');const marker='resources/openclaw/.ocbot-weixin-ready.json';Promise.resolve(fs.existsSync(marker)?undefined:run({electronPlatformName:process.platform,arch:process.arch})).catch((error)=>{console.error(error instanceof Error ? error.stack || error.message : String(error));process.exit(1)})\"",
     "prepare:openclaw": "npm run sync:version && node scripts/electron-builder-hooks.cjs --prepare-only",
     "package:mac:x64": "node scripts/package.cjs --platform mac --arch x64",
     "package:mac:arm64": "node scripts/package.cjs --platform mac --arch arm64",
@@ -23,7 +24,7 @@
     "build": "npm run sync:version && npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
-    "start": "electron .",
+    "start": "npm run ensure:openclaw && electron .",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "clean": "rm -rf dist out"

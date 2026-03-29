@@ -110,7 +110,7 @@ export function WeixinChannelPanel({
 
       {(weixinLoginUnavailable || errorMessage) && (
         <div className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">
-          {weixinLoginUnavailable ? 'WeChat login is temporarily unavailable' : errorMessage}
+          {weixinLoginUnavailable ? 'This build does not include a ready WeChat runtime' : errorMessage}
         </div>
       )}
     </div>
