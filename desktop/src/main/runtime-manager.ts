@@ -104,11 +104,17 @@ waitForParentExit()
 
 function createInitialConfig(): Record<string, unknown> {
   return {
+    browser: createManagedBrowserConfig(),
     gateway: {
       mode: 'local',
+      bind: 'loopback',
+      auth: {
+        mode: 'none',
+      },
       controlUi: {
         allowedOrigins: ['null'],
         allowInsecureAuth: true,
+        dangerouslyDisableDeviceAuth: true,
       },
     },
     ui: {
@@ -118,6 +124,35 @@ function createInitialConfig(): Record<string, unknown> {
       seamColor: '#7c3aed',
     },
   }
+}
+
+function createManagedBrowserConfig(): Record<string, unknown> {
+  return {
+    profiles: {
+      ocbot: {
+        cdpUrl: 'http://127.0.0.1:9222',
+        attachOnly: true,
+        driver: 'openclaw',
+        color: '#7c3aed',
+      },
+    },
+    defaultProfile: 'ocbot',
+  }
+}
+
+function shouldPromoteManagedBrowser(config: Record<string, unknown>): boolean {
+  const executablePath = typeof config.executablePath === 'string' ? config.executablePath.trim() : ''
+  if (executablePath) return false
+
+  const defaultProfile = typeof config.defaultProfile === 'string' ? config.defaultProfile.trim() : ''
+  if (defaultProfile !== 'user') return false
+
+  const profiles = asRecord(config.profiles)
+  const userProfile = asRecord(profiles.user)
+  const userDriver = typeof userProfile.driver === 'string' ? userProfile.driver.trim() : ''
+  const userDataDir = typeof userProfile.userDataDir === 'string' ? userProfile.userDataDir.trim() : ''
+
+  return userDriver === 'existing-session' || userDataDir !== ''
 }
 
 const PAIRING_PENDING_TTL_MS = 3_600_000
@@ -819,10 +854,24 @@ export class RuntimeManager {
       dirty = true
     }
 
-    // Ensure gateway.mode=local
+    const browserConfig = asRecord(config.browser)
+    if (!('browser' in config) || shouldPromoteManagedBrowser(browserConfig)) {
+      config.browser = createManagedBrowserConfig()
+      dirty = true
+    }
+
     const gw = (config.gateway as Record<string, unknown>) || {}
-    if (!gw.mode) {
-      config.gateway = { ...gw, mode: 'local' }
+    const auth = asRecord(gw.auth)
+    if (gw.mode !== 'local' || gw.bind !== 'loopback' || auth.mode !== 'none') {
+      config.gateway = {
+        ...gw,
+        mode: 'local',
+        bind: 'loopback',
+        auth: {
+          ...auth,
+          mode: 'none',
+        },
+      }
       dirty = true
     }
 
@@ -835,6 +884,7 @@ export class RuntimeManager {
     if (
       nextAllowedOrigins.length !== allowedOrigins.length
       || controlUi.allowInsecureAuth !== true
+      || controlUi.dangerouslyDisableDeviceAuth !== true
     ) {
       config.gateway = {
         ...asRecord(config.gateway),
@@ -842,6 +892,7 @@ export class RuntimeManager {
           ...controlUi,
           allowedOrigins: nextAllowedOrigins,
           allowInsecureAuth: true,
+          dangerouslyDisableDeviceAuth: true,
         },
       }
       dirty = true

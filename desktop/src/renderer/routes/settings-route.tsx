@@ -73,6 +73,21 @@ function resolveBrowserInspectUrl(kind: string | null): string | null {
   }
 }
 
+function isManagedBrowserConfig(result: BrowserConfigResult, ocbotPath: string): boolean {
+  const browserConfig = result?.config?.browser
+  const execPath = browserConfig?.executablePath ?? ''
+  const managedProfileKey = browserConfig?.defaultProfile
+  const managedProfile = managedProfileKey ? browserConfig?.profiles?.[managedProfileKey] : browserConfig?.profiles?.ocbot
+
+  if (ocbotPath && execPath === ocbotPath) {
+    return true
+  }
+
+  return !execPath
+    && Boolean(managedProfileKey)
+    && managedProfile?.driver === 'openclaw'
+}
+
 export function BrowserRoute() {
   const { t } = useI18n()
   const [browserChoice, setBrowserChoice] = useState<BrowserChoice>('system')
@@ -140,10 +155,10 @@ export function BrowserRoute() {
     let nextBrowserChoice: BrowserChoice = 'system'
     let nextProfileKey = ''
 
-    if (!execPath) {
-      nextBrowserChoice = 'system'
-    } else if (ocbotPath && execPath === ocbotPath) {
+    if (isManagedBrowserConfig(result, ocbotPath)) {
       nextBrowserChoice = 'ocbot'
+    } else if (!execPath) {
+      nextBrowserChoice = 'system'
     }
 
     if (userProfile?.userDataDir && userProfile.driver === 'existing-session') {
@@ -736,6 +751,15 @@ function BrowserTab({
             </CardContent>
           </Card>
         </div>
+      ) : null}
+
+      {browserChoice === 'ocbot' ? (
+        <Card>
+          <CardContent className="space-y-2 p-5">
+            <div className="text-sm font-medium text-text-strong">{t('No pairing needed for the managed browser.')}</div>
+            <div className="text-sm text-muted-foreground">{t('Leave Profile on Auto-detect to use an isolated browser that Ocbot controls directly.')}</div>
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   )
