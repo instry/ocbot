@@ -269,15 +269,6 @@ export function ModelsRoute() {
         <p className="text-sm text-muted-foreground">{t('Manage your AI model providers and API keys.')}</p>
       </div>
 
-      {isOnboarding || (setupStatus === 'needs_onboarding' && providers.length === 0 && !loading) ? (
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>{t('Complete setup')}</CardTitle>
-            <CardDescription>{t('Add your first provider before using chat.')}</CardDescription>
-          </CardHeader>
-        </Card>
-      ) : null}
-
       <div className="space-y-4">
         {loading ? (
           <Card className="shadow-none">
