@@ -205,9 +205,9 @@ function FieldHeader({
 }
 
 export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: ProviderFormProps) {
-  const { locale, t } = useI18n()
+  const { locale, preference, t } = useI18n()
   const isEditMode = !!editProfileKey
-  const preferredRegion = locale === 'zh-CN' ? 'cn' : 'global'
+  const preferredRegion = preference === 'zh-CN' || locale === 'zh-CN' ? 'cn' : 'global'
 
   const [selectedProvider, setSelectedProvider] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('')
@@ -248,6 +248,31 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
       setSelectedRegion(matched?.id ?? preferredRegion)
     }
   }, [editData, preferredRegion])
+
+  useEffect(() => {
+    if (isEditMode || !selectedProvider) {
+      return
+    }
+
+    const providerHint = PROVIDER_HINTS[selectedProvider]
+    if (!providerHint?.regions?.length) {
+      return
+    }
+
+    const preferred = providerHint.regions.find(region => region.id === preferredRegion) ?? providerHint.regions[0]
+    setSelectedRegion(currentRegion => {
+      if (currentRegion === preferred.id) {
+        return currentRegion
+      }
+      return preferred.id
+    })
+    setBaseUrl(currentBaseUrl => {
+      if (currentBaseUrl === preferred.baseUrl) {
+        return currentBaseUrl
+      }
+      return preferred.baseUrl
+    })
+  }, [isEditMode, preferredRegion, selectedProvider])
 
   function selectProvider(provider: string) {
     if (isEditMode) return

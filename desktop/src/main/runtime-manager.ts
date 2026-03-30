@@ -66,6 +66,41 @@ const DEFAULT_PORT = 18789
 const PORT_SCAN_LIMIT = 80
 const BOOT_TIMEOUT_MS = 120_000
 const HEALTH_INTERVAL_MS = 30_000
+const RESET_HELPER_SCRIPT = `
+const fs = require('node:fs')
+const { spawn } = require('node:child_process')
+
+const plan = JSON.parse(Buffer.from(process.argv[1], 'base64').toString('utf8'))
+
+function waitForParentExit() {
+  try {
+    process.kill(plan.pid, 0)
+    setTimeout(waitForParentExit, 250)
+    return
+  } catch {}
+
+  for (const target of plan.targets) {
+    try {
+      fs.rmSync(target, { recursive: true, force: true })
+    } catch {}
+  }
+
+  if (plan.openApp === true) {
+    spawn('open', ['-n', plan.launchTarget], {
+      detached: true,
+      stdio: 'ignore',
+    }).unref()
+    return
+  }
+
+  spawn(plan.launchTarget, plan.launchArgs, {
+    detached: true,
+    stdio: 'ignore',
+  }).unref()
+}
+
+waitForParentExit()
+`
 
 function createInitialConfig(): Record<string, unknown> {
   return {
@@ -139,17 +174,41 @@ export class RuntimeManager {
   getStateDir(): string { return this.stateDir }
 
   scheduleResetLocalData(): void {
-    const runtimeRoot = this.resolvePersistentRuntimeRoot()
-    setTimeout(() => {
-      try {
-        this.stop()
-        fs.rmSync(runtimeRoot, { recursive: true, force: true })
-        app.relaunch()
-        app.exit(0)
-      } catch (error) {
-        console.error('[RuntimeManager] Failed to reset local data:', error)
+    try {
+      const userDataPath = app.getPath('userData')
+      const resetTargets = [userDataPath]
+      const launchTarget = process.platform === 'darwin' && app.isPackaged
+        ? path.resolve(process.execPath, '..', '..', '..')
+        : process.execPath
+      const launchArgs = process.platform === 'darwin' && app.isPackaged ? [] : process.argv.slice(1)
+      if (!app.isPackaged) {
+        resetTargets.push(path.join(app.getAppPath(), '.ocbot-dev-runtime'))
       }
-    }, 50)
+
+      const plan = Buffer.from(JSON.stringify({
+        pid: process.pid,
+        targets: [...new Set(resetTargets)],
+        launchTarget,
+        launchArgs,
+        openApp: process.platform === 'darwin' && app.isPackaged,
+      }), 'utf8').toString('base64')
+
+      this.stop()
+
+      const helper = spawn(process.execPath, ['-e', RESET_HELPER_SCRIPT, plan], {
+        detached: true,
+        stdio: 'ignore',
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: '1',
+        },
+      })
+      helper.unref()
+      app.exit(0)
+    } catch (error) {
+      console.error('[RuntimeManager] Failed to reset local data:', error)
+      throw error
+    }
   }
 
   async prepareGatewayConnection(): Promise<{ port: number; token: string }> {
@@ -544,13 +603,6 @@ export class RuntimeManager {
     }
 
     return { root: null, version: null }
-  }
-
-  private resolvePersistentRuntimeRoot(): string {
-    const userDataPath = app.getPath('userData')
-    return app.isPackaged
-      ? path.join(userDataPath, 'openclaw')
-      : path.join(app.getAppPath(), '.ocbot-dev-runtime')
   }
 
   private readVersion(root: string): string | null {

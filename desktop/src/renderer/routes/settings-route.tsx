@@ -415,7 +415,7 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
       return
     }
 
-    const confirmed = confirm(t('Reset local data and restart Ocbot? This removes local runtime state, saved channel credentials, logs, and cached setup.'))
+    const confirmed = confirm(t('Clear all local data and restart Ocbot? This removes saved credentials, logs, themes, and preferences on this device.'))
     if (!confirmed) {
       return
     }
@@ -496,7 +496,8 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
 
       <div className="space-y-4">
         <div>
-          <div className="text-sm font-medium text-text-strong">{t('Reset Local Data')}</div>
+          <div className="text-sm font-medium text-text-strong">{t('Clear All Local Data')}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{t('Remove saved credentials, logs, themes, and preferences on this device, then restart Ocbot.')}</div>
         </div>
         <div className="space-y-4">
           <Button
@@ -510,7 +511,7 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
             disabled={resettingLocalData}
           >
             <RefreshCw className={cn('h-4 w-4', resettingLocalData && 'animate-spin')} />
-            {resettingLocalData ? t('Resetting...') : t('Reset Local Data')}
+            {resettingLocalData ? t('Resetting...') : t('Clear All Local Data')}
           </Button>
           {resetLocalDataError ? (
             <div className="text-sm text-destructive">{resetLocalDataError}</div>
