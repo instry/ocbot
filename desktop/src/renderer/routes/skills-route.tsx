@@ -247,7 +247,7 @@ export function SkillsRoute() {
   const [mpCursor, setMpCursor] = useState<string | null>(null)
   const [mpHasMore, setMpHasMore] = useState(false)
   const [mpLoadingMore, setMpLoadingMore] = useState(false)
-  const [mpSort, setMpSort] = useState<MarketplaceSort>('downloads')
+  const [mpSort, setMpSort] = useState<MarketplaceSort>('stars')
   const [mpSearchQuery, setMpSearchQuery] = useState('')
   const [mpSearchResults, setMpSearchResults] = useState<ClawHubSearchResult[]>([])
   const [mpSearching, setMpSearching] = useState(false)
@@ -663,7 +663,7 @@ export function SkillsRoute() {
             <Button
               variant="secondary"
               size="xs"
-              className="text-muted-foreground"
+              className="bg-card text-muted-foreground hover:bg-bg-hover"
               onClick={e => { e.stopPropagation(); setSortDropdownOpen(!sortDropdownOpen) }}
             >
               {currentSortLabel}
@@ -672,7 +672,7 @@ export function SkillsRoute() {
             {sortDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-[99]" onClick={() => setSortDropdownOpen(false)} />
-                <div className="absolute right-0 top-full z-[100] mt-1 min-w-[160px] rounded-lg border border-border bg-bg-subtle py-1 shadow-lg">
+                <div className="absolute right-0 top-full z-[100] mt-1 min-w-[160px] rounded-lg border border-border bg-card py-1 shadow-lg">
                   {sortOptions.map(opt => (
                     <button
                       key={opt.value}

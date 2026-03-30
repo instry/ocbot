@@ -18,6 +18,8 @@ type PendingRequest = {
 }
 
 const REQUEST_TIMEOUT_MS = 30_000
+const STARTUP_BACKOFF_INITIAL_MS = 250
+const STARTUP_BACKOFF_MAX_MS = 1_000
 const BACKOFF_INITIAL_MS = 800
 const BACKOFF_MAX_MS = 15_000
 
@@ -28,9 +30,10 @@ export class GatewayClient {
   private eventHandlers = new Set<GatewayEventHandler>()
   private stateHandlers = new Set<(state: GatewayState) => void>()
   private connectNonce: string | null = null
-  private backoffMs = BACKOFF_INITIAL_MS
+  private backoffMs = STARTUP_BACKOFF_INITIAL_MS
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private intentionalClose = false
+  private hasConnectedOnce = false
   private url: string
   private token: string | null
 
@@ -83,7 +86,7 @@ export class GatewayClient {
       if (this.intentionalClose) {
         this.setState('disconnected')
       } else {
-        this.setState('error')
+        this.setState(this.hasConnectedOnce ? 'error' : 'connecting')
         this.scheduleReconnect()
       }
     }
@@ -199,6 +202,7 @@ export class GatewayClient {
     const id = crypto.randomUUID()
     this.pending.set(id, {
       resolve: () => {
+        this.hasConnectedOnce = true
         this.backoffMs = BACKOFF_INITIAL_MS
         this.setState('connected')
         // Subscribe to session events so chat events flow
@@ -220,11 +224,16 @@ export class GatewayClient {
 
   private scheduleReconnect() {
     if (this.intentionalClose) return
+    const delay = this.backoffMs
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
       this.connect()
-    }, this.backoffMs)
-    this.backoffMs = Math.min(this.backoffMs * 1.5, BACKOFF_MAX_MS)
+    }, delay)
+    const maxBackoff = this.hasConnectedOnce ? BACKOFF_MAX_MS : STARTUP_BACKOFF_MAX_MS
+    const nextBackoff = this.hasConnectedOnce
+      ? this.backoffMs * 1.5
+      : this.backoffMs * 1.25
+    this.backoffMs = Math.min(nextBackoff, maxBackoff)
   }
 
   private rejectAllPending(reason: string) {
