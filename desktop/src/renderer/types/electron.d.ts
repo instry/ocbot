@@ -94,6 +94,7 @@ declare global {
       uninstallSkill: (slug: string) => Promise<{ ok: boolean; message: string }>
       getSystemLocale: () => Promise<string>
       getGatewayConnectionInfo: () => Promise<OcbotGatewayConnectionInfo>
+      resetLocalData: () => Promise<{ accepted: boolean }>
       getBrowserProfiles: () => Promise<OcbotBrowserProfilesResult[]>
       getOcbotBrowserPath: () => Promise<string>
       startup: {

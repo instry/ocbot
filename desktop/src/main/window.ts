@@ -360,6 +360,10 @@ export class WindowManager {
     ipcMain.handle('browser:getOcbotPath', async () => resolveOcbotBrowserPath())
     ipcMain.handle('app:getSystemLocale', async () => app.getLocale())
     ipcMain.handle('gateway:getConnectionInfo', async () => resolveGatewayConnectionInfo(this.runtimeManager))
+    ipcMain.handle('app:resetLocalData', async () => {
+      this.runtimeManager.scheduleResetLocalData()
+      return { accepted: true }
+    })
     ipcMain.handle('startup:getSettings', async () => buildStartupSettings())
     ipcMain.handle('startup:setOpenAtLogin', async (_event, openAtLogin: boolean) => updateStartupOpenAtLogin(openAtLogin))
     ipcMain.handle('appUpdate:check', async () => checkForAppUpdate())

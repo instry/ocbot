@@ -29,6 +29,32 @@ function removeIfExists(targetPath) {
   fs.rmSync(targetPath, { recursive: true, force: true })
 }
 
+function prunePackagedDocs(docsRoot) {
+  if (!fs.existsSync(docsRoot)) {
+    return
+  }
+
+  const referenceRoot = path.join(docsRoot, 'reference')
+  const templatesRoot = path.join(referenceRoot, 'templates')
+  if (!fs.existsSync(templatesRoot)) {
+    return
+  }
+
+  for (const entry of fs.readdirSync(docsRoot, { withFileTypes: true })) {
+    if (entry.name === 'reference') {
+      continue
+    }
+    removeIfExists(path.join(docsRoot, entry.name))
+  }
+
+  for (const entry of fs.readdirSync(referenceRoot, { withFileTypes: true })) {
+    if (entry.name === 'templates') {
+      continue
+    }
+    removeIfExists(path.join(referenceRoot, entry.name))
+  }
+}
+
 function walkDirectory(rootPath, visitor) {
   if (!fs.existsSync(rootPath)) {
     return
@@ -157,7 +183,7 @@ function prunePackagedRuntime(context = {}) {
   removeIfExists(path.join(packagedRuntimeRoot, 'README.md'))
   removeIfExists(path.join(packagedRuntimeRoot, 'CHANGELOG.md'))
   removeIfExists(path.join(packagedRuntimeRoot, 'package-lock.json'))
-  removeIfExists(path.join(packagedRuntimeRoot, 'docs'))
+  prunePackagedDocs(path.join(packagedRuntimeRoot, 'docs'))
   removeIfExists(path.join(packagedRuntimeRoot, 'skills'))
 
   pruneNodeModules(packagedNodeModules)

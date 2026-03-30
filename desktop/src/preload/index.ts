@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('app:getSystemLocale'),
   getGatewayConnectionInfo: () =>
     ipcRenderer.invoke('gateway:getConnectionInfo'),
+  resetLocalData: () =>
+    ipcRenderer.invoke('app:resetLocalData'),
   getBrowserProfiles: () =>
     ipcRenderer.invoke('browser:getProfiles'),
   getOcbotBrowserPath: () =>

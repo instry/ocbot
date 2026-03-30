@@ -53,6 +53,13 @@ type RuntimeInfo = {
   version: string | null
 }
 
+type RuntimeStateMarker = {
+  appVersion: string
+  runtimeVersion: string | null
+  runtimePreparedAt: string | null
+  runtimeCommit: string | null
+}
+
 export type EngineStatus = 'not_installed' | 'ready' | 'starting' | 'running' | 'error'
 
 const DEFAULT_PORT = 18789
@@ -86,6 +93,7 @@ export class RuntimeManager {
   private readonly configPath: string
   private readonly tokenPath: string
   private readonly portPath: string
+  private readonly runtimeStateMarkerPath: string
 
   private gateway: GatewayProcess | null = null
   private port: number | null = null
@@ -109,15 +117,16 @@ export class RuntimeManager {
     this.configPath = path.join(this.stateDir, 'openclaw.json')
     this.tokenPath = path.join(this.stateDir, 'gateway-token')
     this.portPath = path.join(this.stateDir, 'gateway-port.json')
+    this.runtimeStateMarkerPath = path.join(this.stateDir, '.runtime-state.json')
     this.weixinRuntime = new WeixinRuntime({
       ensurePluginEnabled: (pluginId) => this.ensurePluginEnabled(pluginId),
       resolvePluginSourceFile: (root, pluginId, pathParts) => this.resolvePluginSourceFile(root, pluginId, pathParts),
     })
 
+    const runtime = this.resolveRuntime()
+    this.ensureFreshPackagedState(runtime)
     fs.mkdirSync(this.stateDir, { recursive: true })
     fs.mkdirSync(this.logsDir, { recursive: true })
-
-    const runtime = this.resolveRuntime()
     if (runtime.root) {
       this.applyRuntimePatches(runtime.root)
     }
@@ -128,6 +137,20 @@ export class RuntimeManager {
   get gatewayPort(): number | null { return this.port }
   get gatewayToken(): string | null { return this.readToken() }
   getStateDir(): string { return this.stateDir }
+
+  scheduleResetLocalData(): void {
+    const runtimeRoot = this.resolvePersistentRuntimeRoot()
+    setTimeout(() => {
+      try {
+        this.stop()
+        fs.rmSync(runtimeRoot, { recursive: true, force: true })
+        app.relaunch()
+        app.exit(0)
+      } catch (error) {
+        console.error('[RuntimeManager] Failed to reset local data:', error)
+      }
+    }, 50)
+  }
 
   async prepareGatewayConnection(): Promise<{ port: number; token: string }> {
     const token = this.ensureToken()
@@ -523,11 +546,64 @@ export class RuntimeManager {
     return { root: null, version: null }
   }
 
+  private resolvePersistentRuntimeRoot(): string {
+    const userDataPath = app.getPath('userData')
+    return app.isPackaged
+      ? path.join(userDataPath, 'openclaw')
+      : path.join(app.getAppPath(), '.ocbot-dev-runtime')
+  }
+
   private readVersion(root: string): string | null {
     try {
       const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
       return pkg.version || null
     } catch { return null }
+  }
+
+  private ensureFreshPackagedState(runtime: RuntimeInfo): void {
+    if (!app.isPackaged || !runtime.root) {
+      return
+    }
+
+    const currentMarker = this.buildRuntimeStateMarker(runtime)
+    const previousMarker = this.readJsonFile<RuntimeStateMarker | null>(this.runtimeStateMarkerPath, null)
+    if (this.isSameRuntimeStateMarker(previousMarker, currentMarker)) {
+      return
+    }
+
+    if (fs.existsSync(this.stateDir)) {
+      fs.rmSync(this.stateDir, { recursive: true, force: true })
+      console.log(`[RuntimeManager] Reset packaged runtime state for app version ${currentMarker.appVersion}`)
+    }
+
+    fs.mkdirSync(this.stateDir, { recursive: true })
+    this.atomicWriteJson(this.runtimeStateMarkerPath, currentMarker)
+  }
+
+  private buildRuntimeStateMarker(runtime: RuntimeInfo): RuntimeStateMarker {
+    const bundledMarker = runtime.root
+      ? this.readJsonFile<{
+        preparedAt?: unknown
+        openclawCommit?: unknown
+      } | null>(path.join(runtime.root, '.ocbot-runtime-ready.json'), null)
+      : null
+
+    return {
+      appVersion: app.getVersion(),
+      runtimeVersion: runtime.version,
+      runtimePreparedAt: typeof bundledMarker?.preparedAt === 'string' ? bundledMarker.preparedAt : null,
+      runtimeCommit: typeof bundledMarker?.openclawCommit === 'string' ? bundledMarker.openclawCommit : null,
+    }
+  }
+
+  private isSameRuntimeStateMarker(
+    left: RuntimeStateMarker | null,
+    right: RuntimeStateMarker,
+  ): boolean {
+    return left?.appVersion === right.appVersion
+      && left?.runtimeVersion === right.runtimeVersion
+      && left?.runtimePreparedAt === right.runtimePreparedAt
+      && left?.runtimeCommit === right.runtimeCommit
   }
 
   private resolveEntry(root: string): string | null {

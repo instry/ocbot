@@ -306,6 +306,8 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
   const [startupSaving, setStartupSaving] = useState(false)
   const [startupError, setStartupError] = useState<string | null>(null)
   const [startupSaveSuccess, setStartupSaveSuccess] = useState(false)
+  const [resettingLocalData, setResettingLocalData] = useState(false)
+  const [resetLocalDataError, setResetLocalDataError] = useState<string | null>(null)
 
   const colorOptions = [
     {
@@ -408,6 +410,31 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
     }
   }
 
+  async function resetLocalData() {
+    if (resettingLocalData) {
+      return
+    }
+
+    const confirmed = confirm(t('Reset local data and restart Ocbot? This removes local runtime state, saved channel credentials, logs, and cached setup.'))
+    if (!confirmed) {
+      return
+    }
+
+    setResettingLocalData(true)
+    setResetLocalDataError(null)
+
+    try {
+      const result = await window.ocbot?.resetLocalData()
+      if (!result?.accepted) {
+        throw new Error('Reset local data request was not accepted')
+      }
+    } catch (err) {
+      console.error('Failed to reset local data:', err)
+      setResettingLocalData(false)
+      setResetLocalDataError(t('Failed to reset local data.'))
+    }
+  }
+
   return (
     <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="space-y-1">
@@ -456,9 +483,6 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
         {startupError ? (
           <div className="text-sm text-destructive">{startupError}</div>
         ) : null}
-        {!startupAvailable && !startupLoading ? (
-          <div className="text-sm text-muted-foreground">{t('Packaged app only.')}</div>
-        ) : null}
         {startupSaving ? (
           <div className="text-sm text-muted-foreground">{t('Saving…')}</div>
         ) : null}
@@ -468,6 +492,33 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
             {t('Saved')}
           </div>
         ) : null}
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <div className="text-sm font-medium text-text-strong">{t('Reset Local Data')}</div>
+        </div>
+        <div className="space-y-4">
+          <Button
+            variant="dangerSolid"
+            size="md"
+            className="min-w-[180px]"
+            style={{ color: '#ffffff' }}
+            onClick={() => {
+              void resetLocalData()
+            }}
+            disabled={resettingLocalData}
+          >
+            <RefreshCw className={cn('h-4 w-4', resettingLocalData && 'animate-spin')} />
+            {resettingLocalData ? t('Resetting...') : t('Reset Local Data')}
+          </Button>
+          {resetLocalDataError ? (
+            <div className="text-sm text-destructive">{resetLocalDataError}</div>
+          ) : null}
+          {resettingLocalData && !resetLocalDataError ? (
+            <div className="text-sm text-muted-foreground">{t('Restarting Ocbot...')}</div>
+          ) : null}
+        </div>
       </div>
     </div>
   )

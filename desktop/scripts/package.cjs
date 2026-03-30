@@ -29,6 +29,7 @@ Options:
   --arch <x64|arm64|ia32|all>
   --target <app|dmg|exe|all>
   --publish <never|always>
+  --sign
   --skip-build
   --skip-openclaw
   --dry-run
@@ -179,12 +180,17 @@ function runElectronBuilder(task, options) {
     ...process.env,
   }
 
+  if (!options.sign) {
+    env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+  }
+
   if (options.skipOpenClaw) {
     env.OCBOT_SKIP_OPENCLAW_PREP = '1'
   }
 
   console.log(`[package] Packaging ${getTaskLabel(task)}`)
   console.log(`[package] npm ${args.join(' ')}`)
+  console.log(`[package] Signing ${options.sign ? 'enabled' : 'disabled'}`)
 
   if (options.dryRun) {
     return
@@ -221,6 +227,7 @@ function main() {
     dryRun: hasCliFlag(argv, '--dry-run'),
     platform: readCliOption(argv, '--platform'),
     publish: readCliOption(argv, '--publish') || 'never',
+    sign: hasCliFlag(argv, '--sign'),
     skipBuild: hasCliFlag(argv, '--skip-build'),
     skipOpenClaw: hasCliFlag(argv, '--skip-openclaw'),
     target: readCliOption(argv, '--target'),
