@@ -276,8 +276,10 @@ export class WindowManager {
       height: 960,
       minWidth: 480,
       minHeight: 400,
+      show: false,
       title: 'Ocbot',
       icon: this.iconPath,
+      backgroundColor: '#f6f3ff',
       titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
       trafficLightPosition: { x: 16, y: 16 },
       webPreferences: {
@@ -296,6 +298,10 @@ export class WindowManager {
 
     // Load local renderer HTML instead of gateway Control UI
     this.window.loadFile(join(__dirname, '..', 'renderer', 'index.html'))
+
+    this.window.once('ready-to-show', () => {
+      this.window?.show()
+    })
 
     this.window.on('closed', () => {
       this.window = null

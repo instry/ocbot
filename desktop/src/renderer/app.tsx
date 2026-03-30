@@ -51,10 +51,10 @@ export function App() {
   // Connection screen
   if (gatewayStatus !== 'connected' && !hasConnectedOnce) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-bg">
-        <div className="flex flex-col items-center gap-3 animate-fade-in">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-          <span className="text-sm text-muted-foreground">
+      <div className="flex h-screen w-screen items-center justify-center bg-linear-to-b from-[#faf7ff] to-[#f3efff]">
+        <div className="flex flex-col items-center gap-3 rounded-3xl border border-[#e9d5ff] bg-white/90 px-8 py-7 shadow-[0_20px_60px_rgba(124,58,237,0.12)] backdrop-blur-sm animate-fade-in">
+          <Loader2 className="h-8 w-8 animate-spin text-[#7c3aed]" />
+          <span className="text-sm text-[#4c1d95]">
             {gatewayStatus === 'connecting'
               ? t('Connecting to Ocbot...')
               : t('Starting AI runtime')}
@@ -66,10 +66,10 @@ export function App() {
 
   if (setupStatus === 'checking' && (location.pathname === '/' || location.pathname.startsWith('/chat'))) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-bg">
-        <div className="flex flex-col items-center gap-3 animate-fade-in">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-          <span className="text-sm text-muted-foreground">{t('Preparing first-time setup...')}</span>
+      <div className="flex h-screen w-screen items-center justify-center bg-linear-to-b from-[#faf7ff] to-[#f3efff]">
+        <div className="flex flex-col items-center gap-3 rounded-3xl border border-[#e9d5ff] bg-white/90 px-8 py-7 shadow-[0_20px_60px_rgba(124,58,237,0.12)] backdrop-blur-sm animate-fade-in">
+          <Loader2 className="h-8 w-8 animate-spin text-[#7c3aed]" />
+          <span className="text-sm text-[#4c1d95]">{t('Preparing first-time setup...')}</span>
         </div>
       </div>
     )
