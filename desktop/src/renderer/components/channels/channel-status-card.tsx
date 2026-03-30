@@ -26,7 +26,7 @@ export function ChannelStatusCard({ status, className }: ChannelStatusCardProps)
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center justify-between">
           Status
-          <Badge variant={connected ? 'default' : 'secondary'}>
+          <Badge variant={connected ? 'accent' : 'secondary'}>
             {connected ? 'Connected' : 'Disconnected'}
           </Badge>
         </CardTitle>

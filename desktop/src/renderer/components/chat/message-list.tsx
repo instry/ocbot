@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { MessageBubble } from './message-bubble'
+import { useI18n } from '@/lib/i18n'
 import { useChatStore } from '@/stores/chat-store'
 
 export function MessageList() {
+  const { t } = useI18n()
   const messages = useChatStore(s => s.messages)
   const isLoadingHistory = useChatStore(s => s.isLoadingHistory)
   const streamText = useChatStore(s => s.streamText)
@@ -46,7 +48,7 @@ export function MessageList() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 animate-fade-in">
         <img src="./logo.png" alt="Ocbot" className="h-14 w-14 opacity-80" />
-        <span className="text-lg font-medium text-text-strong">How can I help?</span>
+        <span className="text-lg font-medium text-text-strong">{t('How can I help?')}</span>
       </div>
     )
   }

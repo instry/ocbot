@@ -4,6 +4,34 @@ import { join } from 'node:path'
 
 export type TrayStatus = 'running' | 'updating' | 'error'
 
+type AppLocale = 'en' | 'zh-CN'
+
+function normalizeSystemLocale(locale?: string | null): AppLocale {
+  const normalized = (locale ?? '').trim().toLowerCase()
+  if (normalized === 'zh' || normalized.startsWith('zh-')) {
+    return 'zh-CN'
+  }
+  return 'en'
+}
+
+function t(locale: AppLocale, text: string): string {
+  if (locale !== 'zh-CN') {
+    return text
+  }
+
+  const translations: Record<string, string> = {
+    'Ocbot is still running': 'Ocbot 仍在运行',
+    'Ocbot is running in the background. Click the menu bar icon to reopen.': 'Ocbot 正在后台运行。点击菜单栏图标可重新打开。',
+    '\u25CF Ocbot is running': '\u25CF Ocbot 正在运行',
+    '\u25D0 Ocbot is updating...': '\u25D0 Ocbot 正在更新...',
+    '\u25CB Ocbot runtime error': '\u25CB Ocbot 运行时错误',
+    'Open Ocbot': '打开 Ocbot',
+    'Quit Ocbot': '退出 Ocbot',
+  }
+
+  return translations[text] ?? text
+}
+
 /**
  * System tray icon and menu.
  * Replaces C++ OcbotStatusIcon (~300 lines) with ~60 lines of TypeScript.
@@ -13,9 +41,11 @@ export class TrayManager {
   private status: TrayStatus = 'running'
   private runtimeVersion: string | null = null
   private didShowBackgroundNotice = false
+  private readonly locale: AppLocale
   private readonly onOpen: () => void
 
   constructor(onOpen: () => void) {
+    this.locale = normalizeSystemLocale(app.getLocale())
     this.onOpen = onOpen
     this.create()
   }
@@ -38,8 +68,8 @@ export class TrayManager {
     this.didShowBackgroundNotice = true
 
     new Notification({
-      title: 'Ocbot is still running',
-      body: 'Ocbot is running in the background. Click the menu bar icon to reopen.',
+      title: t(this.locale, 'Ocbot is still running'),
+      body: t(this.locale, 'Ocbot is running in the background. Click the menu bar icon to reopen.'),
     }).show()
   }
 
@@ -55,15 +85,15 @@ export class TrayManager {
     if (!this.tray) return
 
     const statusLabels: Record<TrayStatus, string> = {
-      running: '\u25CF Ocbot is running',
-      updating: '\u25D0 Ocbot is updating...',
-      error: '\u25CB Ocbot runtime error',
+      running: t(this.locale, '\u25CF Ocbot is running'),
+      updating: t(this.locale, '\u25D0 Ocbot is updating...'),
+      error: t(this.locale, '\u25CB Ocbot runtime error'),
     }
 
     const template: Electron.MenuItemConstructorOptions[] = [
       { label: statusLabels[this.status], enabled: false },
       { type: 'separator' },
-      { label: 'Open Ocbot', click: () => this.onOpen() },
+      { label: t(this.locale, 'Open Ocbot'), click: () => this.onOpen() },
       { type: 'separator' },
     ]
 
@@ -74,7 +104,7 @@ export class TrayManager {
       )
     }
 
-    template.push({ label: 'Quit Ocbot', click: () => app.quit() })
+    template.push({ label: t(this.locale, 'Quit Ocbot'), click: () => app.quit() })
 
     this.tray.setContextMenu(Menu.buildFromTemplate(template))
   }

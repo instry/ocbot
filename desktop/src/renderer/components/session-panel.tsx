@@ -2,17 +2,19 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { Trash2, Search, X, SquarePen } from 'lucide-react'
 import { PrimaryActionButton } from '@/components/ui/primary-action-button'
+import { useI18n } from '@/lib/i18n'
 import { useChatStore } from '@/stores/chat-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { cn } from '@/lib/utils'
 import type { Session } from '@/types/chat'
 
-function sessionTitle(s: Session): string {
-  return s.label || s.displayName || s.derivedTitle || 'New Chat'
+function sessionTitle(s: Session, fallbackTitle: string): string {
+  return s.label || s.displayName || s.derivedTitle || fallbackTitle
 }
 
 export function SessionPanel() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const sessions = useChatStore(s => s.sessions)
   const activeSessionKey = useChatStore(s => s.activeSessionKey)
   const setSessions = useChatStore(s => s.setSessions)
@@ -65,10 +67,10 @@ export function SessionPanel() {
     () =>
       search
         ? safeSessions.filter(s =>
-            sessionTitle(s).toLowerCase().includes(search.toLowerCase())
+            sessionTitle(s, t('New Chat')).toLowerCase().includes(search.toLowerCase())
           )
         : safeSessions,
-    [safeSessions, search]
+    [safeSessions, search, t]
   )
 
   const handleNewChat = useCallback(() => {
@@ -100,12 +102,12 @@ export function SessionPanel() {
       {/* Header */}
       <div className="no-drag flex items-center justify-between px-3 py-2.5">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Sessions
+          {t('Sessions')}
         </span>
         <button
           onClick={handleNewChat}
           className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-bg-hover hover:text-text"
-          title="New Chat"
+          title={t('New Chat')}
         >
           <SquarePen className="h-3.5 w-3.5" />
         </button>
@@ -117,7 +119,7 @@ export function SessionPanel() {
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder={t('Search...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-7 w-full rounded-md border border-border bg-bg-muted pl-8 pr-7 text-xs text-text placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-0"
@@ -141,7 +143,7 @@ export function SessionPanel() {
           fullWidth
           className="justify-center"
         >
-          New Chat
+          {t('New Chat')}
         </PrimaryActionButton>
       </div>
 
@@ -155,7 +157,7 @@ export function SessionPanel() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-            {search ? 'No sessions found' : 'No sessions yet'}
+            {search ? t('No sessions found') : t('No sessions yet')}
           </div>
         ) : (
           filtered.map(session => (
@@ -173,7 +175,7 @@ export function SessionPanel() {
                 <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r bg-accent" />
               )}
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{sessionTitle(session)}</div>
+                <div className="truncate font-medium">{sessionTitle(session, t('New Chat'))}</div>
                 {session.lastMessage && (
                   <div className="truncate text-[11px] text-muted-foreground">
                     {session.lastMessage}

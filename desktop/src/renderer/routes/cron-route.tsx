@@ -796,9 +796,6 @@ export function CronRoute() {
             <div className="space-y-3 rounded-xl border border-border bg-card px-4 py-4">
               <div>
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Delivery</div>
-                <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                  定时任务默认只运行不发送结果。若要推送到飞书，请填写 channel 和 target。
-                </div>
               </div>
 
               <Field label="Mode">

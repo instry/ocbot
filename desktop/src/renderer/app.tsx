@@ -6,6 +6,7 @@ import { Titlebar } from '@/components/titlebar'
 import { ConnectionStatus } from '@/components/connection-status'
 import { useGateway } from '@/hooks/use-gateway'
 import { useTheme } from '@/hooks/use-theme'
+import { useI18n } from '@/lib/i18n'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { useSetupStore } from '@/stores/setup-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -14,6 +15,7 @@ import { Loader2 } from 'lucide-react'
 export function App() {
   const gatewayStatus = useGateway()
   useTheme()
+  const { t } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -54,8 +56,8 @@ export function App() {
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
           <span className="text-sm text-muted-foreground">
             {gatewayStatus === 'connecting'
-              ? 'Connecting to Ocbot...'
-              : 'Starting AI runtime'}
+              ? t('Connecting to Ocbot...')
+              : t('Starting AI runtime')}
           </span>
         </div>
       </div>
@@ -67,7 +69,7 @@ export function App() {
       <div className="flex h-screen w-screen items-center justify-center bg-bg">
         <div className="flex flex-col items-center gap-3 animate-fade-in">
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
-          <span className="text-sm text-muted-foreground">Preparing first-time setup...</span>
+          <span className="text-sm text-muted-foreground">{t('Preparing first-time setup...')}</span>
         </div>
       </div>
     )
@@ -94,7 +96,7 @@ export function App() {
       {hasConnectedOnce && gatewayStatus !== 'connected' ? (
         <div className="pointer-events-none absolute inset-x-0 top-(--titlebar-height) z-50 flex justify-center p-3">
           <div className="rounded-full border border-border bg-bg/90 px-3 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
-            Reconnecting AI runtime…
+            {t('Reconnecting AI runtime…')}
           </div>
         </div>
       ) : null}

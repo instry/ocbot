@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PrimaryActionButton } from '@/components/ui/primary-action-button'
+import { useI18n } from '@/lib/i18n'
 import { CN_URLS, useModelStore } from '@/stores/model-store'
 import { useSetupStore } from '@/stores/setup-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -18,6 +19,7 @@ type ProviderWithModels = ConfiguredProvider & { models: GatewayModel[] }
 
 export function ModelsRoute() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const [view, setView] = useState<ModelsView>('list')
   const [providers, setProviders] = useState<ProviderWithModels[]>([])
@@ -122,7 +124,7 @@ export function ModelsRoute() {
   }
 
   async function deleteProvider(profileKey: string) {
-    if (!confirm(`Delete "${profileKey}"?`)) return
+    if (!confirm(`${t('Delete')} "${profileKey}"?`)) return
 
     try {
       const gw = getGatewayClient()
@@ -220,13 +222,15 @@ export function ModelsRoute() {
             className="w-fit px-0 text-muted-foreground hover:border-transparent hover:bg-transparent"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Models
+            {t('Back to Models')}
           </Button>
         ) : null}
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold text-text-strong">{isOnboarding ? 'Set Up Your First Provider' : 'Add Provider'}</h2>
+          <h2 className="text-2xl font-semibold text-text-strong">
+            {isOnboarding ? t('Set Up Your First Provider') : t('Add Provider')}
+          </h2>
           {isOnboarding ? (
-            <p className="text-sm text-muted-foreground">Add one model provider to finish setup and unlock chat.</p>
+            <p className="text-sm text-muted-foreground">{t('Add one model provider to finish setup and unlock chat.')}</p>
           ) : null}
         </div>
         <ProviderForm onSaved={handleSaved} onCancel={handleCancel} />
@@ -243,10 +247,10 @@ export function ModelsRoute() {
           className="w-fit px-0 text-muted-foreground hover:border-transparent hover:bg-transparent"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Models
+          {t('Back to Models')}
         </Button>
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold text-text-strong">Edit</h2>
+          <h2 className="text-2xl font-semibold text-text-strong">{t('Edit')}</h2>
         </div>
         <ProviderForm
           editProfileKey={editingProvider.profileKey}
@@ -261,15 +265,15 @@ export function ModelsRoute() {
   return (
     <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold text-text-strong">Models</h2>
-        <p className="text-sm text-muted-foreground">Manage your AI model providers and API keys.</p>
+        <h2 className="text-2xl font-semibold text-text-strong">{t('Models')}</h2>
+        <p className="text-sm text-muted-foreground">{t('Manage your AI model providers and API keys.')}</p>
       </div>
 
       {isOnboarding || (setupStatus === 'needs_onboarding' && providers.length === 0 && !loading) ? (
         <Card className="shadow-none">
           <CardHeader>
-            <CardTitle>Complete setup</CardTitle>
-            <CardDescription>Add your first provider before using chat.</CardDescription>
+            <CardTitle>{t('Complete setup')}</CardTitle>
+            <CardDescription>{t('Add your first provider before using chat.')}</CardDescription>
           </CardHeader>
         </Card>
       ) : null}
@@ -277,11 +281,11 @@ export function ModelsRoute() {
       <div className="space-y-4">
         {loading ? (
           <Card className="shadow-none">
-            <CardContent className="p-5 text-sm text-muted-foreground">Loading...</CardContent>
+            <CardContent className="p-5 text-sm text-muted-foreground">{t('Loading...')}</CardContent>
           </Card>
         ) : providers.length === 0 ? (
           <Card className="shadow-none">
-            <CardContent className="p-5 text-sm text-muted-foreground">No providers configured yet. Add one to get started.</CardContent>
+            <CardContent className="p-5 text-sm text-muted-foreground">{t('No providers configured yet. Add one to get started.')}</CardContent>
           </Card>
         ) : (
           providers.map(p => {
@@ -302,7 +306,7 @@ export function ModelsRoute() {
                   if ((event.target as HTMLElement).closest('[data-provider-actions="true"]')) return
                   setDefaultProvider(p)
                 }}
-                title={p.isDefault ? 'Current default provider' : 'Click to switch provider'}
+                title={p.isDefault ? t('Current default provider') : t('Click to switch provider')}
               >
                 <CardContent className="flex items-center justify-between gap-4 p-4">
                   <div className="flex min-w-0 items-center gap-3">
@@ -312,7 +316,7 @@ export function ModelsRoute() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="truncate text-sm font-medium text-text-strong">{p.label}</span>
-                        {p.isDefault && <Badge variant="accent">★ Default</Badge>}
+                        {p.isDefault && <Badge variant="accent">{t('★ Default')}</Badge>}
                       </div>
                       {!isDefaultProfileKey ? (
                         <div className="mt-0.5 truncate text-xs text-muted-foreground">{p.profileKey}</div>
@@ -361,7 +365,7 @@ export function ModelsRoute() {
                       variant="secondary"
                       size="icon"
                       className="text-muted-foreground"
-                      title="Edit"
+                      title={t('Edit')}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -369,7 +373,7 @@ export function ModelsRoute() {
                       onClick={() => deleteProvider(p.profileKey)}
                       variant="danger"
                       size="icon"
-                      title="Delete"
+                      title={t('Delete')}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -385,7 +389,7 @@ export function ModelsRoute() {
           fullWidth
           className="justify-center"
         >
-          Add
+          {t('Add')}
         </PrimaryActionButton>
       </div>
     </div>

@@ -6,10 +6,12 @@ import { CHANNEL_PLATFORMS } from '@/types/channel'
 import { FeishuChannelSection } from '@/components/channels/feishu-channel-section'
 import { GenericChannelPanel } from '@/components/channels/generic-channel-panel'
 import { WeixinChannelSection } from '@/components/channels/weixin-channel-section'
+import { useI18n } from '@/lib/i18n'
 import { PRIORITY_CHANNELS } from '@/lib/channel-platforms'
 import { cn } from '@/lib/utils'
 
 export function ChannelsRoute() {
+  const { t } = useI18n()
   const client = useGatewayStore(s => s.client)
   const {
     selectedPlatform,
@@ -105,7 +107,7 @@ export function ChannelsRoute() {
       {/* Sidebar */}
       <div className="w-64 border-r border-border bg-bg-subtle flex flex-col">
         <div className="px-4 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold text-text-strong">Mobile</h2>
+          <h2 className="text-sm font-semibold text-text-strong">{t('Mobile')}</h2>
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
           {orderedChannels.map(ch => {
@@ -126,7 +128,7 @@ export function ChannelsRoute() {
                   'h-2 w-2 rounded-full',
                   connected ? 'bg-ok' : 'bg-muted'
                 )} />
-                <span className="flex-1 text-left">{ch.label}</span>
+                <span className="flex-1 text-left">{ch.id === 'weixin' ? 'WeChat' : ch.id === 'feishu' ? 'Feishu' : ch.label}</span>
               </button>
             )
           })}
@@ -139,9 +141,9 @@ export function ChannelsRoute() {
           <div className="flex h-full items-center justify-center p-6">
             <div className="text-center max-w-md">
               <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold text-text-strong mb-2">Mobile</h3>
+              <h3 className="text-lg font-semibold text-text-strong mb-2">{t('Mobile')}</h3>
               <p className="text-sm text-muted-foreground">
-                Connect your agent to messaging platforms. Select a channel to configure.
+                {t('Connect your agent to messaging platforms. Select a channel to configure.')}
               </p>
             </div>
           </div>

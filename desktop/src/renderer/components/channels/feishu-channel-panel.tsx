@@ -2,6 +2,7 @@ import { QrCode } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 interface FeishuManualDraft {
@@ -55,6 +56,7 @@ export function FeishuChannelPanel({
   onCancelFeishuManualConfig,
   onSaveFeishuManualConfig,
 }: FeishuChannelPanelProps) {
+  const { t } = useI18n()
   return (
     <div className="space-y-4">
       <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
@@ -68,7 +70,7 @@ export function FeishuChannelPanel({
               className="w-full text-white"
             >
               <QrCode className="h-4 w-4" />
-              {currentAppId ? 'Scan to Recreate Credentials' : 'Scan to Create Credentials'}
+              {currentAppId ? t('Scan to Recreate Credentials') : t('Scan to Create Credentials')}
             </Button>
           </>
         )}
@@ -76,7 +78,7 @@ export function FeishuChannelPanel({
         {qrWaiting && !qrValue && (
           <div className="flex items-center justify-center gap-2 py-4">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-            <span className="text-sm text-muted-foreground">Generating QR code...</span>
+            <span className="text-sm text-muted-foreground">{t('Generating QR code...')}</span>
           </div>
         )}
 
@@ -90,26 +92,26 @@ export function FeishuChannelPanel({
 
             {feishuExpiresIn !== null && feishuExpiresIn > 0 && (
               <div className="text-center text-xs text-muted-foreground">
-                Expires in {feishuExpiresIn}s
+                {t('Expires in {{seconds}}s', { seconds: feishuExpiresIn })}
               </div>
             )}
 
             {feishuQrExpired && (
               <div className="flex items-center justify-center gap-2 text-xs">
-                <span className="text-danger">This QR code has expired.</span>
+                <span className="text-danger">{t('This QR code has expired.')}</span>
                 <button
                   onClick={onStartQrLogin}
                   disabled={feishuQrActionDisabled}
                   className="font-medium text-accent hover:text-accent/80 hover:underline disabled:opacity-50"
                 >
-                  Refresh
+                  {t('Refresh')}
                 </button>
               </div>
             )}
 
             {!feishuQrExpired && (
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <span>Scan with Feishu</span>
+                <span>{t('Scan with Feishu')}</span>
               </div>
             )}
           </div>
@@ -129,7 +131,7 @@ export function FeishuChannelPanel({
                 {qrMessage === 'Feishu authorization completed.' ? (
                   <>
                     <span className="h-2 w-2 rounded-full bg-ok" />
-                    Feishu is connected
+                    {t('Feishu is connected')}
                   </>
                 ) : qrMessage}
               </div>
@@ -146,18 +148,18 @@ export function FeishuChannelPanel({
           <div className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-bg px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">OR Manual configuration</span>
+          <span className="bg-bg px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('OR Manual configuration')}</span>
         </div>
       </div>
 
       <div className="space-y-3 rounded-lg border border-border bg-bg-subtle p-4">
         <div className="space-y-3">
           <div>
-            <label className="mb-1.5 block text-xs text-muted-foreground">Domain</label>
+            <label className="mb-1.5 block text-xs text-muted-foreground">{t('Domain')}</label>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { value: 'feishu', label: 'Feishu (China)' },
-                { value: 'lark', label: 'Lark (Global)' },
+                { value: 'feishu', label: t('Feishu (China)') },
+                { value: 'lark', label: t('Lark (Global)') },
               ].map((option) => {
                 const active = feishuManualDraft.domain === option.value
                 return (
@@ -180,21 +182,21 @@ export function FeishuChannelPanel({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs text-muted-foreground">App ID</label>
+            <label className="mb-1.5 block text-xs text-muted-foreground">{t('App ID')}</label>
             <Input
               value={feishuManualDraft.appId}
               onChange={(event) => onFeishuManualChange({ appId: event.target.value })}
-              placeholder="Enter App ID"
+              placeholder={t('Enter App ID')}
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs text-muted-foreground">App Secret</label>
+            <label className="mb-1.5 block text-xs text-muted-foreground">{t('App Secret')}</label>
             <Input
               type="password"
               value={feishuManualDraft.appSecret}
               onChange={(event) => onFeishuManualChange({ appSecret: event.target.value })}
-              placeholder="Enter App Secret"
+              placeholder={t('Enter App Secret')}
             />
           </div>
 
@@ -205,7 +207,7 @@ export function FeishuChannelPanel({
               variant="secondary"
               size="md"
             >
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button
               onClick={onSaveFeishuManualConfig}
@@ -213,7 +215,7 @@ export function FeishuChannelPanel({
               variant="primary"
               size="md"
             >
-              Save
+              {t('Save')}
             </Button>
           </div>
         </div>

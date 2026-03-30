@@ -92,6 +92,7 @@ declare global {
       close: () => void
       installSkill: (slug: string, version?: string) => Promise<{ ok: boolean; message: string }>
       uninstallSkill: (slug: string) => Promise<{ ok: boolean; message: string }>
+      getSystemLocale: () => Promise<string>
       getGatewayConnectionInfo: () => Promise<OcbotGatewayConnectionInfo>
       getBrowserProfiles: () => Promise<OcbotBrowserProfilesResult[]>
       getOcbotBrowserPath: () => Promise<string>

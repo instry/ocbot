@@ -358,6 +358,7 @@ export class WindowManager {
     })
     ipcMain.handle('browser:getProfiles', async () => scanBrowserProfiles())
     ipcMain.handle('browser:getOcbotPath', async () => resolveOcbotBrowserPath())
+    ipcMain.handle('app:getSystemLocale', async () => app.getLocale())
     ipcMain.handle('gateway:getConnectionInfo', async () => resolveGatewayConnectionInfo(this.runtimeManager))
     ipcMain.handle('startup:getSettings', async () => buildStartupSettings())
     ipcMain.handle('startup:setOpenAtLogin', async (_event, openAtLogin: boolean) => updateStartupOpenAtLogin(openAtLogin))

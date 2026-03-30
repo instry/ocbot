@@ -4,6 +4,7 @@ import { getGatewayClient } from '@/gateway'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SelectionGroup } from '@/components/ui/selection-group'
+import { useI18n, type AppLocalePreference } from '@/lib/i18n'
 import { OCBOT_VERSION } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
@@ -46,6 +47,7 @@ function resolveSelectedProfile(
 }
 
 export function SettingsRoute() {
+  const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const { themeMode, setThemeMode } = useUIStore()
   const [browserChoice, setBrowserChoice] = useState<BrowserChoice>('system')
@@ -81,12 +83,12 @@ export function SettingsRoute() {
     }> = [
       {
         value: 'system',
-        label: 'System',
+        label: t('System'),
         icon: <Globe className="h-4 w-4" />,
       },
       {
         value: 'custom',
-        label: 'Custom',
+        label: t('Custom'),
         icon: <Sliders className="h-4 w-4" />,
       },
     ]
@@ -100,7 +102,7 @@ export function SettingsRoute() {
     }
 
     return options
-  }, [ocbotBrowserPath])
+  }, [ocbotBrowserPath, t])
 
   const browserSaveDisabled = !browserDirty
     || browserSaving
@@ -177,7 +179,7 @@ export function SettingsRoute() {
       applyBrowserConfig(result ?? {}, profiles, ocbotPath)
     } catch (err) {
       console.error('Failed to load browser config:', err)
-      setBrowserError('Failed to load browser settings.')
+      setBrowserError(t('Failed to load browser settings.'))
     } finally {
       setBrowserLoading(false)
     }
@@ -238,7 +240,7 @@ export function SettingsRoute() {
       window.setTimeout(() => setBrowserSaveSuccess(false), 2500)
     } catch (err) {
       console.error('Failed to save browser config:', err)
-      setBrowserError('Failed to save browser settings.')
+      setBrowserError(t('Failed to save browser settings.'))
     } finally {
       setBrowserSaving(false)
     }
@@ -248,7 +250,7 @@ export function SettingsRoute() {
     <div className="flex flex-1 overflow-hidden">
       <aside className="flex w-56 flex-col border-r border-border bg-bg-subtle/80 p-3">
         <div className="px-2 py-2">
-          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Settings</div>
+          <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">{t('Settings')}</div>
         </div>
         <nav className="mt-3 flex flex-1 flex-col gap-1">
           {tabs.map(({ value, label, icon: Icon }) => (
@@ -262,7 +264,7 @@ export function SettingsRoute() {
               onClick={() => setActiveTab(value)}
             >
               <Icon className="h-4 w-4" />
-              {label}
+              {t(label)}
             </Button>
           ))}
         </nav>
@@ -297,6 +299,7 @@ export function SettingsRoute() {
 }
 
 function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThemeMode: (mode: ThemeMode) => void }) {
+  const { t, preference, setPreference } = useI18n()
   const [startupAvailable, setStartupAvailable] = useState(false)
   const [startupEnabled, setStartupEnabled] = useState(false)
   const [startupLoading, setStartupLoading] = useState(true)
@@ -307,12 +310,12 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
   const colorOptions = [
     {
       value: 'light' as const,
-      label: 'Light',
+      label: t('Light'),
       icon: <Sun className="h-4 w-4" />,
     },
     {
       value: 'dark' as const,
-      label: 'Dark',
+      label: t('Dark'),
       icon: <Moon className="h-4 w-4" />,
     },
   ]
@@ -320,15 +323,37 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
   const startupOptions = [
     {
       value: 'off',
-      label: 'Off',
+      label: t('Off'),
       icon: <X className="h-4 w-4" />,
     },
     {
       value: 'on',
-      label: 'On',
+      label: t('On'),
       icon: <CheckCircle2 className="h-4 w-4" />,
     },
   ]
+
+  const languageOptions = [
+    {
+      value: 'system' as const,
+      label: t('Follow System'),
+      icon: <Globe className="h-4 w-4" />,
+    },
+    {
+      value: 'en' as const,
+      label: t('English'),
+      icon: <span className="text-xs font-semibold">EN</span>,
+    },
+    {
+      value: 'zh-CN' as const,
+      label: t('中文'),
+      icon: <span className="text-xs font-semibold">中</span>,
+    },
+  ] satisfies Array<{
+    value: AppLocalePreference
+    label: string
+    icon: ReactElement
+  }>
 
   useEffect(() => {
     void loadStartupSettings()
@@ -349,7 +374,7 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
       console.error('Failed to load startup settings:', err)
       setStartupAvailable(false)
       setStartupEnabled(false)
-      setStartupError('Failed to load startup settings.')
+      setStartupError(t('Failed to load startup settings.'))
     } finally {
       setStartupLoading(false)
     }
@@ -377,7 +402,7 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
     } catch (err) {
       console.error('Failed to save startup settings:', err)
       setStartupEnabled(previousValue)
-      setStartupError('Failed to save startup settings.')
+      setStartupError(t('Failed to save startup settings.'))
     } finally {
       setStartupSaving(false)
     }
@@ -386,12 +411,12 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
   return (
     <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold text-text-strong">General</h2>
+        <h2 className="text-2xl font-semibold text-text-strong">{t('General')}</h2>
       </div>
 
       <div className="space-y-4">
         <div>
-          <div className="text-sm font-medium text-text-strong">Color Scheme</div>
+          <div className="text-sm font-medium text-text-strong">{t('Color Scheme')}</div>
         </div>
         <SelectionGroup
           value={themeMode}
@@ -404,7 +429,20 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
 
       <div className="space-y-4">
         <div>
-          <div className="text-sm font-medium text-text-strong">Launch at Login</div>
+          <div className="text-sm font-medium text-text-strong">{t('Language')}</div>
+        </div>
+        <SelectionGroup
+          value={preference}
+          options={languageOptions}
+          onChange={setPreference}
+          size="compact"
+          className="border-0 bg-transparent p-0 shadow-none backdrop-blur-none grid-cols-1 sm:grid-cols-3"
+        />
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <div className="text-sm font-medium text-text-strong">{t('Launch at Login')}</div>
         </div>
         <SelectionGroup
           value={startupEnabled ? 'on' : 'off'}
@@ -419,15 +457,15 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
           <div className="text-sm text-destructive">{startupError}</div>
         ) : null}
         {!startupAvailable && !startupLoading ? (
-          <div className="text-sm text-muted-foreground">Packaged app only.</div>
+          <div className="text-sm text-muted-foreground">{t('Packaged app only.')}</div>
         ) : null}
         {startupSaving ? (
-          <div className="text-sm text-muted-foreground">Saving…</div>
+          <div className="text-sm text-muted-foreground">{t('Saving…')}</div>
         ) : null}
         {startupSaveSuccess && !startupSaving ? (
           <div className="inline-flex items-center gap-2 text-sm text-ok">
             <CheckCircle2 className="h-4 w-4" />
-            Saved
+            {t('Saved')}
           </div>
         ) : null}
       </div>
@@ -468,11 +506,12 @@ function BrowserTab({
   onRefresh: () => void
   onSave: () => void
 }) {
+  const { t } = useI18n()
   return (
     <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold text-text-strong">Browser</h2>
-        <p className="text-sm text-muted-foreground">Choose which browser the agent uses for web tasks and attached sessions.</p>
+        <h2 className="text-2xl font-semibold text-text-strong">{t('Browser')}</h2>
+        <p className="text-sm text-muted-foreground">{t('Choose which browser the agent uses for web tasks and attached sessions.')}</p>
       </div>
 
       {browserError ? (
@@ -496,8 +535,8 @@ function BrowserTab({
       {browserChoice === 'system' ? (
         <Card>
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Attach to an existing Chromium profile with saved logins and cookies.</CardDescription>
+            <CardTitle>{t('Profile')}</CardTitle>
+            <CardDescription>{t('Attach to an existing Chromium profile with saved logins and cookies.')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {browserProfiles.length > 0 ? (
@@ -508,7 +547,7 @@ function BrowserTab({
                   disabled={browserSaving || browserLoading}
                   className="w-full appearance-none rounded-xl border border-border bg-bg px-3 py-2 pr-11 text-sm text-text shadow-sm outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="">Auto-detect</option>
+                  <option value="">{t('Auto-detect')}</option>
                   {browserProfiles.map((browser) => (
                     <optgroup
                       key={browser.browser.kind}
@@ -526,7 +565,7 @@ function BrowserTab({
               </div>
             ) : (
               <div className="rounded-xl border border-border bg-bg-subtle/60 px-3 py-2 text-sm text-muted-foreground">
-                No local Chromium profiles were detected. The agent will use the system browser without attaching to a saved profile.
+                {t('No local Chromium profiles were detected. The agent will use the system browser without attaching to a saved profile.')}
               </div>
             )}
           </CardContent>
@@ -535,7 +574,7 @@ function BrowserTab({
 
       <div className="mt-2 flex flex-wrap items-center justify-start gap-3 border-t border-border/80 pt-4">
         <Button variant="ghost" size="md" className="min-w-[108px]" onClick={onRefresh} disabled={browserSaving}>
-          Refresh
+          {t('Refresh')}
         </Button>
         <Button
           variant="secondary"
@@ -544,7 +583,7 @@ function BrowserTab({
           onClick={onCancel}
           disabled={browserSaving || !browserDirty}
         >
-          Cancel
+          {t('Cancel')}
         </Button>
         <Button
           variant="primary"
@@ -553,7 +592,7 @@ function BrowserTab({
           onClick={onSave}
           disabled={browserSaveDisabled}
         >
-          {browserSaving ? 'Saving...' : 'Save'}
+          {browserSaving ? t('Saving...') : t('Save')}
         </Button>
       </div>
     </div>

@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('skill:install', slug, version),
   uninstallSkill: (slug: string) =>
     ipcRenderer.invoke('skill:uninstall', slug),
+  getSystemLocale: () =>
+    ipcRenderer.invoke('app:getSystemLocale'),
   getGatewayConnectionInfo: () =>
     ipcRenderer.invoke('gateway:getConnectionInfo'),
   getBrowserProfiles: () =>

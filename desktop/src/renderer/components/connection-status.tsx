@@ -1,8 +1,10 @@
 import { Loader2, WifiOff } from 'lucide-react'
+import { useI18n } from '@/lib/i18n'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { cn } from '@/lib/utils'
 
 export function ConnectionStatus() {
+  const { t } = useI18n()
   const status = useGatewayStore(s => s.status)
   const reconnectAttempt = useGatewayStore(s => s.reconnectAttempt)
 
@@ -21,13 +23,17 @@ export function ConnectionStatus() {
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>
-            Connecting{reconnectAttempt > 0 ? ` (attempt ${reconnectAttempt})` : ''}...
+            {t('Connecting{{attemptSuffix}}...', {
+              attemptSuffix: reconnectAttempt > 0
+                ? t(' (attempt {{attempt}})', { attempt: reconnectAttempt })
+                : '',
+            })}
           </span>
         </>
       ) : (
         <>
           <WifiOff className="h-4 w-4" />
-          <span>Disconnected</span>
+          <span>{t('Disconnected')}</span>
         </>
       )}
     </div>

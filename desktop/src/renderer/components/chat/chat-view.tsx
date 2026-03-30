@@ -4,6 +4,7 @@ import { MessageList } from './message-list'
 import { ChatInput } from './chat-input'
 import { ModelPicker } from './model-picker'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/lib/i18n'
 import { useChatStore } from '@/stores/chat-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { useSetupStore } from '@/stores/setup-store'
@@ -13,6 +14,7 @@ import type { ChatEventPayload, AgentEventPayload } from '@/types/chat'
 
 export function ChatView() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const client = useGatewayStore(s => s.client)
   const status = useGatewayStore(s => s.status)
   const activeSessionKey = useChatStore(s => s.activeSessionKey)
@@ -93,7 +95,7 @@ export function ChatView() {
         <ModelPicker />
         {sending && (
           <span className="text-xs text-muted-foreground animate-pulse-subtle">
-            Generating...
+            {t('Generating...')}
           </span>
         )}
       </div>
@@ -115,7 +117,7 @@ export function ChatView() {
                   navigate('/models?onboard=1')
                 }}
               >
-                Open Models
+                {t('Open Models')}
               </Button>
             ) : null}
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { FeishuChannelPanel } from './feishu-channel-panel'
+import { useI18n } from '@/lib/i18n'
 import type { ChannelConfig, ChannelPairingRequest } from '@/types/channel'
 
 type FeishuManualDraft = {
@@ -29,6 +30,7 @@ export function FeishuChannelSection({
   saveConfig,
   approvePairingCode,
 }: FeishuChannelSectionProps) {
+  const { t } = useI18n()
   const [qrFlowStarted, setQrFlowStarted] = useState(false)
   const [qrWaiting, setQrWaiting] = useState(false)
   const [qrValue, setQrValue] = useState<string | null>(null)
@@ -102,10 +104,10 @@ export function FeishuChannelSection({
       }
 
       if (approvedCount > 0) {
-        setPairingActionMessage('Feishu senders are approved automatically.')
+        setPairingActionMessage(t('Feishu senders are approved automatically.'))
       }
     })()
-  }, [approvePairingCode, currentPairingRequests])
+  }, [approvePairingCode, currentPairingRequests, t])
 
   const feishuQrExpired = qrFlowStarted && !!qrValue && feishuExpiresIn === 0
   const feishuQrActionDisabled = loading || (qrWaiting && !feishuQrExpired)
@@ -156,7 +158,7 @@ export function FeishuChannelSection({
 
     try {
       if (!window.ocbot) {
-        throw new Error('Ocbot desktop bridge not available')
+        throw new Error(t('Ocbot desktop bridge not available'))
       }
       const isLark = (currentConfig?.domain ?? '').trim().toLowerCase() === 'lark'
       const startResult = await window.ocbot.startFeishuInstallQrcode(isLark)
@@ -169,7 +171,7 @@ export function FeishuChannelSection({
           if (current <= 1) {
             clearFeishuTimers()
             setQrWaiting(false)
-            setFeishuAuthMessage('Authorization QR expired. Generate a new code to continue.')
+            setFeishuAuthMessage(t('Authorization QR expired. Generate a new code to continue.'))
             return 0
           }
           return current - 1
@@ -193,7 +195,7 @@ export function FeishuChannelSection({
         if (!verification.success) {
           clearFeishuTimers()
           setQrWaiting(false)
-          setFeishuAuthMessage(verification.error ?? 'Failed to verify Feishu credentials')
+          setFeishuAuthMessage(verification.error ?? t('Failed to verify Feishu credentials'))
           return
         }
 
@@ -212,7 +214,7 @@ export function FeishuChannelSection({
         setQrFlowStarted(false)
         setQrValue(null)
         setFeishuExpiresIn(null)
-        setQrMessage('Feishu authorization completed.')
+        setQrMessage(t('Feishu authorization completed.'))
       }
 
       feishuPollTimerRef.current = window.setInterval(() => {

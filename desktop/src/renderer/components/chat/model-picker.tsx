@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { ChevronDown, Check, Search, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useI18n } from '@/lib/i18n'
 import { useModelStore, CN_URLS } from '@/stores/model-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { cn } from '@/lib/utils'
 import type { GatewayModel } from '@/types/chat'
 
 export function ModelPicker() {
+  const { t } = useI18n()
   const models = useModelStore(s => s.models)
   const selectedModel = useModelStore(s => s.selectedModel)
   const selectModel = useModelStore(s => s.selectModel)
@@ -110,7 +112,7 @@ export function ModelPicker() {
             <Search className="h-3.5 w-3.5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search models..."
+              placeholder={t('Search models...')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-8 border-none bg-transparent px-0 text-xs shadow-none focus-visible:ring-0"
@@ -120,7 +122,7 @@ export function ModelPicker() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 rounded-lg border-transparent text-muted-foreground hover:border-border"
-              title="Add model"
+              title={t('Add model')}
               onClick={() => { setOpen(false); window.location.hash = '#/settings' }}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -132,16 +134,16 @@ export function ModelPicker() {
               <div className="px-3 py-4 text-center text-xs text-muted-foreground">
                 {safeModels.length === 0 ? (
                   <div className="flex flex-col gap-1">
-                    <span>No models configured</span>
+                    <span>{t('No models configured')}</span>
                     <button
                       className="text-accent hover:underline"
                       onClick={() => { setOpen(false); window.location.hash = '#/settings' }}
                     >
-                      Add a model
+                      {t('Add a model')}
                     </button>
                   </div>
                 ) : (
-                  'No models found'
+                  t('No models found')
                 )}
               </div>
             ) : (

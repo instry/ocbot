@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { ArrowUp, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { useI18n } from '@/lib/i18n'
 import { useChatStore } from '@/stores/chat-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { useSetupStore } from '@/stores/setup-store'
@@ -11,6 +12,7 @@ import { cn } from '@/lib/utils'
 
 export function ChatInput() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isComposingRef = useRef(false)
@@ -27,10 +29,10 @@ export function ChatInput() {
   const historyIndexRef = useRef(-1)
 
   const openSetup = useCallback(() => {
-    setError('No AI provider is configured yet. Open Models and add your first provider to finish setup.')
+    setError(t('No AI provider is configured yet. Open Models and add your first provider to finish setup.'))
     setTab('models')
     navigate('/models?onboard=1')
-  }, [setError, setTab, navigate])
+  }, [navigate, setError, setTab, t])
 
   const handleSend = useCallback(async () => {
     const text = input.trim()
@@ -125,7 +127,9 @@ export function ChatInput() {
             onKeyDown={handleKeyDown}
             onCompositionStart={() => { isComposingRef.current = true }}
             onCompositionEnd={() => { isComposingRef.current = false }}
-            placeholder={setupStatus === 'needs_onboarding' ? 'Add a provider in Models to start chatting...' : 'Send a message...'}
+            placeholder={setupStatus === 'needs_onboarding'
+              ? t('Add a provider in Models to start chatting...')
+              : t('Send a message...')}
             disabled={sending}
             rows={3}
             maxLength={20000}

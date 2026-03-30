@@ -10,6 +10,7 @@ import {
 import { useUIStore, type Tab } from '@/stores/ui-store'
 import { useGatewayStore } from '@/stores/gateway-store'
 import { OCBOT_VERSION } from '@/lib/constants'
+import { useI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -34,6 +35,7 @@ const NAV_GROUPS: NavItem[][] = [
 
 export function Sidebar() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const tab = useUIStore(s => s.tab)
   const setTab = useUIStore(s => s.setTab)
   const toggleSessionPanel = useUIStore(s => s.toggleSessionPanel)
@@ -102,7 +104,7 @@ export function Sidebar() {
                     <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r bg-accent" />
                   )}
                   <Icon className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
+                  <span>{t(item.label)}</span>
                 </button>
               )
             })}
@@ -122,7 +124,7 @@ export function Sidebar() {
           )}
         >
           <Settings className="h-4 w-4" />
-          <span>Settings</span>
+          <span>{t('Settings')}</span>
         </button>
 
         {/* Version */}

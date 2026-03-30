@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { SelectionGroup } from '@/components/ui/selection-group'
+import { useI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 interface ProviderHint {
@@ -204,8 +205,9 @@ function FieldHeader({
 }
 
 export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: ProviderFormProps) {
+  const { locale, t } = useI18n()
   const isEditMode = !!editProfileKey
-  const preferredRegion = navigator.language.startsWith('zh') ? 'cn' : 'global'
+  const preferredRegion = locale === 'zh-CN' ? 'cn' : 'global'
 
   const [selectedProvider, setSelectedProvider] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('')
@@ -304,7 +306,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
   async function save() {
     if (!selectedProvider) return
     if (!isLocal && !apiKey.trim() && !(isEditMode && hasStoredApiKey)) {
-      setError('API key is required')
+      setError(t('API key is required'))
       return
     }
 
@@ -430,7 +432,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
           <div className="space-y-5">
             {hint.regions?.length ? (
               <div className="space-y-3">
-                <FieldHeader title="Region" />
+                <FieldHeader title={t('Region')} />
                 <SelectionGroup
                   value={selectedRegion}
                   size="compact"
@@ -449,7 +451,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
             {!isLocal ? (
               <div className="space-y-3">
                 <FieldHeader
-                  title="API Key"
+                  title={t('API Key')}
                   action={hint.apiKeyUrl ? (
                     <a
                       href={hint.apiKeyUrl}
@@ -457,14 +459,14 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
                       rel="noopener"
                       className="inline-flex items-center gap-1 text-xs text-accent no-underline transition-colors hover:text-accent/80"
                     >
-                      Get key
+                      {t('Get key')}
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   ) : undefined}
                 />
                 <Input
                   type="text"
-                  placeholder={isEditMode && hasStoredApiKey ? 'Stored API key' : (hint.apiKeyPlaceholder ?? 'Enter API key')}
+                  placeholder={isEditMode && hasStoredApiKey ? t('Stored API key') : (hint.apiKeyPlaceholder ?? t('Enter API key'))}
                   value={apiKey}
                   onChange={(event) => {
                     setApiKey(event.target.value)
@@ -475,7 +477,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
             ) : null}
 
             <div className="space-y-3">
-              <FieldHeader title="Base URL" />
+              <FieldHeader title={t('Base URL')} />
               <Input
                 type="text"
                 placeholder="https://..."
@@ -485,7 +487,7 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
             </div>
 
             <div className="space-y-4">
-              <FieldHeader title={!isEditMode && models.length > 1 ? 'Models' : 'Model'} />
+              <FieldHeader title={!isEditMode && models.length > 1 ? t('Models') : t('Model')} />
               {models.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {models.map(model => {
@@ -529,9 +531,9 @@ export function ProviderForm({ editProfileKey, editData, onSaved, onCancel }: Pr
           </div>
 
           <div className="flex items-center justify-start gap-3 pt-4">
-            <Button onClick={onCancel} variant="secondary" size="md" className="w-32">Cancel</Button>
+            <Button onClick={onCancel} variant="secondary" size="md" className="w-32">{t('Cancel')}</Button>
             <Button onClick={save} disabled={saving || !canSave} variant="primary" size="md" className="w-32">
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? t('Saving...') : t('Save')}
             </Button>
           </div>
         </>
