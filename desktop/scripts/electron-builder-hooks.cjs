@@ -215,11 +215,29 @@ function prepareBundledExternalPlugin({
   const targetDir = path.join(outputRoot, 'extensions', pluginId)
   fs.rmSync(targetDir, { recursive: true, force: true })
   fs.mkdirSync(path.dirname(targetDir), { recursive: true })
-  fs.cpSync(packageRoot, targetDir, { recursive: true, force: true })
+  fs.cpSync(packageRoot, targetDir, {
+    recursive: true,
+    force: true,
+    filter: (sourcePath) => !sourcePath.includes(`${path.sep}node_modules${path.sep}`) && !sourcePath.endsWith(`${path.sep}node_modules`),
+  })
 
   assertPathExists(path.join(targetDir, 'package.json'), `${pluginId} package.json`)
   assertPathExists(path.join(targetDir, 'openclaw.plugin.json'), `${pluginId} manifest`)
   assertPathExists(path.join(targetDir, 'index.ts'), `${pluginId} entry`)
+
+  const packageJsonPath = path.join(targetDir, 'package.json')
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+  if (packageJson.devDependencies) {
+    for (const [dependencyName, dependencyVersion] of Object.entries(packageJson.devDependencies)) {
+      if (typeof dependencyVersion === 'string' && dependencyVersion.startsWith('workspace:')) {
+        delete packageJson.devDependencies[dependencyName]
+      }
+    }
+    if (Object.keys(packageJson.devDependencies).length === 0) {
+      delete packageJson.devDependencies
+    }
+  }
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8')
 
   console.log(`[OpenClaw bundle] Installing production dependencies for ${pluginId}`)
   run(resolveCommand('npm'), ['install', '--omit=dev', '--no-audit', '--no-fund'], {
@@ -230,6 +248,77 @@ function prepareBundledExternalPlugin({
       npm_config_arch: runtimeTarget.arch,
       npm_config_loglevel: process.env.npm_config_loglevel || 'warn',
     },
+  })
+
+  fs.rmSync(path.join(targetDir, 'node_modules', '.bin'), { recursive: true, force: true })
+
+  const pluginNodeModulesDir = path.join(targetDir, 'node_modules')
+  const bundledHostPackageDir = path.join(pluginNodeModulesDir, 'openclaw')
+  fs.mkdirSync(pluginNodeModulesDir, { recursive: true })
+  fs.rmSync(bundledHostPackageDir, { recursive: true, force: true })
+  fs.mkdirSync(bundledHostPackageDir, { recursive: true })
+  fs.cpSync(path.join(outputRoot, 'package.json'), path.join(bundledHostPackageDir, 'package.json'))
+  fs.cpSync(path.join(outputRoot, 'openclaw.mjs'), path.join(bundledHostPackageDir, 'openclaw.mjs'))
+  fs.cpSync(path.join(outputRoot, 'dist'), path.join(bundledHostPackageDir, 'dist'), {
+    recursive: true,
+    force: true,
+  })
+}
+
+function prepareBundledLocalPlugin({
+  sourceRoot,
+  outputRoot,
+  runtimeTarget,
+  pluginId,
+  localPath,
+}) {
+  const packageRoot = path.join(sourceRoot, localPath)
+  assertPathExists(packageRoot, `${pluginId} package`)
+
+  const targetDir = path.join(outputRoot, 'extensions', pluginId)
+  fs.rmSync(targetDir, { recursive: true, force: true })
+  fs.mkdirSync(path.dirname(targetDir), { recursive: true })
+  fs.cpSync(packageRoot, targetDir, { recursive: true, force: true })
+
+  assertPathExists(path.join(targetDir, 'package.json'), `${pluginId} package.json`)
+  assertPathExists(path.join(targetDir, 'openclaw.plugin.json'), `${pluginId} manifest`)
+  assertPathExists(path.join(targetDir, 'index.ts'), `${pluginId} entry`)
+
+  const packageJsonPath = path.join(targetDir, 'package.json')
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+  if (packageJson.devDependencies) {
+    for (const [dependencyName, dependencyVersion] of Object.entries(packageJson.devDependencies)) {
+      if (typeof dependencyVersion === 'string' && dependencyVersion.startsWith('workspace:')) {
+        delete packageJson.devDependencies[dependencyName]
+      }
+    }
+    if (Object.keys(packageJson.devDependencies).length === 0) {
+      delete packageJson.devDependencies
+    }
+  }
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8')
+
+  console.log(`[OpenClaw bundle] Installing production dependencies for ${pluginId}`)
+  run(resolveCommand('npm'), ['install', '--omit=dev', '--no-audit', '--no-fund'], {
+    cwd: targetDir,
+    env: {
+      ...process.env,
+      npm_config_platform: runtimeTarget.platform,
+      npm_config_arch: runtimeTarget.arch,
+      npm_config_loglevel: process.env.npm_config_loglevel || 'warn',
+    },
+  })
+
+  const pluginNodeModulesDir = path.join(targetDir, 'node_modules')
+  const bundledHostPackageDir = path.join(pluginNodeModulesDir, 'openclaw')
+  fs.mkdirSync(pluginNodeModulesDir, { recursive: true })
+  fs.rmSync(bundledHostPackageDir, { recursive: true, force: true })
+  fs.mkdirSync(bundledHostPackageDir, { recursive: true })
+  fs.cpSync(path.join(outputRoot, 'package.json'), path.join(bundledHostPackageDir, 'package.json'))
+  fs.cpSync(path.join(outputRoot, 'openclaw.mjs'), path.join(bundledHostPackageDir, 'openclaw.mjs'))
+  fs.cpSync(path.join(outputRoot, 'dist'), path.join(bundledHostPackageDir, 'dist'), {
+    recursive: true,
+    force: true,
   })
 }
 
@@ -458,6 +547,13 @@ function prepareBundledRuntime(sourceRoot, outputRoot, runtimeTarget) {
       pluginId: 'openclaw-weixin',
       npmSpec: '@tencent-weixin/openclaw-weixin',
     })
+    prepareBundledLocalPlugin({
+      sourceRoot,
+      outputRoot,
+      runtimeTarget,
+      pluginId: 'feishu',
+      localPath: path.join('extensions', 'feishu'),
+    })
     patchBundledWeixinPlugin(outputRoot)
     writeBundledRuntimeMarker(sourceRoot, outputRoot)
 
@@ -488,6 +584,7 @@ async function beforePack(context = {}) {
 module.exports = beforePack
 module.exports.patchBundledWeixinPlugin = patchBundledWeixinPlugin
 module.exports.prepareBundledExternalPlugin = prepareBundledExternalPlugin
+module.exports.prepareBundledLocalPlugin = prepareBundledLocalPlugin
 module.exports.prepareOpenClawRuntime = prepareOpenClawRuntime
 module.exports.resolveOpenClawSourceRoot = resolveOpenClawSourceRoot
 module.exports.resolveOutputRoot = resolveOutputRoot

@@ -25,8 +25,7 @@ export class WeixinRuntime {
   }
 
   async ensurePluginReady(root: string): Promise<WeixinPluginReadyResult> {
-    const readyMarkerPath = path.join(root, '.ocbot-weixin-ready.json')
-    if (fs.existsSync(readyMarkerPath)) {
+    if (this.hasBundledReadyMarker(root) || this.hasBundledPluginFiles(root)) {
       const enabledChanged = this.deps.ensurePluginEnabled(WEIXIN_PLUGIN_ID)
       return { ready: true, changed: enabledChanged }
     }
@@ -45,6 +44,16 @@ export class WeixinRuntime {
 
     const enabledChanged = this.deps.ensurePluginEnabled(WEIXIN_PLUGIN_ID)
     return { ready: true, changed: enabledChanged }
+  }
+
+  private hasBundledReadyMarker(root: string): boolean {
+    return fs.existsSync(path.join(root, '.ocbot-weixin-ready.json'))
+  }
+
+  private hasBundledPluginFiles(root: string): boolean {
+    const manifestPath = path.join(root, 'extensions', WEIXIN_PLUGIN_ID, 'openclaw.plugin.json')
+    const channelPath = this.deps.resolvePluginSourceFile(root, WEIXIN_PLUGIN_ID, ['src', 'channel.ts'])
+    return fs.existsSync(manifestPath) && this.hasGatewayMethods(channelPath)
   }
 
   private hasGatewayMethods(filePath: string): boolean {

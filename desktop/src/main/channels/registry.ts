@@ -9,6 +9,7 @@ export const DEFAULT_CHANNEL_CONFIG: DesktopChannelConfig = {
 export const CHANNEL_CONFIG_MAP: Record<DesktopChannelPlatform, ChannelConfigMap> = {
   feishu: {
     channelKey: 'feishu',
+    pluginId: 'feishu',
     credentials: { appId: 'appId', appSecret: 'appSecret' },
   },
   telegram: {
@@ -42,6 +43,7 @@ export const CHANNEL_CONFIG_MAP: Record<DesktopChannelPlatform, ChannelConfigMap
   },
   weixin: {
     channelKey: 'openclaw-weixin',
+    pluginId: 'openclaw-weixin',
     credentials: { accountId: 'accountId' },
   },
 }

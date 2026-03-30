@@ -56,8 +56,6 @@ function pruneNodeModules(nodeModulesRoot) {
     'tests',
     'example',
     'examples',
-    'docs',
-    'doc',
     '.github',
   ])
   const removableFiles = [/\.md$/i, /\.markdown$/i, /\.map$/i]
@@ -104,11 +102,9 @@ function prunePackagedRuntime(context = {}) {
     throw new Error(`Packaged OpenClaw runtime not found: ${packagedRuntimeRoot}`)
   }
 
-  removeIfExists(path.join(packagedRuntimeRoot, 'docs'))
   removeIfExists(path.join(packagedRuntimeRoot, 'README.md'))
   removeIfExists(path.join(packagedRuntimeRoot, 'CHANGELOG.md'))
   removeIfExists(path.join(packagedRuntimeRoot, 'package-lock.json'))
-  removeIfExists(path.join(packagedRuntimeRoot, 'dist', 'plugin-sdk'))
 
   pruneNodeModules(packagedNodeModules)
 
@@ -132,7 +128,11 @@ async function afterPack(context = {}) {
   }
 
   fs.rmSync(packagedNodeModules, { recursive: true, force: true })
-  fs.cpSync(sourceNodeModules, packagedNodeModules, { recursive: true, force: true })
+  fs.cpSync(sourceNodeModules, packagedNodeModules, {
+    recursive: true,
+    force: true,
+    dereference: true,
+  })
   prunePackagedRuntime(context)
   console.log(`[OpenClaw bundle] Restored node_modules into packaged runtime at ${packagedNodeModules}`)
 }

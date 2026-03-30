@@ -129,6 +129,14 @@ export class RuntimeManager {
   get gatewayToken(): string | null { return this.readToken() }
   getStateDir(): string { return this.stateDir }
 
+  async prepareGatewayConnection(): Promise<{ port: number; token: string }> {
+    const token = this.ensureToken()
+    const port = await this.resolvePort()
+    this.port = port
+    this.writePort(port)
+    return { port, token }
+  }
+
   getChannelConfig(platform: DesktopChannelPlatform): DesktopChannelConfig {
     this.ensureConfig()
     const mapping = CHANNEL_CONFIG_MAP[platform]
@@ -167,6 +175,8 @@ export class RuntimeManager {
     const mapping = CHANNEL_CONFIG_MAP[platform]
     const config = this.readConfigObject()
     const channels = { ...asRecord(config.channels) }
+    const plugins = asRecord(config.plugins)
+    const pluginEntries = { ...asRecord(plugins.entries) }
     const currentChannel = asRecord(channels[mapping.channelKey])
     const nextChannel: Record<string, unknown> = {
       ...currentChannel,
@@ -214,6 +224,18 @@ export class RuntimeManager {
 
     channels[mapping.channelKey] = nextChannel
     config.channels = channels
+
+    if (mapping.pluginId && this.hasRuntimePlugin(this.resolveRuntime().root, mapping.pluginId)) {
+      pluginEntries[mapping.pluginId] = {
+        ...asRecord(pluginEntries[mapping.pluginId]),
+        enabled: nextConfig.enabled !== false,
+      }
+      config.plugins = {
+        ...plugins,
+        entries: pluginEntries,
+      }
+    }
+
     this.writeConfigObject(config)
 
     return this.getChannelConfig(platform)
@@ -237,7 +259,12 @@ export class RuntimeManager {
       return false
     }
 
-    return await this.weixinRuntime.isQrLoginSupported(runtime.root)
+    try {
+      return await this.weixinRuntime.isQrLoginSupported(runtime.root)
+    } catch (error) {
+      console.error('[RuntimeManager] Failed to determine Weixin QR support:', error)
+      return false
+    }
   }
 
   async startFeishuInstallQrcode(isLark: boolean): Promise<{
@@ -396,10 +423,7 @@ export class RuntimeManager {
     }
 
     this._status = 'starting'
-    const token = this.ensureToken()
-    const port = await this.resolvePort()
-    this.port = port
-    this.writePort(port)
+    const { token, port } = await this.prepareGatewayConnection()
     this.ensureConfig()
 
     const entry = this.resolveEntry(runtime.root)
@@ -555,7 +579,24 @@ export class RuntimeManager {
 
   private async ensureDefaultPlugins(root: string): Promise<boolean> {
     const weixin = await this.weixinRuntime.ensurePluginReady(root)
-    return weixin.changed
+    const enabledPlugins = [weixin.changed]
+
+    if (this.shouldEnableBundledPlugin('feishu', 'feishu')) {
+      enabledPlugins.push(this.ensurePluginEnabled('feishu'))
+    }
+
+    return enabledPlugins.some(Boolean)
+  }
+
+  private shouldEnableBundledPlugin(platform: DesktopChannelPlatform, pluginId: string): boolean {
+    if (!this.hasRuntimePlugin(this.resolveRuntime().root, pluginId)) {
+      return false
+    }
+
+    this.ensureConfig()
+    const config = this.readConfigObject()
+    const channelConfig = asRecord(asRecord(config.channels)[CHANNEL_CONFIG_MAP[platform].channelKey])
+    return Object.keys(channelConfig).length > 0 && channelConfig.enabled !== false
   }
 
   private ensurePluginEnabled(pluginId: string): boolean {
@@ -947,11 +988,13 @@ export class RuntimeManager {
       logStream.write(text)
     }
 
-    if ('stdout' in child && child.stdout) {
-      child.stdout.on('data', handle)
+    const stdout = ('stdout' in child ? child.stdout : null) as NodeJS.ReadableStream | null
+    if (stdout) {
+      stdout.on('data', handle)
     }
-    if ('stderr' in child && child.stderr) {
-      child.stderr.on('data', handle)
+    const stderr = ('stderr' in child ? child.stderr : null) as NodeJS.ReadableStream | null
+    if (stderr) {
+      stderr.on('data', handle)
     }
   }
 
@@ -1066,8 +1109,9 @@ export class RuntimeManager {
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer()
-    server.once('error', () => resolve(false))
-    server.once('listening', () => { server.close(() => resolve(true)) })
+    const serverEvents = server as unknown as NodeJS.EventEmitter
+    serverEvents.once('error', () => resolve(false))
+    serverEvents.once('listening', () => { server.close(() => resolve(true)) })
     server.listen(port, '127.0.0.1')
   })
 }

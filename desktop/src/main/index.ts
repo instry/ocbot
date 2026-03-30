@@ -27,29 +27,27 @@ app.on('ready', async () => {
   }
 
   runtimeManager = new RuntimeManager()
+  await runtimeManager.prepareGatewayConnection().catch((err) => {
+    console.error('Failed to prepare OpenClaw gateway connection:', err)
+    return null
+  })
 
-  // Start gateway first, then create UI
-  let port: number
-  try {
-    port = await runtimeManager.start()
-  } catch (err) {
-    console.error('Failed to start OpenClaw gateway:', err)
-    // Still create window — will show error or retry
-    port = 18789
-  }
-
-  windowManager = new WindowManager(port, appIconPath(), runtimeManager)
+  windowManager = new WindowManager(runtimeManager.gatewayPort ?? 18789, appIconPath(), runtimeManager)
   trayManager = new TrayManager(() => windowManager.showOrCreate())
-
-  if (runtimeManager.status === 'running') {
-    trayManager.setStatus('running')
-  } else {
-    trayManager.setStatus('error')
-  }
+  trayManager.setStatus(runtimeManager.status === 'not_installed' ? 'error' : 'updating')
 
   if (!wasOpenedAtStartup()) {
     windowManager.showOrCreate()
   }
+
+  void runtimeManager.start()
+    .then(() => {
+      trayManager.setStatus('running')
+    })
+    .catch((err) => {
+      console.error('Failed to start OpenClaw gateway:', err)
+      trayManager.setStatus('error')
+    })
 })
 
 // Keep running when all windows are closed

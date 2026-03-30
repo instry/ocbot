@@ -13,20 +13,17 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))
 }
 
-function hasFeishuSupport(runtimeRoot) {
-  const candidates = [
-    path.join(runtimeRoot, 'src', 'config', 'bundled-channel-config-metadata.generated.ts'),
-    path.join(runtimeRoot, 'src', 'channels', 'plugins', 'contracts', 'registry.ts'),
-  ]
+function hasWeixinBundleSupport(runtimeRoot) {
+  const markerPath = path.join(runtimeRoot, '.ocbot-weixin-ready.json')
+  const channelPath = path.join(runtimeRoot, 'extensions', 'openclaw-weixin', 'src', 'channel.ts')
 
-  return candidates.some((filePath) => {
-    if (!fs.existsSync(filePath)) {
-      return false
-    }
+  return fs.existsSync(markerPath) && fs.existsSync(channelPath)
+}
 
-    const source = fs.readFileSync(filePath, 'utf8')
-    return source.includes('channelId: "feishu"') || source.includes('feishu: {')
-  })
+function hasFeishuBundleSupport(runtimeRoot) {
+  const manifestPath = path.join(runtimeRoot, 'extensions', 'feishu', 'openclaw.plugin.json')
+  const entryPath = path.join(runtimeRoot, 'extensions', 'feishu', 'index.ts')
+  return fs.existsSync(manifestPath) && fs.existsSync(entryPath)
 }
 
 function shouldPrepareRuntime() {
@@ -56,7 +53,10 @@ function shouldPrepareRuntime() {
     if (marker.openclawCommit !== getConfiguredOpenClawCommit()) {
       return true
     }
-    if (!hasFeishuSupport(bundledRuntimeRoot)) {
+    if (!hasWeixinBundleSupport(bundledRuntimeRoot)) {
+      return true
+    }
+    if (!hasFeishuBundleSupport(bundledRuntimeRoot)) {
       return true
     }
     return false
@@ -102,6 +102,13 @@ async function main() {
       runtimeTarget,
       pluginId: 'openclaw-weixin',
       npmSpec: '@tencent-weixin/openclaw-weixin',
+    })
+    runtimeHooks.prepareBundledLocalPlugin({
+      sourceRoot,
+      outputRoot,
+      runtimeTarget,
+      pluginId: 'feishu',
+      localPath: path.join('extensions', 'feishu'),
     })
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true })

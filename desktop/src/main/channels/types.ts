@@ -36,6 +36,7 @@ export type DesktopPairingRequest = {
 
 export type ChannelConfigMap = {
   channelKey: string
+  pluginId?: string
   credentials: Partial<Record<keyof DesktopChannelConfig, string>>
   supportsDmPolicy?: boolean
   supportsGroupPolicy?: boolean
