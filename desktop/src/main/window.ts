@@ -1,5 +1,7 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { get as httpGet } from 'node:http'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { cancelActiveDownload, checkForAppUpdate, downloadAppUpdate, installAppUpdate, type AppUpdateAsset } from './app-update'
@@ -90,6 +92,112 @@ function resolveGatewayConnectionInfo(runtimeManager: RuntimeManager): GatewayCo
     url: `http://127.0.0.1:${port}`,
     token: runtimeManager.gatewayToken,
   }
+}
+
+function resolveBrowserInspectUrl(kind: string): string | null {
+  switch (kind) {
+    case 'chrome':
+    case 'chromium':
+      return 'chrome://inspect/#remote-debugging'
+    case 'brave':
+      return 'brave://inspect/#remote-debugging'
+    case 'edge':
+      return 'edge://inspect/#remote-debugging'
+    default:
+      return null
+  }
+}
+
+function resolveBrowserApplication(kind: string): string | null {
+  switch (kind) {
+    case 'chrome':
+      return 'Google Chrome'
+    case 'brave':
+      return 'Brave Browser'
+    case 'edge':
+      return 'Microsoft Edge'
+    case 'chromium':
+      return 'Chromium'
+    default:
+      return null
+  }
+}
+
+async function openBrowserInspectPage(kind: string): Promise<{ opened: boolean }> {
+  const url = resolveBrowserInspectUrl(kind)
+  if (!url) {
+    return { opened: false }
+  }
+
+  try {
+    if (process.platform === 'darwin') {
+      const application = resolveBrowserApplication(kind)
+      if (application) {
+        await new Promise<void>((resolve, reject) => {
+          const child = spawn('open', ['-a', application, url], {
+            detached: true,
+            stdio: 'ignore',
+          })
+          child.once('error', reject)
+          child.once('spawn', () => {
+            child.unref()
+            resolve()
+          })
+        })
+        return { opened: true }
+      }
+    }
+
+    await shell.openExternal(url)
+    return { opened: true }
+  } catch {
+    return { opened: false }
+  }
+}
+
+async function probeBrowserDebugConnection(): Promise<{
+  ok: boolean
+  browserName?: string
+  webSocketDebuggerUrl?: string
+}> {
+  return new Promise((resolve) => {
+    const req = httpGet('http://127.0.0.1:9222/json/version', { timeout: 3_000 }, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume()
+        resolve({ ok: false })
+        return
+      }
+
+      let body = ''
+      res.setEncoding('utf8')
+      res.on('data', chunk => {
+        body += chunk
+      })
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(body) as {
+            Browser?: string
+            webSocketDebuggerUrl?: string
+          }
+          resolve({
+            ok: Boolean(parsed.webSocketDebuggerUrl),
+            browserName: parsed.Browser,
+            webSocketDebuggerUrl: parsed.webSocketDebuggerUrl,
+          })
+        } catch {
+          resolve({ ok: false })
+        }
+      })
+    })
+
+    req.on('error', () => {
+      resolve({ ok: false })
+    })
+    req.on('timeout', () => {
+      req.destroy()
+      resolve({ ok: false })
+    })
+  })
 }
 
 function getBrowserCandidates(): BrowserCandidate[] {
@@ -364,6 +472,8 @@ export class WindowManager {
     })
     ipcMain.handle('browser:getProfiles', async () => scanBrowserProfiles())
     ipcMain.handle('browser:getOcbotPath', async () => resolveOcbotBrowserPath())
+    ipcMain.handle('browser:openInspectPage', async (_event, kind: string) => openBrowserInspectPage(kind))
+    ipcMain.handle('browser:probeDebugConnection', async () => probeBrowserDebugConnection())
     ipcMain.handle('app:getSystemLocale', async () => app.getLocale())
     ipcMain.handle('gateway:getConnectionInfo', async () => resolveGatewayConnectionInfo(this.runtimeManager))
     ipcMain.handle('app:resetLocalData', async () => {

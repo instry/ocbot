@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware'
 export type ThemeName = 'default' | 'openknot' | 'openknot-light' | 'dash' | 'dash-light'
 export type ThemeMode = 'dark' | 'light'
 
-export type Tab = 'chat' | 'skills' | 'cron' | 'models' | 'channels' | 'settings'
+export type Tab = 'chat' | 'skills' | 'cron' | 'models' | 'channels' | 'browser' | 'settings'
 
 interface UIStore {
   // Sidebar

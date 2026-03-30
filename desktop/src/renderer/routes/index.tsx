@@ -1,7 +1,7 @@
 import { createHashRouter } from 'react-router'
 import { App } from '@/app'
 import { ChatRoute } from './chat-route'
-import { SettingsRoute } from './settings-route'
+import { BrowserRoute, SettingsRoute } from './settings-route'
 import { ModelsRoute } from './models-route'
 import { ChannelsRoute } from './channels-route'
 import { SkillsRoute } from './skills-route'
@@ -27,6 +27,10 @@ export const router = createHashRouter([
       {
         path: 'settings',
         element: <SettingsRoute />,
+      },
+      {
+        path: 'browser',
+        element: <BrowserRoute />,
       },
       {
         path: 'models',

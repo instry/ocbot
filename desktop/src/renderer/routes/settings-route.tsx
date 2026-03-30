@@ -10,8 +10,8 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { ThemeMode } from '@/stores/ui-store'
 
-type SettingsTab = 'general' | 'browser' | 'updates' | 'about'
-type BrowserChoice = 'ocbot' | 'system' | 'custom'
+type SettingsTab = 'general' | 'updates' | 'about'
+type BrowserChoice = 'ocbot' | 'system'
 
 interface BrowserConfigResult {
   config?: {
@@ -22,6 +22,11 @@ interface BrowserConfigResult {
     }
   }
   hash?: string
+}
+
+type BrowserPairingStatus = {
+  tone: 'success' | 'error'
+  message: string
 }
 
 function resolveSelectedProfile(
@@ -46,34 +51,42 @@ function resolveSelectedProfile(
   return null
 }
 
-export function SettingsRoute() {
+function resolveSelectedBrowserKind(selectedProfileKey: string): string | null {
+  if (!selectedProfileKey) return null
+  const [kind] = selectedProfileKey.split(':')
+  return kind || null
+}
+
+function resolveBrowserInspectUrl(kind: string | null): string | null {
+  if (!kind) return null
+
+  switch (kind) {
+    case 'chrome':
+    case 'chromium':
+      return 'chrome://inspect/#remote-debugging'
+    case 'brave':
+      return 'brave://inspect/#remote-debugging'
+    case 'edge':
+      return 'edge://inspect/#remote-debugging'
+    default:
+      return null
+  }
+}
+
+export function BrowserRoute() {
   const { t } = useI18n()
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
-  const { themeMode, setThemeMode } = useUIStore()
   const [browserChoice, setBrowserChoice] = useState<BrowserChoice>('system')
-  const [customBrowserPath, setCustomBrowserPath] = useState('')
   const [selectedProfileKey, setSelectedProfileKey] = useState('')
   const [savedBrowserChoice, setSavedBrowserChoice] = useState<BrowserChoice>('system')
-  const [savedCustomBrowserPath, setSavedCustomBrowserPath] = useState('')
   const [savedProfileKey, setSavedProfileKey] = useState('')
   const [configHash, setConfigHash] = useState<string | null>(null)
   const [browserSaving, setBrowserSaving] = useState(false)
-  const [browserSaveSuccess, setBrowserSaveSuccess] = useState(false)
   const [browserProfiles, setBrowserProfiles] = useState<OcbotBrowserProfilesResult[]>([])
   const [browserLoading, setBrowserLoading] = useState(true)
   const [browserError, setBrowserError] = useState<string | null>(null)
+  const [browserPairingBusy, setBrowserPairingBusy] = useState(false)
+  const [browserPairingStatus, setBrowserPairingStatus] = useState<BrowserPairingStatus | null>(null)
   const [ocbotBrowserPath, setOcbotBrowserPath] = useState('')
-
-  const tabs = [
-    { value: 'general' as const, label: 'General', icon: Sliders },
-    { value: 'browser' as const, label: 'Browser', icon: Globe },
-    { value: 'updates' as const, label: 'Updates', icon: ArrowDownToLine },
-    { value: 'about' as const, label: 'About', icon: Info },
-  ]
-
-  const browserDirty = browserChoice !== savedBrowserChoice
-    || customBrowserPath !== savedCustomBrowserPath
-    || selectedProfileKey !== savedProfileKey
 
   const browserOptions = useMemo(() => {
     const options: Array<{
@@ -85,11 +98,6 @@ export function SettingsRoute() {
         value: 'system',
         label: t('System'),
         icon: <Globe className="h-4 w-4" />,
-      },
-      {
-        value: 'custom',
-        label: t('Custom'),
-        icon: <Sliders className="h-4 w-4" />,
       },
     ]
 
@@ -103,12 +111,6 @@ export function SettingsRoute() {
 
     return options
   }, [ocbotBrowserPath, t])
-
-  const browserSaveDisabled = !browserDirty
-    || browserSaving
-    || browserLoading
-    || (browserChoice === 'custom' && !customBrowserPath.trim())
-    || (browserChoice === 'ocbot' && !ocbotBrowserPath)
 
   useEffect(() => {
     void loadBrowserConfig()
@@ -136,16 +138,12 @@ export function SettingsRoute() {
     const userProfile = result?.config?.browser?.profiles?.user
 
     let nextBrowserChoice: BrowserChoice = 'system'
-    let nextCustomBrowserPath = ''
     let nextProfileKey = ''
 
     if (!execPath) {
       nextBrowserChoice = 'system'
     } else if (ocbotPath && execPath === ocbotPath) {
       nextBrowserChoice = 'ocbot'
-    } else {
-      nextBrowserChoice = 'custom'
-      nextCustomBrowserPath = execPath
     }
 
     if (userProfile?.userDataDir && userProfile.driver === 'existing-session') {
@@ -162,10 +160,8 @@ export function SettingsRoute() {
 
     setConfigHash(hash)
     setBrowserChoice(nextBrowserChoice)
-    setCustomBrowserPath(nextCustomBrowserPath)
     setSelectedProfileKey(nextProfileKey)
     setSavedBrowserChoice(nextBrowserChoice)
-    setSavedCustomBrowserPath(nextCustomBrowserPath)
     setSavedProfileKey(nextProfileKey)
   }
 
@@ -185,31 +181,24 @@ export function SettingsRoute() {
     }
   }
 
-  function cancelBrowserConfig() {
-    setBrowserChoice(savedBrowserChoice)
-    setCustomBrowserPath(savedCustomBrowserPath)
-    setSelectedProfileKey(savedProfileKey)
-  }
-
-  async function saveBrowserConfig() {
-    if (browserSaveDisabled) return
+  async function saveBrowserConfig(nextBrowserChoice: BrowserChoice, nextProfileKey: string) {
+    if (browserSaving || browserLoading || (nextBrowserChoice === 'ocbot' && !ocbotBrowserPath)) return
 
     setBrowserSaving(true)
     setBrowserError(null)
+    setBrowserPairingStatus(null)
 
     try {
-      const executablePath = browserChoice === 'ocbot'
+      const executablePath = nextBrowserChoice === 'ocbot'
         ? ocbotBrowserPath
-        : browserChoice === 'custom'
-          ? customBrowserPath.trim()
-          : null
+        : null
 
       const browserPatch: Record<string, unknown> = {
         executablePath,
       }
 
-      if (browserChoice === 'system' && selectedProfileKey) {
-        const selectedProfile = resolveSelectedProfile(selectedProfileKey, browserProfiles)
+      if (nextBrowserChoice === 'system' && nextProfileKey) {
+        const selectedProfile = resolveSelectedProfile(nextProfileKey, browserProfiles)
         if (selectedProfile) {
           browserPatch.profiles = {
             user: {
@@ -236,15 +225,101 @@ export function SettingsRoute() {
 
       const result = await getGatewayClient().call<BrowserConfigResult>('config.get')
       applyBrowserConfig(result ?? {}, browserProfiles, ocbotBrowserPath)
-      setBrowserSaveSuccess(true)
-      window.setTimeout(() => setBrowserSaveSuccess(false), 2500)
     } catch (err) {
       console.error('Failed to save browser config:', err)
+      setBrowserChoice(savedBrowserChoice)
+      setSelectedProfileKey(savedProfileKey)
       setBrowserError(t('Failed to save browser settings.'))
     } finally {
       setBrowserSaving(false)
     }
   }
+
+  async function pairBrowserProfile() {
+    if (browserChoice !== 'system' || !selectedProfileKey || browserSaving || browserLoading) {
+      return
+    }
+
+    setBrowserPairingBusy(true)
+    setBrowserPairingStatus(null)
+
+    try {
+      const status = await window.ocbot?.probeBrowserDebugConnection()
+      if (status?.ok) {
+        setBrowserPairingStatus({
+          tone: 'success',
+          message: t('Remote debugging is ready. Ocbot will attach to this profile on the next browser task.'),
+        })
+      } else {
+        setBrowserPairingStatus({
+          tone: 'error',
+          message: t('Remote debugging is not reachable on port 9222 yet. Launch the selected browser with remote debugging enabled, then try again.'),
+        })
+      }
+    } catch {
+      setBrowserPairingStatus({
+        tone: 'error',
+        message: t('Failed to check the browser debug connection.'),
+      })
+    } finally {
+      setBrowserPairingBusy(false)
+    }
+  }
+
+  async function openBrowserPairingPage() {
+    const selectedBrowserKind = resolveSelectedBrowserKind(selectedProfileKey)
+    if (!selectedBrowserKind) return
+
+    const result = await window.ocbot?.openBrowserInspectPage(selectedBrowserKind)
+    if (!result?.opened) {
+      setBrowserPairingStatus({
+        tone: 'error',
+        message: t('Failed to open the pairing page in the selected browser.'),
+      })
+    }
+  }
+
+  return (
+    <BrowserTab
+      browserChoice={browserChoice}
+      browserError={browserError}
+      browserLoading={browserLoading}
+      browserOptions={browserOptions}
+      browserPairingBusy={browserPairingBusy}
+      browserPairingStatus={browserPairingStatus}
+      browserProfiles={browserProfiles}
+      browserSaving={browserSaving}
+      selectedProfileKey={selectedProfileKey}
+      setBrowserChoice={(value) => {
+        if (value === browserChoice) return
+        const nextProfileKey = value === 'system' ? selectedProfileKey : ''
+        setBrowserChoice(value)
+        setSelectedProfileKey(nextProfileKey)
+        setBrowserPairingStatus(null)
+        void saveBrowserConfig(value, nextProfileKey)
+      }}
+      setSelectedProfileKey={(value) => {
+        if (value === selectedProfileKey) return
+        setSelectedProfileKey(value)
+        setBrowserPairingStatus(null)
+        void saveBrowserConfig(browserChoice, value)
+      }}
+      onOpenPairingPage={openBrowserPairingPage}
+      onPair={pairBrowserProfile}
+    />
+  )
+}
+
+export function SettingsRoute() {
+  const { t } = useI18n()
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const { themeMode, setThemeMode } = useUIStore()
+
+  const tabs = [
+    { value: 'general' as const, label: 'General', icon: Sliders },
+    { value: 'updates' as const, label: 'Updates', icon: ArrowDownToLine },
+    { value: 'about' as const, label: 'About', icon: Info },
+  ]
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -272,25 +347,6 @@ export function SettingsRoute() {
 
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'general' && <GeneralTab themeMode={themeMode} setThemeMode={setThemeMode} />}
-        {activeTab === 'browser' && (
-          <BrowserTab
-            browserChoice={browserChoice}
-            browserError={browserError}
-            browserLoading={browserLoading}
-            browserDirty={browserDirty}
-            browserOptions={browserOptions}
-            browserProfiles={browserProfiles}
-            browserSaveDisabled={browserSaveDisabled}
-            browserSaveSuccess={browserSaveSuccess}
-            browserSaving={browserSaving}
-            selectedProfileKey={selectedProfileKey}
-            setBrowserChoice={setBrowserChoice}
-            setSelectedProfileKey={setSelectedProfileKey}
-            onCancel={cancelBrowserConfig}
-            onRefresh={loadBrowserConfig}
-            onSave={saveBrowserConfig}
-          />
-        )}
         {activeTab === 'updates' && <UpdatesTab />}
         {activeTab === 'about' && <AboutTab />}
       </div>
@@ -527,38 +583,38 @@ function GeneralTab({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThem
 
 function BrowserTab({
   browserChoice,
-  browserDirty,
   browserError,
   browserLoading,
   browserOptions,
+  browserPairingBusy,
+  browserPairingStatus,
   browserProfiles,
-  browserSaveDisabled,
-  browserSaveSuccess,
   browserSaving,
   selectedProfileKey,
   setBrowserChoice,
   setSelectedProfileKey,
-  onCancel,
-  onRefresh,
-  onSave,
+  onOpenPairingPage,
+  onPair,
 }: {
   browserChoice: BrowserChoice
-  browserDirty: boolean
   browserError: string | null
   browserLoading: boolean
   browserOptions: Array<{ value: BrowserChoice; label: string; icon: ReactElement }>
+  browserPairingBusy: boolean
+  browserPairingStatus: BrowserPairingStatus | null
   browserProfiles: OcbotBrowserProfilesResult[]
-  browserSaveDisabled: boolean
-  browserSaveSuccess: boolean
   browserSaving: boolean
   selectedProfileKey: string
   setBrowserChoice: (value: BrowserChoice) => void
   setSelectedProfileKey: (value: string) => void
-  onCancel: () => void
-  onRefresh: () => void
-  onSave: () => void
+  onOpenPairingPage: () => void
+  onPair: () => void
 }) {
   const { t } = useI18n()
+  const selectedBrowserKind = resolveSelectedBrowserKind(selectedProfileKey)
+  const pairingPageUrl = resolveBrowserInspectUrl(selectedBrowserKind)
+  const pairingDisabled = browserSaving || browserLoading || browserPairingBusy || !selectedProfileKey
+
   return (
     <div className="flex max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="space-y-1">
@@ -585,68 +641,102 @@ function BrowserTab({
       />
 
       {browserChoice === 'system' ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('Profile')}</CardTitle>
-            <CardDescription>{t('Attach to an existing Chromium profile with saved logins and cookies.')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {browserProfiles.length > 0 ? (
-              <div className="relative">
-                <select
-                  value={selectedProfileKey}
-                  onChange={(event) => setSelectedProfileKey(event.target.value)}
-                  disabled={browserSaving || browserLoading}
-                  className="w-full appearance-none rounded-xl border border-border bg-bg px-3 py-2 pr-11 text-sm text-text shadow-sm outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">{t('Auto-detect')}</option>
-                  {browserProfiles.map((browser) => (
-                    <optgroup
-                      key={browser.browser.kind}
-                      label={browser.browser.kind.charAt(0).toUpperCase() + browser.browser.kind.slice(1)}
-                    >
-                      {browser.profiles.map((profile) => (
-                        <option key={`${browser.browser.kind}:${profile.directory}`} value={`${browser.browser.kind}:${profile.directory}`}>
-                          {profile.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border bg-bg-subtle/60 px-3 py-2 text-sm text-muted-foreground">
-                {t('No local Chromium profiles were detected. The agent will use the system browser without attaching to a saved profile.')}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('Profile')}</CardTitle>
+              <CardDescription>{t('Attach to an existing Chromium profile with saved logins and cookies.')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {browserProfiles.length > 0 ? (
+                <div className="relative">
+                  <select
+                    value={selectedProfileKey}
+                    onChange={(event) => setSelectedProfileKey(event.target.value)}
+                    disabled={browserSaving || browserLoading}
+                    className="w-full appearance-none rounded-xl border border-border bg-bg px-3 py-2 pr-11 text-sm text-text shadow-sm outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">{t('Auto-detect')}</option>
+                    {browserProfiles.map((browser) => (
+                      <optgroup
+                        key={browser.browser.kind}
+                        label={browser.browser.kind.charAt(0).toUpperCase() + browser.browser.kind.slice(1)}
+                      >
+                        {browser.profiles.map((profile) => (
+                          <option key={`${browser.browser.kind}:${profile.directory}`} value={`${browser.browser.kind}:${profile.directory}`}>
+                            {profile.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border bg-bg-subtle/60 px-3 py-2 text-sm text-muted-foreground">
+                  {t('No local Chromium profiles were detected. The agent will use the system browser without attaching to a saved profile.')}
+                </div>
+              )}
 
-      <div className="mt-2 flex flex-wrap items-center justify-start gap-3 border-t border-border/80 pt-4">
-        <Button variant="ghost" size="md" className="min-w-[108px]" onClick={onRefresh} disabled={browserSaving}>
-          {t('Refresh')}
-        </Button>
-        <Button
-          variant="secondary"
-          size="md"
-          className="min-w-[108px]"
-          onClick={onCancel}
-          disabled={browserSaving || !browserDirty}
-        >
-          {t('Cancel')}
-        </Button>
-        <Button
-          variant="primary"
-          size="md"
-          className="min-w-[116px]"
-          onClick={onSave}
-          disabled={browserSaveDisabled}
-        >
-          {browserSaving ? t('Saving...') : t('Save')}
-        </Button>
-      </div>
+              {selectedProfileKey ? (
+                <div className="space-y-3 rounded-2xl border border-amber-300/40 bg-amber-500/10 px-4 py-3">
+                  <div>
+                    <div className="text-sm font-medium text-text-strong">{t('Pairing is only required when you attach your own Chromium profile.')}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {t('To reuse your own logins and cookies, enable remote debugging in the selected browser and approve the first attach prompt.')}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-text-strong">{t('How to pair')}</div>
+                    <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                      <li>{t('Choose the matching Chromium profile.')}</li>
+                      <li>{t('Open the pairing page from here.')}</li>
+                      <li>{t('Enable remote debugging in that browser.')}</li>
+                      <li>{t('Come back to Ocbot and click Pair browser.')}</li>
+                      <li>{t('Approve the first consent prompt in the browser.')}</li>
+                    </ol>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    {pairingPageUrl ? (
+                      <button
+                        type="button"
+                        onClick={onOpenPairingPage}
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-bg px-3 py-2 text-sm font-medium text-text shadow-sm transition-colors hover:bg-bg-hover"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        {t('Open pairing page')}
+                      </button>
+                    ) : null}
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={onPair}
+                      disabled={pairingDisabled}
+                    >
+                      {browserPairingBusy ? t('Pairing...') : t('Pair browser')}
+                    </Button>
+                  </div>
+
+                  {browserPairingStatus ? (
+                    <div
+                      className={cn(
+                        'rounded-xl px-3 py-2 text-sm',
+                        browserPairingStatus.tone === 'success'
+                          ? 'border border-emerald-300/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                          : 'border border-destructive/20 bg-destructive/10 text-destructive',
+                      )}
+                    >
+                      {browserPairingStatus.message}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
     </div>
   )
 }

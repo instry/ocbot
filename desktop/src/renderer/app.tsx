@@ -48,6 +48,36 @@ export function App() {
     }
   }, [setupStatus, location.pathname, navigate, setTab])
 
+  useEffect(() => {
+    if (location.pathname === '/' || location.pathname.startsWith('/chat')) {
+      setTab('chat')
+      return
+    }
+    if (location.pathname.startsWith('/skills')) {
+      setTab('skills')
+      return
+    }
+    if (location.pathname.startsWith('/cron')) {
+      setTab('cron')
+      return
+    }
+    if (location.pathname.startsWith('/models')) {
+      setTab('models')
+      return
+    }
+    if (location.pathname.startsWith('/channels')) {
+      setTab('channels')
+      return
+    }
+    if (location.pathname.startsWith('/browser')) {
+      setTab('browser')
+      return
+    }
+    if (location.pathname.startsWith('/settings')) {
+      setTab('settings')
+    }
+  }, [location.pathname, setTab])
+
   // Connection screen
   if (gatewayStatus !== 'connected' && !hasConnectedOnce) {
     return (

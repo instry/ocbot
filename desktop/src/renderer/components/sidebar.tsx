@@ -6,6 +6,7 @@ import {
   Clock,
   Cpu,
   Smartphone,
+  Globe,
 } from 'lucide-react'
 import { useUIStore, type Tab } from '@/stores/ui-store'
 import { useGatewayStore } from '@/stores/gateway-store'
@@ -25,11 +26,18 @@ const NAV_GROUPS: NavItem[][] = [
   ],
   [
     { icon: Zap, label: 'Skills', tab: 'skills' },
+  ],
+  [
     { icon: Clock, label: 'Cron', tab: 'cron' },
   ],
   [
     { icon: Cpu, label: 'Models', tab: 'models' },
+  ],
+  [
     { icon: Smartphone, label: 'Mobile', tab: 'channels' },
+  ],
+  [
+    { icon: Globe, label: 'Browser', tab: 'browser' },
   ],
 ]
 
@@ -55,6 +63,9 @@ export function Sidebar() {
     } else if (item.tab === 'channels') {
       setTab('channels')
       navigate('/channels')
+    } else if (item.tab === 'browser') {
+      setTab('browser')
+      navigate('/browser')
     } else if (item.tab === 'skills') {
       setTab('skills')
       navigate('/skills')
@@ -82,10 +93,9 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="no-drag flex flex-1 flex-col gap-0.5 overflow-y-auto px-2">
+      <nav className="no-drag flex flex-1 flex-col gap-4 overflow-y-auto px-2">
         {NAV_GROUPS.map((group, gi) => (
-          <div key={gi}>
-            {gi > 0 && <div className="my-1.5 mx-2 h-px bg-border" />}
+          <div key={gi} className="flex flex-col gap-0">
             {group.map(item => {
               const Icon = item.icon
               const isActive = tab === item.tab

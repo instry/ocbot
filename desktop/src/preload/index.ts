@@ -27,6 +27,10 @@ contextBridge.exposeInMainWorld('ocbot', {
     ipcRenderer.invoke('browser:getProfiles'),
   getOcbotBrowserPath: () =>
     ipcRenderer.invoke('browser:getOcbotPath'),
+  openBrowserInspectPage: (kind: string) =>
+    ipcRenderer.invoke('browser:openInspectPage', kind),
+  probeBrowserDebugConnection: () =>
+    ipcRenderer.invoke('browser:probeDebugConnection'),
   startup: {
     getSettings: () =>
       ipcRenderer.invoke('startup:getSettings'),

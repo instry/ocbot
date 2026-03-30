@@ -97,6 +97,12 @@ declare global {
       resetLocalData: () => Promise<{ accepted: boolean }>
       getBrowserProfiles: () => Promise<OcbotBrowserProfilesResult[]>
       getOcbotBrowserPath: () => Promise<string>
+      openBrowserInspectPage: (kind: string) => Promise<{ opened: boolean }>
+      probeBrowserDebugConnection: () => Promise<{
+        ok: boolean
+        browserName?: string
+        webSocketDebuggerUrl?: string
+      }>
       startup: {
         getSettings: () => Promise<OcbotStartupSettings>
         setOpenAtLogin: (openAtLogin: boolean) => Promise<OcbotStartupSettings>
