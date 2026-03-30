@@ -21,6 +21,7 @@ export function App() {
   const setTab = useUIStore(s => s.setTab)
   const sessionPanelOpen = useUIStore(s => s.sessionPanelOpen)
   const client = useGatewayStore(s => s.client)
+  const hasConnectedOnce = useGatewayStore(s => s.hasConnectedOnce)
   const setupStatus = useSetupStore(s => s.status)
   const refreshSetup = useSetupStore(s => s.refresh)
   const resetSetup = useSetupStore(s => s.reset)
@@ -46,7 +47,7 @@ export function App() {
   }, [setupStatus, location.pathname, navigate, setTab])
 
   // Connection screen
-  if (gatewayStatus !== 'connected') {
+  if (gatewayStatus !== 'connected' && !hasConnectedOnce) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-bg">
         <div className="flex flex-col items-center gap-3 animate-fade-in">
@@ -83,12 +84,20 @@ export function App() {
       {/* Session panel (conditionally shown) */}
       {tab === 'chat' && sessionPanelOpen && <SessionPanel />}
 
-      <main className="flex flex-1 flex-col overflow-hidden pt-[var(--titlebar-height)]">
+      <main className="flex flex-1 flex-col overflow-hidden pt-(--titlebar-height)">
         <Outlet />
       </main>
 
       {/* Connection status indicator */}
       <ConnectionStatus />
+
+      {hasConnectedOnce && gatewayStatus !== 'connected' ? (
+        <div className="pointer-events-none absolute inset-x-0 top-(--titlebar-height) z-50 flex justify-center p-3">
+          <div className="rounded-full border border-border bg-bg/90 px-3 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
+            Reconnecting AI runtime…
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

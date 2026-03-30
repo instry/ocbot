@@ -216,10 +216,6 @@ export class RuntimeManager {
     config.channels = channels
     this.writeConfigObject(config)
 
-    if (this.status === 'running') {
-      await this.restart()
-    }
-
     return this.getChannelConfig(platform)
   }
 

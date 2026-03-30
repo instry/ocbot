@@ -198,10 +198,10 @@ export function FeishuChannelSection({
         }
 
         await saveConfig('feishu', {
+          ...currentConfig,
           enabled: true,
           dmPolicy: currentConfig?.dmPolicy ?? 'open',
           groupPolicy: currentConfig?.groupPolicy ?? 'open',
-          ...currentConfig,
           appId: result.appId,
           appSecret: result.appSecret,
           domain: result.domain ?? (isLark ? 'lark' : 'feishu'),

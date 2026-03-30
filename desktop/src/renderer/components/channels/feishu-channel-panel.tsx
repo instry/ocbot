@@ -70,14 +70,6 @@ export function FeishuChannelPanel({
               <QrCode className="h-4 w-4" />
               {currentAppId ? 'Scan to Recreate Credentials' : 'Scan to Create Credentials'}
             </Button>
-
-            {currentAppId && (
-              <div className="flex items-center gap-1.5 text-xs text-ok">
-                <span className="h-2 w-2 rounded-full bg-ok" />
-                Saved App ID
-                <span className="text-muted-foreground ml-1">· {currentAppId}</span>
-              </div>
-            )}
           </>
         )}
 
@@ -226,25 +218,6 @@ export function FeishuChannelPanel({
           </div>
         </div>
       </div>
-
-      {(feishuConfigured || feishuManualConfigured) ? (
-        <div className="space-y-3 rounded-lg border border-border bg-bg-subtle p-4">
-          <div className="space-y-1">
-            <div className="text-sm font-medium text-text-strong">Messages</div>
-            <div className="text-xs text-muted-foreground">
-              Feishu senders are approved automatically after they message the bot.
-            </div>
-          </div>
-
-          {pairingActionMessage && (
-            <div className="text-xs text-muted-foreground">{pairingActionMessage}</div>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">
-          Messaging becomes available after you finish scan setup or enter both App ID and App Secret.
-        </div>
-      )}
 
       {errorMessage && (
         <div className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">

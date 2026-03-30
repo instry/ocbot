@@ -7,6 +7,7 @@ interface GatewayStore {
   status: GatewayState
   reconnectAttempt: number
   initializing: boolean
+  hasConnectedOnce: boolean
 
   connect: () => void
   disconnect: () => void
@@ -17,6 +18,7 @@ export const useGatewayStore = create<GatewayStore>((set, get) => ({
   status: 'disconnected',
   reconnectAttempt: 0,
   initializing: false,
+  hasConnectedOnce: false,
 
   connect: () => {
     if (get().client || get().initializing) return
@@ -32,6 +34,7 @@ export const useGatewayStore = create<GatewayStore>((set, get) => ({
         client.onStateChange((state) => {
           set({
             status: state,
+            hasConnectedOnce: state === 'connected' ? true : get().hasConnectedOnce,
             reconnectAttempt: state === 'connected'
               ? 0
               : state === 'error'
@@ -40,7 +43,12 @@ export const useGatewayStore = create<GatewayStore>((set, get) => ({
           })
         })
 
-        set({ client, status: client.state, initializing: false })
+        set({
+          client,
+          status: client.state,
+          initializing: false,
+          hasConnectedOnce: client.state === 'connected' ? true : get().hasConnectedOnce,
+        })
       })
       .catch((error) => {
         console.error('Failed to initialize gateway client:', error)
@@ -53,6 +61,6 @@ export const useGatewayStore = create<GatewayStore>((set, get) => ({
     if (client) {
       client.disconnect()
     }
-    set({ client: null, status: 'disconnected', reconnectAttempt: 0, initializing: false })
+    set({ client: null, status: 'disconnected', reconnectAttempt: 0, initializing: false, hasConnectedOnce: false })
   },
 }))
