@@ -278,7 +278,11 @@ function prepareBundledLocalPlugin({
   const targetDir = path.join(outputRoot, 'extensions', pluginId)
   fs.rmSync(targetDir, { recursive: true, force: true })
   fs.mkdirSync(path.dirname(targetDir), { recursive: true })
-  fs.cpSync(packageRoot, targetDir, { recursive: true, force: true })
+  fs.cpSync(packageRoot, targetDir, {
+    recursive: true,
+    force: true,
+    filter: (sourcePath) => !sourcePath.includes(`${path.sep}node_modules${path.sep}`) && !sourcePath.endsWith(`${path.sep}node_modules`),
+  })
 
   assertPathExists(path.join(targetDir, 'package.json'), `${pluginId} package.json`)
   assertPathExists(path.join(targetDir, 'openclaw.plugin.json'), `${pluginId} manifest`)
@@ -308,6 +312,8 @@ function prepareBundledLocalPlugin({
       npm_config_loglevel: process.env.npm_config_loglevel || 'warn',
     },
   })
+
+  fs.rmSync(path.join(targetDir, 'node_modules', '.bin'), { recursive: true, force: true })
 
   const pluginNodeModulesDir = path.join(targetDir, 'node_modules')
   const bundledHostPackageDir = path.join(pluginNodeModulesDir, 'openclaw')

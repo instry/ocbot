@@ -30,7 +30,7 @@ export const useUIStore = create<UIStore>()(
       tab: 'chat',
       sessionPanelOpen: true,
       themeName: 'default',
-      themeMode: 'dark',
+      themeMode: 'light',
 
       setTab: (tab) => set({ tab }),
 
