@@ -75,6 +75,57 @@ function pruneNodeModules(nodeModulesRoot) {
   })
 }
 
+function pruneRuntimeDist(runtimeDistRoot) {
+  walkDirectory(runtimeDistRoot, (entryPath, entry) => {
+    if (entry.isFile() && entry.name.endsWith('.map')) {
+      removeIfExists(entryPath)
+      return false
+    }
+
+    return true
+  })
+}
+
+function pruneBundledPluginHostPackage(hostPackageRoot) {
+  if (!fs.existsSync(hostPackageRoot)) {
+    return
+  }
+
+  const removableFiles = [
+    /\.map$/i,
+    /\.md$/i,
+    /\.markdown$/i,
+    /\.mdx$/i,
+    /\.ts$/i,
+    /\.mts$/i,
+    /\.cts$/i,
+  ]
+
+  walkDirectory(hostPackageRoot, (entryPath, entry) => {
+    if (entry.isFile() && removableFiles.some((pattern) => pattern.test(entry.name))) {
+      removeIfExists(entryPath)
+      return false
+    }
+
+    return true
+  })
+}
+
+function pruneBundledPluginHostPackages(packagedRuntimeRoot) {
+  const extensionsRoot = path.join(packagedRuntimeRoot, 'extensions')
+  if (!fs.existsSync(extensionsRoot)) {
+    return
+  }
+
+  for (const entry of fs.readdirSync(extensionsRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue
+    }
+
+    pruneBundledPluginHostPackage(path.join(extensionsRoot, entry.name, 'node_modules', 'openclaw'))
+  }
+}
+
 function pruneKoffiBinaries(nodeModulesRoot, platform, arch) {
   const koffiBuildRoot = path.join(nodeModulesRoot, 'koffi', 'build', 'koffi')
   if (!fs.existsSync(koffiBuildRoot)) {
@@ -97,6 +148,7 @@ function prunePackagedRuntime(context = {}) {
   const packagedResourcesRoot = resolvePackagedResourcesRoot(context)
   const packagedRuntimeRoot = path.join(packagedResourcesRoot, 'openclaw')
   const packagedNodeModules = path.join(packagedRuntimeRoot, 'node_modules')
+  const packagedRuntimeDist = path.join(packagedRuntimeRoot, 'dist')
 
   if (!fs.existsSync(packagedRuntimeRoot)) {
     throw new Error(`Packaged OpenClaw runtime not found: ${packagedRuntimeRoot}`)
@@ -105,8 +157,12 @@ function prunePackagedRuntime(context = {}) {
   removeIfExists(path.join(packagedRuntimeRoot, 'README.md'))
   removeIfExists(path.join(packagedRuntimeRoot, 'CHANGELOG.md'))
   removeIfExists(path.join(packagedRuntimeRoot, 'package-lock.json'))
+  removeIfExists(path.join(packagedRuntimeRoot, 'docs'))
+  removeIfExists(path.join(packagedRuntimeRoot, 'skills'))
 
   pruneNodeModules(packagedNodeModules)
+  pruneRuntimeDist(packagedRuntimeDist)
+  pruneBundledPluginHostPackages(packagedRuntimeRoot)
 
   const targetPlatform = context.electronPlatformName || process.platform
   const targetArch = normalizeArchName(context.arch) || normalizeArchName(process.arch) || process.arch
