@@ -95,6 +95,7 @@ export class RuntimeManager {
   private feishuInstallIsLark = false
   private feishuAuthModulePromise: Promise<FeishuAuthModule> | null = null
   private readonly weixinRuntime: WeixinRuntime
+  private readonly intentionallyStoppedGateways = new WeakSet<object>()
 
   constructor() {
     const userDataPath = app.getPath('userData')
@@ -161,7 +162,7 @@ export class RuntimeManager {
     return nextConfig
   }
 
-  saveChannelConfig(platform: DesktopChannelPlatform, nextConfig: DesktopChannelConfig): DesktopChannelConfig {
+  async saveChannelConfig(platform: DesktopChannelPlatform, nextConfig: DesktopChannelConfig): Promise<DesktopChannelConfig> {
     this.ensureConfig()
     const mapping = CHANNEL_CONFIG_MAP[platform]
     const config = this.readConfigObject()
@@ -205,9 +206,20 @@ export class RuntimeManager {
       }
     }
 
+    const previousSerialized = JSON.stringify(currentChannel)
+    const nextSerialized = JSON.stringify(nextChannel)
+    if (previousSerialized === nextSerialized) {
+      return this.getChannelConfig(platform)
+    }
+
     channels[mapping.channelKey] = nextChannel
     config.channels = channels
     this.writeConfigObject(config)
+
+    if (this.status === 'running') {
+      await this.restart()
+    }
+
     return this.getChannelConfig(platform)
   }
 
@@ -479,23 +491,15 @@ export class RuntimeManager {
   // --- Runtime resolution ---
 
   private resolveRuntime(): RuntimeInfo {
-    const candidates = app.isPackaged
-      ? [path.join(process.resourcesPath, 'openclaw')]
-      : [
-          // Dev: bundled runtime prepared into desktop/resources
-          path.join(app.getAppPath(), 'resources', 'openclaw'),
-          // Dev: built runtime in vendor/
-          path.join(app.getAppPath(), 'vendor', 'openclaw-runtime', 'current'),
-          // Dev: direct sibling openclaw repo
-          path.resolve(app.getAppPath(), '..', '..', 'openclaw'),
-        ]
+    const runtimeRoot = app.isPackaged
+      ? path.join(process.resourcesPath, 'openclaw')
+      : path.join(app.getAppPath(), 'resources', 'openclaw')
 
-    for (const candidate of candidates) {
-      if (candidate && fs.existsSync(candidate)) {
-        const version = this.readVersion(candidate)
-        return { root: candidate, version }
-      }
+    if (fs.existsSync(runtimeRoot)) {
+      const version = this.readVersion(runtimeRoot)
+      return { root: runtimeRoot, version }
     }
+
     return { root: null, version: null }
   }
 
@@ -787,6 +791,11 @@ export class RuntimeManager {
     }
 
     for (const channelKey of Object.keys(channels)) {
+      const isPluginBackedChannel = channelKey in pluginEntries || channelKey.startsWith('openclaw-')
+      if (!isPluginBackedChannel) {
+        continue
+      }
+
       if (this.hasRuntimePlugin(runtimeRoot, channelKey)) {
         continue
       }
@@ -955,6 +964,9 @@ export class RuntimeManager {
     let restartScheduled = false
 
     const scheduleRestart = () => {
+      if (this.intentionallyStoppedGateways.has(child as object)) {
+        return
+      }
       if (restartScheduled || this.shutdownRequested) {
         return
       }
@@ -984,6 +996,7 @@ export class RuntimeManager {
   private killGateway(): void {
     if (!this.gateway) return
     try {
+      this.intentionallyStoppedGateways.add(this.gateway as object)
       if ('kill' in this.gateway) {
         this.gateway.kill()
       }

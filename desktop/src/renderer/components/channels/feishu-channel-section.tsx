@@ -11,13 +11,11 @@ type FeishuManualDraft = {
 type FeishuChannelSectionProps = {
   currentConfig?: ChannelConfig
   currentPairingRequests: ChannelPairingRequest[]
-  currentAllowFrom: string[]
   loading: boolean
   errorMessage: string | null
   loadConfig: (platform: 'feishu') => Promise<unknown>
   saveConfig: (platform: 'feishu', config: ChannelConfig) => Promise<unknown>
   approvePairingCode: (platform: 'feishu', code: string) => Promise<boolean>
-  rejectPairingRequest: (platform: 'feishu', code: string) => Promise<boolean>
 }
 
 const DEFAULT_FEISHU_DOMAIN = 'feishu'
@@ -25,13 +23,11 @@ const DEFAULT_FEISHU_DOMAIN = 'feishu'
 export function FeishuChannelSection({
   currentConfig,
   currentPairingRequests,
-  currentAllowFrom,
   loading,
   errorMessage,
   loadConfig,
   saveConfig,
   approvePairingCode,
-  rejectPairingRequest,
 }: FeishuChannelSectionProps) {
   const [qrFlowStarted, setQrFlowStarted] = useState(false)
   const [qrWaiting, setQrWaiting] = useState(false)
@@ -45,10 +41,10 @@ export function FeishuChannelSection({
     appSecret: '',
   })
   const [feishuManualDirty, setFeishuManualDirty] = useState(false)
-  const [pairingCodeInput, setPairingCodeInput] = useState('')
   const [pairingActionMessage, setPairingActionMessage] = useState<string | null>(null)
   const feishuPollTimerRef = useRef<number | null>(null)
   const feishuCountdownTimerRef = useRef<number | null>(null)
+  const autoApprovedCodesRef = useRef(new Set<string>())
 
   const clearFeishuTimers = () => {
     if (feishuPollTimerRef.current !== null) {
@@ -78,6 +74,38 @@ export function FeishuChannelSection({
       clearFeishuTimers()
     }
   }, [])
+
+  useEffect(() => {
+    if (currentPairingRequests.length === 0) {
+      autoApprovedCodesRef.current.clear()
+      return
+    }
+
+    const pendingCodes = currentPairingRequests
+      .map((request) => request.code.trim().toUpperCase())
+      .filter((code) => code && !autoApprovedCodesRef.current.has(code))
+
+    if (pendingCodes.length === 0) {
+      return
+    }
+
+    for (const code of pendingCodes) {
+      autoApprovedCodesRef.current.add(code)
+    }
+
+    void (async () => {
+      let approvedCount = 0
+      for (const code of pendingCodes) {
+        if (await approvePairingCode('feishu', code)) {
+          approvedCount += 1
+        }
+      }
+
+      if (approvedCount > 0) {
+        setPairingActionMessage('Feishu senders are approved automatically.')
+      }
+    })()
+  }, [approvePairingCode, currentPairingRequests])
 
   const feishuQrExpired = qrFlowStarted && !!qrValue && feishuExpiresIn === 0
   const feishuQrActionDisabled = loading || (qrWaiting && !feishuQrExpired)
@@ -198,21 +226,6 @@ export function FeishuChannelSection({
     }
   }
 
-  const handleApprovePairing = async (code?: string) => {
-    const resolvedCode = (code ?? pairingCodeInput).trim().toUpperCase()
-    if (!resolvedCode) return
-    const approved = await approvePairingCode('feishu', resolvedCode)
-    setPairingActionMessage(approved ? `Approved ${resolvedCode}` : `Unable to approve ${resolvedCode}`)
-    if (approved && resolvedCode === pairingCodeInput.trim().toUpperCase()) {
-      setPairingCodeInput('')
-    }
-  }
-
-  const handleRejectPairing = async (code: string) => {
-    const rejected = await rejectPairingRequest('feishu', code)
-    setPairingActionMessage(rejected ? `Rejected ${code}` : `Unable to reject ${code}`)
-  }
-
   return (
     <FeishuChannelPanel
       currentAppId={currentConfig?.appId}
@@ -228,19 +241,13 @@ export function FeishuChannelSection({
       feishuManualDirty={feishuManualDirty}
       feishuConfigured={feishuConfigured}
       feishuManualConfigured={feishuManualConfigured}
-      pairingCodeInput={pairingCodeInput}
       pairingActionMessage={pairingActionMessage}
-      currentPairingRequests={currentPairingRequests}
-      currentAllowFrom={currentAllowFrom}
       loading={loading}
       errorMessage={errorMessage}
       onStartQrLogin={handleStartQrLogin}
       onFeishuManualChange={handleFeishuManualChange}
       onCancelFeishuManualConfig={handleCancelFeishuManualConfig}
       onSaveFeishuManualConfig={handleSaveFeishuManualConfig}
-      onPairingCodeInputChange={setPairingCodeInput}
-      onApprovePairing={handleApprovePairing}
-      onRejectPairing={handleRejectPairing}
     />
   )
 }

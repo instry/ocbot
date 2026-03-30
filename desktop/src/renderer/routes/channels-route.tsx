@@ -17,7 +17,6 @@ export function ChannelsRoute() {
     configs,
     statuses,
     pairingRequests,
-    allowFrom,
     loading,
     error,
     loadConfig,
@@ -25,7 +24,6 @@ export function ChannelsRoute() {
     loadStatuses,
     loadPairingRequests,
     approvePairingCode,
-    rejectPairingRequest,
     startQrLogin,
     waitQrLogin,
   } = useChannelStore()
@@ -63,7 +61,6 @@ export function ChannelsRoute() {
   const currentConfig = selectedPlatform ? configs[selectedPlatform] : undefined
   const currentStatus = selectedPlatform ? statuses[selectedPlatform] : undefined
   const currentPairingRequests = selectedPlatform ? pairingRequests[selectedPlatform] ?? [] : []
-  const currentAllowFrom = selectedPlatform ? allowFrom[selectedPlatform] ?? [] : []
   const currentErrorMessage = currentStatus?.lastError || error
   const isFeishu = selectedPlatform === 'feishu'
   const isWeixin = selectedPlatform === 'weixin'
@@ -91,13 +88,11 @@ export function ChannelsRoute() {
         <FeishuChannelSection
           currentConfig={currentConfig}
           currentPairingRequests={currentPairingRequests}
-          currentAllowFrom={currentAllowFrom}
           loading={loading}
           errorMessage={currentErrorMessage}
           loadConfig={loadConfig}
           saveConfig={saveConfig}
           approvePairingCode={approvePairingCode}
-          rejectPairingRequest={rejectPairingRequest}
         />
       )
     }

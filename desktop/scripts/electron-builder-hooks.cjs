@@ -374,6 +374,22 @@ const resolveWebLoginProvider = (params: unknown) => {
   }
 }
 
+function writeBundledRuntimeMarker(sourceRoot, outputRoot) {
+  const marker = {
+    desktopVersion: getDesktopVersion(),
+    openclawVersion: getConfiguredOpenClawVersion(),
+    openclawCommit: getConfiguredOpenClawCommit(),
+    preparedAt: new Date().toISOString(),
+    sourceRoot: path.resolve(sourceRoot),
+  }
+
+  fs.writeFileSync(
+    path.join(outputRoot, '.ocbot-runtime-ready.json'),
+    `${JSON.stringify(marker, null, 2)}\n`,
+    'utf8',
+  )
+}
+
 function prepareBundledRuntime(sourceRoot, outputRoot, runtimeTarget) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocbot-openclaw-runtime-'))
   const packDir = path.join(tempRoot, 'pack')
@@ -443,6 +459,7 @@ function prepareBundledRuntime(sourceRoot, outputRoot, runtimeTarget) {
       npmSpec: '@tencent-weixin/openclaw-weixin',
     })
     patchBundledWeixinPlugin(outputRoot)
+    writeBundledRuntimeMarker(sourceRoot, outputRoot)
 
     console.log(`[OpenClaw bundle] Bundled runtime ready at ${outputRoot}`)
   } finally {
@@ -469,6 +486,13 @@ async function beforePack(context = {}) {
 }
 
 module.exports = beforePack
+module.exports.patchBundledWeixinPlugin = patchBundledWeixinPlugin
+module.exports.prepareBundledExternalPlugin = prepareBundledExternalPlugin
+module.exports.prepareOpenClawRuntime = prepareOpenClawRuntime
+module.exports.resolveOpenClawSourceRoot = resolveOpenClawSourceRoot
+module.exports.resolveOutputRoot = resolveOutputRoot
+module.exports.resolveRuntimeTarget = resolveRuntimeTarget
+module.exports.writeBundledRuntimeMarker = writeBundledRuntimeMarker
 
 if (require.main === module) {
   Promise.resolve(beforePack()).catch((error) => {

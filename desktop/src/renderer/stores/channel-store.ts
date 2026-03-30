@@ -264,6 +264,7 @@ export const useChannelStore = create<ChannelStore>((set, get) => ({
         throw new Error('Ocbot desktop bridge not available')
       }
       const savedConfig = await window.ocbot.saveChannelConfig(platform, config) as ChannelConfig
+      await get().loadStatuses()
       set((state) => ({
         configs: { ...state.configs, [platform]: savedConfig },
         loading: false,

@@ -10,11 +10,6 @@ interface FeishuManualDraft {
   appSecret: string
 }
 
-interface PairingRequestItem {
-  id: string
-  code: string
-}
-
 interface FeishuChannelPanelProps {
   currentAppId?: string
   qrFlowStarted: boolean
@@ -29,19 +24,13 @@ interface FeishuChannelPanelProps {
   feishuManualDirty: boolean
   feishuConfigured: boolean
   feishuManualConfigured: boolean
-  pairingCodeInput: string
   pairingActionMessage: string | null
-  currentPairingRequests: PairingRequestItem[]
-  currentAllowFrom: string[]
   loading: boolean
   errorMessage: string | null
   onStartQrLogin: () => void
   onFeishuManualChange: (patch: Partial<FeishuManualDraft>) => void
   onCancelFeishuManualConfig: () => void
   onSaveFeishuManualConfig: () => void
-  onPairingCodeInputChange: (value: string) => void
-  onApprovePairing: (code?: string) => void
-  onRejectPairing: (code: string) => void
 }
 
 export function FeishuChannelPanel({
@@ -58,19 +47,13 @@ export function FeishuChannelPanel({
   feishuManualDirty,
   feishuConfigured,
   feishuManualConfigured,
-  pairingCodeInput,
   pairingActionMessage,
-  currentPairingRequests,
-  currentAllowFrom,
   loading,
   errorMessage,
   onStartQrLogin,
   onFeishuManualChange,
   onCancelFeishuManualConfig,
   onSaveFeishuManualConfig,
-  onPairingCodeInputChange,
-  onApprovePairing,
-  onRejectPairing,
 }: FeishuChannelPanelProps) {
   return (
     <div className="space-y-4">
@@ -143,7 +126,21 @@ export function FeishuChannelPanel({
         {(qrMessage || feishuAuthMessage) && (
           <div className="space-y-2">
             {qrMessage && (
-              <div className="text-xs text-muted-foreground">{qrMessage}</div>
+              <div
+                className={cn(
+                  'text-xs',
+                  qrMessage === 'Feishu authorization completed.'
+                    ? 'flex items-center gap-1.5 text-ok'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {qrMessage === 'Feishu authorization completed.' ? (
+                  <>
+                    <span className="h-2 w-2 rounded-full bg-ok" />
+                    Feishu is connected
+                  </>
+                ) : qrMessage}
+              </div>
             )}
             {feishuAuthMessage && (
               <div className="text-xs text-muted-foreground">{feishuAuthMessage}</div>
@@ -233,90 +230,19 @@ export function FeishuChannelPanel({
       {(feishuConfigured || feishuManualConfigured) ? (
         <div className="space-y-3 rounded-lg border border-border bg-bg-subtle p-4">
           <div className="space-y-1">
-            <div className="text-sm font-medium text-text-strong">Pairing</div>
+            <div className="text-sm font-medium text-text-strong">Messages</div>
             <div className="text-xs text-muted-foreground">
-              Complete pairing after scan setup or manual configuration.
+              Feishu senders are approved automatically after they message the bot.
             </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Input
-              value={pairingCodeInput}
-              onChange={(event) => onPairingCodeInputChange(event.target.value.toUpperCase())}
-              placeholder="Enter code"
-            />
-            <Button
-              onClick={() => onApprovePairing()}
-              disabled={loading || !pairingCodeInput.trim()}
-              variant="secondary"
-              size="md"
-            >
-              Approve
-            </Button>
           </div>
 
           {pairingActionMessage && (
             <div className="text-xs text-muted-foreground">{pairingActionMessage}</div>
           )}
-
-          <div className="space-y-2">
-            <div className="text-xs font-medium text-muted-foreground">Approved</div>
-            {currentAllowFrom.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {currentAllowFrom.map((entry) => (
-                  <span
-                    key={entry}
-                    className="rounded-full border border-border px-2 py-1 text-xs text-text"
-                  >
-                    {entry}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-muted-foreground">No approved sender IDs yet.</div>
-            )}
-          </div>
-
-          {currentPairingRequests.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground">Requests</div>
-              {currentPairingRequests.map((request) => (
-                <div
-                  key={`${request.code}-${request.id}`}
-                  className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm text-text-strong">{request.code}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {request.id}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={() => onApprovePairing(request.code)}
-                      disabled={loading}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      onClick={() => onRejectPairing(request.code)}
-                      disabled={loading}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">
-          Pairing becomes available after you finish scan setup or enter both App ID and App Secret.
+          Messaging becomes available after you finish scan setup or enter both App ID and App Secret.
         </div>
       )}
 
