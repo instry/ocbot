@@ -11,7 +11,12 @@ backup/
 dist/
 plans/
 scripts/.env
+browser/scripts/.env
+browser/web/.env
 scripts/installer/win/Output/
 scripts/installer/win/deps/
 channel-catalog.hash
 .openclaw/
+desktop/.ocbot-dev-runtime/
+desktop/out/
+desktop/resources/openclaw/
