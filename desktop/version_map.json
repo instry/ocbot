@@ -1,0 +1,26 @@
+{
+  "2026.3.28": {
+    "openclaw": "2026.3.25",
+    "openclawCommit": "883239a560ecc7e83860439a4adacba5c7b0ec78",
+    "publishedAt": "2026-03-28T00:00:00Z",
+    "releaseTag": "v2026.3.28",
+    "channel": "stable",
+    "cdnPath": "2026.3.28",
+    "notes": [
+      "Add desktop in-app update support backed by a Cloudflare-hosted JSON manifest.",
+      "Download platform-specific installers from GitHub Release assets with sha512 integrity verification.",
+      "Expose manual update check, download progress, and install actions in the desktop settings page."
+    ]
+  },
+  "2026.3.29": {
+    "openclaw": "2026.3.28",
+    "openclawCommit": "f9b1079283a8ee25a7cee77c8f8225d5c813bc30",
+    "publishedAt": "2026-03-29T00:00:00Z",
+    "releaseTag": "v2026.3.29",
+    "channel": "stable",
+    "cdnPath": "2026.3.29",
+    "notes": [
+      "Bump bundled OpenClaw runtime to 2026.3.28."
+    ]
+  }
+}

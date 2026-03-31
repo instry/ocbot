@@ -1,0 +1,189 @@
+@import "tailwindcss";
+@import "./theme.css";
+@import "./animations.css";
+
+/* Register custom design tokens as Tailwind colors */
+@theme {
+  --color-bg: var(--bg);
+  --color-bg-accent: var(--bg-accent);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-muted: var(--bg-muted);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-panel: var(--panel);
+  --color-panel-strong: var(--panel-strong);
+  --color-panel-hover: var(--panel-hover);
+
+  --color-text: var(--text);
+  --color-text-strong: var(--text-strong);
+  --color-chat-text: var(--chat-text);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-glow: var(--accent-glow);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-ok: var(--ok);
+  --color-ok-muted: var(--ok-muted);
+  --color-ok-subtle: var(--ok-subtle);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warn: var(--warn);
+  --color-warn-muted: var(--warn-muted);
+  --color-warn-subtle: var(--warn-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+
+  --color-button-primary: var(--button-primary);
+  --color-button-primary-hover: var(--button-primary-hover);
+  --color-button-primary-foreground: var(--button-primary-foreground);
+  --color-button-secondary: var(--button-secondary);
+  --color-button-secondary-hover: var(--button-secondary-hover);
+  --color-button-secondary-foreground: var(--button-secondary-foreground);
+  --color-button-secondary-border: var(--button-secondary-border);
+  --color-button-tonal: var(--button-tonal);
+  --color-button-tonal-hover: var(--button-tonal-hover);
+  --color-button-tonal-foreground: var(--button-tonal-foreground);
+  --color-button-tonal-border: var(--button-tonal-border);
+  --color-button-danger: var(--button-danger);
+  --color-button-danger-hover: var(--button-danger-hover);
+  --color-button-danger-foreground: var(--button-danger-foreground);
+  --color-button-danger-border: var(--button-danger-border);
+  --color-button-danger-solid: var(--button-danger-solid);
+  --color-button-danger-solid-hover: var(--button-danger-solid-hover);
+  --color-button-danger-solid-foreground: var(--button-danger-solid-foreground);
+  --color-button-success: var(--button-success);
+  --color-button-success-hover: var(--button-success-hover);
+  --color-button-success-foreground: var(--button-success-foreground);
+  --color-button-success-border: var(--button-success-border);
+
+  --font-sans: var(--font-body);
+  --font-mono: var(--mono);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+}
+
+/* Custom utilities for macOS titlebar drag region */
+@utility drag-region {
+  -webkit-app-region: drag;
+}
+
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Global resets */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font: 400 14px/1.55 var(--font-body);
+  letter-spacing: -0.01em;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-app-region: no-drag;
+}
+
+#root {
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+@media (min-width: 1600px) {
+  body {
+    font-size: 15px;
+  }
+}
+
+/* Make interactive elements not draggable */
+button, input, textarea, select, a, [role="button"] {
+  -webkit-app-region: no-drag;
+}
+
+button,
+a,
+[role="button"],
+label[for],
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: default;
+}
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--accent-subtle);
+  color: var(--text-strong);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Focus visible styles */
+:focus-visible {
+  outline: none;
+}

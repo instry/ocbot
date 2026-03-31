@@ -15,8 +15,11 @@ browser/scripts/.env
 browser/web/.env
 scripts/installer/win/Output/
 scripts/installer/win/deps/
+browser/scripts/installer/win/Output/
+browser/scripts/installer/win/deps/
+desktop/node_modules/
+desktop/dist/
+desktop/out/
+desktop/.ocbot-dev-runtime/
 channel-catalog.hash
 .openclaw/
-desktop/.ocbot-dev-runtime/
-desktop/out/
-desktop/resources/openclaw/
