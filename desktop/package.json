@@ -12,6 +12,8 @@
     "sync:version": "node scripts/sync-version.cjs",
     "ensure:openclaw": "node scripts/ensure-openclaw-runtime.cjs",
     "prepare:openclaw": "npm run sync:version && node scripts/electron-builder-hooks.cjs --prepare-only",
+    "release": "node scripts/release.cjs",
+    "release:dry-run": "node scripts/release.cjs --dry-run",
     "package:mac:x64": "node scripts/package.cjs --platform mac --arch x64",
     "package:mac:arm64": "node scripts/package.cjs --platform mac --arch arm64",
     "package:mac:all": "node scripts/package.cjs --platform mac --arch all",
