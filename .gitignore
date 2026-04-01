@@ -18,3 +18,4 @@ desktop/dist/
 desktop/out/
 desktop/.ocbot-dev-runtime/
 channel-catalog.hash
+/desktop/desktop_app/
