@@ -12,12 +12,33 @@ const macArchitectures = ['x64', 'arm64']
 const windowsArchitectures = ['x64', 'arm64', 'ia32']
 
 function resolveCommand(name) {
-  return process.platform === 'win32' ? `${name}.cmd` : name
+  if (process.platform !== 'win32') {
+    return name
+  }
+
+  const windowsCmdLaunchers = new Set(['npm', 'npx', 'pnpm', 'corepack'])
+  return windowsCmdLaunchers.has(name) ? `${name}.cmd` : name
+}
+
+function createSpawnInvocation(command, args) {
+  const useCmdLauncher = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command)
+  if (!useCmdLauncher) {
+    return { command, args, windowsHide: true }
+  }
+
+  const cmdCommand = process.env.ComSpec || 'cmd.exe'
+  return {
+    command: cmdCommand,
+    args: ['/d', '/s', '/c', command, ...args],
+    windowsHide: true,
+  }
 }
 
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+  const invocation = createSpawnInvocation(command, args)
+  const result = spawnSync(invocation.command, invocation.args, {
     stdio: 'inherit',
+    windowsHide: invocation.windowsHide,
     ...options,
   })
 
@@ -31,7 +52,11 @@ function run(command, args, options = {}) {
 }
 
 function commandExists(command, args = ['--version']) {
-  const result = spawnSync(command, args, { stdio: 'ignore' })
+  const invocation = createSpawnInvocation(command, args)
+  const result = spawnSync(invocation.command, invocation.args, {
+    stdio: 'ignore',
+    windowsHide: invocation.windowsHide,
+  })
   return !result.error && result.status === 0
 }
 
@@ -234,6 +259,7 @@ module.exports = {
   normalizePlatformName,
   projectRoot,
   readCliOption,
+  createSpawnInvocation,
   resolveCommand,
   run,
   syncPackageVersionFiles,

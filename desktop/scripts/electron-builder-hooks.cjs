@@ -6,6 +6,7 @@ const {
   assertSupportedRuntimeTarget,
   bundledRuntimeRoot,
   commandExists,
+  createSpawnInvocation,
   getConfiguredOpenClawCommit,
   defaultOpenClawSourceRoot,
   getConfiguredOpenClawVersion,
@@ -19,9 +20,11 @@ const {
 } = require('./common.cjs')
 
 function runAndRead(command, args, options = {}) {
-  const result = require('node:child_process').spawnSync(command, args, {
+  const invocation = createSpawnInvocation(command, args)
+  const result = require('node:child_process').spawnSync(invocation.command, invocation.args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: invocation.windowsHide,
     ...options,
   })
 
@@ -37,15 +40,37 @@ function runAndRead(command, args, options = {}) {
   return typeof result.stdout === 'string' ? result.stdout.trim() : ''
 }
 
+function findInstalledPnpmOnWindows() {
+  if (process.platform !== 'win32') {
+    return undefined
+  }
+
+  try {
+    const output = runAndRead('where.exe', ['pnpm'])
+    const entries = output
+      .split(/\r?\n/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+
+    return entries.find((entry) => entry.toLowerCase().endsWith('.exe'))
+      || entries.find((entry) => entry.toLowerCase().endsWith('.cmd'))
+  } catch {
+    return undefined
+  }
+}
+
 function resolvePnpmRunner() {
+  const installedPnpm = findInstalledPnpmOnWindows()
+  const installedPnpmDir = installedPnpm ? path.dirname(installedPnpm) : undefined
+
   const corepack = resolveCommand('corepack')
   if (commandExists(corepack, ['pnpm', '--version'])) {
-    return { command: corepack, prefixArgs: ['pnpm'] }
+    return { command: corepack, prefixArgs: ['pnpm'], pathEntries: installedPnpmDir ? [installedPnpmDir] : [] }
   }
 
   const pnpm = resolveCommand('pnpm')
   if (commandExists(pnpm)) {
-    return { command: pnpm, prefixArgs: [] }
+    return { command: pnpm, prefixArgs: [], pathEntries: installedPnpmDir ? [installedPnpmDir] : [] }
   }
 
   throw new Error('pnpm is required to build the bundled OpenClaw runtime')
@@ -53,7 +78,19 @@ function resolvePnpmRunner() {
 
 function runPnpm(args, options = {}) {
   const runner = resolvePnpmRunner()
-  run(runner.command, [...runner.prefixArgs, ...args], options)
+  const inheritedPath = options.env?.PATH || options.env?.Path || process.env.PATH || process.env.Path || ''
+  const runnerDir = path.isAbsolute(runner.command) ? path.dirname(runner.command) : undefined
+  const nextPath = [...(runner.pathEntries || []), runnerDir, inheritedPath].filter(Boolean).join(path.delimiter)
+
+  run(runner.command, [...runner.prefixArgs, ...args], {
+    ...options,
+    env: {
+      ...process.env,
+      ...options.env,
+      PATH: nextPath,
+      Path: nextPath,
+    },
+  })
 }
 
 function resolveOpenClawSourceRoot() {
@@ -176,14 +213,8 @@ function ensureOpenClawBuild(sourceRoot) {
     return
   }
 
-  console.log(`[OpenClaw bundle] Building OpenClaw from ${sourceRoot}`)
-  runPnpm(['install', '--frozen-lockfile'], { cwd: sourceRoot })
-  runPnpm(['build'], { cwd: sourceRoot })
-  runPnpm(['ui:build'], { cwd: sourceRoot })
-
-  if (!hasBuiltOpenClaw(sourceRoot)) {
-    throw new Error(`OpenClaw build output is incomplete: ${sourceRoot}`)
-  }
+  console.log(`[OpenClaw bundle] Local source build artifacts missing in ${sourceRoot}`)
+  console.log(`[OpenClaw bundle] Falling back to published OpenClaw package ${getConfiguredOpenClawVersion()} for runtime bundling`)
 }
 
 function prepareBundledExternalPlugin({
@@ -493,8 +524,15 @@ function prepareBundledRuntime(sourceRoot, outputRoot, runtimeTarget) {
   fs.mkdirSync(extractDir, { recursive: true })
 
   try {
-    console.log(`[OpenClaw bundle] Packing OpenClaw from ${sourceRoot}`)
-    run(resolveCommand('npm'), ['pack', '--pack-destination', packDir], { cwd: sourceRoot })
+    const packArgs = hasBuiltOpenClaw(sourceRoot)
+      ? ['pack', '--pack-destination', packDir]
+      : ['pack', `openclaw@${getConfiguredOpenClawVersion()}`, '--pack-destination', packDir]
+    const packLabel = hasBuiltOpenClaw(sourceRoot)
+      ? sourceRoot
+      : `npm registry package openclaw@${getConfiguredOpenClawVersion()}`
+
+    console.log(`[OpenClaw bundle] Packing OpenClaw from ${packLabel}`)
+    run(resolveCommand('npm'), packArgs, hasBuiltOpenClaw(sourceRoot) ? { cwd: sourceRoot } : {})
 
     const tarballName = fs.readdirSync(packDir).find((entry) => entry.endsWith('.tgz'))
     if (!tarballName) {
